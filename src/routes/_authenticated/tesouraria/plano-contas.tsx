@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/tesouraria/plano-contas")(
 
 function PlanoContas() {
   const qc = useQueryClient();
-  const [novo, setNovo] = useState({ codigo: "", nome: "", tipo: "despesa" });
+  const [novo, setNovo] = useState<{ codigo: string; nome: string; tipo: "receita" | "despesa" }>({ codigo: "", nome: "", tipo: "despesa" });
   const { data = [] } = useQuery({
     queryKey: ["plano_contas_all"],
     queryFn: async () => (await supabase.from("plano_contas").select("*").order("codigo")).data ?? [],
@@ -41,7 +41,7 @@ function PlanoContas() {
           <div className="md:col-span-2"><Label>Nome</Label><Input value={novo.nome} onChange={(e) => setNovo({ ...novo, nome: e.target.value })} /></div>
           <div>
             <Label>Tipo</Label>
-            <Select value={novo.tipo} onValueChange={(v) => setNovo({ ...novo, tipo: v })}>
+            <Select value={novo.tipo} onValueChange={(v) => setNovo({ ...novo, tipo: v as typeof novo.tipo })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="receita">Receita</SelectItem>

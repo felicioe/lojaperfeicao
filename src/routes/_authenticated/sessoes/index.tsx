@@ -49,7 +49,7 @@ function SessoesList() {
             <div><Label>Data</Label><Input type="date" value={nova.data} onChange={(e) => setNova({ ...nova, data: e.target.value })} /></div>
             <div>
               <Label>Tipo</Label>
-              <Select value={nova.tipo} onValueChange={(v) => setNova({ ...nova, tipo: v })}>
+              <Select value={nova.tipo} onValueChange={(v) => setNova({ ...nova, tipo: v as typeof nova.tipo })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(TIPO_SESSAO_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
@@ -58,7 +58,7 @@ function SessoesList() {
             </div>
             <div>
               <Label>Grau</Label>
-              <Select value={nova.grau} onValueChange={(v) => setNova({ ...nova, grau: v })}>
+              <Select value={nova.grau} onValueChange={(v) => setNova({ ...nova, grau: v as typeof nova.grau })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(GRAU_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}

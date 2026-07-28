@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/tesouraria/contas")({
 
 function Contas() {
   const qc = useQueryClient();
-  const [nova, setNova] = useState({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "" });
+  const [nova, setNova] = useState<{ nome: string; tipo: "caixa" | "banco" | "outro"; saldo_inicial: number; banco: string }>({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "" });
 
   const saldos = useQuery({
     queryKey: ["saldos"],
@@ -43,7 +43,7 @@ function Contas() {
           <div><Label>Nome</Label><Input value={nova.nome} onChange={(e) => setNova({ ...nova, nome: e.target.value })} /></div>
           <div>
             <Label>Tipo</Label>
-            <Select value={nova.tipo} onValueChange={(v) => setNova({ ...nova, tipo: v })}>
+            <Select value={nova.tipo} onValueChange={(v) => setNova({ ...nova, tipo: v as typeof nova.tipo })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="caixa">Caixa</SelectItem>
