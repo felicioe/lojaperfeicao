@@ -373,18 +373,21 @@ export type Database = {
           id: string | null
           nome: string | null
           saldo_atual: number | null
+          saldo_inicial: number | null
           tipo: Database["public"]["Enums"]["tipo_conta"] | null
         }
         Insert: {
           id?: string | null
           nome?: string | null
           saldo_atual?: never
+          saldo_inicial?: number | null
           tipo?: Database["public"]["Enums"]["tipo_conta"] | null
         }
         Update: {
           id?: string | null
           nome?: string | null
           saldo_atual?: never
+          saldo_inicial?: number | null
           tipo?: Database["public"]["Enums"]["tipo_conta"] | null
         }
         Relationships: []
