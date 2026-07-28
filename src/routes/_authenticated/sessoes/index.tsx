@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/sessoes/")({
 function SessoesList() {
   const qc = useQueryClient();
   const can = useCan();
-  const [nova, setNova] = useState({ data: toISODate(new Date()), tipo: "ordinaria", grau: "aprendiz" });
+  const [nova, setNova] = useState<{ data: string; tipo: "ordinaria" | "magna" | "branca" | "administrativa"; grau: "aprendiz" | "companheiro" | "mestre" }>({ data: toISODate(new Date()), tipo: "ordinaria", grau: "aprendiz" });
 
   const { data = [] } = useQuery({
     queryKey: ["sessoes"],

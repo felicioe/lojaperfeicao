@@ -9,38 +9,216 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
+import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
+import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
+import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
+import { Route as AuthenticatedTesourariaContasRouteImport } from './routes/_authenticated/tesouraria/contas'
+import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
+import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
+import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
+import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
+import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTesourariaIndexRoute =
+  AuthenticatedTesourariaIndexRouteImport.update({
+    id: '/tesouraria/',
+    path: '/tesouraria/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSessoesIndexRoute =
+  AuthenticatedSessoesIndexRouteImport.update({
+    id: '/sessoes/',
+    path: '/sessoes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIrmaosIndexRoute =
+  AuthenticatedIrmaosIndexRouteImport.update({
+    id: '/irmaos/',
+    path: '/irmaos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaPlanoContasRoute =
+  AuthenticatedTesourariaPlanoContasRouteImport.update({
+    id: '/tesouraria/plano-contas',
+    path: '/tesouraria/plano-contas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaContasRoute =
+  AuthenticatedTesourariaContasRouteImport.update({
+    id: '/tesouraria/contas',
+    path: '/tesouraria/contas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSessoesIdRoute = AuthenticatedSessoesIdRouteImport.update({
+  id: '/sessoes/$id',
+  path: '/sessoes/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRelatoriosInadimplentesRoute =
+  AuthenticatedRelatoriosInadimplentesRouteImport.update({
+    id: '/relatorios/inadimplentes',
+    path: '/relatorios/inadimplentes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedRelatoriosFrequenciaRoute =
+  AuthenticatedRelatoriosFrequenciaRouteImport.update({
+    id: '/relatorios/frequencia',
+    path: '/relatorios/frequencia',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIrmaosNovoRoute = AuthenticatedIrmaosNovoRouteImport.update({
+  id: '/irmaos/novo',
+  path: '/irmaos/novo',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedIrmaosIdRoute = AuthenticatedIrmaosIdRouteImport.update({
+  id: '/irmaos/$id',
+  path: '/irmaos/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
+  '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
+  '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
+  '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
+  '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
+  '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
+  '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
+  '/sessoes/': typeof AuthenticatedSessoesIndexRoute
+  '/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
+  '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
+  '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
+  '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
+  '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
+  '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
+  '/irmaos': typeof AuthenticatedIrmaosIndexRoute
+  '/sessoes': typeof AuthenticatedSessoesIndexRoute
+  '/tesouraria': typeof AuthenticatedTesourariaIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
+  '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
+  '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
+  '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
+  '/_authenticated/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/_authenticated/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
+  '/_authenticated/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
+  '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
+  '/_authenticated/sessoes/': typeof AuthenticatedSessoesIndexRoute
+  '/_authenticated/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/irmaos/$id'
+    | '/irmaos/novo'
+    | '/relatorios/frequencia'
+    | '/relatorios/inadimplentes'
+    | '/sessoes/$id'
+    | '/tesouraria/contas'
+    | '/tesouraria/plano-contas'
+    | '/irmaos/'
+    | '/sessoes/'
+    | '/tesouraria/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/irmaos/$id'
+    | '/irmaos/novo'
+    | '/relatorios/frequencia'
+    | '/relatorios/inadimplentes'
+    | '/sessoes/$id'
+    | '/tesouraria/contas'
+    | '/tesouraria/plano-contas'
+    | '/irmaos'
+    | '/sessoes'
+    | '/tesouraria'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/irmaos/$id'
+    | '/_authenticated/irmaos/novo'
+    | '/_authenticated/relatorios/frequencia'
+    | '/_authenticated/relatorios/inadimplentes'
+    | '/_authenticated/sessoes/$id'
+    | '/_authenticated/tesouraria/contas'
+    | '/_authenticated/tesouraria/plano-contas'
+    | '/_authenticated/irmaos/'
+    | '/_authenticated/sessoes/'
+    | '/_authenticated/tesouraria/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +226,124 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/': {
+      id: '/_authenticated/tesouraria/'
+      path: '/tesouraria'
+      fullPath: '/tesouraria/'
+      preLoaderRoute: typeof AuthenticatedTesourariaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sessoes/': {
+      id: '/_authenticated/sessoes/'
+      path: '/sessoes'
+      fullPath: '/sessoes/'
+      preLoaderRoute: typeof AuthenticatedSessoesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/irmaos/': {
+      id: '/_authenticated/irmaos/'
+      path: '/irmaos'
+      fullPath: '/irmaos/'
+      preLoaderRoute: typeof AuthenticatedIrmaosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/plano-contas': {
+      id: '/_authenticated/tesouraria/plano-contas'
+      path: '/tesouraria/plano-contas'
+      fullPath: '/tesouraria/plano-contas'
+      preLoaderRoute: typeof AuthenticatedTesourariaPlanoContasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/contas': {
+      id: '/_authenticated/tesouraria/contas'
+      path: '/tesouraria/contas'
+      fullPath: '/tesouraria/contas'
+      preLoaderRoute: typeof AuthenticatedTesourariaContasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sessoes/$id': {
+      id: '/_authenticated/sessoes/$id'
+      path: '/sessoes/$id'
+      fullPath: '/sessoes/$id'
+      preLoaderRoute: typeof AuthenticatedSessoesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/relatorios/inadimplentes': {
+      id: '/_authenticated/relatorios/inadimplentes'
+      path: '/relatorios/inadimplentes'
+      fullPath: '/relatorios/inadimplentes'
+      preLoaderRoute: typeof AuthenticatedRelatoriosInadimplentesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/relatorios/frequencia': {
+      id: '/_authenticated/relatorios/frequencia'
+      path: '/relatorios/frequencia'
+      fullPath: '/relatorios/frequencia'
+      preLoaderRoute: typeof AuthenticatedRelatoriosFrequenciaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/irmaos/novo': {
+      id: '/_authenticated/irmaos/novo'
+      path: '/irmaos/novo'
+      fullPath: '/irmaos/novo'
+      preLoaderRoute: typeof AuthenticatedIrmaosNovoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/irmaos/$id': {
+      id: '/_authenticated/irmaos/$id'
+      path: '/irmaos/$id'
+      fullPath: '/irmaos/$id'
+      preLoaderRoute: typeof AuthenticatedIrmaosIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
+  AuthenticatedIrmaosNovoRoute: typeof AuthenticatedIrmaosNovoRoute
+  AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
+  AuthenticatedRelatoriosInadimplentesRoute: typeof AuthenticatedRelatoriosInadimplentesRoute
+  AuthenticatedSessoesIdRoute: typeof AuthenticatedSessoesIdRoute
+  AuthenticatedTesourariaContasRoute: typeof AuthenticatedTesourariaContasRoute
+  AuthenticatedTesourariaPlanoContasRoute: typeof AuthenticatedTesourariaPlanoContasRoute
+  AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
+  AuthenticatedSessoesIndexRoute: typeof AuthenticatedSessoesIndexRoute
+  AuthenticatedTesourariaIndexRoute: typeof AuthenticatedTesourariaIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
+  AuthenticatedIrmaosNovoRoute: AuthenticatedIrmaosNovoRoute,
+  AuthenticatedRelatoriosFrequenciaRoute:
+    AuthenticatedRelatoriosFrequenciaRoute,
+  AuthenticatedRelatoriosInadimplentesRoute:
+    AuthenticatedRelatoriosInadimplentesRoute,
+  AuthenticatedSessoesIdRoute: AuthenticatedSessoesIdRoute,
+  AuthenticatedTesourariaContasRoute: AuthenticatedTesourariaContasRoute,
+  AuthenticatedTesourariaPlanoContasRoute:
+    AuthenticatedTesourariaPlanoContasRoute,
+  AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
+  AuthenticatedSessoesIndexRoute: AuthenticatedSessoesIndexRoute,
+  AuthenticatedTesourariaIndexRoute: AuthenticatedTesourariaIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
