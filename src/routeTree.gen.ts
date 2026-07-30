@@ -14,38 +14,38 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
-import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
-import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
-import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
-import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
 import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authenticated/terceiros/index'
-import { Route as AuthenticatedTesourariaContasPagarRouteImport } from './routes/_authenticated/tesouraria/contas-pagar'
-import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes/_authenticated/tesouraria/recorrentes'
-import { Route as AuthenticatedTesourariaFaturasRouteImport } from './routes/_authenticated/tesouraria/faturas'
-import { Route as AuthenticatedTesourariaRecibosRouteImport } from './routes/_authenticated/tesouraria/recibos'
-import { Route as AuthenticatedTesourariaParametrosRouteImport } from './routes/_authenticated/tesouraria/parametros'
-import { Route as AuthenticatedTesourariaParcelamentosRouteImport } from './routes/_authenticated/tesouraria/parcelamentos'
-import { Route as AuthenticatedTesourariaMovimentosRouteImport } from './routes/_authenticated/tesouraria/movimentos'
+import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
+import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
+import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
+import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
 import { Route as AuthenticatedTesourariaTroncoRouteImport } from './routes/_authenticated/tesouraria/tronco'
-import { Route as AuthenticatedTesourariaConciliacaoRouteImport } from './routes/_authenticated/tesouraria/conciliacao'
+import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes/_authenticated/tesouraria/recorrentes'
+import { Route as AuthenticatedTesourariaRecibosRouteImport } from './routes/_authenticated/tesouraria/recibos'
 import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
+import { Route as AuthenticatedTesourariaParcelamentosRouteImport } from './routes/_authenticated/tesouraria/parcelamentos'
+import { Route as AuthenticatedTesourariaParametrosRouteImport } from './routes/_authenticated/tesouraria/parametros'
+import { Route as AuthenticatedTesourariaMovimentosRouteImport } from './routes/_authenticated/tesouraria/movimentos'
+import { Route as AuthenticatedTesourariaFaturasRouteImport } from './routes/_authenticated/tesouraria/faturas'
+import { Route as AuthenticatedTesourariaContasPagarRouteImport } from './routes/_authenticated/tesouraria/contas-pagar'
 import { Route as AuthenticatedTesourariaContasRouteImport } from './routes/_authenticated/tesouraria/contas'
+import { Route as AuthenticatedTesourariaConciliacaoRouteImport } from './routes/_authenticated/tesouraria/conciliacao'
 import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
 import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
 import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
+import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
 import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
-import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
+import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
-import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
-import { Route as AuthenticatedContabilidadeDreRouteImport } from './routes/_authenticated/contabilidade/dre'
-import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
-import { Route as AuthenticatedContabilidadeDreOrcadoRouteImport } from './routes/_authenticated/contabilidade/dre-orcado'
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './routes/_authenticated/contabilidade/fechamento'
-import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
-import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
+import { Route as AuthenticatedContabilidadeDreOrcadoRouteImport } from './routes/_authenticated/contabilidade/dre-orcado'
+import { Route as AuthenticatedContabilidadeDreRouteImport } from './routes/_authenticated/contabilidade/dre'
+import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
+import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
+import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -72,16 +72,16 @@ const AuthenticatedTesourariaIndexRoute =
     path: '/tesouraria/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTerceirosIndexRoute =
+  AuthenticatedTerceirosIndexRouteImport.update({
+    id: '/terceiros/',
+    path: '/terceiros/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSessoesIndexRoute =
   AuthenticatedSessoesIndexRouteImport.update({
     id: '/sessoes/',
     path: '/sessoes/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedIrmaosIndexRoute =
-  AuthenticatedIrmaosIndexRouteImport.update({
-    id: '/irmaos/',
-    path: '/irmaos/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedOrgsIndexRoute = AuthenticatedOrgsIndexRouteImport.update({
@@ -89,34 +89,22 @@ const AuthenticatedOrgsIndexRoute = AuthenticatedOrgsIndexRouteImport.update({
   path: '/orgs/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIrmaosIndexRoute =
+  AuthenticatedIrmaosIndexRouteImport.update({
+    id: '/irmaos/',
+    path: '/irmaos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedGestoesIndexRoute =
   AuthenticatedGestoesIndexRouteImport.update({
     id: '/gestoes/',
     path: '/gestoes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedTerceirosIndexRoute =
-  AuthenticatedTerceirosIndexRouteImport.update({
-    id: '/terceiros/',
-    path: '/terceiros/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaPlanoContasRoute =
-  AuthenticatedTesourariaPlanoContasRouteImport.update({
-    id: '/tesouraria/plano-contas',
-    path: '/tesouraria/plano-contas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaContasRoute =
-  AuthenticatedTesourariaContasRouteImport.update({
-    id: '/tesouraria/contas',
-    path: '/tesouraria/contas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaContasPagarRoute =
-  AuthenticatedTesourariaContasPagarRouteImport.update({
-    id: '/tesouraria/contas-pagar',
-    path: '/tesouraria/contas-pagar',
+const AuthenticatedTesourariaTroncoRoute =
+  AuthenticatedTesourariaTroncoRouteImport.update({
+    id: '/tesouraria/tronco',
+    path: '/tesouraria/tronco',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedTesourariaRecorrentesRoute =
@@ -125,22 +113,16 @@ const AuthenticatedTesourariaRecorrentesRoute =
     path: '/tesouraria/recorrentes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedTesourariaFaturasRoute =
-  AuthenticatedTesourariaFaturasRouteImport.update({
-    id: '/tesouraria/faturas',
-    path: '/tesouraria/faturas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedTesourariaRecibosRoute =
   AuthenticatedTesourariaRecibosRouteImport.update({
     id: '/tesouraria/recibos',
     path: '/tesouraria/recibos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedTesourariaParametrosRoute =
-  AuthenticatedTesourariaParametrosRouteImport.update({
-    id: '/tesouraria/parametros',
-    path: '/tesouraria/parametros',
+const AuthenticatedTesourariaPlanoContasRoute =
+  AuthenticatedTesourariaPlanoContasRouteImport.update({
+    id: '/tesouraria/plano-contas',
+    path: '/tesouraria/plano-contas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedTesourariaParcelamentosRoute =
@@ -149,16 +131,34 @@ const AuthenticatedTesourariaParcelamentosRoute =
     path: '/tesouraria/parcelamentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTesourariaParametrosRoute =
+  AuthenticatedTesourariaParametrosRouteImport.update({
+    id: '/tesouraria/parametros',
+    path: '/tesouraria/parametros',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTesourariaMovimentosRoute =
   AuthenticatedTesourariaMovimentosRouteImport.update({
     id: '/tesouraria/movimentos',
     path: '/tesouraria/movimentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedTesourariaTroncoRoute =
-  AuthenticatedTesourariaTroncoRouteImport.update({
-    id: '/tesouraria/tronco',
-    path: '/tesouraria/tronco',
+const AuthenticatedTesourariaFaturasRoute =
+  AuthenticatedTesourariaFaturasRouteImport.update({
+    id: '/tesouraria/faturas',
+    path: '/tesouraria/faturas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaContasPagarRoute =
+  AuthenticatedTesourariaContasPagarRouteImport.update({
+    id: '/tesouraria/contas-pagar',
+    path: '/tesouraria/contas-pagar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaContasRoute =
+  AuthenticatedTesourariaContasRouteImport.update({
+    id: '/tesouraria/contas',
+    path: '/tesouraria/contas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedTesourariaConciliacaoRoute =
@@ -184,6 +184,12 @@ const AuthenticatedRelatoriosFrequenciaRoute =
     path: '/relatorios/frequencia',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOrgsPotenciasRoute =
+  AuthenticatedOrgsPotenciasRouteImport.update({
+    id: '/orgs/potencias',
+    path: '/orgs/potencias',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedIrmaosNovoRoute = AuthenticatedIrmaosNovoRouteImport.update({
   id: '/irmaos/novo',
   path: '/irmaos/novo',
@@ -194,10 +200,10 @@ const AuthenticatedIrmaosIdRoute = AuthenticatedIrmaosIdRouteImport.update({
   path: '/irmaos/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedContabilidadeAuditoriaRoute =
-  AuthenticatedContabilidadeAuditoriaRouteImport.update({
-    id: '/contabilidade/auditoria',
-    path: '/contabilidade/auditoria',
+const AuthenticatedGestoesCargosRoute =
+  AuthenticatedGestoesCargosRouteImport.update({
+    id: '/gestoes/cargos',
+    path: '/gestoes/cargos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeRazaoRoute =
@@ -206,34 +212,10 @@ const AuthenticatedContabilidadeRazaoRoute =
     path: '/contabilidade/razao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedContabilidadeDiarioRoute =
-  AuthenticatedContabilidadeDiarioRouteImport.update({
-    id: '/contabilidade/diario',
-    path: '/contabilidade/diario',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeDreRoute =
-  AuthenticatedContabilidadeDreRouteImport.update({
-    id: '/contabilidade/dre',
-    path: '/contabilidade/dre',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeBalanceteRoute =
-  AuthenticatedContabilidadeBalanceteRouteImport.update({
-    id: '/contabilidade/balancete',
-    path: '/contabilidade/balancete',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedContabilidadeOrcamentoRoute =
   AuthenticatedContabilidadeOrcamentoRouteImport.update({
     id: '/contabilidade/orcamento',
     path: '/contabilidade/orcamento',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeDreOrcadoRoute =
-  AuthenticatedContabilidadeDreOrcadoRouteImport.update({
-    id: '/contabilidade/dre-orcado',
-    path: '/contabilidade/dre-orcado',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeFluxoCaixaRoute =
@@ -248,16 +230,34 @@ const AuthenticatedContabilidadeFechamentoRoute =
     path: '/contabilidade/fechamento',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedOrgsPotenciasRoute =
-  AuthenticatedOrgsPotenciasRouteImport.update({
-    id: '/orgs/potencias',
-    path: '/orgs/potencias',
+const AuthenticatedContabilidadeDreOrcadoRoute =
+  AuthenticatedContabilidadeDreOrcadoRouteImport.update({
+    id: '/contabilidade/dre-orcado',
+    path: '/contabilidade/dre-orcado',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedGestoesCargosRoute =
-  AuthenticatedGestoesCargosRouteImport.update({
-    id: '/gestoes/cargos',
-    path: '/gestoes/cargos',
+const AuthenticatedContabilidadeDreRoute =
+  AuthenticatedContabilidadeDreRouteImport.update({
+    id: '/contabilidade/dre',
+    path: '/contabilidade/dre',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeDiarioRoute =
+  AuthenticatedContabilidadeDiarioRouteImport.update({
+    id: '/contabilidade/diario',
+    path: '/contabilidade/diario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeBalanceteRoute =
+  AuthenticatedContabilidadeBalanceteRouteImport.update({
+    id: '/contabilidade/balancete',
+    path: '/contabilidade/balancete',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeAuditoriaRoute =
+  AuthenticatedContabilidadeAuditoriaRouteImport.update({
+    id: '/contabilidade/auditoria',
+    path: '/contabilidade/auditoria',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -266,37 +266,37 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
-  '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
-  '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
-  '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
-  '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
-  '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
+  '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
+  '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
-  '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasRoute
-  '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
   '/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/tesouraria/parcelamentos': typeof AuthenticatedTesourariaParcelamentosRoute
-  '/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
-  '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
-  '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
+  '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
-  '/gestoes/': typeof AuthenticatedGestoesIndexRoute
-  '/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/sessoes/': typeof AuthenticatedSessoesIndexRoute
+  '/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
 }
 export interface FileRoutesByTo {
@@ -304,37 +304,37 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
-  '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
-  '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
-  '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
-  '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
-  '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
+  '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
+  '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
-  '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasRoute
-  '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
   '/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/tesouraria/parcelamentos': typeof AuthenticatedTesourariaParcelamentosRoute
-  '/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
-  '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
-  '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
+  '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/gestoes': typeof AuthenticatedGestoesIndexRoute
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
-  '/gestoes': typeof AuthenticatedGestoesIndexRoute
-  '/terceiros': typeof AuthenticatedTerceirosIndexRoute
   '/sessoes': typeof AuthenticatedSessoesIndexRoute
+  '/terceiros': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria': typeof AuthenticatedTesourariaIndexRoute
 }
 export interface FileRoutesById {
@@ -344,37 +344,37 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
-  '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/_authenticated/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/_authenticated/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
-  '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
-  '/_authenticated/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/_authenticated/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
-  '/_authenticated/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/_authenticated/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
-  '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/_authenticated/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
+  '/_authenticated/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/_authenticated/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
+  '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/_authenticated/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/_authenticated/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/_authenticated/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/_authenticated/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
-  '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasRoute
-  '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/_authenticated/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
   '/_authenticated/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/_authenticated/tesouraria/parcelamentos': typeof AuthenticatedTesourariaParcelamentosRoute
-  '/_authenticated/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
-  '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
-  '/_authenticated/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/_authenticated/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
+  '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
-  '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
-  '/_authenticated/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/_authenticated/sessoes/': typeof AuthenticatedSessoesIndexRoute
+  '/_authenticated/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/_authenticated/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
 }
 export interface FileRouteTypes {
@@ -384,37 +384,37 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/contabilidade/auditoria'
-    | '/contabilidade/razao'
+    | '/contabilidade/balancete'
     | '/contabilidade/diario'
     | '/contabilidade/dre'
-    | '/contabilidade/balancete'
-    | '/contabilidade/orcamento'
     | '/contabilidade/dre-orcado'
-    | '/contabilidade/fluxo-caixa'
     | '/contabilidade/fechamento'
-    | '/orgs/potencias'
+    | '/contabilidade/fluxo-caixa'
+    | '/contabilidade/orcamento'
+    | '/contabilidade/razao'
     | '/gestoes/cargos'
     | '/irmaos/$id'
     | '/irmaos/novo'
+    | '/orgs/potencias'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
     | '/sessoes/$id'
+    | '/tesouraria/conciliacao'
     | '/tesouraria/contas'
     | '/tesouraria/contas-pagar'
-    | '/tesouraria/recorrentes'
     | '/tesouraria/faturas'
-    | '/tesouraria/recibos'
+    | '/tesouraria/movimentos'
     | '/tesouraria/parametros'
     | '/tesouraria/parcelamentos'
-    | '/tesouraria/movimentos'
-    | '/tesouraria/tronco'
-    | '/tesouraria/conciliacao'
     | '/tesouraria/plano-contas'
+    | '/tesouraria/recibos'
+    | '/tesouraria/recorrentes'
+    | '/tesouraria/tronco'
+    | '/gestoes/'
     | '/irmaos/'
     | '/orgs/'
-    | '/gestoes/'
-    | '/terceiros/'
     | '/sessoes/'
+    | '/terceiros/'
     | '/tesouraria/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -422,37 +422,37 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/contabilidade/auditoria'
-    | '/contabilidade/razao'
+    | '/contabilidade/balancete'
     | '/contabilidade/diario'
     | '/contabilidade/dre'
-    | '/contabilidade/balancete'
-    | '/contabilidade/orcamento'
     | '/contabilidade/dre-orcado'
-    | '/contabilidade/fluxo-caixa'
     | '/contabilidade/fechamento'
-    | '/orgs/potencias'
+    | '/contabilidade/fluxo-caixa'
+    | '/contabilidade/orcamento'
+    | '/contabilidade/razao'
     | '/gestoes/cargos'
     | '/irmaos/$id'
     | '/irmaos/novo'
+    | '/orgs/potencias'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
     | '/sessoes/$id'
+    | '/tesouraria/conciliacao'
     | '/tesouraria/contas'
     | '/tesouraria/contas-pagar'
-    | '/tesouraria/recorrentes'
     | '/tesouraria/faturas'
-    | '/tesouraria/recibos'
+    | '/tesouraria/movimentos'
     | '/tesouraria/parametros'
     | '/tesouraria/parcelamentos'
-    | '/tesouraria/movimentos'
-    | '/tesouraria/tronco'
-    | '/tesouraria/conciliacao'
     | '/tesouraria/plano-contas'
+    | '/tesouraria/recibos'
+    | '/tesouraria/recorrentes'
+    | '/tesouraria/tronco'
+    | '/gestoes'
     | '/irmaos'
     | '/orgs'
-    | '/gestoes'
-    | '/terceiros'
     | '/sessoes'
+    | '/terceiros'
     | '/tesouraria'
   id:
     | '__root__'
@@ -461,37 +461,37 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/contabilidade/auditoria'
-    | '/_authenticated/contabilidade/razao'
+    | '/_authenticated/contabilidade/balancete'
     | '/_authenticated/contabilidade/diario'
     | '/_authenticated/contabilidade/dre'
-    | '/_authenticated/contabilidade/balancete'
-    | '/_authenticated/contabilidade/orcamento'
     | '/_authenticated/contabilidade/dre-orcado'
-    | '/_authenticated/contabilidade/fluxo-caixa'
     | '/_authenticated/contabilidade/fechamento'
-    | '/_authenticated/orgs/potencias'
+    | '/_authenticated/contabilidade/fluxo-caixa'
+    | '/_authenticated/contabilidade/orcamento'
+    | '/_authenticated/contabilidade/razao'
     | '/_authenticated/gestoes/cargos'
     | '/_authenticated/irmaos/$id'
     | '/_authenticated/irmaos/novo'
+    | '/_authenticated/orgs/potencias'
     | '/_authenticated/relatorios/frequencia'
     | '/_authenticated/relatorios/inadimplentes'
     | '/_authenticated/sessoes/$id'
+    | '/_authenticated/tesouraria/conciliacao'
     | '/_authenticated/tesouraria/contas'
     | '/_authenticated/tesouraria/contas-pagar'
-    | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/faturas'
-    | '/_authenticated/tesouraria/recibos'
+    | '/_authenticated/tesouraria/movimentos'
     | '/_authenticated/tesouraria/parametros'
     | '/_authenticated/tesouraria/parcelamentos'
-    | '/_authenticated/tesouraria/movimentos'
-    | '/_authenticated/tesouraria/tronco'
-    | '/_authenticated/tesouraria/conciliacao'
     | '/_authenticated/tesouraria/plano-contas'
+    | '/_authenticated/tesouraria/recibos'
+    | '/_authenticated/tesouraria/recorrentes'
+    | '/_authenticated/tesouraria/tronco'
+    | '/_authenticated/gestoes/'
     | '/_authenticated/irmaos/'
     | '/_authenticated/orgs/'
-    | '/_authenticated/gestoes/'
-    | '/_authenticated/terceiros/'
     | '/_authenticated/sessoes/'
+    | '/_authenticated/terceiros/'
     | '/_authenticated/tesouraria/'
   fileRoutesById: FileRoutesById
 }
@@ -531,95 +531,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/contabilidade/auditoria': {
-      id: '/_authenticated/contabilidade/auditoria'
-      path: '/contabilidade/auditoria'
-      fullPath: '/contabilidade/auditoria'
-      preLoaderRoute: typeof AuthenticatedContabilidadeAuditoriaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/razao': {
-      id: '/_authenticated/contabilidade/razao'
-      path: '/contabilidade/razao'
-      fullPath: '/contabilidade/razao'
-      preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/diario': {
-      id: '/_authenticated/contabilidade/diario'
-      path: '/contabilidade/diario'
-      fullPath: '/contabilidade/diario'
-      preLoaderRoute: typeof AuthenticatedContabilidadeDiarioRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/dre': {
-      id: '/_authenticated/contabilidade/dre'
-      path: '/contabilidade/dre'
-      fullPath: '/contabilidade/dre'
-      preLoaderRoute: typeof AuthenticatedContabilidadeDreRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/balancete': {
-      id: '/_authenticated/contabilidade/balancete'
-      path: '/contabilidade/balancete'
-      fullPath: '/contabilidade/balancete'
-      preLoaderRoute: typeof AuthenticatedContabilidadeBalanceteRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/orcamento': {
-      id: '/_authenticated/contabilidade/orcamento'
-      path: '/contabilidade/orcamento'
-      fullPath: '/contabilidade/orcamento'
-      preLoaderRoute: typeof AuthenticatedContabilidadeOrcamentoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/dre-orcado': {
-      id: '/_authenticated/contabilidade/dre-orcado'
-      path: '/contabilidade/dre-orcado'
-      fullPath: '/contabilidade/dre-orcado'
-      preLoaderRoute: typeof AuthenticatedContabilidadeDreOrcadoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/fluxo-caixa': {
-      id: '/_authenticated/contabilidade/fluxo-caixa'
-      path: '/contabilidade/fluxo-caixa'
-      fullPath: '/contabilidade/fluxo-caixa'
-      preLoaderRoute: typeof AuthenticatedContabilidadeFluxoCaixaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/fechamento': {
-      id: '/_authenticated/contabilidade/fechamento'
-      path: '/contabilidade/fechamento'
-      fullPath: '/contabilidade/fechamento'
-      preLoaderRoute: typeof AuthenticatedContabilidadeFechamentoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/orgs/potencias': {
-      id: '/_authenticated/orgs/potencias'
-      path: '/orgs/potencias'
-      fullPath: '/orgs/potencias'
-      preLoaderRoute: typeof AuthenticatedOrgsPotenciasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/orgs/': {
-      id: '/_authenticated/orgs/'
-      path: '/orgs'
-      fullPath: '/orgs/'
-      preLoaderRoute: typeof AuthenticatedOrgsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/gestoes/cargos': {
-      id: '/_authenticated/gestoes/cargos'
-      path: '/gestoes/cargos'
-      fullPath: '/gestoes/cargos'
-      preLoaderRoute: typeof AuthenticatedGestoesCargosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/gestoes/': {
-      id: '/_authenticated/gestoes/'
-      path: '/gestoes'
-      fullPath: '/gestoes/'
-      preLoaderRoute: typeof AuthenticatedGestoesIndexRouteImport
+    '/_authenticated/tesouraria/': {
+      id: '/_authenticated/tesouraria/'
+      path: '/tesouraria'
+      fullPath: '/tesouraria/'
+      preLoaderRoute: typeof AuthenticatedTesourariaIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/terceiros/': {
@@ -629,18 +545,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTerceirosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tesouraria/': {
-      id: '/_authenticated/tesouraria/'
-      path: '/tesouraria'
-      fullPath: '/tesouraria/'
-      preLoaderRoute: typeof AuthenticatedTesourariaIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/sessoes/': {
       id: '/_authenticated/sessoes/'
       path: '/sessoes'
       fullPath: '/sessoes/'
       preLoaderRoute: typeof AuthenticatedSessoesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/orgs/': {
+      id: '/_authenticated/orgs/'
+      path: '/orgs'
+      fullPath: '/orgs/'
+      preLoaderRoute: typeof AuthenticatedOrgsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/irmaos/': {
@@ -650,25 +566,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIrmaosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tesouraria/plano-contas': {
-      id: '/_authenticated/tesouraria/plano-contas'
-      path: '/tesouraria/plano-contas'
-      fullPath: '/tesouraria/plano-contas'
-      preLoaderRoute: typeof AuthenticatedTesourariaPlanoContasRouteImport
+    '/_authenticated/gestoes/': {
+      id: '/_authenticated/gestoes/'
+      path: '/gestoes'
+      fullPath: '/gestoes/'
+      preLoaderRoute: typeof AuthenticatedGestoesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tesouraria/contas': {
-      id: '/_authenticated/tesouraria/contas'
-      path: '/tesouraria/contas'
-      fullPath: '/tesouraria/contas'
-      preLoaderRoute: typeof AuthenticatedTesourariaContasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/contas-pagar': {
-      id: '/_authenticated/tesouraria/contas-pagar'
-      path: '/tesouraria/contas-pagar'
-      fullPath: '/tesouraria/contas-pagar'
-      preLoaderRoute: typeof AuthenticatedTesourariaContasPagarRouteImport
+    '/_authenticated/tesouraria/tronco': {
+      id: '/_authenticated/tesouraria/tronco'
+      path: '/tesouraria/tronco'
+      fullPath: '/tesouraria/tronco'
+      preLoaderRoute: typeof AuthenticatedTesourariaTroncoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tesouraria/recorrentes': {
@@ -678,13 +587,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaRecorrentesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tesouraria/faturas': {
-      id: '/_authenticated/tesouraria/faturas'
-      path: '/tesouraria/faturas'
-      fullPath: '/tesouraria/faturas'
-      preLoaderRoute: typeof AuthenticatedTesourariaFaturasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/tesouraria/recibos': {
       id: '/_authenticated/tesouraria/recibos'
       path: '/tesouraria/recibos'
@@ -692,11 +594,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaRecibosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tesouraria/parametros': {
-      id: '/_authenticated/tesouraria/parametros'
-      path: '/tesouraria/parametros'
-      fullPath: '/tesouraria/parametros'
-      preLoaderRoute: typeof AuthenticatedTesourariaParametrosRouteImport
+    '/_authenticated/tesouraria/plano-contas': {
+      id: '/_authenticated/tesouraria/plano-contas'
+      path: '/tesouraria/plano-contas'
+      fullPath: '/tesouraria/plano-contas'
+      preLoaderRoute: typeof AuthenticatedTesourariaPlanoContasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tesouraria/parcelamentos': {
@@ -706,6 +608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaParcelamentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tesouraria/parametros': {
+      id: '/_authenticated/tesouraria/parametros'
+      path: '/tesouraria/parametros'
+      fullPath: '/tesouraria/parametros'
+      preLoaderRoute: typeof AuthenticatedTesourariaParametrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tesouraria/movimentos': {
       id: '/_authenticated/tesouraria/movimentos'
       path: '/tesouraria/movimentos'
@@ -713,11 +622,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaMovimentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tesouraria/tronco': {
-      id: '/_authenticated/tesouraria/tronco'
-      path: '/tesouraria/tronco'
-      fullPath: '/tesouraria/tronco'
-      preLoaderRoute: typeof AuthenticatedTesourariaTroncoRouteImport
+    '/_authenticated/tesouraria/faturas': {
+      id: '/_authenticated/tesouraria/faturas'
+      path: '/tesouraria/faturas'
+      fullPath: '/tesouraria/faturas'
+      preLoaderRoute: typeof AuthenticatedTesourariaFaturasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/contas-pagar': {
+      id: '/_authenticated/tesouraria/contas-pagar'
+      path: '/tesouraria/contas-pagar'
+      fullPath: '/tesouraria/contas-pagar'
+      preLoaderRoute: typeof AuthenticatedTesourariaContasPagarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/contas': {
+      id: '/_authenticated/tesouraria/contas'
+      path: '/tesouraria/contas'
+      fullPath: '/tesouraria/contas'
+      preLoaderRoute: typeof AuthenticatedTesourariaContasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tesouraria/conciliacao': {
@@ -748,6 +671,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRelatoriosFrequenciaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/orgs/potencias': {
+      id: '/_authenticated/orgs/potencias'
+      path: '/orgs/potencias'
+      fullPath: '/orgs/potencias'
+      preLoaderRoute: typeof AuthenticatedOrgsPotenciasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/irmaos/novo': {
       id: '/_authenticated/irmaos/novo'
       path: '/irmaos/novo'
@@ -762,43 +692,113 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIrmaosIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/gestoes/cargos': {
+      id: '/_authenticated/gestoes/cargos'
+      path: '/gestoes/cargos'
+      fullPath: '/gestoes/cargos'
+      preLoaderRoute: typeof AuthenticatedGestoesCargosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/razao': {
+      id: '/_authenticated/contabilidade/razao'
+      path: '/contabilidade/razao'
+      fullPath: '/contabilidade/razao'
+      preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/orcamento': {
+      id: '/_authenticated/contabilidade/orcamento'
+      path: '/contabilidade/orcamento'
+      fullPath: '/contabilidade/orcamento'
+      preLoaderRoute: typeof AuthenticatedContabilidadeOrcamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/fluxo-caixa': {
+      id: '/_authenticated/contabilidade/fluxo-caixa'
+      path: '/contabilidade/fluxo-caixa'
+      fullPath: '/contabilidade/fluxo-caixa'
+      preLoaderRoute: typeof AuthenticatedContabilidadeFluxoCaixaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/fechamento': {
+      id: '/_authenticated/contabilidade/fechamento'
+      path: '/contabilidade/fechamento'
+      fullPath: '/contabilidade/fechamento'
+      preLoaderRoute: typeof AuthenticatedContabilidadeFechamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/dre-orcado': {
+      id: '/_authenticated/contabilidade/dre-orcado'
+      path: '/contabilidade/dre-orcado'
+      fullPath: '/contabilidade/dre-orcado'
+      preLoaderRoute: typeof AuthenticatedContabilidadeDreOrcadoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/dre': {
+      id: '/_authenticated/contabilidade/dre'
+      path: '/contabilidade/dre'
+      fullPath: '/contabilidade/dre'
+      preLoaderRoute: typeof AuthenticatedContabilidadeDreRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/diario': {
+      id: '/_authenticated/contabilidade/diario'
+      path: '/contabilidade/diario'
+      fullPath: '/contabilidade/diario'
+      preLoaderRoute: typeof AuthenticatedContabilidadeDiarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/balancete': {
+      id: '/_authenticated/contabilidade/balancete'
+      path: '/contabilidade/balancete'
+      fullPath: '/contabilidade/balancete'
+      preLoaderRoute: typeof AuthenticatedContabilidadeBalanceteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/auditoria': {
+      id: '/_authenticated/contabilidade/auditoria'
+      path: '/contabilidade/auditoria'
+      fullPath: '/contabilidade/auditoria'
+      preLoaderRoute: typeof AuthenticatedContabilidadeAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
-  AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
+  AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
   AuthenticatedContabilidadeDiarioRoute: typeof AuthenticatedContabilidadeDiarioRoute
   AuthenticatedContabilidadeDreRoute: typeof AuthenticatedContabilidadeDreRoute
-  AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
-  AuthenticatedContabilidadeOrcamentoRoute: typeof AuthenticatedContabilidadeOrcamentoRoute
   AuthenticatedContabilidadeDreOrcadoRoute: typeof AuthenticatedContabilidadeDreOrcadoRoute
-  AuthenticatedContabilidadeFluxoCaixaRoute: typeof AuthenticatedContabilidadeFluxoCaixaRoute
   AuthenticatedContabilidadeFechamentoRoute: typeof AuthenticatedContabilidadeFechamentoRoute
-  AuthenticatedOrgsPotenciasRoute: typeof AuthenticatedOrgsPotenciasRoute
+  AuthenticatedContabilidadeFluxoCaixaRoute: typeof AuthenticatedContabilidadeFluxoCaixaRoute
+  AuthenticatedContabilidadeOrcamentoRoute: typeof AuthenticatedContabilidadeOrcamentoRoute
+  AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
   AuthenticatedGestoesCargosRoute: typeof AuthenticatedGestoesCargosRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
   AuthenticatedIrmaosNovoRoute: typeof AuthenticatedIrmaosNovoRoute
+  AuthenticatedOrgsPotenciasRoute: typeof AuthenticatedOrgsPotenciasRoute
   AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
   AuthenticatedRelatoriosInadimplentesRoute: typeof AuthenticatedRelatoriosInadimplentesRoute
   AuthenticatedSessoesIdRoute: typeof AuthenticatedSessoesIdRoute
+  AuthenticatedTesourariaConciliacaoRoute: typeof AuthenticatedTesourariaConciliacaoRoute
   AuthenticatedTesourariaContasRoute: typeof AuthenticatedTesourariaContasRoute
   AuthenticatedTesourariaContasPagarRoute: typeof AuthenticatedTesourariaContasPagarRoute
-  AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaFaturasRoute: typeof AuthenticatedTesourariaFaturasRoute
-  AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
+  AuthenticatedTesourariaMovimentosRoute: typeof AuthenticatedTesourariaMovimentosRoute
   AuthenticatedTesourariaParametrosRoute: typeof AuthenticatedTesourariaParametrosRoute
   AuthenticatedTesourariaParcelamentosRoute: typeof AuthenticatedTesourariaParcelamentosRoute
-  AuthenticatedTesourariaMovimentosRoute: typeof AuthenticatedTesourariaMovimentosRoute
-  AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
-  AuthenticatedTesourariaConciliacaoRoute: typeof AuthenticatedTesourariaConciliacaoRoute
   AuthenticatedTesourariaPlanoContasRoute: typeof AuthenticatedTesourariaPlanoContasRoute
+  AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
+  AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
+  AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
+  AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
-  AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
-  AuthenticatedTerceirosIndexRoute: typeof AuthenticatedTerceirosIndexRoute
   AuthenticatedSessoesIndexRoute: typeof AuthenticatedSessoesIndexRoute
+  AuthenticatedTerceirosIndexRoute: typeof AuthenticatedTerceirosIndexRoute
   AuthenticatedTesourariaIndexRoute: typeof AuthenticatedTesourariaIndexRoute
 }
 
@@ -806,40 +806,51 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedContabilidadeAuditoriaRoute:
     AuthenticatedContabilidadeAuditoriaRoute,
-  AuthenticatedContabilidadeRazaoRoute: AuthenticatedContabilidadeRazaoRoute,
+  AuthenticatedContabilidadeBalanceteRoute:
+    AuthenticatedContabilidadeBalanceteRoute,
   AuthenticatedContabilidadeDiarioRoute: AuthenticatedContabilidadeDiarioRoute,
   AuthenticatedContabilidadeDreRoute: AuthenticatedContabilidadeDreRoute,
-  AuthenticatedContabilidadeBalanceteRoute: AuthenticatedContabilidadeBalanceteRoute,
-  AuthenticatedContabilidadeOrcamentoRoute: AuthenticatedContabilidadeOrcamentoRoute,
-  AuthenticatedContabilidadeDreOrcadoRoute: AuthenticatedContabilidadeDreOrcadoRoute,
-  AuthenticatedContabilidadeFluxoCaixaRoute: AuthenticatedContabilidadeFluxoCaixaRoute,
-  AuthenticatedContabilidadeFechamentoRoute: AuthenticatedContabilidadeFechamentoRoute,
-  AuthenticatedOrgsPotenciasRoute: AuthenticatedOrgsPotenciasRoute,
+  AuthenticatedContabilidadeDreOrcadoRoute:
+    AuthenticatedContabilidadeDreOrcadoRoute,
+  AuthenticatedContabilidadeFechamentoRoute:
+    AuthenticatedContabilidadeFechamentoRoute,
+  AuthenticatedContabilidadeFluxoCaixaRoute:
+    AuthenticatedContabilidadeFluxoCaixaRoute,
+  AuthenticatedContabilidadeOrcamentoRoute:
+    AuthenticatedContabilidadeOrcamentoRoute,
+  AuthenticatedContabilidadeRazaoRoute: AuthenticatedContabilidadeRazaoRoute,
   AuthenticatedGestoesCargosRoute: AuthenticatedGestoesCargosRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
   AuthenticatedIrmaosNovoRoute: AuthenticatedIrmaosNovoRoute,
+  AuthenticatedOrgsPotenciasRoute: AuthenticatedOrgsPotenciasRoute,
   AuthenticatedRelatoriosFrequenciaRoute:
     AuthenticatedRelatoriosFrequenciaRoute,
   AuthenticatedRelatoriosInadimplentesRoute:
     AuthenticatedRelatoriosInadimplentesRoute,
   AuthenticatedSessoesIdRoute: AuthenticatedSessoesIdRoute,
+  AuthenticatedTesourariaConciliacaoRoute:
+    AuthenticatedTesourariaConciliacaoRoute,
   AuthenticatedTesourariaContasRoute: AuthenticatedTesourariaContasRoute,
-  AuthenticatedTesourariaContasPagarRoute: AuthenticatedTesourariaContasPagarRoute,
-  AuthenticatedTesourariaRecorrentesRoute: AuthenticatedTesourariaRecorrentesRoute,
+  AuthenticatedTesourariaContasPagarRoute:
+    AuthenticatedTesourariaContasPagarRoute,
   AuthenticatedTesourariaFaturasRoute: AuthenticatedTesourariaFaturasRoute,
-  AuthenticatedTesourariaRecibosRoute: AuthenticatedTesourariaRecibosRoute,
-  AuthenticatedTesourariaParametrosRoute: AuthenticatedTesourariaParametrosRoute,
-  AuthenticatedTesourariaParcelamentosRoute: AuthenticatedTesourariaParcelamentosRoute,
-  AuthenticatedTesourariaMovimentosRoute: AuthenticatedTesourariaMovimentosRoute,
-  AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
-  AuthenticatedTesourariaConciliacaoRoute: AuthenticatedTesourariaConciliacaoRoute,
+  AuthenticatedTesourariaMovimentosRoute:
+    AuthenticatedTesourariaMovimentosRoute,
+  AuthenticatedTesourariaParametrosRoute:
+    AuthenticatedTesourariaParametrosRoute,
+  AuthenticatedTesourariaParcelamentosRoute:
+    AuthenticatedTesourariaParcelamentosRoute,
   AuthenticatedTesourariaPlanoContasRoute:
     AuthenticatedTesourariaPlanoContasRoute,
+  AuthenticatedTesourariaRecibosRoute: AuthenticatedTesourariaRecibosRoute,
+  AuthenticatedTesourariaRecorrentesRoute:
+    AuthenticatedTesourariaRecorrentesRoute,
+  AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
+  AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
   AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,
-  AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,
-  AuthenticatedTerceirosIndexRoute: AuthenticatedTerceirosIndexRoute,
   AuthenticatedSessoesIndexRoute: AuthenticatedSessoesIndexRoute,
+  AuthenticatedTerceirosIndexRoute: AuthenticatedTerceirosIndexRoute,
   AuthenticatedTesourariaIndexRoute: AuthenticatedTesourariaIndexRoute,
 }
 
@@ -854,13 +865,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
