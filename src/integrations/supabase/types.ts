@@ -1404,6 +1404,78 @@ export type Database = {
         }
         Relationships: []
       }
+      orcamentos: {
+        Row: {
+          ano: number
+          aprovado_em: string | null
+          aprovado_por: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          observacoes: string | null
+          status: string
+        }
+        Insert: {
+          ano: number
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          status?: string
+        }
+        Update: {
+          ano?: number
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacoes?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      orcamento_itens: {
+        Row: {
+          conta_id: string
+          id: string
+          mes: number
+          orcamento_id: string
+          valor: number
+        }
+        Insert: {
+          conta_id: string
+          id?: string
+          mes: number
+          orcamento_id: string
+          valor?: number
+        }
+        Update: {
+          conta_id?: string
+          id?: string
+          mes?: number
+          orcamento_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_itens_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_saldo_plano_contas: {
@@ -1607,6 +1679,34 @@ export type Database = {
       efetivar_recorrentes_vencidas: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      criar_orcamento: {
+        Args: {
+          _ano: number
+          _observacoes?: string
+        }
+        Returns: string
+      }
+      definir_valor_orcamento: {
+        Args: {
+          _conta_id: string
+          _mes: number
+          _orcamento_id: string
+          _valor: number
+        }
+        Returns: undefined
+      }
+      aprovar_orcamento: {
+        Args: {
+          _orcamento_id: string
+        }
+        Returns: undefined
+      }
+      reabrir_orcamento: {
+        Args: {
+          _orcamento_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
