@@ -227,6 +227,7 @@ export type Database = {
       }
       plano_contas: {
         Row: {
+          analitica: boolean
           ativo: boolean
           codigo: string
           created_at: string
@@ -235,6 +236,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_plano_conta"]
         }
         Insert: {
+          analitica?: boolean
           ativo?: boolean
           codigo: string
           created_at?: string
@@ -243,6 +245,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_plano_conta"]
         }
         Update: {
+          analitica?: boolean
           ativo?: boolean
           codigo?: string
           created_at?: string
@@ -416,7 +419,7 @@ export type Database = {
       situacao_irmao: "ativo" | "quite" | "irregular" | "adormecido"
       tipo_conta: "caixa" | "banco" | "outro"
       tipo_lancamento: "entrada" | "saida" | "transferencia"
-      tipo_plano_conta: "receita" | "despesa"
+      tipo_plano_conta: "receita" | "despesa" | "ativo" | "passivo"
       tipo_sessao: "ordinaria" | "magna" | "branca" | "administrativa"
     }
     CompositeTypes: {
@@ -550,7 +553,7 @@ export const Constants = {
       situacao_irmao: ["ativo", "quite", "irregular", "adormecido"],
       tipo_conta: ["caixa", "banco", "outro"],
       tipo_lancamento: ["entrada", "saida", "transferencia"],
-      tipo_plano_conta: ["receita", "despesa"],
+      tipo_plano_conta: ["receita", "despesa", "ativo", "passivo"],
       tipo_sessao: ["ordinaria", "magna", "branca", "administrativa"],
     },
   },
