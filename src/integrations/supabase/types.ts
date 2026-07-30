@@ -223,6 +223,102 @@ export type Database = {
             referencedRelation: "plano_contas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lancamentos_plano_conta_id_fkey"
+            columns: ["plano_conta_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldo_plano_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lancamentos_contabeis: {
+        Row: {
+          competencia: string
+          criado_em: string
+          criado_por: string | null
+          data: string
+          descricao: string
+          id: string
+          origem_id: string | null
+          origem_tipo: string | null
+        }
+        Insert: {
+          competencia?: string
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao: string
+          id?: string
+          origem_id?: string | null
+          origem_tipo?: string | null
+        }
+        Update: {
+          competencia?: string
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao?: string
+          id?: string
+          origem_id?: string | null
+          origem_tipo?: string | null
+        }
+        Relationships: []
+      }
+      lancamentos_contabeis_itens: {
+        Row: {
+          conta_id: string
+          descricao: string | null
+          id: string
+          lancamento_id: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          conta_id: string
+          descricao?: string | null
+          id?: string
+          lancamento_id: string
+          tipo: string
+          valor: number
+        }
+        Update: {
+          conta_id?: string
+          descricao?: string | null
+          id?: string
+          lancamento_id?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_contabeis_itens_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_contabeis_itens_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldo_plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_contabeis_itens_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos_contabeis"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_contabeis_itens_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "v_auditoria_contabil_desbalanceados"
+            referencedColumns: ["lancamento_id"]
+          },
         ]
       }
       plano_contas: {
@@ -371,6 +467,19 @@ export type Database = {
       }
     }
     Views: {
+      v_auditoria_contabil_desbalanceados: {
+        Row: {
+          data: string | null
+          descricao: string | null
+          diferenca: number | null
+          lancamento_id: string | null
+          origem_id: string | null
+          origem_tipo: string | null
+          total_credito: number | null
+          total_debito: number | null
+        }
+        Relationships: []
+      }
       v_saldo_contas: {
         Row: {
           id: string | null
@@ -395,6 +504,18 @@ export type Database = {
         }
         Relationships: []
       }
+      v_saldo_plano_contas: {
+        Row: {
+          codigo: string | null
+          id: string | null
+          nome: string | null
+          saldo_devedor: number | null
+          tipo: Database["public"]["Enums"]["tipo_plano_conta"] | null
+          total_credito: number | null
+          total_debito: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       gerar_mensalidades: { Args: { _competencia: string }; Returns: number }
@@ -411,6 +532,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      registrar_lancamento_contabil: {
+        Args: {
+          _competencia: string
+          _data: string
+          _descricao: string
+          _itens: Json
+          _origem_id?: string
+          _origem_tipo?: string
+        }
+        Returns: string
       }
     }
     Enums: {
