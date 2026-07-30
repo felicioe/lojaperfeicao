@@ -19,7 +19,18 @@ recursos é substituído.
 - Cada migration é idempotente sempre que possível (`CREATE TABLE IF NOT EXISTS`,
   `INSERT ... ON DUPLICATE KEY UPDATE` ou checagem prévia), mesmo espírito do
   `ON CONFLICT DO NOTHING` usado do lado Postgres.
-- Aplicar em ordem, uma vez, via `mysql -u <user> -p <banco> < mysql/migrations/000N_*.sql`.
+- Aplicar em ordem, uma vez, via
+  `mysql --default-character-set=utf8mb4 -u <user> -p <banco> < mysql/migrations/000N_*.sql`.
+  **A flag `--default-character-set=utf8mb4` não é opcional**: o cliente `mysql` usa
+  `latin1` como charset padrão de conexão se nada for especificado — isso não afeta
+  texto ASCII simples, mas qualquer literal com acento dentro do `.sql` (mensagens de
+  `SIGNAL ... MESSAGE_TEXT`, nomes de conta no seed do plano de contas etc.) é
+  interpretado como `latin1` na hora do `CREATE PROCEDURE`/`INSERT`, fica **gravado
+  errado de forma permanente** (mojibake, ex.: "Já existe" vira "JÃ¡ existe" quando lido
+  de volta) e só se percebe rodando a aplicação de verdade. Descoberto durante a
+  validação da issue #49 (`criar_usuario`, veja seção 11). Banco criado (`CREATE
+  DATABASE`) e usuário de aplicação também devem usar `utf8mb4`
+  (`CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`).
   Não existe (ainda) uma ferramenta de migração automatizada tipo Supabase CLI — isso
   é left para quando o cliente MySQL do app (issue #53) estiver pronto; por ora, é
   aplicação manual mesmo, como o próprio projeto legado em PHP fazia.
@@ -153,6 +164,33 @@ Também confirmado ponta a ponta com o driver real: o padrão de `SET
 `SELECT @out_param` para ler o `OUT` funciona exatamente como esperado, incluindo
 `has_role()` reconhecendo a variável de sessão setada pelo driver.
 
+### 11. Autenticação e sessão (issue #49) — implementado
+`src/lib/server/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
+explícito — ver seção acima sobre o gotcha do charset) e `withUserConnection()`,
+que encapsula exatamente o padrão validado na seção 10 (checkout do pool + `SET
+@current_usuario_id` + devolução ao pool no `finally`).
+
+`src/lib/server/session.ts` usa o sistema de sessão **já embutido** no TanStack
+Start (`getSession`/`updateSession`/`clearSession` de
+`@tanstack/react-start/server`) — cookie assinado/selado automaticamente, sem
+precisar de JWT nem biblioteca de cookie própria. Precisa de `SESSION_SECRET`
+(mín. 32 caracteres) no ambiente.
+
+`src/lib/server/auth.ts` expõe `login`/`signup`/`logout`/`getSessao`/`contarUsuarios`
+como `createServerFn`. Só `signup` é uma escrita de mais de uma linha
+(`usuarios` + `usuarios_papeis`), então vira a stored procedure `criar_usuario`
+(`mysql/migrations/0006_autenticacao.sql`), com o mesmo padrão de transação
+própria das demais procedures multi-escrita. `login`/`getSessao` são só
+`SELECT` — comparação de senha com `bcryptjs` acontece inteiramente na camada
+de aplicação, nunca no banco.
+
+Preservado o comportamento do trigger Postgres `handle_new_user()`: signup
+nunca é bloqueado no banco; o primeiro usuário do sistema (`usuarios_papeis`
+vazia) vira `admin` automaticamente, os demais viram `irmao`. Validado
+ponta a ponta com `mysql2` real: primeiro signup → admin, segundo → irmao,
+login certo/errado, e-mail inexistente, e-mail duplicado — todos os casos
+retornam o resultado esperado.
+
 ## Variáveis de ambiente previstas (conexão fica para a issue #53)
 Convenção reservada para quando a camada de aplicação existir — não commitar
 valores reais, nunca em texto plano no repositório:
@@ -163,6 +201,7 @@ MYSQL_PORT=3306
 MYSQL_DATABASE=
 MYSQL_USER=
 MYSQL_PASSWORD=
+SESSION_SECRET=
 ```
 
 ## O que NÃO muda

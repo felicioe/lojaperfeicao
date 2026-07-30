@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
-import { useSession, useCan } from "@/lib/auth-hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { logout } from "@/lib/server/auth";
+import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -161,6 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const can = useCan();
   const nav = useNavigate();
   const loc = useLocation();
+  const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const dashboard: NavItem = {
@@ -252,7 +254,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [loc.pathname]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await logout();
+    queryClient.setQueryData(SESSAO_QUERY_KEY, null);
     nav({ to: "/auth" });
   };
 
