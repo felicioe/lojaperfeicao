@@ -1186,7 +1186,26 @@ export type Database = {
       }
     }
     Functions: {
-      gerar_mensalidades: { Args: { _competencia: string }; Returns: number }
+      gerar_mensalidades: {
+        Args: {
+          _competencia: string
+          _data_vencimento?: string
+          _irmao_id?: string
+          _rateio?: Json
+        }
+        Returns: number
+      }
+      criar_fatura_avulsa: {
+        Args: {
+          _competencia_mes: string
+          _data_vencimento: string
+          _descricao?: string
+          _irmao_id: string
+          _rateio?: Json
+          _valor: number
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
