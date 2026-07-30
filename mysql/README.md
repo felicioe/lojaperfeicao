@@ -100,14 +100,25 @@ array JSON com `WHILE` + `JSON_LENGTH`/`JSON_EXTRACT` sem problema.
 Mantemos, ainda assim, uma view `v_auditoria_contabil_desbalanceados` equivalente à
 do Postgres, como rede de segurança administrativa (issue #51).
 
-### 7. Índice único parcial (`WHERE ... IS NOT NULL`) → coluna gerada
-MySQL/MariaDB não suporta índice único com predicado `WHERE`. Onde o Postgres usa
-isso (ex.: `lancamentos_recorrente_competencia_uniq`, dedupe do `ofx_lancamentos`),
-a alternativa é uma **coluna gerada** (`GENERATED ALWAYS AS (...) STORED`) que retorna
-`NULL` exatamente nos casos em que o Postgres não aplicaria a restrição, com um
-índice único normal sobre essa coluna — MySQL/MariaDB, como o Postgres, não
-considera múltiplos `NULL` como duplicata em um índice único. Detalhe de cada caso
-fica na migration da issue #51, onde essas tabelas são criadas.
+### 7. Índice único parcial (`WHERE ... IS NOT NULL`) → coluna mantida explicitamente
+MySQL/MariaDB não suporta índice único com predicado `WHERE`. A ideia inicial era usar
+uma **coluna gerada** (`GENERATED ALWAYS AS (...) STORED`) que retorna `NULL`
+exatamente nos casos em que o Postgres não aplicaria a restrição — só que, testado
+localmente (MariaDB 10.11), uma coluna gerada com `CASE`/`IF` **não pode ser indexada**
+(`ERROR 1901: Function or expression ... cannot be used in the GENERATED ALWAYS AS
+clause`), mesmo em modo `VIRTUAL`. Uma coluna gerada simples (sem `CASE`/`IF`, só
+referenciando outra coluna) pode ser indexada normalmente — a restrição é
+especificamente sobre expressões condicionais.
+
+Alternativa adotada (issue #50, tabela `gestoes`, e a repetir na issue #51 para
+`lancamentos_recorrente_competencia_uniq`/dedupe do `ofx_lancamentos`): uma coluna
+comum (não gerada), mantida explicitamente por quem escreve a linha — a própria
+stored procedure de negócio (ex.: `ativar_gestao`) ou um trigger `BEFORE INSERT` que só
+ajusta `NEW.*` (isso é permitido; a restrição de "trigger não pode fazer UPDATE na
+própria tabela" só vale para instruções DML explícitas dentro do trigger, não para
+atribuições a `NEW`). MySQL/MariaDB, como o Postgres, não considera múltiplos `NULL`
+como duplicata em um índice único, então a garantia final é idêntica — só a forma de
+manter a coluna atualizada que muda.
 
 ### 8. `updated_at` automático
 Postgres precisou de uma função + trigger (`set_updated_at`) porque não tem suporte
