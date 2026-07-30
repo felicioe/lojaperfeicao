@@ -94,6 +94,7 @@ export type Database = {
           id: string
           nome: string
           numero: string | null
+          plano_conta_id: string | null
           saldo_inicial: number
           tipo: Database["public"]["Enums"]["tipo_conta"]
         }
@@ -105,6 +106,7 @@ export type Database = {
           id?: string
           nome: string
           numero?: string | null
+          plano_conta_id?: string | null
           saldo_inicial?: number
           tipo?: Database["public"]["Enums"]["tipo_conta"]
         }
@@ -116,10 +118,93 @@ export type Database = {
           id?: string
           nome?: string
           numero?: string | null
+          plano_conta_id?: string | null
           saldo_inicial?: number
           tipo?: Database["public"]["Enums"]["tipo_conta"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contas_financeiras_plano_conta_id_fkey"
+            columns: ["plano_conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_financeiras_plano_conta_id_fkey"
+            columns: ["plano_conta_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldo_plano_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      despesas_recorrentes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          descricao: string
+          dia_vencimento: number
+          id: string
+          observacoes: string | null
+          plano_conta_id: string
+          terceiro_id: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          descricao: string
+          dia_vencimento: number
+          id?: string
+          observacoes?: string | null
+          plano_conta_id: string
+          terceiro_id?: string | null
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string
+          dia_vencimento?: number
+          id?: string
+          observacoes?: string | null
+          plano_conta_id?: string
+          terceiro_id?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_recorrentes_plano_conta_id_fkey"
+            columns: ["plano_conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_recorrentes_plano_conta_id_fkey"
+            columns: ["plano_conta_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldo_plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_recorrentes_terceiro_id_fkey"
+            columns: ["terceiro_id"]
+            isOneToOne: false
+            referencedRelation: "terceiros"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gestao_cargos: {
         Row: {
@@ -560,12 +645,15 @@ export type Database = {
           data_pagamento: string | null
           data_vencimento: string | null
           descricao: string
+          forma_pagamento: string | null
           id: string
           irmao_id: string | null
           is_mensalidade: boolean
           observacoes: string | null
           pago: boolean
           plano_conta_id: string | null
+          recorrente_id: string | null
+          terceiro_id: string | null
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at: string
           valor: number
@@ -580,12 +668,15 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao: string
+          forma_pagamento?: string | null
           id?: string
           irmao_id?: string | null
           is_mensalidade?: boolean
           observacoes?: string | null
           pago?: boolean
           plano_conta_id?: string | null
+          recorrente_id?: string | null
+          terceiro_id?: string | null
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
           valor: number
@@ -600,12 +691,15 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string
+          forma_pagamento?: string | null
           id?: string
           irmao_id?: string | null
           is_mensalidade?: boolean
           observacoes?: string | null
           pago?: boolean
           plano_conta_id?: string | null
+          recorrente_id?: string | null
+          terceiro_id?: string | null
           tipo?: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
           valor?: number
@@ -658,6 +752,20 @@ export type Database = {
             columns: ["plano_conta_id"]
             isOneToOne: false
             referencedRelation: "v_saldo_plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_recorrente_id_fkey"
+            columns: ["recorrente_id"]
+            isOneToOne: false
+            referencedRelation: "despesas_recorrentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_terceiro_id_fkey"
+            columns: ["terceiro_id"]
+            isOneToOne: false
+            referencedRelation: "terceiros"
             referencedColumns: ["id"]
           },
         ]
@@ -1156,6 +1264,29 @@ export type Database = {
       }
     }
     Functions: {
+      baixar_conta_pagar: {
+        Args: {
+          _conta_financeira_id: string
+          _data_pagamento?: string
+          _forma_pagamento?: string
+          _lancamento_id: string
+        }
+        Returns: undefined
+      }
+      criar_conta_pagar: {
+        Args: {
+          _competencia_mes?: string
+          _data?: string
+          _data_vencimento?: string
+          _descricao: string
+          _observacoes?: string
+          _plano_conta_id: string
+          _terceiro_id?: string
+          _valor: number
+        }
+        Returns: string
+      }
+      efetivar_recorrentes_vencidas: { Args: never; Returns: number }
       gerar_graus_padrao_org: { Args: { _org_id: string }; Returns: number }
       gerar_mensalidades: { Args: { _competencia: string }; Returns: number }
       has_role: {
