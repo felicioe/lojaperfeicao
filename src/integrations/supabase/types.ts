@@ -329,6 +329,7 @@ export type Database = {
           created_at: string
           id: string
           nome: string
+          parent_id: string | null
           tipo: Database["public"]["Enums"]["tipo_plano_conta"]
         }
         Insert: {
@@ -338,6 +339,7 @@ export type Database = {
           created_at?: string
           id?: string
           nome: string
+          parent_id?: string | null
           tipo: Database["public"]["Enums"]["tipo_plano_conta"]
         }
         Update: {
@@ -347,9 +349,25 @@ export type Database = {
           created_at?: string
           id?: string
           nome?: string
+          parent_id?: string | null
           tipo?: Database["public"]["Enums"]["tipo_plano_conta"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "plano_contas_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_contas_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldo_plano_contas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       presencas: {
         Row: {
@@ -551,7 +569,12 @@ export type Database = {
       situacao_irmao: "ativo" | "quite" | "irregular" | "adormecido"
       tipo_conta: "caixa" | "banco" | "outro"
       tipo_lancamento: "entrada" | "saida" | "transferencia"
-      tipo_plano_conta: "receita" | "despesa" | "ativo" | "passivo"
+      tipo_plano_conta:
+        | "receita"
+        | "despesa"
+        | "ativo"
+        | "passivo"
+        | "patrimonio_liquido"
       tipo_sessao: "ordinaria" | "magna" | "branca" | "administrativa"
     }
     CompositeTypes: {
@@ -685,7 +708,13 @@ export const Constants = {
       situacao_irmao: ["ativo", "quite", "irregular", "adormecido"],
       tipo_conta: ["caixa", "banco", "outro"],
       tipo_lancamento: ["entrada", "saida", "transferencia"],
-      tipo_plano_conta: ["receita", "despesa", "ativo", "passivo"],
+      tipo_plano_conta: [
+        "receita",
+        "despesa",
+        "ativo",
+        "passivo",
+        "patrimonio_liquido",
+      ],
       tipo_sessao: ["ordinaria", "magna", "branca", "administrativa"],
     },
   },
