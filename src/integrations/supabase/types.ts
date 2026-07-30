@@ -420,6 +420,66 @@ export type Database = {
         }
         Relationships: []
       }
+      despesas_recorrentes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          descricao: string
+          dia_vencimento: number
+          id: string
+          observacoes: string | null
+          plano_conta_id: string
+          terceiro_id: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          descricao: string
+          dia_vencimento: number
+          id?: string
+          observacoes?: string | null
+          plano_conta_id: string
+          terceiro_id?: string | null
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string
+          dia_vencimento?: number
+          id?: string
+          observacoes?: string | null
+          plano_conta_id?: string
+          terceiro_id?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_recorrentes_plano_conta_id_fkey"
+            columns: ["plano_conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_recorrentes_terceiro_id_fkey"
+            columns: ["terceiro_id"]
+            isOneToOne: false
+            referencedRelation: "terceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lancamentos: {
         Row: {
           competencia_mes: string | null
@@ -438,6 +498,7 @@ export type Database = {
           observacoes: string | null
           pago: boolean
           plano_conta_id: string | null
+          recorrente_id: string | null
           terceiro_id: string | null
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at: string
@@ -460,6 +521,7 @@ export type Database = {
           observacoes?: string | null
           pago?: boolean
           plano_conta_id?: string | null
+          recorrente_id?: string | null
           terceiro_id?: string | null
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
@@ -482,12 +544,20 @@ export type Database = {
           observacoes?: string | null
           pago?: boolean
           plano_conta_id?: string | null
+          recorrente_id?: string | null
           terceiro_id?: string | null
           tipo?: Database["public"]["Enums"]["tipo_lancamento"]
           updated_at?: string
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "lancamentos_recorrente_id_fkey"
+            columns: ["recorrente_id"]
+            isOneToOne: false
+            referencedRelation: "despesas_recorrentes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lancamentos_terceiro_id_fkey"
             columns: ["terceiro_id"]
@@ -1167,6 +1237,10 @@ export type Database = {
           _lancamento_id: string
         }
         Returns: undefined
+      }
+      efetivar_recorrentes_vencidas: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
     }
     Enums: {
