@@ -25,6 +25,8 @@ import {
   FileSpreadsheet,
   BookOpen,
   CalendarClock,
+  TrendingUp,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -60,6 +62,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/tesouraria/plano-contas", label: "Plano de Contas", icon: FileBarChart, show: can.canManageFinancas },
     { to: "/contabilidade/razao", label: "Razão Contábil", icon: BookOpen, show: can.canManageFinancas },
     { to: "/contabilidade/diario", label: "Diário Contábil", icon: CalendarClock, show: can.canManageFinancas },
+    { to: "/contabilidade/dre", label: "DRE", icon: TrendingUp, show: can.canManageFinancas },
+    { to: "/contabilidade/balancete", label: "Balancete", icon: Scale, show: can.canManageFinancas },
     { to: "/contabilidade/auditoria", label: "Auditoria Contábil", icon: ShieldCheck, show: can.canManageFinancas },
     { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
     { to: "/relatorios/inadimplentes", label: "Inadimplentes", icon: FileBarChart, show: can.canManageFinancas },
