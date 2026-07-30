@@ -36,6 +36,8 @@ import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/
 import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
 import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
+import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
+import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
 import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
 
@@ -192,6 +194,18 @@ const AuthenticatedContabilidadeAuditoriaRoute =
     path: '/contabilidade/auditoria',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContabilidadeRazaoRoute =
+  AuthenticatedContabilidadeRazaoRouteImport.update({
+    id: '/contabilidade/razao',
+    path: '/contabilidade/razao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeDiarioRoute =
+  AuthenticatedContabilidadeDiarioRouteImport.update({
+    id: '/contabilidade/diario',
+    path: '/contabilidade/diario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOrgsPotenciasRoute =
   AuthenticatedOrgsPotenciasRouteImport.update({
     id: '/orgs/potencias',
@@ -210,6 +224,8 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
+  '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -240,6 +256,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
+  '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -272,6 +290,8 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
+  '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/_authenticated/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/_authenticated/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -304,6 +324,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/contabilidade/auditoria'
+    | '/contabilidade/razao'
+    | '/contabilidade/diario'
     | '/orgs/potencias'
     | '/gestoes/cargos'
     | '/irmaos/$id'
@@ -334,6 +356,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/contabilidade/auditoria'
+    | '/contabilidade/razao'
+    | '/contabilidade/diario'
     | '/orgs/potencias'
     | '/gestoes/cargos'
     | '/irmaos/$id'
@@ -365,6 +389,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/contabilidade/auditoria'
+    | '/_authenticated/contabilidade/razao'
+    | '/_authenticated/contabilidade/diario'
     | '/_authenticated/orgs/potencias'
     | '/_authenticated/gestoes/cargos'
     | '/_authenticated/irmaos/$id'
@@ -432,6 +458,20 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/auditoria'
       fullPath: '/contabilidade/auditoria'
       preLoaderRoute: typeof AuthenticatedContabilidadeAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/razao': {
+      id: '/_authenticated/contabilidade/razao'
+      path: '/contabilidade/razao'
+      fullPath: '/contabilidade/razao'
+      preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/diario': {
+      id: '/_authenticated/contabilidade/diario'
+      path: '/contabilidade/diario'
+      fullPath: '/contabilidade/diario'
+      preLoaderRoute: typeof AuthenticatedContabilidadeDiarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/orgs/potencias': {
@@ -608,6 +648,8 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
+  AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
+  AuthenticatedContabilidadeDiarioRoute: typeof AuthenticatedContabilidadeDiarioRoute
   AuthenticatedOrgsPotenciasRoute: typeof AuthenticatedOrgsPotenciasRoute
   AuthenticatedGestoesCargosRoute: typeof AuthenticatedGestoesCargosRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
@@ -638,6 +680,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedContabilidadeAuditoriaRoute:
     AuthenticatedContabilidadeAuditoriaRoute,
+  AuthenticatedContabilidadeRazaoRoute: AuthenticatedContabilidadeRazaoRoute,
+  AuthenticatedContabilidadeDiarioRoute: AuthenticatedContabilidadeDiarioRoute,
   AuthenticatedOrgsPotenciasRoute: AuthenticatedOrgsPotenciasRoute,
   AuthenticatedGestoesCargosRoute: AuthenticatedGestoesCargosRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
