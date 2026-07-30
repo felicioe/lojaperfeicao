@@ -233,16 +233,16 @@ function TransferenciaDialog({ contas, onDone }: any) {
   const save = async () => {
     if (d.conta_id === d.conta_destino_id) return toast.error("Contas devem ser diferentes.");
     setSaving(true);
-    const { error } = await supabase.from("lancamentos").insert({
-      ...d,
-      tipo: "transferencia",
-      valor: Number(d.valor),
-      pago: true,
-      data_pagamento: d.data,
+    const { error } = await supabase.rpc("criar_transferencia", {
+      _conta_origem_id: d.conta_id,
+      _conta_destino_id: d.conta_destino_id,
+      _valor: Number(d.valor),
+      _data: d.data,
+      _descricao: d.descricao,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Transferência registrada.");
+    toast.success("Transferência registrada e lançamento contábil postado.");
     onDone();
   };
   return (

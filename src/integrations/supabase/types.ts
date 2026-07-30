@@ -667,6 +667,7 @@ export type Database = {
       }
       lancamentos: {
         Row: {
+          categoria_recebimento: Database["public"]["Enums"]["categoria_recebimento"] | null
           competencia_mes: string | null
           conta_destino_id: string | null
           conta_id: string | null
@@ -693,6 +694,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          categoria_recebimento?: Database["public"]["Enums"]["categoria_recebimento"] | null
           competencia_mes?: string | null
           conta_destino_id?: string | null
           conta_id?: string | null
@@ -719,6 +721,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          categoria_recebimento?: Database["public"]["Enums"]["categoria_recebimento"] | null
           competencia_mes?: string | null
           conta_destino_id?: string | null
           conta_id?: string | null
@@ -1450,6 +1453,31 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_recebimento_avulso: {
+        Args: {
+          _categoria: Database["public"]["Enums"]["categoria_recebimento"]
+          _conta_financeira_id: string
+          _data?: string
+          _descricao?: string
+          _forma_pagamento?: string
+          _irmao_id?: string
+          _observacoes?: string
+          _plano_conta_id: string
+          _terceiro_id?: string
+          _valor: number
+        }
+        Returns: string
+      }
+      criar_transferencia: {
+        Args: {
+          _conta_destino_id: string
+          _conta_origem_id: string
+          _data?: string
+          _descricao?: string
+          _valor: number
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1508,6 +1536,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "tesoureiro" | "secretario" | "irmao"
+      categoria_recebimento: "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros"
       grau_macom: "aprendiz" | "companheiro" | "mestre"
       natureza_corpo: "loja" | "capitulo" | "conselho" | "areopago" | "consistorio" | "outro"
       situacao_irmao: "ativo" | "quite" | "irregular" | "adormecido"
@@ -1645,6 +1674,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "tesoureiro", "secretario", "irmao"],
+      categoria_recebimento: ["mensalidade", "taxa_grau", "tronco", "doacao", "outros"],
       grau_macom: ["aprendiz", "companheiro", "mestre"],
       natureza_corpo: ["loja", "capitulo", "conselho", "areopago", "consistorio", "outro"],
       situacao_irmao: ["ativo", "quite", "irregular", "adormecido"],
