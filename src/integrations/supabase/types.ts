@@ -447,6 +447,59 @@ export type Database = {
         }
         Relationships: []
       }
+      parcelamentos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: string
+          entrada: number
+          id: string
+          irmao_id: string
+          numero_parcelas: number
+          observacoes: string | null
+          valor_juros: number
+          valor_multa: number
+          valor_original: number
+          valor_parcelado: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          entrada?: number
+          id?: string
+          irmao_id: string
+          numero_parcelas: number
+          observacoes?: string | null
+          valor_juros?: number
+          valor_multa?: number
+          valor_original: number
+          valor_parcelado: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          entrada?: number
+          id?: string
+          irmao_id?: string
+          numero_parcelas?: number
+          observacoes?: string | null
+          valor_juros?: number
+          valor_multa?: number
+          valor_original?: number
+          valor_parcelado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcelamentos_irmao_id_fkey"
+            columns: ["irmao_id"]
+            isOneToOne: false
+            referencedRelation: "irmaos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recibos: {
         Row: {
           conta_financeira_id: string | null
@@ -629,6 +682,8 @@ export type Database = {
           is_mensalidade: boolean
           observacoes: string | null
           pago: boolean
+          parcelado: boolean
+          parcelamento_id: string | null
           plano_conta_id: string | null
           recibo_id: string | null
           recorrente_id: string | null
@@ -653,6 +708,8 @@ export type Database = {
           is_mensalidade?: boolean
           observacoes?: string | null
           pago?: boolean
+          parcelado?: boolean
+          parcelamento_id?: string | null
           plano_conta_id?: string | null
           recibo_id?: string | null
           recorrente_id?: string | null
@@ -677,6 +734,8 @@ export type Database = {
           is_mensalidade?: boolean
           observacoes?: string | null
           pago?: boolean
+          parcelado?: boolean
+          parcelamento_id?: string | null
           plano_conta_id?: string | null
           recibo_id?: string | null
           recorrente_id?: string | null
@@ -686,6 +745,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "lancamentos_parcelamento_id_fkey"
+            columns: ["parcelamento_id"]
+            isOneToOne: false
+            referencedRelation: "parcelamentos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lancamentos_recibo_id_fkey"
             columns: ["recibo_id"]
@@ -1368,6 +1434,18 @@ export type Database = {
           _desconto?: number
           _forma_pagamento?: string
           _lancamento_ids: string[]
+          _observacoes?: string
+        }
+        Returns: string
+      }
+      criar_parcelamento: {
+        Args: {
+          _conta_financeira_id?: string
+          _data?: string
+          _entrada?: number
+          _incluir_multa_juros?: boolean
+          _lancamento_ids: string[]
+          _numero_parcelas: number
           _observacoes?: string
         }
         Returns: string
