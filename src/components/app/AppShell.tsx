@@ -22,6 +22,7 @@ import {
   SplitSquareHorizontal,
   ArrowLeftRight,
   HeartHandshake,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -47,6 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/tesouraria/contas", label: "Contas", icon: Landmark, show: can.canManageFinancas },
     { to: "/tesouraria/movimentos", label: "Movimento Financeiro", icon: ArrowLeftRight, show: can.canManageFinancas },
     { to: "/tesouraria/tronco", label: "Tronco de Beneficência", icon: HeartHandshake, show: can.canManageFinancas },
+    { to: "/tesouraria/conciliacao", label: "Conciliação Bancária", icon: FileSpreadsheet, show: can.canManageFinancas },
     { to: "/tesouraria/faturas", label: "Faturas", icon: FileStack, show: can.canManageFinancas },
     { to: "/tesouraria/recibos", label: "Recibos", icon: Receipt, show: can.canManageFinancas },
     { to: "/tesouraria/parcelamentos", label: "Parcelamentos", icon: SplitSquareHorizontal, show: can.canManageFinancas },
