@@ -1,721 +1,1224 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
-export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
+export interface Database {
   public: {
     Tables: {
-      contas_financeiras: {
+      cargos: {
         Row: {
-          agencia: string | null
-          ativo: boolean
-          banco: string | null
-          created_at: string
-          id: string
-          nome: string
-          numero: string | null
-          saldo_inicial: number
-          tipo: Database["public"]["Enums"]["tipo_conta"]
+          id: any
+          org_id: any
+          nome: any
+          ordem: any
+          ativo: any
+          created_at: any
         }
         Insert: {
-          agencia?: string | null
-          ativo?: boolean
-          banco?: string | null
-          created_at?: string
-          id?: string
-          nome: string
-          numero?: string | null
-          saldo_inicial?: number
-          tipo?: Database["public"]["Enums"]["tipo_conta"]
+          id?: any
+          org_id?: any
+          nome: any
+          ordem: any
+          ativo: any
+          created_at: any
         }
         Update: {
-          agencia?: string | null
-          ativo?: boolean
-          banco?: string | null
-          created_at?: string
-          id?: string
-          nome?: string
-          numero?: string | null
-          saldo_inicial?: number
-          tipo?: Database["public"]["Enums"]["tipo_conta"]
+          id?: any
+          org_id?: any
+          nome?: any
+          ordem?: any
+          ativo?: any
+          created_at?: any
         }
-        Relationships: []
+      }
+      cnpj_consultas_cache: {
+        Row: {
+          cnpj: any
+          dados: any
+          consultado_em: any
+        }
+        Insert: {
+          cnpj?: any
+          dados: any
+          consultado_em: any
+        }
+        Update: {
+          cnpj?: any
+          dados?: any
+          consultado_em?: any
+        }
+      }
+      cnpj_rate_limit: {
+        Row: {
+          user_id: any
+          tentativas: any
+          janela_inicio: any
+        }
+        Insert: {
+          user_id?: any
+          tentativas: any
+          janela_inicio: any
+        }
+        Update: {
+          user_id?: any
+          tentativas?: any
+          janela_inicio?: any
+        }
+      }
+      contas_financeiras: {
+        Row: {
+          id: any
+          nome: any
+          tipo: any
+          banco: string | null
+          agencia: string | null
+          numero: string | null
+          saldo_inicial: any
+          ativo: any
+          created_at: any
+          plano_conta_id: any
+        }
+        Insert: {
+          id?: any
+          nome: any
+          tipo: any
+          banco?: string | null
+          agencia?: string | null
+          numero?: string | null
+          saldo_inicial: any
+          ativo: any
+          created_at: any
+          plano_conta_id?: any
+        }
+        Update: {
+          id?: any
+          nome?: any
+          tipo?: any
+          banco?: string | null
+          agencia?: string | null
+          numero?: string | null
+          saldo_inicial?: any
+          ativo?: any
+          created_at?: any
+          plano_conta_id?: any
+        }
+      }
+      despesas_recorrentes: {
+        Row: {
+          id: any
+          descricao: any
+          valor: any
+          dia_vencimento: any
+          plano_conta_id: any
+          terceiro_id: any
+          data_inicio: any
+          data_fim: string | null
+          ativo: any
+          observacoes: string | null
+          created_at: any
+          updated_at: any
+        }
+        Insert: {
+          id?: any
+          descricao: any
+          valor: any
+          dia_vencimento: any
+          plano_conta_id: any
+          terceiro_id?: any
+          data_inicio: any
+          data_fim?: string | null
+          ativo: any
+          observacoes?: string | null
+          created_at: any
+          updated_at: any
+        }
+        Update: {
+          id?: any
+          descricao?: any
+          valor?: any
+          dia_vencimento?: any
+          plano_conta_id?: any
+          terceiro_id?: any
+          data_inicio?: any
+          data_fim?: string | null
+          ativo?: any
+          observacoes?: string | null
+          created_at?: any
+          updated_at?: any
+        }
+      }
+      fechamentos_exercicio: {
+        Row: {
+          id: any
+          exercicio: any
+          data_corte: any
+          status: any
+          lancamento_transporte_id: any
+          resultado_apurado: any
+          fechado_por: any
+          fechado_em: any
+          reaberto_por: any
+          reaberto_em: string | null
+          motivo_reabertura: string | null
+          observacoes: string | null
+        }
+        Insert: {
+          id?: any
+          exercicio: any
+          data_corte: any
+          status: any
+          lancamento_transporte_id?: any
+          resultado_apurado?: any
+          fechado_por?: any
+          fechado_em: any
+          reaberto_por?: any
+          reaberto_em?: string | null
+          motivo_reabertura?: string | null
+          observacoes?: string | null
+        }
+        Update: {
+          id?: any
+          exercicio?: any
+          data_corte?: any
+          status?: any
+          lancamento_transporte_id?: any
+          resultado_apurado?: any
+          fechado_por?: any
+          fechado_em?: any
+          reaberto_por?: any
+          reaberto_em?: string | null
+          motivo_reabertura?: string | null
+          observacoes?: string | null
+        }
+      }
+      fechamentos_exercicio_eventos: {
+        Row: {
+          id: any
+          fechamento_id: any
+          acao: any
+          lancamento_id: any
+          realizado_por: any
+          realizado_em: any
+          motivo: string | null
+        }
+        Insert: {
+          id?: any
+          fechamento_id: any
+          acao: any
+          lancamento_id?: any
+          realizado_por?: any
+          realizado_em: any
+          motivo?: string | null
+        }
+        Update: {
+          id?: any
+          fechamento_id?: any
+          acao?: any
+          lancamento_id?: any
+          realizado_por?: any
+          realizado_em?: any
+          motivo?: string | null
+        }
+      }
+      gestao_cargos: {
+        Row: {
+          id: any
+          gestao_id: any
+          cargo_id: any
+          irmao_id: any
+          data_inicio: string | null
+          data_fim: string | null
+          observacoes: string | null
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          gestao_id: any
+          cargo_id: any
+          irmao_id: any
+          data_inicio?: string | null
+          data_fim?: string | null
+          observacoes?: string | null
+          created_at: any
+        }
+        Update: {
+          id?: any
+          gestao_id?: any
+          cargo_id?: any
+          irmao_id?: any
+          data_inicio?: string | null
+          data_fim?: string | null
+          observacoes?: string | null
+          created_at?: any
+        }
+      }
+      gestoes: {
+        Row: {
+          id: any
+          org_id: any
+          nome: any
+          data_inicio: any
+          data_fim: any
+          ativo: any
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          org_id: any
+          nome: any
+          data_inicio: any
+          data_fim: any
+          ativo: any
+          created_at: any
+        }
+        Update: {
+          id?: any
+          org_id?: any
+          nome?: any
+          data_inicio?: any
+          data_fim?: any
+          ativo?: any
+          created_at?: any
+        }
+      }
+      irmao_elevacoes: {
+        Row: {
+          id: any
+          irmao_id: any
+          grau: any
+          data: string | null
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          irmao_id: any
+          grau: any
+          data?: string | null
+          created_at: any
+        }
+        Update: {
+          id?: any
+          irmao_id?: any
+          grau?: any
+          data?: string | null
+          created_at?: any
+        }
+      }
+      irmao_filhos: {
+        Row: {
+          id: any
+          irmao_id: any
+          nome: any
+          data_nascimento: string | null
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          irmao_id: any
+          nome: any
+          data_nascimento?: string | null
+          created_at: any
+        }
+        Update: {
+          id?: any
+          irmao_id?: any
+          nome?: any
+          data_nascimento?: string | null
+          created_at?: any
+        }
+      }
+      irmao_formacao: {
+        Row: {
+          id: any
+          irmao_id: any
+          curso: any
+          instituicao: string | null
+          nivel: string | null
+          ano_conclusao: number | null
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          irmao_id: any
+          curso: any
+          instituicao?: string | null
+          nivel?: string | null
+          ano_conclusao?: number | null
+          created_at: any
+        }
+        Update: {
+          id?: any
+          irmao_id?: any
+          curso?: any
+          instituicao?: string | null
+          nivel?: string | null
+          ano_conclusao?: number | null
+          created_at?: any
+        }
+      }
+      irmao_orgs: {
+        Row: {
+          id: any
+          irmao_id: any
+          org_id: any
+          principal: any
+          grau_atual: number | null
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          irmao_id: any
+          org_id: any
+          principal: any
+          grau_atual?: number | null
+          created_at: any
+        }
+        Update: {
+          id?: any
+          irmao_id?: any
+          org_id?: any
+          principal?: any
+          grau_atual?: number | null
+          created_at?: any
+        }
+      }
+      irmao_parentes: {
+        Row: {
+          id: any
+          irmao_id: any
+          tipo: any
+          nome: any
+          data_nascimento: string | null
+          telefone: string | null
+          profissao: string | null
+          data_casamento: string | null
+          observacoes: string | null
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          irmao_id: any
+          tipo: any
+          nome: any
+          data_nascimento?: string | null
+          telefone?: string | null
+          profissao?: string | null
+          data_casamento?: string | null
+          observacoes?: string | null
+          created_at: any
+        }
+        Update: {
+          id?: any
+          irmao_id?: any
+          tipo?: any
+          nome?: any
+          data_nascimento?: string | null
+          telefone?: string | null
+          profissao?: string | null
+          data_casamento?: string | null
+          observacoes?: string | null
+          created_at?: any
+        }
       }
       irmaos: {
         Row: {
+          id: any
+          user_id: any
+          nome_civil: any
+          nome_simbolico: string | null
           cim: string | null
-          created_at: string
+          grau: any
+          data_iniciacao: string | null
           data_elevacao: string | null
           data_exaltacao: string | null
-          data_iniciacao: string | null
-          data_nascimento: string | null
-          email: string | null
-          endereco: string | null
-          grau: Database["public"]["Enums"]["grau_macom"]
-          id: string
-          loja_origem: string | null
-          nome_civil: string
-          nome_simbolico: string | null
+          situacao: any
           potencia: string | null
-          profissao: string | null
-          situacao: Database["public"]["Enums"]["situacao_irmao"]
+          loja_origem: string | null
+          email: string | null
           telefone: string | null
-          updated_at: string
-          user_id: string | null
-          valor_mensalidade: number
+          endereco: string | null
+          data_nascimento: string | null
+          profissao: string | null
+          valor_mensalidade: any
+          created_at: any
+          updated_at: any
+          numero_matricula: string
         }
         Insert: {
+          id?: any
+          user_id?: any
+          nome_civil: any
+          nome_simbolico?: string | null
           cim?: string | null
-          created_at?: string
+          grau: any
+          data_iniciacao?: string | null
           data_elevacao?: string | null
           data_exaltacao?: string | null
-          data_iniciacao?: string | null
-          data_nascimento?: string | null
-          email?: string | null
-          endereco?: string | null
-          grau?: Database["public"]["Enums"]["grau_macom"]
-          id?: string
-          loja_origem?: string | null
-          nome_civil: string
-          nome_simbolico?: string | null
+          situacao: any
           potencia?: string | null
-          profissao?: string | null
-          situacao?: Database["public"]["Enums"]["situacao_irmao"]
+          loja_origem?: string | null
+          email?: string | null
           telefone?: string | null
-          updated_at?: string
-          user_id?: string | null
-          valor_mensalidade?: number
+          endereco?: string | null
+          data_nascimento?: string | null
+          profissao?: string | null
+          valor_mensalidade: any
+          created_at: any
+          updated_at: any
+          numero_matricula: string | null
         }
         Update: {
+          id?: any
+          user_id?: any
+          nome_civil?: any
+          nome_simbolico?: string | null
           cim?: string | null
-          created_at?: string
+          grau?: any
+          data_iniciacao?: string | null
           data_elevacao?: string | null
           data_exaltacao?: string | null
-          data_iniciacao?: string | null
-          data_nascimento?: string | null
-          email?: string | null
-          endereco?: string | null
-          grau?: Database["public"]["Enums"]["grau_macom"]
-          id?: string
-          loja_origem?: string | null
-          nome_civil?: string
-          nome_simbolico?: string | null
+          situacao?: any
           potencia?: string | null
-          profissao?: string | null
-          situacao?: Database["public"]["Enums"]["situacao_irmao"]
+          loja_origem?: string | null
+          email?: string | null
           telefone?: string | null
-          updated_at?: string
-          user_id?: string | null
-          valor_mensalidade?: number
+          endereco?: string | null
+          data_nascimento?: string | null
+          profissao?: string | null
+          valor_mensalidade?: any
+          created_at?: any
+          updated_at?: any
+          numero_matricula?: string | null
         }
-        Relationships: []
       }
       lancamentos: {
         Row: {
-          competencia_mes: string | null
-          conta_destino_id: string | null
-          conta_id: string | null
-          created_at: string
-          created_by: string | null
-          data: string
-          data_pagamento: string | null
+          id: any
+          data: any
           data_vencimento: string | null
-          descricao: string
-          id: string
-          irmao_id: string | null
-          is_mensalidade: boolean
+          data_pagamento: string | null
+          descricao: any
+          valor: any
+          tipo: any
+          conta_id: any
+          conta_destino_id: any
+          plano_conta_id: any
+          irmao_id: any
+          pago: any
+          is_mensalidade: any
+          competencia_mes: string | null
           observacoes: string | null
-          pago: boolean
-          plano_conta_id: string | null
-          tipo: Database["public"]["Enums"]["tipo_lancamento"]
-          updated_at: string
-          valor: number
+          created_by: any
+          created_at: any
+          updated_at: any
+          terceiro_id: any
+          recorrente_id: any
+          recibo_id: any
+          parcelamento_id: any
+          categoria_recebimento: any
         }
         Insert: {
-          competencia_mes?: string | null
-          conta_destino_id?: string | null
-          conta_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          data?: string
-          data_pagamento?: string | null
+          id?: any
+          data: any
           data_vencimento?: string | null
-          descricao: string
-          id?: string
-          irmao_id?: string | null
-          is_mensalidade?: boolean
+          data_pagamento?: string | null
+          descricao: any
+          valor: any
+          tipo: any
+          conta_id?: any
+          conta_destino_id?: any
+          plano_conta_id?: any
+          irmao_id?: any
+          pago: any
+          is_mensalidade: any
+          competencia_mes?: string | null
           observacoes?: string | null
-          pago?: boolean
-          plano_conta_id?: string | null
-          tipo: Database["public"]["Enums"]["tipo_lancamento"]
-          updated_at?: string
-          valor: number
+          created_by?: any
+          created_at: any
+          updated_at: any
+          terceiro_id?: any
+          recorrente_id?: any
+          recibo_id?: any
+          parcelamento_id: any
+          categoria_recebimento?: any
         }
         Update: {
-          competencia_mes?: string | null
-          conta_destino_id?: string | null
-          conta_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          data?: string
-          data_pagamento?: string | null
+          id?: any
+          data?: any
           data_vencimento?: string | null
-          descricao?: string
-          id?: string
-          irmao_id?: string | null
-          is_mensalidade?: boolean
+          data_pagamento?: string | null
+          descricao?: any
+          valor?: any
+          tipo?: any
+          conta_id?: any
+          conta_destino_id?: any
+          plano_conta_id?: any
+          irmao_id?: any
+          pago?: any
+          is_mensalidade?: any
+          competencia_mes?: string | null
           observacoes?: string | null
-          pago?: boolean
-          plano_conta_id?: string | null
-          tipo?: Database["public"]["Enums"]["tipo_lancamento"]
-          updated_at?: string
-          valor?: number
+          created_by?: any
+          created_at?: any
+          updated_at?: any
+          terceiro_id?: any
+          recorrente_id?: any
+          recibo_id?: any
+          parcelamento_id?: any
+          categoria_recebimento?: any
         }
-        Relationships: [
-          {
-            foreignKeyName: "lancamentos_conta_destino_id_fkey"
-            columns: ["conta_destino_id"]
-            isOneToOne: false
-            referencedRelation: "contas_financeiras"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_conta_destino_id_fkey"
-            columns: ["conta_destino_id"]
-            isOneToOne: false
-            referencedRelation: "v_saldo_contas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_conta_id_fkey"
-            columns: ["conta_id"]
-            isOneToOne: false
-            referencedRelation: "contas_financeiras"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_conta_id_fkey"
-            columns: ["conta_id"]
-            isOneToOne: false
-            referencedRelation: "v_saldo_contas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_irmao_id_fkey"
-            columns: ["irmao_id"]
-            isOneToOne: false
-            referencedRelation: "irmaos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_plano_conta_id_fkey"
-            columns: ["plano_conta_id"]
-            isOneToOne: false
-            referencedRelation: "plano_contas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_plano_conta_id_fkey"
-            columns: ["plano_conta_id"]
-            isOneToOne: false
-            referencedRelation: "v_saldo_plano_contas"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       lancamentos_contabeis: {
         Row: {
-          competencia: string
-          criado_em: string
-          criado_por: string | null
-          data: string
-          descricao: string
-          id: string
-          origem_id: string | null
+          id: any
+          data: any
+          competencia: any
+          descricao: any
           origem_tipo: string | null
+          origem_id: string | null
+          criado_por: any
+          criado_em: any
         }
         Insert: {
-          competencia?: string
-          criado_em?: string
-          criado_por?: string | null
-          data?: string
-          descricao: string
-          id?: string
-          origem_id?: string | null
+          id?: any
+          data: any
+          competencia: any
+          descricao: any
           origem_tipo?: string | null
+          origem_id?: string | null
+          criado_por?: any
+          criado_em: any
         }
         Update: {
-          competencia?: string
-          criado_em?: string
-          criado_por?: string | null
-          data?: string
-          descricao?: string
-          id?: string
-          origem_id?: string | null
+          id?: any
+          data?: any
+          competencia?: any
+          descricao?: any
           origem_tipo?: string | null
+          origem_id?: string | null
+          criado_por?: any
+          criado_em?: any
         }
-        Relationships: []
       }
       lancamentos_contabeis_itens: {
         Row: {
-          conta_id: string
+          id: any
+          lancamento_id: any
+          conta_id: any
+          tipo: any
+          valor: any
           descricao: string | null
-          id: string
-          lancamento_id: string
-          tipo: string
-          valor: number
         }
         Insert: {
-          conta_id: string
+          id?: any
+          lancamento_id: any
+          conta_id: any
+          tipo: any
+          valor: any
           descricao?: string | null
-          id?: string
-          lancamento_id: string
-          tipo: string
-          valor: number
         }
         Update: {
-          conta_id?: string
+          id?: any
+          lancamento_id?: any
+          conta_id?: any
+          tipo?: any
+          valor?: any
           descricao?: string | null
-          id?: string
-          lancamento_id?: string
-          tipo?: string
-          valor?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "lancamentos_contabeis_itens_conta_id_fkey"
-            columns: ["conta_id"]
-            isOneToOne: false
-            referencedRelation: "plano_contas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_contabeis_itens_conta_id_fkey"
-            columns: ["conta_id"]
-            isOneToOne: false
-            referencedRelation: "v_saldo_plano_contas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_contabeis_itens_lancamento_id_fkey"
-            columns: ["lancamento_id"]
-            isOneToOne: false
-            referencedRelation: "lancamentos_contabeis"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_contabeis_itens_lancamento_id_fkey"
-            columns: ["lancamento_id"]
-            isOneToOne: false
-            referencedRelation: "v_auditoria_contabil_desbalanceados"
-            referencedColumns: ["lancamento_id"]
-          },
-        ]
+      }
+      ofx_lancamentos: {
+        Row: {
+          id: any
+          conta_financeira_id: any
+          fitid: string | null
+          data: any
+          valor: any
+          tipo_ofx: string | null
+          descricao: string | null
+          chave_dedupe: any
+          conciliado: any
+          lancamento_id: any
+          importado_em: any
+          importado_por: any
+        }
+        Insert: {
+          id?: any
+          conta_financeira_id: any
+          fitid?: string | null
+          data: any
+          valor: any
+          tipo_ofx?: string | null
+          descricao?: string | null
+          chave_dedupe: any
+          conciliado: any
+          lancamento_id?: any
+          importado_em: any
+          importado_por?: any
+        }
+        Update: {
+          id?: any
+          conta_financeira_id?: any
+          fitid?: string | null
+          data?: any
+          valor?: any
+          tipo_ofx?: string | null
+          descricao?: string | null
+          chave_dedupe?: any
+          conciliado?: any
+          lancamento_id?: any
+          importado_em?: any
+          importado_por?: any
+        }
+      }
+      orcamento_itens: {
+        Row: {
+          id: any
+          orcamento_id: any
+          conta_id: any
+          mes: any
+          valor: any
+        }
+        Insert: {
+          id?: any
+          orcamento_id: any
+          conta_id: any
+          mes: any
+          valor: any
+        }
+        Update: {
+          id?: any
+          orcamento_id?: any
+          conta_id?: any
+          mes?: any
+          valor?: any
+        }
+      }
+      orcamentos: {
+        Row: {
+          id: any
+          ano: any
+          status: any
+          observacoes: string | null
+          created_by: any
+          aprovado_por: any
+          aprovado_em: string | null
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          ano: any
+          status: any
+          observacoes?: string | null
+          created_by?: any
+          aprovado_por?: any
+          aprovado_em?: string | null
+          created_at: any
+        }
+        Update: {
+          id?: any
+          ano?: any
+          status?: any
+          observacoes?: string | null
+          created_by?: any
+          aprovado_por?: any
+          aprovado_em?: string | null
+          created_at?: any
+        }
+      }
+      orgs: {
+        Row: {
+          id: any
+          potencia_id: any
+          nome: any
+          sigla: string | null
+          natureza: any
+          numero: string | null
+          rito: string | null
+          grau_min: any
+          grau_max: any
+          mensalidade_padrao: any
+          cnpj: string | null
+          fundacao: string | null
+          endereco: string | null
+          ativo: any
+          created_at: any
+          updated_at: any
+        }
+        Insert: {
+          id?: any
+          potencia_id?: any
+          nome: any
+          sigla?: string | null
+          natureza: any
+          numero?: string | null
+          rito?: string | null
+          grau_min: any
+          grau_max: any
+          mensalidade_padrao: any
+          cnpj?: string | null
+          fundacao?: string | null
+          endereco?: string | null
+          ativo: any
+          created_at: any
+          updated_at: any
+        }
+        Update: {
+          id?: any
+          potencia_id?: any
+          nome?: any
+          sigla?: string | null
+          natureza?: any
+          numero?: string | null
+          rito?: string | null
+          grau_min?: any
+          grau_max?: any
+          mensalidade_padrao?: any
+          cnpj?: string | null
+          fundacao?: string | null
+          endereco?: string | null
+          ativo?: any
+          created_at?: any
+          updated_at?: any
+        }
+      }
+      orgs_graus: {
+        Row: {
+          id: any
+          org_id: any
+          grau: any
+          nome: any
+        }
+        Insert: {
+          id?: any
+          org_id: any
+          grau: any
+          nome: any
+        }
+        Update: {
+          id?: any
+          org_id?: any
+          grau?: any
+          nome?: any
+        }
+      }
+      parametros_financeiros: {
+        Row: {
+          id: any
+          multa_ativa: any
+          multa_percentual: any
+          juros_ativo: any
+          juros_diario_percentual: any
+          updated_at: any
+        }
+        Insert: {
+          id?: any
+          multa_ativa: any
+          multa_percentual: any
+          juros_ativo: any
+          juros_diario_percentual: any
+          updated_at: any
+        }
+        Update: {
+          id?: any
+          multa_ativa?: any
+          multa_percentual?: any
+          juros_ativo?: any
+          juros_diario_percentual?: any
+          updated_at?: any
+        }
+      }
+      parcelamentos: {
+        Row: {
+          id: any
+          irmao_id: any
+          data: any
+          valor_original: any
+          valor_multa: any
+          valor_juros: any
+          entrada: any
+          valor_parcelado: any
+          numero_parcelas: any
+          observacoes: string | null
+          created_at: any
+          created_by: any
+        }
+        Insert: {
+          id?: any
+          irmao_id: any
+          data: any
+          valor_original: any
+          valor_multa: any
+          valor_juros: any
+          entrada: any
+          valor_parcelado: any
+          numero_parcelas: any
+          observacoes?: string | null
+          created_at: any
+          created_by?: any
+        }
+        Update: {
+          id?: any
+          irmao_id?: any
+          data?: any
+          valor_original?: any
+          valor_multa?: any
+          valor_juros?: any
+          entrada?: any
+          valor_parcelado?: any
+          numero_parcelas?: any
+          observacoes?: string | null
+          created_at?: any
+          created_by?: any
+        }
       }
       plano_contas: {
         Row: {
-          analitica: boolean
-          ativo: boolean
-          codigo: string
-          created_at: string
-          id: string
-          nome: string
-          parent_id: string | null
-          tipo: Database["public"]["Enums"]["tipo_plano_conta"]
+          id: any
+          codigo: any
+          nome: any
+          tipo: any
+          ativo: any
+          created_at: any
+          analitica: any
+          parent_id: any
         }
         Insert: {
-          analitica?: boolean
-          ativo?: boolean
-          codigo: string
-          created_at?: string
-          id?: string
-          nome: string
-          parent_id?: string | null
-          tipo: Database["public"]["Enums"]["tipo_plano_conta"]
+          id?: any
+          codigo: any
+          nome: any
+          tipo: any
+          ativo: any
+          created_at: any
+          analitica: any
+          parent_id?: any
         }
         Update: {
-          analitica?: boolean
-          ativo?: boolean
-          codigo?: string
-          created_at?: string
-          id?: string
-          nome?: string
-          parent_id?: string | null
-          tipo?: Database["public"]["Enums"]["tipo_plano_conta"]
+          id?: any
+          codigo?: any
+          nome?: any
+          tipo?: any
+          ativo?: any
+          created_at?: any
+          analitica?: any
+          parent_id?: any
         }
-        Relationships: [
-          {
-            foreignKeyName: "plano_contas_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "plano_contas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plano_contas_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "v_saldo_plano_contas"
-            referencedColumns: ["id"]
-          },
-        ]
+      }
+      potencias: {
+        Row: {
+          id: any
+          nome: any
+          sigla: string | null
+          jurisdicao: string | null
+          site: string | null
+          ativo: any
+          created_at: any
+        }
+        Insert: {
+          id?: any
+          nome: any
+          sigla?: string | null
+          jurisdicao?: string | null
+          site?: string | null
+          ativo: any
+          created_at: any
+        }
+        Update: {
+          id?: any
+          nome?: any
+          sigla?: string | null
+          jurisdicao?: string | null
+          site?: string | null
+          ativo?: any
+          created_at?: any
+        }
       }
       presencas: {
         Row: {
-          created_at: string
-          id: string
-          irmao_id: string
-          justificado: boolean
-          presente: boolean
-          sessao_id: string
+          id: any
+          sessao_id: any
+          irmao_id: any
+          presente: any
+          justificado: any
+          created_at: any
         }
         Insert: {
-          created_at?: string
-          id?: string
-          irmao_id: string
-          justificado?: boolean
-          presente?: boolean
-          sessao_id: string
+          id?: any
+          sessao_id: any
+          irmao_id: any
+          presente: any
+          justificado: any
+          created_at: any
         }
         Update: {
-          created_at?: string
-          id?: string
-          irmao_id?: string
-          justificado?: boolean
-          presente?: boolean
-          sessao_id?: string
+          id?: any
+          sessao_id?: any
+          irmao_id?: any
+          presente?: any
+          justificado?: any
+          created_at?: any
         }
-        Relationships: [
-          {
-            foreignKeyName: "presencas_irmao_id_fkey"
-            columns: ["irmao_id"]
-            isOneToOne: false
-            referencedRelation: "irmaos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "presencas_sessao_id_fkey"
-            columns: ["sessao_id"]
-            isOneToOne: false
-            referencedRelation: "sessoes"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       profiles: {
         Row: {
-          created_at: string
+          id: any
           full_name: string | null
-          id: string
           irmao_id: string | null
-          updated_at: string
+          created_at: any
+          updated_at: any
         }
         Insert: {
-          created_at?: string
+          id?: any
           full_name?: string | null
-          id: string
           irmao_id?: string | null
-          updated_at?: string
+          created_at: any
+          updated_at: any
         }
         Update: {
-          created_at?: string
+          id?: any
           full_name?: string | null
-          id?: string
           irmao_id?: string | null
-          updated_at?: string
+          created_at?: any
+          updated_at?: any
         }
-        Relationships: []
+      }
+      recibo_itens: {
+        Row: {
+          id: any
+          recibo_id: any
+          lancamento_id: any
+          valor_original: any
+          valor_multa: any
+          valor_juros: any
+        }
+        Insert: {
+          id?: any
+          recibo_id: any
+          lancamento_id: any
+          valor_original: any
+          valor_multa: any
+          valor_juros: any
+        }
+        Update: {
+          id?: any
+          recibo_id?: any
+          lancamento_id?: any
+          valor_original?: any
+          valor_multa?: any
+          valor_juros?: any
+        }
+      }
+      recibos: {
+        Row: {
+          id: any
+          irmao_id: any
+          data: any
+          valor_original: any
+          valor_multa: any
+          valor_juros: any
+          desconto: any
+          valor_total: any
+          forma_pagamento: string | null
+          conta_financeira_id: any
+          observacoes: string | null
+          created_at: any
+          created_by: any
+        }
+        Insert: {
+          id?: any
+          irmao_id: any
+          data: any
+          valor_original: any
+          valor_multa: any
+          valor_juros: any
+          desconto: any
+          valor_total: any
+          forma_pagamento?: string | null
+          conta_financeira_id?: any
+          observacoes?: string | null
+          created_at: any
+          created_by?: any
+        }
+        Update: {
+          id?: any
+          irmao_id?: any
+          data?: any
+          valor_original?: any
+          valor_multa?: any
+          valor_juros?: any
+          desconto?: any
+          valor_total?: any
+          forma_pagamento?: string | null
+          conta_financeira_id?: any
+          observacoes?: string | null
+          created_at?: any
+          created_by?: any
+        }
       }
       sessoes: {
         Row: {
-          created_at: string
-          data: string
-          grau: Database["public"]["Enums"]["grau_macom"]
-          id: string
+          id: any
+          data: any
+          tipo: any
+          grau: any
           observacoes: string | null
-          tipo: Database["public"]["Enums"]["tipo_sessao"]
+          created_at: any
         }
         Insert: {
-          created_at?: string
-          data: string
-          grau?: Database["public"]["Enums"]["grau_macom"]
-          id?: string
+          id?: any
+          data: any
+          tipo: any
+          grau: any
           observacoes?: string | null
-          tipo?: Database["public"]["Enums"]["tipo_sessao"]
+          created_at: any
         }
         Update: {
-          created_at?: string
-          data?: string
-          grau?: Database["public"]["Enums"]["grau_macom"]
-          id?: string
+          id?: any
+          data?: any
+          tipo?: any
+          grau?: any
           observacoes?: string | null
-          tipo?: Database["public"]["Enums"]["tipo_sessao"]
+          created_at?: any
         }
-        Relationships: []
+      }
+      terceiros: {
+        Row: {
+          id: any
+          tipo: any
+          nome: any
+          nome_fantasia: string | null
+          cnpj: string | null
+          cpf: string | null
+          contato: string | null
+          email: string | null
+          categoria: string | null
+          cep: string | null
+          logradouro: string | null
+          numero: string | null
+          bairro: string | null
+          municipio: string | null
+          uf: string | null
+          observacoes: string | null
+          ativo: any
+          created_at: any
+          updated_at: any
+        }
+        Insert: {
+          id?: any
+          tipo: any
+          nome: any
+          nome_fantasia?: string | null
+          cnpj?: string | null
+          cpf?: string | null
+          contato?: string | null
+          email?: string | null
+          categoria?: string | null
+          cep?: string | null
+          logradouro?: string | null
+          numero?: string | null
+          bairro?: string | null
+          municipio?: string | null
+          uf?: string | null
+          observacoes?: string | null
+          ativo: any
+          created_at: any
+          updated_at: any
+        }
+        Update: {
+          id?: any
+          tipo?: any
+          nome?: any
+          nome_fantasia?: string | null
+          cnpj?: string | null
+          cpf?: string | null
+          contato?: string | null
+          email?: string | null
+          categoria?: string | null
+          cep?: string | null
+          logradouro?: string | null
+          numero?: string | null
+          bairro?: string | null
+          municipio?: string | null
+          uf?: string | null
+          observacoes?: string | null
+          ativo?: any
+          created_at?: any
+          updated_at?: any
+        }
       }
       user_roles: {
         Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          id: any
+          user_id: any
+          role: any
+          created_at: any
         }
         Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          id?: any
+          user_id: any
+          role: any
+          created_at: any
         }
         Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
+          id?: any
+          user_id?: any
+          role?: any
+          created_at?: any
         }
-        Relationships: []
       }
     }
     Views: {
       v_auditoria_contabil_desbalanceados: {
-        Row: {
-          data: string | null
-          descricao: string | null
-          diferenca: number | null
-          lancamento_id: string | null
-          origem_id: string | null
-          origem_tipo: string | null
-          total_credito: number | null
-          total_debito: number | null
-        }
-        Relationships: []
+        Row: { [key: string]: any }
       }
       v_saldo_contas: {
-        Row: {
-          id: string | null
-          nome: string | null
-          saldo_atual: number | null
-          saldo_inicial: number | null
-          tipo: Database["public"]["Enums"]["tipo_conta"] | null
-        }
-        Insert: {
-          id?: string | null
-          nome?: string | null
-          saldo_atual?: never
-          saldo_inicial?: number | null
-          tipo?: Database["public"]["Enums"]["tipo_conta"] | null
-        }
-        Update: {
-          id?: string | null
-          nome?: string | null
-          saldo_atual?: never
-          saldo_inicial?: number | null
-          tipo?: Database["public"]["Enums"]["tipo_conta"] | null
-        }
-        Relationships: []
+        Row: { [key: string]: any }
       }
       v_saldo_plano_contas: {
-        Row: {
-          codigo: string | null
-          id: string | null
-          nome: string | null
-          saldo_devedor: number | null
-          tipo: Database["public"]["Enums"]["tipo_plano_conta"] | null
-          total_credito: number | null
-          total_debito: number | null
-        }
-        Relationships: []
+        Row: { [key: string]: any }
       }
     }
     Functions: {
-      gerar_mensalidades: { Args: { _competencia: string }; Returns: number }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_admin_or: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      registrar_lancamento_contabil: {
-        Args: {
-          _competencia: string
-          _data: string
-          _descricao: string
-          _itens: Json
-          _origem_id?: string
-          _origem_tipo?: string
-        }
-        Returns: string
-      }
+      _postar_provisao_fatura: { Args: { arg0: string | null, arg1: number | null, arg2: string | null, arg3: string | null, arg4: string | null, arg5: string | null }; Returns: any }
+      aprovar_orcamento: { Args: { arg0: string | null }; Returns: any }
+      baixar_conta_pagar: { Args: { arg0: string | null, arg1: string | null, arg2: string | null, arg3: string | null }; Returns: any }
+      baixar_faturas: { Args: { arg0: any, arg1: string | null, arg2: string | null, arg3: string | null, arg4: number | null, arg5: string | null }; Returns: string | null }
+      calcular_multa_juros: { Args: { arg0: number | null, arg1: string | null, arg2: string | null }; Returns: any }
+      check_lancamento_balanceado: { Args: {}; Returns: any }
+      check_plano_contas_sem_ciclo: { Args: {}; Returns: any }
+      conciliar_ofx_existente: { Args: { arg0: string | null, arg1: string | null }; Returns: any }
+      criar_conta_pagar: { Args: { arg0: string | null, arg1: number | null, arg2: string | null, arg3: string | null, arg4: string | null, arg5: string | null, arg6: string | null, arg7: string | null }; Returns: string | null }
+      criar_fatura_avulsa: { Args: { arg0: string | null, arg1: number | null, arg2: string | null, arg3: string | null, arg4: string | null, arg5: string | null }; Returns: string | null }
+      criar_lancamento_de_ofx: { Args: { arg0: string | null, arg1: string | null, arg2: any, arg3: string | null, arg4: string | null, arg5: string | null }; Returns: string | null }
+      criar_orcamento: { Args: { arg0: number | null, arg1: string | null }; Returns: string | null }
+      criar_parcelamento: { Args: { arg0: any, arg1: number | null, arg2: number | null, arg3: string | null, arg4: string | null, arg5: boolean | null, arg6: string | null }; Returns: string | null }
+      criar_transferencia: { Args: { arg0: string | null, arg1: string | null, arg2: number | null, arg3: string | null, arg4: string | null }; Returns: string | null }
+      definir_valor_orcamento: { Args: { arg0: string | null, arg1: string | null, arg2: number | null, arg3: number | null }; Returns: any }
+      desativar_outras_gestoes: { Args: {}; Returns: any }
+      efetivar_recorrentes_vencidas: { Args: {}; Returns: number | null }
+      fechar_exercicio: { Args: { arg0: number | null, arg1: string | null, arg2: string | null }; Returns: string | null }
+      flag_parent_nao_analitica: { Args: {}; Returns: any }
+      gerar_graus_padrao_org: { Args: { arg0: string | null }; Returns: number | null }
+      gerar_mensalidades: { Args: { arg0: string | null, arg1: string | null, arg2: string | null, arg3: string | null }; Returns: number | null }
+      handle_new_user: { Args: {}; Returns: any }
+      has_role: { Args: { arg0: string | null, arg1: any }; Returns: boolean | null }
+      is_admin_or: { Args: { arg0: string | null, arg1: any }; Returns: boolean | null }
+      reabrir_exercicio: { Args: { arg0: number | null, arg1: string | null }; Returns: any }
+      reabrir_orcamento: { Args: { arg0: string | null }; Returns: any }
+      registrar_lancamento_contabil: { Args: { arg0: string | null, arg1: string | null, arg2: string | null, arg3: string | null, arg4: string | null, arg5: string | null }; Returns: string | null }
+      registrar_recebimento_avulso: { Args: { arg0: number | null, arg1: any, arg2: string | null, arg3: string | null, arg4: string | null, arg5: string | null, arg6: string | null, arg7: string | null, arg8: string | null, arg9: string | null }; Returns: string | null }
+      set_updated_at: { Args: {}; Returns: any }
     }
     Enums: {
-      app_role: "admin" | "tesoureiro" | "secretario" | "irmao"
-      grau_macom: "aprendiz" | "companheiro" | "mestre"
-      situacao_irmao: "ativo" | "quite" | "irregular" | "adormecido"
-      tipo_conta: "caixa" | "banco" | "outro"
-      tipo_lancamento: "entrada" | "saida" | "transferencia"
-      tipo_plano_conta:
-        | "receita"
-        | "despesa"
-        | "ativo"
-        | "passivo"
-        | "patrimonio_liquido"
-      tipo_sessao: "ordinaria" | "magna" | "branca" | "administrativa"
-    }
-    CompositeTypes: {
-      [_ in never]: never
+      app_role: 'admin' | 'tesoureiro' | 'secretario' | 'irmao'
+      categoria_recebimento: 'mensalidade' | 'taxa_grau' | 'tronco' | 'doacao' | 'outros'
+      grau_macom: 'aprendiz' | 'companheiro' | 'mestre'
+      natureza_corpo: 'loja' | 'capitulo' | 'conselho' | 'areopago' | 'consistorio' | 'outro'
+      situacao_irmao: 'ativo' | 'quite' | 'irregular' | 'adormecido'
+      tipo_conta: 'caixa' | 'banco' | 'outro'
+      tipo_lancamento: 'entrada' | 'saida' | 'transferencia'
+      tipo_parente_irmao: 'pai' | 'mae' | 'conjuge' | 'contato_emergencia' | 'outro'
+      tipo_plano_conta: 'receita' | 'despesa' | 'ativo' | 'passivo' | 'patrimonio_liquido' | 'ativo' | 'passivo' | 'patrimonio_liquido'
+      tipo_sessao: 'ordinaria' | 'magna' | 'branca' | 'administrativa'
+      tipo_terceiro: 'fornecedor' | 'cliente' | 'ambos'
     }
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      app_role: ["admin", "tesoureiro", "secretario", "irmao"],
-      grau_macom: ["aprendiz", "companheiro", "mestre"],
-      situacao_irmao: ["ativo", "quite", "irregular", "adormecido"],
-      tipo_conta: ["caixa", "banco", "outro"],
-      tipo_lancamento: ["entrada", "saida", "transferencia"],
-      tipo_plano_conta: [
-        "receita",
-        "despesa",
-        "ativo",
-        "passivo",
-        "patrimonio_liquido",
-      ],
-      tipo_sessao: ["ordinaria", "magna", "branca", "administrativa"],
-    },
-  },
-} as const
