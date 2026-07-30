@@ -23,6 +23,7 @@ import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './rout
 import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
 import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
 import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
+import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -100,11 +101,18 @@ const AuthenticatedIrmaosIdRoute = AuthenticatedIrmaosIdRouteImport.update({
   path: '/irmaos/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedContabilidadeAuditoriaRoute =
+  AuthenticatedContabilidadeAuditoriaRouteImport.update({
+    id: '/contabilidade/auditoria',
+    path: '/contabilidade/auditoria',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -120,6 +128,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -137,6 +146,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/contabilidade/auditoria'
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/relatorios/frequencia'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/contabilidade/auditoria'
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/relatorios/frequencia'
@@ -185,6 +197,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/contabilidade/auditoria'
     | '/_authenticated/irmaos/$id'
     | '/_authenticated/irmaos/novo'
     | '/_authenticated/relatorios/frequencia'
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/auditoria': {
+      id: '/_authenticated/contabilidade/auditoria'
+      path: '/contabilidade/auditoria'
+      fullPath: '/contabilidade/auditoria'
+      preLoaderRoute: typeof AuthenticatedContabilidadeAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tesouraria/': {
@@ -308,6 +328,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
   AuthenticatedIrmaosNovoRoute: typeof AuthenticatedIrmaosNovoRoute
   AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -322,6 +343,8 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedContabilidadeAuditoriaRoute:
+    AuthenticatedContabilidadeAuditoriaRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
   AuthenticatedIrmaosNovoRoute: AuthenticatedIrmaosNovoRoute,
   AuthenticatedRelatoriosFrequenciaRoute:

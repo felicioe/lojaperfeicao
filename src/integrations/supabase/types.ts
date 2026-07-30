@@ -227,6 +227,7 @@ export type Database = {
       }
       plano_contas: {
         Row: {
+          analitica: boolean
           ativo: boolean
           codigo: string
           created_at: string
@@ -235,6 +236,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_plano_conta"]
         }
         Insert: {
+          analitica?: boolean
           ativo?: boolean
           codigo: string
           created_at?: string
@@ -243,6 +245,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_plano_conta"]
         }
         Update: {
+          analitica?: boolean
           ativo?: boolean
           codigo?: string
           created_at?: string
@@ -251,6 +254,81 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["tipo_plano_conta"]
         }
         Relationships: []
+      }
+      lancamentos_contabeis: {
+        Row: {
+          competencia: string
+          criado_em: string
+          criado_por: string | null
+          data: string
+          descricao: string
+          id: string
+          origem_id: string | null
+          origem_tipo: string | null
+        }
+        Insert: {
+          competencia?: string
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao: string
+          id?: string
+          origem_id?: string | null
+          origem_tipo?: string | null
+        }
+        Update: {
+          competencia?: string
+          criado_em?: string
+          criado_por?: string | null
+          data?: string
+          descricao?: string
+          id?: string
+          origem_id?: string | null
+          origem_tipo?: string | null
+        }
+        Relationships: []
+      }
+      lancamentos_contabeis_itens: {
+        Row: {
+          conta_id: string
+          descricao: string | null
+          id: string
+          lancamento_id: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          conta_id: string
+          descricao?: string | null
+          id?: string
+          lancamento_id: string
+          tipo: string
+          valor: number
+        }
+        Update: {
+          conta_id?: string
+          descricao?: string | null
+          id?: string
+          lancamento_id?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_contabeis_itens_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_contabeis_itens_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos_contabeis"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       presencas: {
         Row: {
@@ -368,6 +446,31 @@ export type Database = {
       }
     }
     Views: {
+      v_saldo_plano_contas: {
+        Row: {
+          codigo: string | null
+          id: string | null
+          nome: string | null
+          saldo_devedor: number | null
+          tipo: Database["public"]["Enums"]["tipo_plano_conta"] | null
+          total_credito: number | null
+          total_debito: number | null
+        }
+        Relationships: []
+      }
+      v_auditoria_contabil_desbalanceados: {
+        Row: {
+          data: string | null
+          descricao: string | null
+          diferenca: number | null
+          lancamento_id: string | null
+          origem_id: string | null
+          origem_tipo: string | null
+          total_credito: number | null
+          total_debito: number | null
+        }
+        Relationships: []
+      }
       v_saldo_contas: {
         Row: {
           id: string | null
@@ -409,6 +512,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      registrar_lancamento_contabil: {
+        Args: {
+          _competencia: string
+          _data: string
+          _descricao: string
+          _itens: Json
+          _origem_id?: string
+          _origem_tipo?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "tesoureiro" | "secretario" | "irmao"
@@ -416,7 +530,7 @@ export type Database = {
       situacao_irmao: "ativo" | "quite" | "irregular" | "adormecido"
       tipo_conta: "caixa" | "banco" | "outro"
       tipo_lancamento: "entrada" | "saida" | "transferencia"
-      tipo_plano_conta: "receita" | "despesa"
+      tipo_plano_conta: "receita" | "despesa" | "ativo" | "passivo"
       tipo_sessao: "ordinaria" | "magna" | "branca" | "administrativa"
     }
     CompositeTypes: {
@@ -550,7 +664,7 @@ export const Constants = {
       situacao_irmao: ["ativo", "quite", "irregular", "adormecido"],
       tipo_conta: ["caixa", "banco", "outro"],
       tipo_lancamento: ["entrada", "saida", "transferencia"],
-      tipo_plano_conta: ["receita", "despesa"],
+      tipo_plano_conta: ["receita", "despesa", "ativo", "passivo"],
       tipo_sessao: ["ordinaria", "magna", "branca", "administrativa"],
     },
   },

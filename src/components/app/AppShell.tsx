@@ -10,6 +10,7 @@ import {
   FileBarChart,
   LogOut,
   Landmark,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -31,6 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/tesouraria", label: "Tesouraria", icon: Wallet, show: can.canManageFinancas || can.isSecretario },
     { to: "/tesouraria/contas", label: "Contas", icon: Landmark, show: can.canManageFinancas },
     { to: "/tesouraria/plano-contas", label: "Plano de Contas", icon: FileBarChart, show: can.canManageFinancas },
+    { to: "/contabilidade/auditoria", label: "Auditoria Contábil", icon: ShieldCheck, show: can.canManageFinancas },
     { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
     { to: "/relatorios/inadimplentes", label: "Inadimplentes", icon: FileBarChart, show: can.canManageFinancas },
   ];
