@@ -343,6 +343,72 @@ export type Database = {
           },
         ]
       }
+      terceiros: {
+        Row: {
+          ativo: boolean
+          bairro: string | null
+          categoria: string | null
+          cep: string | null
+          cnpj: string | null
+          contato: string | null
+          cpf: string | null
+          created_at: string
+          email: string | null
+          id: string
+          logradouro: string | null
+          municipio: string | null
+          nome: string
+          nome_fantasia: string | null
+          numero: string | null
+          observacoes: string | null
+          tipo: Database["public"]["Enums"]["tipo_terceiro"]
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          bairro?: string | null
+          categoria?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          contato?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logradouro?: string | null
+          municipio?: string | null
+          nome: string
+          nome_fantasia?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_terceiro"]
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          bairro?: string | null
+          categoria?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          contato?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logradouro?: string | null
+          municipio?: string | null
+          nome?: string
+          nome_fantasia?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_terceiro"]
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lancamentos: {
         Row: {
           competencia_mes: string | null
@@ -1067,6 +1133,7 @@ export type Database = {
       tipo_parente_irmao: "pai" | "mae" | "conjuge" | "contato_emergencia" | "outro"
       tipo_plano_conta: "receita" | "despesa" | "ativo" | "passivo" | "patrimonio_liquido"
       tipo_sessao: "ordinaria" | "magna" | "branca" | "administrativa"
+      tipo_terceiro: "fornecedor" | "cliente" | "ambos"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1203,6 +1270,7 @@ export const Constants = {
       tipo_parente_irmao: ["pai", "mae", "conjuge", "contato_emergencia", "outro"],
       tipo_plano_conta: ["receita", "despesa", "ativo", "passivo", "patrimonio_liquido"],
       tipo_sessao: ["ordinaria", "magna", "branca", "administrativa"],
+      tipo_terceiro: ["fornecedor", "cliente", "ambos"],
     },
   },
 } as const
