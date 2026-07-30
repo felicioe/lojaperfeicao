@@ -1404,6 +1404,104 @@ export type Database = {
         }
         Relationships: []
       }
+      fechamentos_exercicio: {
+        Row: {
+          data_corte: string
+          exercicio: number
+          fechado_em: string
+          fechado_por: string | null
+          id: string
+          lancamento_transporte_id: string | null
+          motivo_reabertura: string | null
+          observacoes: string | null
+          reaberto_em: string | null
+          reaberto_por: string | null
+          resultado_apurado: number | null
+          status: string
+        }
+        Insert: {
+          data_corte: string
+          exercicio: number
+          fechado_em?: string
+          fechado_por?: string | null
+          id?: string
+          lancamento_transporte_id?: string | null
+          motivo_reabertura?: string | null
+          observacoes?: string | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          resultado_apurado?: number | null
+          status?: string
+        }
+        Update: {
+          data_corte?: string
+          exercicio?: number
+          fechado_em?: string
+          fechado_por?: string | null
+          id?: string
+          lancamento_transporte_id?: string | null
+          motivo_reabertura?: string | null
+          observacoes?: string | null
+          reaberto_em?: string | null
+          reaberto_por?: string | null
+          resultado_apurado?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechamentos_exercicio_lancamento_transporte_id_fkey"
+            columns: ["lancamento_transporte_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos_contabeis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fechamentos_exercicio_eventos: {
+        Row: {
+          acao: string
+          fechamento_id: string
+          id: string
+          lancamento_id: string | null
+          motivo: string | null
+          realizado_em: string
+          realizado_por: string | null
+        }
+        Insert: {
+          acao: string
+          fechamento_id: string
+          id?: string
+          lancamento_id?: string | null
+          motivo?: string | null
+          realizado_em?: string
+          realizado_por?: string | null
+        }
+        Update: {
+          acao?: string
+          fechamento_id?: string
+          id?: string
+          lancamento_id?: string | null
+          motivo?: string | null
+          realizado_em?: string
+          realizado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechamentos_exercicio_eventos_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "fechamentos_exercicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechamentos_exercicio_eventos_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos_contabeis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orcamentos: {
         Row: {
           ano: number
@@ -1705,6 +1803,21 @@ export type Database = {
       reabrir_orcamento: {
         Args: {
           _orcamento_id: string
+        }
+        Returns: undefined
+      }
+      fechar_exercicio: {
+        Args: {
+          _data_corte: string
+          _exercicio: number
+          _observacoes?: string
+        }
+        Returns: string
+      }
+      reabrir_exercicio: {
+        Args: {
+          _exercicio: number
+          _motivo: string
         }
         Returns: undefined
       }
