@@ -9,60 +9,232 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Pencil, X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/plano-contas")({
   head: () => ({ meta: [{ title: "Plano de Contas — Gestão Maçônica" }] }),
   component: PlanoContas,
 });
 
+type TipoConta = "ativo" | "passivo" | "patrimonio_liquido" | "receita" | "despesa";
+
+type Conta = {
+  id: string;
+  codigo: string;
+  nome: string;
+  tipo: TipoConta;
+  ativo: boolean;
+  analitica: boolean;
+  parent_id: string | null;
+};
+
+const TIPO_LABEL: Record<TipoConta, string> = {
+  ativo: "Ativo",
+  passivo: "Passivo",
+  patrimonio_liquido: "Patrimônio Líquido",
+  receita: "Receita",
+  despesa: "Despesa",
+};
+
+const TIPO_VARIANT: Record<TipoConta, "default" | "secondary" | "destructive" | "outline"> = {
+  ativo: "default",
+  passivo: "secondary",
+  patrimonio_liquido: "outline",
+  receita: "default",
+  despesa: "destructive",
+};
+
+type ContaComProfundidade = Conta & { profundidade: number };
+
+function montarArvore(contas: Conta[]): ContaComProfundidade[] {
+  const filhosPorPai = new Map<string | null, Conta[]>();
+  for (const c of contas) {
+    const lista = filhosPorPai.get(c.parent_id) ?? [];
+    lista.push(c);
+    filhosPorPai.set(c.parent_id, lista);
+  }
+  for (const lista of filhosPorPai.values()) lista.sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+  const resultado: ContaComProfundidade[] = [];
+  const visitar = (parentId: string | null, profundidade: number) => {
+    for (const c of filhosPorPai.get(parentId) ?? []) {
+      resultado.push({ ...c, profundidade });
+      visitar(c.id, profundidade + 1);
+    }
+  };
+  visitar(null, 0);
+  return resultado;
+}
+
+const FORM_VAZIO = {
+  id: null as string | null,
+  codigo: "",
+  nome: "",
+  tipo: "despesa" as TipoConta,
+  parent_id: "none",
+  analitica: true,
+};
+
 function PlanoContas() {
   const qc = useQueryClient();
-  const [novo, setNovo] = useState<{ codigo: string; nome: string; tipo: "receita" | "despesa" }>({ codigo: "", nome: "", tipo: "despesa" });
+  const [q, setQ] = useState("");
+  const [tipoFiltro, setTipoFiltro] = useState<TipoConta | "todos">("todos");
+  const [mostrarInativas, setMostrarInativas] = useState(false);
+  const [form, setForm] = useState(FORM_VAZIO);
+
   const { data = [] } = useQuery({
     queryKey: ["plano_contas_all"],
-    queryFn: async () => (await supabase.from("plano_contas").select("*").order("codigo")).data ?? [],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("plano_contas").select("*").order("codigo");
+      if (error) throw error;
+      return (data ?? []) as Conta[];
+    },
   });
-  const add = async () => {
-    const { error } = await supabase.from("plano_contas").insert(novo);
+
+  const arvore = useMemo(() => montarArvore(data), [data]);
+
+  const filtrada = arvore.filter((c) => {
+    if (!mostrarInativas && !c.ativo) return false;
+    if (tipoFiltro !== "todos" && c.tipo !== tipoFiltro) return false;
+    if (q && !`${c.codigo} ${c.nome}`.toLowerCase().includes(q.toLowerCase())) return false;
+    return true;
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["plano_contas_all"] });
+
+  const salvar = async () => {
+    if (!form.codigo.trim() || !form.nome.trim()) return;
+    const payload = {
+      codigo: form.codigo.trim(),
+      nome: form.nome.trim(),
+      tipo: form.tipo,
+      parent_id: form.parent_id === "none" ? null : form.parent_id,
+      analitica: form.analitica,
+    };
+    const { error } = form.id
+      ? await supabase.from("plano_contas").update(payload).eq("id", form.id)
+      : await supabase.from("plano_contas").insert(payload);
     if (error) return toast.error(error.message);
-    toast.success("Adicionado.");
-    setNovo({ codigo: "", nome: "", tipo: "despesa" });
-    qc.invalidateQueries({ queryKey: ["plano_contas_all"] });
+    toast.success(form.id ? "Conta atualizada." : "Conta criada.");
+    setForm(FORM_VAZIO);
+    invalidate();
   };
+
+  const editar = (c: Conta) =>
+    setForm({
+      id: c.id,
+      codigo: c.codigo,
+      nome: c.nome,
+      tipo: c.tipo,
+      parent_id: c.parent_id ?? "none",
+      analitica: c.analitica,
+    });
+
+  const alternarAtivo = async (c: Conta) => {
+    const { error } = await supabase.from("plano_contas").update({ ativo: !c.ativo }).eq("id", c.id);
+    if (error) return toast.error(error.message);
+    invalidate();
+  };
+
   return (
     <>
-      <PageHeader title="Plano de Contas" description="Categorias de receitas e despesas." />
+      <PageHeader title="Plano de Contas" description="Árvore hierárquica de contas patrimoniais, de receita e de despesa." />
+
       <Card className="mb-4">
-        <CardHeader><CardTitle className="text-base">Nova categoria</CardTitle></CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-4">
-          <div><Label>Código</Label><Input value={novo.codigo} onChange={(e) => setNovo({ ...novo, codigo: e.target.value })} placeholder="4.1.04" /></div>
-          <div className="md:col-span-2"><Label>Nome</Label><Input value={novo.nome} onChange={(e) => setNovo({ ...novo, nome: e.target.value })} /></div>
+        <CardHeader>
+          <CardTitle className="text-base">{form.id ? "Editar conta" : "Nova conta"}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-5">
+          <div><Label>Código</Label><Input value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value })} placeholder="5.1.06" /></div>
+          <div className="md:col-span-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
           <div>
             <Label>Tipo</Label>
-            <Select value={novo.tipo} onValueChange={(v) => setNovo({ ...novo, tipo: v as typeof novo.tipo })}>
+            <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as TipoConta })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="receita">Receita</SelectItem>
-                <SelectItem value="despesa">Despesa</SelectItem>
+                {(Object.keys(TIPO_LABEL) as TipoConta[]).map((t) => (
+                  <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <div className="md:col-span-4"><Button onClick={add} disabled={!novo.codigo || !novo.nome}>Adicionar</Button></div>
+          <div>
+            <Label>Conta pai</Label>
+            <Select value={form.parent_id} onValueChange={(v) => setForm({ ...form, parent_id: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— nenhuma (conta de topo) —</SelectItem>
+                {data.filter((c) => c.id !== form.id).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 md:col-span-2">
+            <Switch checked={form.analitica} onCheckedChange={(v) => setForm({ ...form, analitica: v })} />
+            <Label className="!m-0">Analítica (recebe lançamento)</Label>
+          </div>
+          <div className="md:col-span-5 flex gap-2">
+            <Button onClick={salvar} disabled={!form.codigo || !form.nome}>{form.id ? "Salvar alterações" : "Adicionar"}</Button>
+            {form.id && (
+              <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>
+                <X className="h-4 w-4 mr-1" /> Cancelar
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      <Card className="mb-4 p-4 flex flex-wrap items-center gap-3">
+        <Input placeholder="Buscar por código ou nome…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+        <Select value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoConta | "todos")}>
+          <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os tipos</SelectItem>
+            {(Object.keys(TIPO_LABEL) as TipoConta[]).map((t) => (
+              <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex items-center gap-2">
+          <Switch checked={mostrarInativas} onCheckedChange={setMostrarInativas} />
+          <Label className="!m-0">Mostrar inativas</Label>
+        </div>
+      </Card>
+
       <Card>
         <Table>
           <TableHeader>
-            <TableRow><TableHead>Código</TableHead><TableHead>Nome</TableHead><TableHead>Tipo</TableHead></TableRow>
+            <TableRow>
+              <TableHead>Código</TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Analítica</TableHead>
+              <TableHead>Ativa</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((p: any) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-mono">{p.codigo}</TableCell>
-                <TableCell>{p.nome}</TableCell>
-                <TableCell><Badge variant={p.tipo === "receita" ? "default" : "destructive"}>{p.tipo}</Badge></TableCell>
+            {filtrada.length === 0 && (
+              <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Nenhuma conta encontrada.</TableCell></TableRow>
+            )}
+            {filtrada.map((c) => (
+              <TableRow key={c.id} className={!c.ativo ? "opacity-50" : undefined}>
+                <TableCell className="font-mono" style={{ paddingLeft: `${1 + c.profundidade * 1.5}rem` }}>{c.codigo}</TableCell>
+                <TableCell className={c.analitica ? undefined : "font-semibold"}>{c.nome}</TableCell>
+                <TableCell><Badge variant={TIPO_VARIANT[c.tipo]}>{TIPO_LABEL[c.tipo]}</Badge></TableCell>
+                <TableCell>{c.analitica ? <Badge variant="outline">Sim</Badge> : <span className="text-muted-foreground text-sm">Sintética</span>}</TableCell>
+                <TableCell>
+                  <Switch checked={c.ativo} onCheckedChange={() => alternarAtivo(c)} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="sm" onClick={() => editar(c)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
