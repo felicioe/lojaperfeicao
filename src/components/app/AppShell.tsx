@@ -7,6 +7,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   LayoutDashboard,
   Users,
@@ -39,6 +40,7 @@ import {
   BookMarked,
   FolderKanban,
   ChevronDown,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
@@ -48,11 +50,118 @@ import { ROLE_LABEL } from "@/lib/format";
 type NavItem = { to: string; label: string; icon: any; show: boolean };
 type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
 
+function Brand() {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-sidebar-primary-foreground shadow-sm">
+        ⚜
+      </div>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold leading-tight">Gestão da Loja</div>
+        <div className="truncate text-[11px] text-muted-foreground">Sistema Maçônico</div>
+      </div>
+    </div>
+  );
+}
+
+function NavTree({
+  dashboard,
+  groups,
+  isActive,
+  open,
+  setOpen,
+  onNavigate,
+  size = "desktop",
+}: {
+  dashboard: NavItem;
+  groups: NavGroup[];
+  isActive: (to: string) => boolean;
+  open: string[];
+  setOpen: (fn: (prev: string[]) => string[]) => void;
+  onNavigate?: () => void;
+  size?: "desktop" | "mobile";
+}) {
+  const itemPad = size === "mobile" ? "px-3 py-2.5 text-sm" : "px-2.5 py-1.5 text-[13px]";
+  return (
+    <>
+      <Link
+        to={dashboard.to}
+        onClick={onNavigate}
+        className={cn(
+          "flex items-center gap-2.5 rounded-md px-3 text-sm transition-colors",
+          size === "mobile" ? "py-2.5" : "py-2",
+          isActive(dashboard.to)
+            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-sm"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+        )}
+      >
+        <dashboard.icon className="h-4 w-4 shrink-0" />
+        {dashboard.label}
+      </Link>
+
+      <div className="space-y-1 pt-2">
+        {groups.map((g) => {
+          const isOpen = open.includes(g.id);
+          const hasActive = g.items.some((i) => isActive(i.to));
+          return (
+            <Collapsible
+              key={g.id}
+              open={isOpen}
+              onOpenChange={(v) =>
+                setOpen((prev) => (v ? [...prev, g.id] : prev.filter((x) => x !== g.id)))
+              }
+            >
+              <CollapsibleTrigger
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors hover:bg-sidebar-accent/40",
+                  size === "mobile" ? "py-2.5" : "py-2",
+                  hasActive ? "text-sidebar-foreground" : "text-muted-foreground hover:text-sidebar-foreground",
+                )}
+              >
+                <g.icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1 truncate text-left">{g.label}</span>
+                <ChevronDown
+                  className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border pb-1 pl-3">
+                  {g.items.map((i) => {
+                    const active = isActive(i.to);
+                    return (
+                      <Link
+                        key={i.to}
+                        to={i.to}
+                        onClick={onNavigate}
+                        className={cn(
+                          "flex items-center gap-2.5 rounded-md transition-colors",
+                          itemPad,
+                          active
+                            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                        )}
+                      >
+                        <i.icon className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")} />
+                        <span className="truncate">{i.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { user } = useSession();
   const can = useCan();
   const nav = useNavigate();
   const loc = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const dashboard: NavItem = {
     to: "/dashboard",
@@ -137,6 +246,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [activeGroupId]);
 
+  // fecha o drawer sempre que a rota muda
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [loc.pathname]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     nav({ to: "/auth" });
@@ -145,105 +259,91 @@ export function AppShell({ children }: { children: ReactNode }) {
   const primaryRole = can.roles[0] ?? "irmao";
 
   return (
-    <div className="min-h-screen flex bg-muted/30">
-      <aside className="w-64 border-r bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="p-5 border-b border-sidebar-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center font-serif shadow-sm">
-              ⚜
-            </div>
-            <div>
-              <div className="font-semibold text-sm leading-tight">Gestão da Loja</div>
-              <div className="text-[11px] text-muted-foreground">Sistema Maçônico</div>
-            </div>
-          </div>
+    <div className="flex min-h-screen w-full bg-muted/30">
+      {/* ===== Sidebar fixa — apenas desktop (lg+) ===== */}
+      <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground lg:flex">
+        <div className="border-b border-sidebar-border p-5">
+          <Brand />
         </div>
 
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          <Link
-            to={dashboard.to}
-            className={cn(
-              "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
-              isActive(dashboard.to)
-                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-            )}
-          >
-            <dashboard.icon className="h-4 w-4" />
-            {dashboard.label}
-          </Link>
-
-          <div className="pt-2 space-y-1">
-            {visibleGroups.map((g) => {
-              const isOpen = open.includes(g.id);
-              const hasActive = g.items.some((i) => isActive(i.to));
-              return (
-                <Collapsible
-                  key={g.id}
-                  open={isOpen}
-                  onOpenChange={(v) =>
-                    setOpen((prev) => (v ? [...prev, g.id] : prev.filter((x) => x !== g.id)))
-                  }
-                >
-                  <CollapsibleTrigger
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 rounded-md text-[11px] font-semibold uppercase tracking-wider transition-colors",
-                      hasActive
-                        ? "text-sidebar-foreground"
-                        : "text-muted-foreground hover:text-sidebar-foreground",
-                      "hover:bg-sidebar-accent/40",
-                    )}
-                  >
-                    <g.icon className="h-3.5 w-3.5" />
-                    <span className="flex-1 text-left">{g.label}</span>
-                    <ChevronDown
-                      className={cn(
-                        "h-3.5 w-3.5 transition-transform duration-200",
-                        isOpen && "rotate-180",
-                      )}
-                    />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-                    <div className="mt-0.5 ml-4 pl-3 border-l border-sidebar-border space-y-0.5 pb-1">
-                      {g.items.map((i) => {
-                        const active = isActive(i.to);
-                        return (
-                          <Link
-                            key={i.to}
-                            to={i.to}
-                            className={cn(
-                              "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors",
-                              active
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                                : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                            )}
-                          >
-                            <i.icon className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")} />
-                            <span className="truncate">{i.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              );
-            })}
-          </div>
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          <NavTree
+            dashboard={dashboard}
+            groups={visibleGroups}
+            isActive={isActive}
+            open={open}
+            setOpen={setOpen}
+          />
         </nav>
 
-        <div className="p-3 border-t border-sidebar-border">
-          <div className="text-xs mb-2">
-            <div className="font-medium truncate">{user?.email}</div>
+        <div className="border-t border-sidebar-border p-3">
+          <div className="mb-2 text-xs">
+            <div className="truncate font-medium">{user?.email}</div>
             <div className="text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
           </div>
           <Button variant="outline" size="sm" className="w-full" onClick={signOut}>
-            <LogOut className="h-3 w-3 mr-1" /> Sair
+            <LogOut className="mr-1 h-3 w-3" /> Sair
           </Button>
         </div>
       </aside>
-      <main className="flex-1 overflow-x-hidden">
-        <div className="max-w-7xl mx-auto p-6">{children}</div>
-      </main>
+
+      {/* ===== Layout mobile/tablet (< lg) ===== */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-sidebar px-3 text-sidebar-foreground lg:hidden">
+          <button
+            type="button"
+            aria-label="Abrir menu"
+            onClick={() => setMobileOpen(true)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-sidebar-accent/60"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <Brand />
+          </div>
+          <div className="hidden min-w-0 max-w-[40%] text-right text-[11px] sm:block">
+            <div className="truncate font-medium">{user?.email}</div>
+            <div className="truncate text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
+          </div>
+        </header>
+
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent
+            side="left"
+            className="flex w-[86vw] max-w-[320px] flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground lg:hidden"
+          >
+            <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
+            <div className="border-b border-sidebar-border p-4 pr-12">
+              <Brand />
+            </div>
+            <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+              <NavTree
+                dashboard={dashboard}
+                groups={visibleGroups}
+                isActive={isActive}
+                open={open}
+                setOpen={setOpen}
+                onNavigate={() => setMobileOpen(false)}
+                size="mobile"
+              />
+            </nav>
+            <div className="border-t border-sidebar-border p-3">
+              <div className="mb-2 text-xs">
+                <div className="truncate font-medium">{user?.email}</div>
+                <div className="text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
+              </div>
+              <Button variant="outline" className="h-10 w-full" onClick={signOut}>
+                <LogOut className="mr-1.5 h-4 w-4" /> Sair
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <main className="min-w-0 flex-1">
+          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-5 lg:p-6">{children}</div>
+        </main>
+      </div>
+
       <Toaster position="top-right" richColors />
     </div>
   );
@@ -251,12 +351,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
-    <div className="flex items-start justify-between mb-6 gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+      <div className="min-w-0">
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
-      {actions}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }
