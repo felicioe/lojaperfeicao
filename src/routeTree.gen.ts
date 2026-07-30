@@ -40,6 +40,8 @@ import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_a
 import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
 import { Route as AuthenticatedContabilidadeDreRouteImport } from './routes/_authenticated/contabilidade/dre'
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
+import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
+import { Route as AuthenticatedContabilidadeDreOrcadoRouteImport } from './routes/_authenticated/contabilidade/dre-orcado'
 import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
 
@@ -220,6 +222,18 @@ const AuthenticatedContabilidadeBalanceteRoute =
     path: '/contabilidade/balancete',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContabilidadeOrcamentoRoute =
+  AuthenticatedContabilidadeOrcamentoRouteImport.update({
+    id: '/contabilidade/orcamento',
+    path: '/contabilidade/orcamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeDreOrcadoRoute =
+  AuthenticatedContabilidadeDreOrcadoRouteImport.update({
+    id: '/contabilidade/dre-orcado',
+    path: '/contabilidade/dre-orcado',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOrgsPotenciasRoute =
   AuthenticatedOrgsPotenciasRouteImport.update({
     id: '/orgs/potencias',
@@ -242,6 +256,8 @@ export interface FileRoutesByFullPath {
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
+  '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -276,6 +292,8 @@ export interface FileRoutesByTo {
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
+  '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -312,6 +330,8 @@ export interface FileRoutesById {
   '/_authenticated/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/_authenticated/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
   '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
+  '/_authenticated/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/_authenticated/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
   '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/_authenticated/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -348,6 +368,8 @@ export interface FileRouteTypes {
     | '/contabilidade/diario'
     | '/contabilidade/dre'
     | '/contabilidade/balancete'
+    | '/contabilidade/orcamento'
+    | '/contabilidade/dre-orcado'
     | '/orgs/potencias'
     | '/gestoes/cargos'
     | '/irmaos/$id'
@@ -382,6 +404,8 @@ export interface FileRouteTypes {
     | '/contabilidade/diario'
     | '/contabilidade/dre'
     | '/contabilidade/balancete'
+    | '/contabilidade/orcamento'
+    | '/contabilidade/dre-orcado'
     | '/orgs/potencias'
     | '/gestoes/cargos'
     | '/irmaos/$id'
@@ -417,6 +441,8 @@ export interface FileRouteTypes {
     | '/_authenticated/contabilidade/diario'
     | '/_authenticated/contabilidade/dre'
     | '/_authenticated/contabilidade/balancete'
+    | '/_authenticated/contabilidade/orcamento'
+    | '/_authenticated/contabilidade/dre-orcado'
     | '/_authenticated/orgs/potencias'
     | '/_authenticated/gestoes/cargos'
     | '/_authenticated/irmaos/$id'
@@ -512,6 +538,20 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/balancete'
       fullPath: '/contabilidade/balancete'
       preLoaderRoute: typeof AuthenticatedContabilidadeBalanceteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/orcamento': {
+      id: '/_authenticated/contabilidade/orcamento'
+      path: '/contabilidade/orcamento'
+      fullPath: '/contabilidade/orcamento'
+      preLoaderRoute: typeof AuthenticatedContabilidadeOrcamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/dre-orcado': {
+      id: '/_authenticated/contabilidade/dre-orcado'
+      path: '/contabilidade/dre-orcado'
+      fullPath: '/contabilidade/dre-orcado'
+      preLoaderRoute: typeof AuthenticatedContabilidadeDreOrcadoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/orgs/potencias': {
@@ -692,6 +732,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContabilidadeDiarioRoute: typeof AuthenticatedContabilidadeDiarioRoute
   AuthenticatedContabilidadeDreRoute: typeof AuthenticatedContabilidadeDreRoute
   AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
+  AuthenticatedContabilidadeOrcamentoRoute: typeof AuthenticatedContabilidadeOrcamentoRoute
+  AuthenticatedContabilidadeDreOrcadoRoute: typeof AuthenticatedContabilidadeDreOrcadoRoute
   AuthenticatedOrgsPotenciasRoute: typeof AuthenticatedOrgsPotenciasRoute
   AuthenticatedGestoesCargosRoute: typeof AuthenticatedGestoesCargosRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
@@ -726,6 +768,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContabilidadeDiarioRoute: AuthenticatedContabilidadeDiarioRoute,
   AuthenticatedContabilidadeDreRoute: AuthenticatedContabilidadeDreRoute,
   AuthenticatedContabilidadeBalanceteRoute: AuthenticatedContabilidadeBalanceteRoute,
+  AuthenticatedContabilidadeOrcamentoRoute: AuthenticatedContabilidadeOrcamentoRoute,
+  AuthenticatedContabilidadeDreOrcadoRoute: AuthenticatedContabilidadeDreOrcadoRoute,
   AuthenticatedOrgsPotenciasRoute: AuthenticatedOrgsPotenciasRoute,
   AuthenticatedGestoesCargosRoute: AuthenticatedGestoesCargosRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
