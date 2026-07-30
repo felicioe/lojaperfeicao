@@ -23,6 +23,8 @@ import {
   ArrowLeftRight,
   HeartHandshake,
   FileSpreadsheet,
+  BookOpen,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -56,6 +58,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/tesouraria/recorrentes", label: "Despesas Recorrentes", icon: RefreshCw, show: can.canManageFinancas },
     { to: "/tesouraria/parametros", label: "Parâmetros Financeiros", icon: Settings2, show: can.canManageFinancas },
     { to: "/tesouraria/plano-contas", label: "Plano de Contas", icon: FileBarChart, show: can.canManageFinancas },
+    { to: "/contabilidade/razao", label: "Razão Contábil", icon: BookOpen, show: can.canManageFinancas },
+    { to: "/contabilidade/diario", label: "Diário Contábil", icon: CalendarClock, show: can.canManageFinancas },
     { to: "/contabilidade/auditoria", label: "Auditoria Contábil", icon: ShieldCheck, show: can.canManageFinancas },
     { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
     { to: "/relatorios/inadimplentes", label: "Inadimplentes", icon: FileBarChart, show: can.canManageFinancas },

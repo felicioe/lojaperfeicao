@@ -1,0 +1,161 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/app/AppShell";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useMemo, useState } from "react";
+import { Download } from "lucide-react";
+import { brl, fmtDate, toISODate } from "@/lib/format";
+
+export const Route = createFileRoute("/_authenticated/contabilidade/razao")({
+  head: () => ({ meta: [{ title: "Razão Contábil — Gestão Maçônica" }] }),
+  component: Razao,
+});
+
+function primeiroDiaDoAno() {
+  const d = new Date();
+  return toISODate(new Date(d.getFullYear(), 0, 1));
+}
+
+function Razao() {
+  const [contaId, setContaId] = useState("");
+  const [de, setDe] = useState(primeiroDiaDoAno());
+  const [ate, setAte] = useState(toISODate(new Date()));
+
+  const { data: contas = [] } = useQuery({
+    queryKey: ["plano_contas_analiticas"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("plano_contas").select("id,codigo,nome").eq("analitica", true).order("codigo");
+      if (error) throw error;
+      return (data ?? []) as { id: string; codigo: string; nome: string }[];
+    },
+  });
+
+  const { data: saldoAnterior = 0 } = useQuery({
+    queryKey: ["razao_saldo_anterior", contaId, de],
+    enabled: !!contaId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lancamentos_contabeis_itens")
+        .select("tipo,valor,lancamentos_contabeis!inner(data)")
+        .eq("conta_id", contaId)
+        .lt("lancamentos_contabeis.data", de);
+      if (error) throw error;
+      return (data ?? []).reduce((s, i: any) => s + (i.tipo === "debito" ? Number(i.valor) : -Number(i.valor)), 0);
+    },
+  });
+
+  const { data: itens = [] } = useQuery({
+    queryKey: ["razao_itens", contaId, de, ate],
+    enabled: !!contaId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lancamentos_contabeis_itens")
+        .select("id,tipo,valor,descricao,lancamentos_contabeis!inner(data,descricao,origem_tipo)")
+        .eq("conta_id", contaId)
+        .gte("lancamentos_contabeis.data", de)
+        .lte("lancamentos_contabeis.data", ate)
+        .order("data", { referencedTable: "lancamentos_contabeis" });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const linhas = useMemo(() => {
+    let saldo = saldoAnterior;
+    return itens.map((i) => {
+      saldo += i.tipo === "debito" ? Number(i.valor) : -Number(i.valor);
+      return { ...i, saldo };
+    });
+  }, [itens, saldoAnterior]);
+
+  const totalDebito = itens.filter((i) => i.tipo === "debito").reduce((s, i) => s + Number(i.valor), 0);
+  const totalCredito = itens.filter((i) => i.tipo === "credito").reduce((s, i) => s + Number(i.valor), 0);
+
+  const exportarCSV = () => {
+    const cabecalho = ["Data", "Descrição", "Origem", "Débito", "Crédito", "Saldo"];
+    const linhasCsv = linhas.map((l) => [
+      fmtDate(l.lancamentos_contabeis.data), l.descricao ?? l.lancamentos_contabeis.descricao,
+      l.lancamentos_contabeis.origem_tipo ?? "", l.tipo === "debito" ? l.valor : "", l.tipo === "credito" ? l.valor : "", l.saldo.toFixed(2),
+    ]);
+    const csv = [cabecalho, ...linhasCsv].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `razao_${de}_a_${ate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Razão Contábil"
+        description="Movimentação de uma conta analítica ao longo do tempo, com saldo acumulado."
+        actions={
+          <Button variant="outline" onClick={exportarCSV} disabled={!contaId || linhas.length === 0}>
+            <Download className="h-4 w-4 mr-1" /> Exportar CSV
+          </Button>
+        }
+      />
+
+      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
+        <div className="md:col-span-2">
+          <Label>Conta</Label>
+          <Select value={contaId} onValueChange={setContaId}>
+            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+            <SelectContent>{contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div><Label>De</Label><Input type="date" value={de} onChange={(e) => setDe(e.target.value)} /></div>
+        <div><Label>Até</Label><Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} /></div>
+      </Card>
+
+      {contaId && (
+        <>
+          <div className="grid gap-4 md:grid-cols-3 mb-4">
+            <Card className="p-4"><div className="text-sm text-muted-foreground">Saldo anterior</div><div className="text-xl font-semibold">{brl(saldoAnterior)}</div></Card>
+            <Card className="p-4"><div className="text-sm text-muted-foreground">Débitos do período</div><div className="text-xl font-semibold">{brl(totalDebito)}</div></Card>
+            <Card className="p-4"><div className="text-sm text-muted-foreground">Créditos do período</div><div className="text-xl font-semibold">{brl(totalCredito)}</div></Card>
+          </div>
+
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Origem</TableHead>
+                  <TableHead className="text-right">Débito</TableHead>
+                  <TableHead className="text-right">Crédito</TableHead>
+                  <TableHead className="text-right">Saldo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhas.length === 0 && (
+                  <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Nenhum lançamento no período.</TableCell></TableRow>
+                )}
+                {linhas.map((l) => (
+                  <TableRow key={l.id}>
+                    <TableCell>{fmtDate(l.lancamentos_contabeis.data)}</TableCell>
+                    <TableCell>{l.descricao ?? l.lancamentos_contabeis.descricao}</TableCell>
+                    <TableCell className="text-muted-foreground">{l.lancamentos_contabeis.origem_tipo ?? "—"}</TableCell>
+                    <TableCell className="text-right">{l.tipo === "debito" ? brl(l.valor) : ""}</TableCell>
+                    <TableCell className="text-right">{l.tipo === "credito" ? brl(l.valor) : ""}</TableCell>
+                    <TableCell className="text-right font-medium">{brl(l.saldo)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
+      )}
+    </>
+  );
+}
