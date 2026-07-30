@@ -22,6 +22,8 @@ import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedTesourariaContasPagarRouteImport } from './routes/_authenticated/tesouraria/contas-pagar'
 import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes/_authenticated/tesouraria/recorrentes'
 import { Route as AuthenticatedTesourariaFaturasRouteImport } from './routes/_authenticated/tesouraria/faturas'
+import { Route as AuthenticatedTesourariaRecibosRouteImport } from './routes/_authenticated/tesouraria/recibos'
+import { Route as AuthenticatedTesourariaParametrosRouteImport } from './routes/_authenticated/tesouraria/parametros'
 import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
 import { Route as AuthenticatedTesourariaContasRouteImport } from './routes/_authenticated/tesouraria/contas'
 import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
@@ -117,6 +119,18 @@ const AuthenticatedTesourariaFaturasRoute =
     path: '/tesouraria/faturas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTesourariaRecibosRoute =
+  AuthenticatedTesourariaRecibosRouteImport.update({
+    id: '/tesouraria/recibos',
+    path: '/tesouraria/recibos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaParametrosRoute =
+  AuthenticatedTesourariaParametrosRouteImport.update({
+    id: '/tesouraria/parametros',
+    path: '/tesouraria/parametros',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSessoesIdRoute = AuthenticatedSessoesIdRouteImport.update({
   id: '/sessoes/$id',
   path: '/sessoes/$id',
@@ -179,6 +193,8 @@ export interface FileRoutesByFullPath {
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasRoute
+  '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
@@ -203,6 +219,8 @@ export interface FileRoutesByTo {
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasRoute
+  '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
@@ -229,6 +247,8 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasRoute
+  '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
+  '/_authenticated/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/_authenticated/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
@@ -255,6 +275,8 @@ export interface FileRouteTypes {
     | '/tesouraria/contas-pagar'
     | '/tesouraria/recorrentes'
     | '/tesouraria/faturas'
+    | '/tesouraria/recibos'
+    | '/tesouraria/parametros'
     | '/tesouraria/plano-contas'
     | '/irmaos/'
     | '/orgs/'
@@ -279,6 +301,8 @@ export interface FileRouteTypes {
     | '/tesouraria/contas-pagar'
     | '/tesouraria/recorrentes'
     | '/tesouraria/faturas'
+    | '/tesouraria/recibos'
+    | '/tesouraria/parametros'
     | '/tesouraria/plano-contas'
     | '/irmaos'
     | '/orgs'
@@ -304,6 +328,8 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/contas-pagar'
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/faturas'
+    | '/_authenticated/tesouraria/recibos'
+    | '/_authenticated/tesouraria/parametros'
     | '/_authenticated/tesouraria/plano-contas'
     | '/_authenticated/irmaos/'
     | '/_authenticated/orgs/'
@@ -447,6 +473,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaFaturasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tesouraria/recibos': {
+      id: '/_authenticated/tesouraria/recibos'
+      path: '/tesouraria/recibos'
+      fullPath: '/tesouraria/recibos'
+      preLoaderRoute: typeof AuthenticatedTesourariaRecibosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/parametros': {
+      id: '/_authenticated/tesouraria/parametros'
+      path: '/tesouraria/parametros'
+      fullPath: '/tesouraria/parametros'
+      preLoaderRoute: typeof AuthenticatedTesourariaParametrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/sessoes/$id': {
       id: '/_authenticated/sessoes/$id'
       path: '/sessoes/$id'
@@ -499,6 +539,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaContasPagarRoute: typeof AuthenticatedTesourariaContasPagarRoute
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaFaturasRoute: typeof AuthenticatedTesourariaFaturasRoute
+  AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
+  AuthenticatedTesourariaParametrosRoute: typeof AuthenticatedTesourariaParametrosRoute
   AuthenticatedTesourariaPlanoContasRoute: typeof AuthenticatedTesourariaPlanoContasRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
@@ -525,6 +567,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaContasPagarRoute: AuthenticatedTesourariaContasPagarRoute,
   AuthenticatedTesourariaRecorrentesRoute: AuthenticatedTesourariaRecorrentesRoute,
   AuthenticatedTesourariaFaturasRoute: AuthenticatedTesourariaFaturasRoute,
+  AuthenticatedTesourariaRecibosRoute: AuthenticatedTesourariaRecibosRoute,
+  AuthenticatedTesourariaParametrosRoute: AuthenticatedTesourariaParametrosRoute,
   AuthenticatedTesourariaPlanoContasRoute:
     AuthenticatedTesourariaPlanoContasRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,

@@ -17,6 +17,8 @@ import {
   ReceiptText,
   RefreshCw,
   FileStack,
+  Receipt,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -41,8 +43,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/tesouraria", label: "Tesouraria", icon: Wallet, show: can.canManageFinancas || can.isSecretario },
     { to: "/tesouraria/contas", label: "Contas", icon: Landmark, show: can.canManageFinancas },
     { to: "/tesouraria/faturas", label: "Faturas", icon: FileStack, show: can.canManageFinancas },
+    { to: "/tesouraria/recibos", label: "Recibos", icon: Receipt, show: can.canManageFinancas },
     { to: "/tesouraria/contas-pagar", label: "Contas a Pagar", icon: ReceiptText, show: can.canManageFinancas },
     { to: "/tesouraria/recorrentes", label: "Despesas Recorrentes", icon: RefreshCw, show: can.canManageFinancas },
+    { to: "/tesouraria/parametros", label: "Parâmetros Financeiros", icon: Settings2, show: can.canManageFinancas },
     { to: "/tesouraria/plano-contas", label: "Plano de Contas", icon: FileBarChart, show: can.canManageFinancas },
     { to: "/contabilidade/auditoria", label: "Auditoria Contábil", icon: ShieldCheck, show: can.canManageFinancas },
     { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },

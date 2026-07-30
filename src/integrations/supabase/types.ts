@@ -420,6 +420,138 @@ export type Database = {
         }
         Relationships: []
       }
+      parametros_financeiros: {
+        Row: {
+          id: boolean
+          juros_ativo: boolean
+          juros_diario_percentual: number
+          multa_ativa: boolean
+          multa_percentual: number
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          juros_ativo?: boolean
+          juros_diario_percentual?: number
+          multa_ativa?: boolean
+          multa_percentual?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          juros_ativo?: boolean
+          juros_diario_percentual?: number
+          multa_ativa?: boolean
+          multa_percentual?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      recibos: {
+        Row: {
+          conta_financeira_id: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          desconto: number
+          forma_pagamento: string | null
+          id: string
+          irmao_id: string
+          observacoes: string | null
+          valor_juros: number
+          valor_multa: number
+          valor_original: number
+          valor_total: number
+        }
+        Insert: {
+          conta_financeira_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          desconto?: number
+          forma_pagamento?: string | null
+          id?: string
+          irmao_id: string
+          observacoes?: string | null
+          valor_juros?: number
+          valor_multa?: number
+          valor_original: number
+          valor_total: number
+        }
+        Update: {
+          conta_financeira_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          desconto?: number
+          forma_pagamento?: string | null
+          id?: string
+          irmao_id?: string
+          observacoes?: string | null
+          valor_juros?: number
+          valor_multa?: number
+          valor_original?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recibos_conta_financeira_id_fkey"
+            columns: ["conta_financeira_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recibos_irmao_id_fkey"
+            columns: ["irmao_id"]
+            isOneToOne: false
+            referencedRelation: "irmaos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recibo_itens: {
+        Row: {
+          id: string
+          lancamento_id: string
+          recibo_id: string
+          valor_juros: number
+          valor_multa: number
+          valor_original: number
+        }
+        Insert: {
+          id?: string
+          lancamento_id: string
+          recibo_id: string
+          valor_juros?: number
+          valor_multa?: number
+          valor_original: number
+        }
+        Update: {
+          id?: string
+          lancamento_id?: string
+          recibo_id?: string
+          valor_juros?: number
+          valor_multa?: number
+          valor_original?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recibo_itens_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recibo_itens_recibo_id_fkey"
+            columns: ["recibo_id"]
+            isOneToOne: false
+            referencedRelation: "recibos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       despesas_recorrentes: {
         Row: {
           ativo: boolean
@@ -498,6 +630,7 @@ export type Database = {
           observacoes: string | null
           pago: boolean
           plano_conta_id: string | null
+          recibo_id: string | null
           recorrente_id: string | null
           terceiro_id: string | null
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
@@ -521,6 +654,7 @@ export type Database = {
           observacoes?: string | null
           pago?: boolean
           plano_conta_id?: string | null
+          recibo_id?: string | null
           recorrente_id?: string | null
           terceiro_id?: string | null
           tipo: Database["public"]["Enums"]["tipo_lancamento"]
@@ -544,6 +678,7 @@ export type Database = {
           observacoes?: string | null
           pago?: boolean
           plano_conta_id?: string | null
+          recibo_id?: string | null
           recorrente_id?: string | null
           terceiro_id?: string | null
           tipo?: Database["public"]["Enums"]["tipo_lancamento"]
@@ -551,6 +686,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "lancamentos_recibo_id_fkey"
+            columns: ["recibo_id"]
+            isOneToOne: false
+            referencedRelation: "recibos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lancamentos_recorrente_id_fkey"
             columns: ["recorrente_id"]
@@ -1203,6 +1345,30 @@ export type Database = {
           _irmao_id: string
           _rateio?: Json
           _valor: number
+        }
+        Returns: string
+      }
+      calcular_multa_juros: {
+        Args: {
+          _data_referencia?: string
+          _valor: number
+          _vencimento: string
+        }
+        Returns: {
+          dias_atraso: number
+          juros: number
+          multa: number
+          total: number
+        }[]
+      }
+      baixar_faturas: {
+        Args: {
+          _conta_financeira_id: string
+          _data_pagamento?: string
+          _desconto?: number
+          _forma_pagamento?: string
+          _lancamento_ids: string[]
+          _observacoes?: string
         }
         Returns: string
       }
