@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Building2,
   Award,
+  Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -32,6 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/irmaos", label: "Irmãos", icon: Users, show: true },
     { to: "/orgs", label: "Corpos Maçônicos", icon: Building2, show: true },
     { to: "/gestoes", label: "Gestões", icon: Award, show: true },
+    { to: "/terceiros", label: "Fornecedores/Clientes", icon: Truck, show: can.canManageFinancas },
     { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
     { to: "/tesouraria", label: "Tesouraria", icon: Wallet, show: can.canManageFinancas || can.isSecretario },
     { to: "/tesouraria/contas", label: "Contas", icon: Landmark, show: can.canManageFinancas },
