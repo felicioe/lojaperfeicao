@@ -225,6 +225,172 @@ export type Database = {
           },
         ]
       }
+      potencias: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          jurisdicao: string | null
+          nome: string
+          sigla: string | null
+          site: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          jurisdicao?: string | null
+          nome: string
+          sigla?: string | null
+          site?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          jurisdicao?: string | null
+          nome?: string
+          sigla?: string | null
+          site?: string | null
+        }
+        Relationships: []
+      }
+      orgs: {
+        Row: {
+          ativo: boolean
+          cnpj: string | null
+          created_at: string
+          endereco: string | null
+          fundacao: string | null
+          grau_max: number
+          grau_min: number
+          id: string
+          mensalidade_padrao: number
+          natureza: Database["public"]["Enums"]["natureza_corpo"]
+          nome: string
+          numero: string | null
+          potencia_id: string | null
+          rito: string | null
+          sigla: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cnpj?: string | null
+          created_at?: string
+          endereco?: string | null
+          fundacao?: string | null
+          grau_max?: number
+          grau_min?: number
+          id?: string
+          mensalidade_padrao?: number
+          natureza?: Database["public"]["Enums"]["natureza_corpo"]
+          nome: string
+          numero?: string | null
+          potencia_id?: string | null
+          rito?: string | null
+          sigla?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cnpj?: string | null
+          created_at?: string
+          endereco?: string | null
+          fundacao?: string | null
+          grau_max?: number
+          grau_min?: number
+          id?: string
+          mensalidade_padrao?: number
+          natureza?: Database["public"]["Enums"]["natureza_corpo"]
+          nome?: string
+          numero?: string | null
+          potencia_id?: string | null
+          rito?: string | null
+          sigla?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orgs_potencia_id_fkey"
+            columns: ["potencia_id"]
+            isOneToOne: false
+            referencedRelation: "potencias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orgs_graus: {
+        Row: {
+          grau: number
+          id: string
+          nome: string
+          org_id: string
+        }
+        Insert: {
+          grau: number
+          id?: string
+          nome: string
+          org_id: string
+        }
+        Update: {
+          grau?: number
+          id?: string
+          nome?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orgs_graus_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      irmao_orgs: {
+        Row: {
+          created_at: string
+          grau_atual: number | null
+          id: string
+          irmao_id: string
+          org_id: string
+          principal: boolean
+        }
+        Insert: {
+          created_at?: string
+          grau_atual?: number | null
+          id?: string
+          irmao_id: string
+          org_id: string
+          principal?: boolean
+        }
+        Update: {
+          created_at?: string
+          grau_atual?: number | null
+          id?: string
+          irmao_id?: string
+          org_id?: string
+          principal?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "irmao_orgs_irmao_id_fkey"
+            columns: ["irmao_id"]
+            isOneToOne: false
+            referencedRelation: "irmaos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "irmao_orgs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plano_contas: {
         Row: {
           analitica: boolean
@@ -534,10 +700,15 @@ export type Database = {
         }
         Returns: string
       }
+      gerar_graus_padrao_org: {
+        Args: { _org_id: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "tesoureiro" | "secretario" | "irmao"
       grau_macom: "aprendiz" | "companheiro" | "mestre"
+      natureza_corpo: "loja" | "capitulo" | "conselho" | "areopago" | "consistorio" | "outro"
       situacao_irmao: "ativo" | "quite" | "irregular" | "adormecido"
       tipo_conta: "caixa" | "banco" | "outro"
       tipo_lancamento: "entrada" | "saida" | "transferencia"
@@ -672,6 +843,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "tesoureiro", "secretario", "irmao"],
       grau_macom: ["aprendiz", "companheiro", "mestre"],
+      natureza_corpo: ["loja", "capitulo", "conselho", "areopago", "consistorio", "outro"],
       situacao_irmao: ["ativo", "quite", "irregular", "adormecido"],
       tipo_conta: ["caixa", "banco", "outro"],
       tipo_lancamento: ["entrada", "saida", "transferencia"],

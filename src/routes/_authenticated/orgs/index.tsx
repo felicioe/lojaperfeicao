@@ -1,0 +1,343 @@
+import { Fragment } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/app/AppShell";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { useState } from "react";
+import { toast } from "sonner";
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, Wand2, X } from "lucide-react";
+import { useCan } from "@/lib/auth-hooks";
+
+export const Route = createFileRoute("/_authenticated/orgs/")({
+  head: () => ({ meta: [{ title: "Corpos Maçônicos — Gestão Maçônica" }] }),
+  component: Orgs,
+});
+
+type Natureza = "loja" | "capitulo" | "conselho" | "areopago" | "consistorio" | "outro";
+
+type Org = {
+  id: string;
+  potencia_id: string | null;
+  nome: string;
+  sigla: string | null;
+  natureza: Natureza;
+  numero: string | null;
+  rito: string | null;
+  grau_min: number;
+  grau_max: number;
+  mensalidade_padrao: number;
+  cnpj: string | null;
+  fundacao: string | null;
+  endereco: string | null;
+  ativo: boolean;
+};
+
+const NATUREZA_LABEL: Record<Natureza, string> = {
+  loja: "Loja",
+  capitulo: "Capítulo",
+  conselho: "Conselho",
+  areopago: "Areópago",
+  consistorio: "Consistório",
+  outro: "Outro",
+};
+
+const FORM_VAZIO = {
+  id: null as string | null,
+  potencia_id: "none",
+  nome: "",
+  sigla: "",
+  natureza: "loja" as Natureza,
+  numero: "",
+  rito: "",
+  grau_min: 1,
+  grau_max: 3,
+  mensalidade_padrao: 0,
+  cnpj: "",
+  fundacao: "",
+  endereco: "",
+};
+
+function Orgs() {
+  const can = useCan();
+  const qc = useQueryClient();
+  const [form, setForm] = useState(FORM_VAZIO);
+  const [expandido, setExpandido] = useState<string | null>(null);
+
+  const { data: orgs = [] } = useQuery({
+    queryKey: ["orgs_all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("orgs").select("*").order("nome");
+      if (error) throw error;
+      return (data ?? []) as Org[];
+    },
+  });
+
+  const { data: potencias = [] } = useQuery({
+    queryKey: ["potencias_all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("potencias").select("id,nome,sigla").order("nome");
+      if (error) throw error;
+      return (data ?? []) as { id: string; nome: string; sigla: string | null }[];
+    },
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["orgs_all"] });
+
+  const salvar = async () => {
+    if (!form.nome.trim()) return;
+    const payload = {
+      potencia_id: form.potencia_id === "none" ? null : form.potencia_id,
+      nome: form.nome.trim(),
+      sigla: form.sigla || null,
+      natureza: form.natureza,
+      numero: form.numero || null,
+      rito: form.rito || null,
+      grau_min: Number(form.grau_min) || 1,
+      grau_max: Number(form.grau_max) || 3,
+      mensalidade_padrao: Number(form.mensalidade_padrao) || 0,
+      cnpj: form.cnpj || null,
+      fundacao: form.fundacao || null,
+      endereco: form.endereco || null,
+    };
+    const { error } = form.id
+      ? await supabase.from("orgs").update(payload).eq("id", form.id)
+      : await supabase.from("orgs").insert(payload);
+    if (error) return toast.error(error.message);
+    toast.success(form.id ? "Corpo atualizado." : "Corpo criado.");
+    setForm(FORM_VAZIO);
+    invalidate();
+  };
+
+  const editar = (o: Org) =>
+    setForm({
+      id: o.id,
+      potencia_id: o.potencia_id ?? "none",
+      nome: o.nome,
+      sigla: o.sigla ?? "",
+      natureza: o.natureza,
+      numero: o.numero ?? "",
+      rito: o.rito ?? "",
+      grau_min: o.grau_min,
+      grau_max: o.grau_max,
+      mensalidade_padrao: o.mensalidade_padrao,
+      cnpj: o.cnpj ?? "",
+      fundacao: o.fundacao ?? "",
+      endereco: o.endereco ?? "",
+    });
+
+  const alternarAtivo = async (o: Org) => {
+    const { error } = await supabase.from("orgs").update({ ativo: !o.ativo }).eq("id", o.id);
+    if (error) return toast.error(error.message);
+    invalidate();
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Corpos Maçônicos"
+        description="Lojas, capítulos e demais corpos administrados por esta instalação (suporte multi-loja)."
+        actions={
+          <Link to="/orgs/potencias">
+            <Button variant="outline">Potência</Button>
+          </Link>
+        }
+      />
+
+      {can.canManageIrmaos && (
+        <Card className="mb-4">
+          <CardHeader><CardTitle className="text-base">{form.id ? "Editar corpo" : "Novo corpo"}</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-4">
+            <div className="md:col-span-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
+            <div><Label>Sigla</Label><Input value={form.sigla} onChange={(e) => setForm({ ...form, sigla: e.target.value })} /></div>
+            <div><Label>Número</Label><Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} /></div>
+
+            <div>
+              <Label>Natureza</Label>
+              <Select value={form.natureza} onValueChange={(v) => setForm({ ...form, natureza: v as Natureza })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(NATUREZA_LABEL) as Natureza[]).map((n) => (
+                    <SelectItem key={n} value={n}>{NATUREZA_LABEL[n]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Rito</Label><Input value={form.rito} onChange={(e) => setForm({ ...form, rito: e.target.value })} placeholder="REAA" /></div>
+            <div><Label>Grau mínimo</Label><Input type="number" min={1} value={form.grau_min} onChange={(e) => setForm({ ...form, grau_min: Number(e.target.value) })} /></div>
+            <div><Label>Grau máximo</Label><Input type="number" min={1} value={form.grau_max} onChange={(e) => setForm({ ...form, grau_max: Number(e.target.value) })} /></div>
+
+            <div>
+              <Label>Potência</Label>
+              <Select value={form.potencia_id} onValueChange={(v) => setForm({ ...form, potencia_id: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— nenhuma —</SelectItem>
+                  {potencias.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.sigla ?? p.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>Mensalidade padrão</Label><Input type="number" step="0.01" value={form.mensalidade_padrao} onChange={(e) => setForm({ ...form, mensalidade_padrao: Number(e.target.value) })} /></div>
+            <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} /></div>
+            <div><Label>Fundação</Label><Input type="date" value={form.fundacao} onChange={(e) => setForm({ ...form, fundacao: e.target.value })} /></div>
+            <div className="md:col-span-4"><Label>Endereço</Label><Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} /></div>
+
+            <div className="md:col-span-4 flex gap-2">
+              <Button onClick={salvar} disabled={!form.nome}>{form.id ? "Salvar alterações" : "Adicionar"}</Button>
+              {form.id && <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}><X className="h-4 w-4 mr-1" /> Cancelar</Button>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead></TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead>Natureza</TableHead>
+              <TableHead>Graus</TableHead>
+              <TableHead>Potência</TableHead>
+              <TableHead>Ativo</TableHead>
+              {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orgs.length === 0 && (
+              <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nenhum corpo cadastrado.</TableCell></TableRow>
+            )}
+            {orgs.map((o) => (
+              <Fragment key={o.id}>
+                <TableRow className={!o.ativo ? "opacity-50" : undefined}>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => setExpandido(expandido === o.id ? null : o.id)}>
+                      {expandido === o.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </Button>
+                  </TableCell>
+                  <TableCell className="font-medium">{o.nome}{o.sigla ? ` (${o.sigla})` : ""}</TableCell>
+                  <TableCell><Badge variant="outline">{NATUREZA_LABEL[o.natureza]}</Badge></TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{o.grau_min}–{o.grau_max}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{potencias.find((p) => p.id === o.potencia_id)?.sigla ?? "—"}</TableCell>
+                  <TableCell><Switch checked={o.ativo} onCheckedChange={() => alternarAtivo(o)} disabled={!can.canManageIrmaos} /></TableCell>
+                  {can.canManageIrmaos && (
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => editar(o)}><Pencil className="h-4 w-4" /></Button>
+                    </TableCell>
+                  )}
+                </TableRow>
+                {expandido === o.id && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="bg-muted/30">
+                      <GrausPanel org={o} podeEditar={can.canManageIrmaos} />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </>
+  );
+}
+
+type Grau = { id: string; org_id: string; grau: number; nome: string };
+
+function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
+  const qc = useQueryClient();
+  const [novoGrau, setNovoGrau] = useState<{ grau: string; nome: string }>({ grau: "", nome: "" });
+
+  const { data: graus = [] } = useQuery({
+    queryKey: ["orgs_graus", org.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("orgs_graus").select("*").eq("org_id", org.id).order("grau");
+      if (error) throw error;
+      return (data ?? []) as Grau[];
+    },
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["orgs_graus", org.id] });
+
+  const gerarPadrao = async () => {
+    const { error } = await supabase.rpc("gerar_graus_padrao_org", { _org_id: org.id });
+    if (error) return toast.error(error.message);
+    toast.success("Graus padrão gerados.");
+    invalidate();
+  };
+
+  const adicionar = async () => {
+    const g = Number(novoGrau.grau);
+    if (!g || !novoGrau.nome.trim()) return;
+    const { error } = await supabase.from("orgs_graus").insert({ org_id: org.id, grau: g, nome: novoGrau.nome.trim() });
+    if (error) return toast.error(error.message);
+    setNovoGrau({ grau: "", nome: "" });
+    invalidate();
+  };
+
+  const renomear = async (id: string, nome: string) => {
+    const { error } = await supabase.from("orgs_graus").update({ nome }).eq("id", id);
+    if (error) return toast.error(error.message);
+    invalidate();
+  };
+
+  const remover = async (id: string) => {
+    const { error } = await supabase.from("orgs_graus").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    invalidate();
+  };
+
+  return (
+    <div className="py-2 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-medium">Graus de {org.nome}</div>
+        {podeEditar && (
+          <Button variant="outline" size="sm" onClick={gerarPadrao}>
+            <Wand2 className="h-4 w-4 mr-1" /> Gerar padrão ({org.grau_min}–{org.grau_max})
+          </Button>
+        )}
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow><TableHead className="w-20">Grau</TableHead><TableHead>Nome</TableHead>{podeEditar && <TableHead className="w-10"></TableHead>}</TableRow>
+        </TableHeader>
+        <TableBody>
+          {graus.length === 0 && (
+            <TableRow><TableCell colSpan={3} className="text-muted-foreground text-sm">Nenhum grau cadastrado ainda.</TableCell></TableRow>
+          )}
+          {graus.map((g) => (
+            <TableRow key={g.id}>
+              <TableCell className="font-mono">{g.grau}</TableCell>
+              <TableCell>
+                {podeEditar ? (
+                  <Input defaultValue={g.nome} onBlur={(e) => e.target.value !== g.nome && renomear(g.id, e.target.value)} className="h-8" />
+                ) : g.nome}
+              </TableCell>
+              {podeEditar && (
+                <TableCell>
+                  <Button variant="ghost" size="sm" onClick={() => remover(g.id)}><Trash2 className="h-4 w-4" /></Button>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {podeEditar && (
+        <div className="flex items-end gap-2">
+          <div><Label className="text-xs">Grau</Label><Input type="number" className="h-8 w-20" value={novoGrau.grau} onChange={(e) => setNovoGrau({ ...novoGrau, grau: e.target.value })} /></div>
+          <div className="flex-1"><Label className="text-xs">Nome</Label><Input className="h-8" value={novoGrau.nome} onChange={(e) => setNovoGrau({ ...novoGrau, nome: e.target.value })} /></div>
+          <Button size="sm" onClick={adicionar}><Plus className="h-4 w-4" /></Button>
+        </div>
+      )}
+    </div>
+  );
+}
