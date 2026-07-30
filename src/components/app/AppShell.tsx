@@ -29,6 +29,7 @@ import {
   Scale,
   Calculator,
   LineChart,
+  Waves,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -68,6 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/contabilidade/balancete", label: "Balancete", icon: Scale, show: can.canManageFinancas },
     { to: "/contabilidade/orcamento", label: "Orçamento Anual", icon: Calculator, show: can.canManageFinancas },
     { to: "/contabilidade/dre-orcado", label: "DRE Orçado", icon: LineChart, show: can.canManageFinancas },
+    { to: "/contabilidade/fluxo-caixa", label: "Fluxo de Caixa", icon: Waves, show: can.canManageFinancas },
     { to: "/contabilidade/auditoria", label: "Auditoria Contábil", icon: ShieldCheck, show: can.canManageFinancas },
     { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
     { to: "/relatorios/inadimplentes", label: "Inadimplentes", icon: FileBarChart, show: can.canManageFinancas },
