@@ -11,6 +11,7 @@ import {
   LogOut,
   Landmark,
   ShieldCheck,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -28,6 +29,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const items: NavItem[] = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true },
     { to: "/irmaos", label: "Irmãos", icon: Users, show: true },
+    { to: "/orgs", label: "Corpos Maçônicos", icon: Building2, show: true },
     { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
     { to: "/tesouraria", label: "Tesouraria", icon: Wallet, show: can.canManageFinancas || can.isSecretario },
     { to: "/tesouraria/contas", label: "Contas", icon: Landmark, show: can.canManageFinancas },

@@ -16,6 +16,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
 import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
 import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
+import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
 import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
 import { Route as AuthenticatedTesourariaContasRouteImport } from './routes/_authenticated/tesouraria/contas'
 import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
@@ -24,6 +25,7 @@ import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/
 import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
 import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
+import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -62,6 +64,11 @@ const AuthenticatedIrmaosIndexRoute =
     path: '/irmaos/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOrgsIndexRoute = AuthenticatedOrgsIndexRouteImport.update({
+  id: '/orgs/',
+  path: '/orgs/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTesourariaPlanoContasRoute =
   AuthenticatedTesourariaPlanoContasRouteImport.update({
     id: '/tesouraria/plano-contas',
@@ -107,12 +114,19 @@ const AuthenticatedContabilidadeAuditoriaRoute =
     path: '/contabilidade/auditoria',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOrgsPotenciasRoute =
+  AuthenticatedOrgsPotenciasRouteImport.update({
+    id: '/orgs/potencias',
+    path: '/orgs/potencias',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
+  '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -121,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
+  '/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/sessoes/': typeof AuthenticatedSessoesIndexRoute
   '/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
 }
@@ -129,6 +144,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
+  '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -137,6 +153,7 @@ export interface FileRoutesByTo {
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
+  '/orgs': typeof AuthenticatedOrgsIndexRoute
   '/sessoes': typeof AuthenticatedSessoesIndexRoute
   '/tesouraria': typeof AuthenticatedTesourariaIndexRoute
 }
@@ -147,6 +164,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
+  '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -155,6 +173,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/_authenticated/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
+  '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/_authenticated/sessoes/': typeof AuthenticatedSessoesIndexRoute
   '/_authenticated/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
 }
@@ -165,6 +184,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/contabilidade/auditoria'
+    | '/orgs/potencias'
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/relatorios/frequencia'
@@ -173,6 +193,7 @@ export interface FileRouteTypes {
     | '/tesouraria/contas'
     | '/tesouraria/plano-contas'
     | '/irmaos/'
+    | '/orgs/'
     | '/sessoes/'
     | '/tesouraria/'
   fileRoutesByTo: FileRoutesByTo
@@ -181,6 +202,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/contabilidade/auditoria'
+    | '/orgs/potencias'
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/relatorios/frequencia'
@@ -189,6 +211,7 @@ export interface FileRouteTypes {
     | '/tesouraria/contas'
     | '/tesouraria/plano-contas'
     | '/irmaos'
+    | '/orgs'
     | '/sessoes'
     | '/tesouraria'
   id:
@@ -198,6 +221,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/contabilidade/auditoria'
+    | '/_authenticated/orgs/potencias'
     | '/_authenticated/irmaos/$id'
     | '/_authenticated/irmaos/novo'
     | '/_authenticated/relatorios/frequencia'
@@ -206,6 +230,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/contas'
     | '/_authenticated/tesouraria/plano-contas'
     | '/_authenticated/irmaos/'
+    | '/_authenticated/orgs/'
     | '/_authenticated/sessoes/'
     | '/_authenticated/tesouraria/'
   fileRoutesById: FileRoutesById
@@ -251,6 +276,20 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/auditoria'
       fullPath: '/contabilidade/auditoria'
       preLoaderRoute: typeof AuthenticatedContabilidadeAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/orgs/potencias': {
+      id: '/_authenticated/orgs/potencias'
+      path: '/orgs/potencias'
+      fullPath: '/orgs/potencias'
+      preLoaderRoute: typeof AuthenticatedOrgsPotenciasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/orgs/': {
+      id: '/_authenticated/orgs/'
+      path: '/orgs'
+      fullPath: '/orgs/'
+      preLoaderRoute: typeof AuthenticatedOrgsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tesouraria/': {
@@ -329,6 +368,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
+  AuthenticatedOrgsPotenciasRoute: typeof AuthenticatedOrgsPotenciasRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
   AuthenticatedIrmaosNovoRoute: typeof AuthenticatedIrmaosNovoRoute
   AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -337,6 +377,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaContasRoute: typeof AuthenticatedTesourariaContasRoute
   AuthenticatedTesourariaPlanoContasRoute: typeof AuthenticatedTesourariaPlanoContasRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
+  AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
   AuthenticatedSessoesIndexRoute: typeof AuthenticatedSessoesIndexRoute
   AuthenticatedTesourariaIndexRoute: typeof AuthenticatedTesourariaIndexRoute
 }
@@ -345,6 +386,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedContabilidadeAuditoriaRoute:
     AuthenticatedContabilidadeAuditoriaRoute,
+  AuthenticatedOrgsPotenciasRoute: AuthenticatedOrgsPotenciasRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
   AuthenticatedIrmaosNovoRoute: AuthenticatedIrmaosNovoRoute,
   AuthenticatedRelatoriosFrequenciaRoute:
@@ -356,6 +398,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaPlanoContasRoute:
     AuthenticatedTesourariaPlanoContasRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
+  AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,
   AuthenticatedSessoesIndexRoute: AuthenticatedSessoesIndexRoute,
   AuthenticatedTesourariaIndexRoute: AuthenticatedTesourariaIndexRoute,
 }
