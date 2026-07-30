@@ -49,6 +49,42 @@ export type Database = {
           },
         ]
       }
+      cnpj_consultas_cache: {
+        Row: {
+          cnpj: string
+          consultado_em: string
+          dados: Json
+        }
+        Insert: {
+          cnpj: string
+          consultado_em?: string
+          dados: Json
+        }
+        Update: {
+          cnpj?: string
+          consultado_em?: string
+          dados?: Json
+        }
+        Relationships: []
+      }
+      cnpj_rate_limit: {
+        Row: {
+          janela_inicio: string
+          tentativas: number
+          user_id: string
+        }
+        Insert: {
+          janela_inicio?: string
+          tentativas?: number
+          user_id: string
+        }
+        Update: {
+          janela_inicio?: string
+          tentativas?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       contas_financeiras: {
         Row: {
           agencia: string | null
@@ -178,6 +214,108 @@ export type Database = {
           },
         ]
       }
+      irmao_elevacoes: {
+        Row: {
+          created_at: string
+          data: string | null
+          grau: number
+          id: string
+          irmao_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: string | null
+          grau: number
+          id?: string
+          irmao_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: string | null
+          grau?: number
+          id?: string
+          irmao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "irmao_elevacoes_irmao_id_fkey"
+            columns: ["irmao_id"]
+            isOneToOne: false
+            referencedRelation: "irmaos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      irmao_filhos: {
+        Row: {
+          created_at: string
+          data_nascimento: string | null
+          id: string
+          irmao_id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          data_nascimento?: string | null
+          id?: string
+          irmao_id: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          data_nascimento?: string | null
+          id?: string
+          irmao_id?: string
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "irmao_filhos_irmao_id_fkey"
+            columns: ["irmao_id"]
+            isOneToOne: false
+            referencedRelation: "irmaos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      irmao_formacao: {
+        Row: {
+          ano_conclusao: number | null
+          created_at: string
+          curso: string
+          id: string
+          instituicao: string | null
+          irmao_id: string
+          nivel: string | null
+        }
+        Insert: {
+          ano_conclusao?: number | null
+          created_at?: string
+          curso: string
+          id?: string
+          instituicao?: string | null
+          irmao_id: string
+          nivel?: string | null
+        }
+        Update: {
+          ano_conclusao?: number | null
+          created_at?: string
+          curso?: string
+          id?: string
+          instituicao?: string | null
+          irmao_id?: string
+          nivel?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "irmao_formacao_irmao_id_fkey"
+            columns: ["irmao_id"]
+            isOneToOne: false
+            referencedRelation: "irmaos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       irmao_orgs: {
         Row: {
           created_at: string
@@ -220,23 +358,95 @@ export type Database = {
           },
         ]
       }
+      irmao_parentes: {
+        Row: {
+          created_at: string
+          data_casamento: string | null
+          data_nascimento: string | null
+          id: string
+          irmao_id: string
+          nome: string
+          observacoes: string | null
+          profissao: string | null
+          telefone: string | null
+          tipo: Database["public"]["Enums"]["tipo_parente_irmao"]
+        }
+        Insert: {
+          created_at?: string
+          data_casamento?: string | null
+          data_nascimento?: string | null
+          id?: string
+          irmao_id: string
+          nome: string
+          observacoes?: string | null
+          profissao?: string | null
+          telefone?: string | null
+          tipo: Database["public"]["Enums"]["tipo_parente_irmao"]
+        }
+        Update: {
+          created_at?: string
+          data_casamento?: string | null
+          data_nascimento?: string | null
+          id?: string
+          irmao_id?: string
+          nome?: string
+          observacoes?: string | null
+          profissao?: string | null
+          telefone?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_parente_irmao"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "irmao_parentes_irmao_id_fkey"
+            columns: ["irmao_id"]
+            isOneToOne: false
+            referencedRelation: "irmaos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       irmaos: {
         Row: {
+          area_atuacao: string | null
+          bairro: string | null
+          benemerito: boolean
+          cargo_profissional: string | null
+          celular: string | null
+          cep: string | null
+          cidade: string | null
           cim: string | null
+          complemento: string | null
+          cpf: string | null
           created_at: string
           data_elevacao: string | null
           data_exaltacao: string | null
           data_iniciacao: string | null
           data_nascimento: string | null
           email: string | null
+          empresa: string | null
           endereco: string | null
+          estado: string | null
+          estado_civil: string | null
+          foto_url: string | null
+          fundador: boolean
           grau: Database["public"]["Enums"]["grau_macom"]
+          honorario: boolean
           id: string
+          licenciado: boolean
+          logradouro: string | null
           loja_origem: string | null
+          nacionalidade: string | null
+          naturalidade: string | null
           nome_civil: string
           nome_simbolico: string | null
+          numero_endereco: string | null
+          numero_grande_oriente: string | null
+          numero_matricula: string | null
+          observacoes: string | null
           potencia: string | null
           profissao: string | null
+          religiao: string | null
+          rg: string | null
           situacao: Database["public"]["Enums"]["situacao_irmao"]
           telefone: string | null
           updated_at: string
@@ -244,21 +454,46 @@ export type Database = {
           valor_mensalidade: number
         }
         Insert: {
+          area_atuacao?: string | null
+          bairro?: string | null
+          benemerito?: boolean
+          cargo_profissional?: string | null
+          celular?: string | null
+          cep?: string | null
+          cidade?: string | null
           cim?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
           data_elevacao?: string | null
           data_exaltacao?: string | null
           data_iniciacao?: string | null
           data_nascimento?: string | null
           email?: string | null
+          empresa?: string | null
           endereco?: string | null
+          estado?: string | null
+          estado_civil?: string | null
+          foto_url?: string | null
+          fundador?: boolean
           grau?: Database["public"]["Enums"]["grau_macom"]
+          honorario?: boolean
           id?: string
+          licenciado?: boolean
+          logradouro?: string | null
           loja_origem?: string | null
+          nacionalidade?: string | null
+          naturalidade?: string | null
           nome_civil: string
           nome_simbolico?: string | null
+          numero_endereco?: string | null
+          numero_grande_oriente?: string | null
+          numero_matricula?: string | null
+          observacoes?: string | null
           potencia?: string | null
           profissao?: string | null
+          religiao?: string | null
+          rg?: string | null
           situacao?: Database["public"]["Enums"]["situacao_irmao"]
           telefone?: string | null
           updated_at?: string
@@ -266,21 +501,46 @@ export type Database = {
           valor_mensalidade?: number
         }
         Update: {
+          area_atuacao?: string | null
+          bairro?: string | null
+          benemerito?: boolean
+          cargo_profissional?: string | null
+          celular?: string | null
+          cep?: string | null
+          cidade?: string | null
           cim?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
           data_elevacao?: string | null
           data_exaltacao?: string | null
           data_iniciacao?: string | null
           data_nascimento?: string | null
           email?: string | null
+          empresa?: string | null
           endereco?: string | null
+          estado?: string | null
+          estado_civil?: string | null
+          foto_url?: string | null
+          fundador?: boolean
           grau?: Database["public"]["Enums"]["grau_macom"]
+          honorario?: boolean
           id?: string
+          licenciado?: boolean
+          logradouro?: string | null
           loja_origem?: string | null
+          nacionalidade?: string | null
+          naturalidade?: string | null
           nome_civil?: string
           nome_simbolico?: string | null
+          numero_endereco?: string | null
+          numero_grande_oriente?: string | null
+          numero_matricula?: string | null
+          observacoes?: string | null
           potencia?: string | null
           profissao?: string | null
+          religiao?: string | null
+          rg?: string | null
           situacao?: Database["public"]["Enums"]["situacao_irmao"]
           telefone?: string | null
           updated_at?: string
@@ -756,6 +1016,72 @@ export type Database = {
         }
         Relationships: []
       }
+      terceiros: {
+        Row: {
+          ativo: boolean
+          bairro: string | null
+          categoria: string | null
+          cep: string | null
+          cnpj: string | null
+          contato: string | null
+          cpf: string | null
+          created_at: string
+          email: string | null
+          id: string
+          logradouro: string | null
+          municipio: string | null
+          nome: string
+          nome_fantasia: string | null
+          numero: string | null
+          observacoes: string | null
+          tipo: Database["public"]["Enums"]["tipo_terceiro"]
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          bairro?: string | null
+          categoria?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          contato?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logradouro?: string | null
+          municipio?: string | null
+          nome: string
+          nome_fantasia?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_terceiro"]
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          bairro?: string | null
+          categoria?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          contato?: string | null
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logradouro?: string | null
+          municipio?: string | null
+          nome?: string
+          nome_fantasia?: string | null
+          numero?: string | null
+          observacoes?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_terceiro"]
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -871,6 +1197,12 @@ export type Database = {
       situacao_irmao: "ativo" | "quite" | "irregular" | "adormecido"
       tipo_conta: "caixa" | "banco" | "outro"
       tipo_lancamento: "entrada" | "saida" | "transferencia"
+      tipo_parente_irmao:
+        | "pai"
+        | "mae"
+        | "conjuge"
+        | "contato_emergencia"
+        | "outro"
       tipo_plano_conta:
         | "receita"
         | "despesa"
@@ -878,6 +1210,7 @@ export type Database = {
         | "passivo"
         | "patrimonio_liquido"
       tipo_sessao: "ordinaria" | "magna" | "branca" | "administrativa"
+      tipo_terceiro: "fornecedor" | "cliente" | "ambos"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1018,6 +1351,13 @@ export const Constants = {
       situacao_irmao: ["ativo", "quite", "irregular", "adormecido"],
       tipo_conta: ["caixa", "banco", "outro"],
       tipo_lancamento: ["entrada", "saida", "transferencia"],
+      tipo_parente_irmao: [
+        "pai",
+        "mae",
+        "conjuge",
+        "contato_emergencia",
+        "outro",
+      ],
       tipo_plano_conta: [
         "receita",
         "despesa",
@@ -1026,6 +1366,7 @@ export const Constants = {
         "patrimonio_liquido",
       ],
       tipo_sessao: ["ordinaria", "magna", "branca", "administrativa"],
+      tipo_terceiro: ["fornecedor", "cliente", "ambos"],
     },
   },
 } as const
