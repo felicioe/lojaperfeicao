@@ -82,6 +82,16 @@ CREATE PROCEDURE salvar_conta(
 BEGIN
   DECLARE v_cur CHAR(36);
   DECLARE v_hops INT DEFAULT 0;
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -113,6 +123,9 @@ BEGIN
 
   IF p_parent_id IS NOT NULL THEN
     UPDATE plano_contas SET analitica = FALSE WHERE id = p_parent_id AND analitica = TRUE;
+  END IF;
+  IF v_own_tx THEN
+    COMMIT;
   END IF;
 END$$
 DELIMITER ;
@@ -252,15 +265,10 @@ CREATE TABLE IF NOT EXISTS lancamentos_contabeis_itens (
 CREATE INDEX idx_lci_lancamento ON lancamentos_contabeis_itens (lancamento_id);
 CREATE INDEX idx_lci_conta ON lancamentos_contabeis_itens (conta_id);
 
--- Agora que as FKs cruzadas existem, liga as colunas de lancamentos que
--- referenciam tabelas criadas depois dela nesta mesma migration.
-ALTER TABLE lancamentos
-  ADD CONSTRAINT fk_lancamentos_recibo FOREIGN KEY (recibo_id) REFERENCES lancamentos(id) ON DELETE SET NULL;
--- (nota: recibo_id referenciará a tabela `recibos`, criada mais abaixo —
--- ver ALTER TABLE lancamentos ADD CONSTRAINT fk_lancamentos_recibo_real
--- logo após a criação de `recibos`. A linha acima é só um placeholder
--- inválido — removida a seguir; ver nota na seção RECIBOS.)
-ALTER TABLE lancamentos DROP FOREIGN KEY fk_lancamentos_recibo;
+-- Nota: lancamentos.recibo_id/recorrente_id/parcelamento_id ainda não têm FK
+-- aqui — as tabelas recibos/despesas_recorrentes/parcelamentos só existem
+-- mais abaixo nesta mesma migration. Cada ALTER TABLE lancamentos ADD
+-- CONSTRAINT correspondente vem logo após a criação da tabela referenciada.
 
 -- =========================================
 -- RPC: registrar_lancamento_contabil — único caminho de escrita em
@@ -288,6 +296,16 @@ BEGIN
   DECLARE v_analitica BOOLEAN;
   DECLARE v_soma_debito DECIMAL(14,2) DEFAULT 0;
   DECLARE v_soma_credito DECIMAL(14,2) DEFAULT 0;
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF @current_usuario_id IS NOT NULL AND NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão para registrar lançamento contábil';
@@ -346,6 +364,9 @@ BEGIN
 
     SET v_i = v_i + 1;
   END WHILE;
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -404,6 +425,16 @@ CREATE PROCEDURE criar_conta_pagar(
 BEGIN
   DECLARE v_conta_pagar_id CHAR(36);
   DECLARE v_competencia DATE;
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -431,11 +462,14 @@ BEGIN
   CALL registrar_lancamento_contabil(
     p_data, v_competencia, CONCAT('Provisão: ', p_descricao),
     JSON_ARRAY(
-      JSON_OBJECT('conta_id', p_plano_conta_id, 'tipo', 'debito', 'valor', p_valor),
-      JSON_OBJECT('conta_id', v_conta_pagar_id, 'tipo', 'credito', 'valor', p_valor)
+      JSON_OBJECT('conta_id', p_plano_conta_id, 'tipo', 'debito', 'valor', CAST(p_valor AS DECIMAL(14,2))),
+      JSON_OBJECT('conta_id', v_conta_pagar_id, 'tipo', 'credito', 'valor', CAST(p_valor AS DECIMAL(14,2)))
     ),
     'conta_pagar_provisao', NULL, @lanc_contabil_id
   );
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -453,6 +487,16 @@ BEGIN
   DECLARE v_pago BOOLEAN;
   DECLARE v_conta_pagar_id CHAR(36);
   DECLARE v_plano_conta_banco CHAR(36);
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -481,11 +525,14 @@ BEGIN
   CALL registrar_lancamento_contabil(
     p_data_pagamento, mes_competencia(p_data_pagamento), CONCAT('Baixa: ', v_descricao),
     JSON_ARRAY(
-      JSON_OBJECT('conta_id', v_conta_pagar_id, 'tipo', 'debito', 'valor', v_valor),
-      JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'credito', 'valor', v_valor)
+      JSON_OBJECT('conta_id', v_conta_pagar_id, 'tipo', 'debito', 'valor', CAST(v_valor AS DECIMAL(14,2))),
+      JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'credito', 'valor', CAST(v_valor AS DECIMAL(14,2)))
     ),
     'conta_pagar_baixa', p_lancamento_id, @lanc_contabil_id
   );
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -531,6 +578,7 @@ BEGIN
   DECLARE v_venc DATE;
   DECLARE v_lanc_id CHAR(36);
   DECLARE v_conta_pagar_id CHAR(36);
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
   DECLARE cur CURSOR FOR
     SELECT id, descricao, valor, plano_conta_id, terceiro_id, dia_vencimento, observacoes
     FROM despesas_recorrentes
@@ -539,6 +587,16 @@ BEGIN
       AND (data_fim IS NULL OR data_fim >= CURRENT_DATE)
       AND DAYOFMONTH(CURRENT_DATE) >= dia_vencimento;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF @current_usuario_id IS NOT NULL AND NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -572,8 +630,8 @@ BEGIN
       CALL registrar_lancamento_contabil(
         CURRENT_DATE, v_competencia, CONCAT('Provisão (recorrente): ', v_descricao),
         JSON_ARRAY(
-          JSON_OBJECT('conta_id', v_plano_conta_id, 'tipo', 'debito', 'valor', v_valor),
-          JSON_OBJECT('conta_id', v_conta_pagar_id, 'tipo', 'credito', 'valor', v_valor)
+          JSON_OBJECT('conta_id', v_plano_conta_id, 'tipo', 'debito', 'valor', CAST(v_valor AS DECIMAL(14,2))),
+          JSON_OBJECT('conta_id', v_conta_pagar_id, 'tipo', 'credito', 'valor', CAST(v_valor AS DECIMAL(14,2)))
         ),
         'conta_pagar_provisao', v_lanc_id, @lanc_contabil_id
       );
@@ -582,6 +640,9 @@ BEGIN
     END IF;
   END LOOP;
   CLOSE cur;
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -711,8 +772,19 @@ BEGIN
   DECLARE v_juros DECIMAL(14,2);
   DECLARE v_dias INT;
   DECLARE v_calc_total DECIMAL(14,2);
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
   DECLARE cur CURSOR FOR SELECT id, valor, data_vencimento FROM lancamentos WHERE JSON_CONTAINS(p_lancamento_ids, JSON_QUOTE(id));
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -781,19 +853,22 @@ BEGIN
   END LOOP;
   CLOSE cur;
 
-  SET v_itens = JSON_ARRAY(JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'debito', 'valor', v_total));
+  SET v_itens = JSON_ARRAY(JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'debito', 'valor', CAST(v_total AS DECIMAL(14,2))));
   IF COALESCE(p_desconto, 0) > 0 THEN
-    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', (SELECT id FROM plano_contas WHERE codigo = '5.1.06'), 'tipo', 'debito', 'valor', p_desconto));
+    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', (SELECT id FROM plano_contas WHERE codigo = '5.1.06'), 'tipo', 'debito', 'valor', CAST(p_desconto AS DECIMAL(14,2))));
   END IF;
-  SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_receber_id, 'tipo', 'credito', 'valor', v_soma_original));
+  SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_receber_id, 'tipo', 'credito', 'valor', CAST(v_soma_original AS DECIMAL(14,2))));
   IF (v_soma_multa + v_soma_juros) > 0 THEN
-    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_multas_juros_id, 'tipo', 'credito', 'valor', v_soma_multa + v_soma_juros));
+    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_multas_juros_id, 'tipo', 'credito', 'valor', CAST(v_soma_multa + v_soma_juros AS DECIMAL(14,2))));
   END IF;
 
   CALL registrar_lancamento_contabil(
     p_data_pagamento, mes_competencia(p_data_pagamento),
     'Recibo (baixa de fatura)', v_itens, 'recibo_baixa', p_recibo_id, @lanc_contabil_id
   );
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -858,8 +933,19 @@ BEGIN
   DECLARE v_juros DECIMAL(14,2);
   DECLARE v_dias INT;
   DECLARE v_calc_total DECIMAL(14,2);
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
   DECLARE cur CURSOR FOR SELECT id, valor, data_vencimento FROM lancamentos WHERE JSON_CONTAINS(p_lancamento_ids, JSON_QUOTE(id));
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -956,19 +1042,22 @@ BEGIN
     SET v_i = v_i + 1;
   END WHILE;
 
-  SET v_itens = JSON_ARRAY(JSON_OBJECT('conta_id', v_receber_id, 'tipo', 'debito', 'valor', v_valor_parcelado));
+  SET v_itens = JSON_ARRAY(JSON_OBJECT('conta_id', v_receber_id, 'tipo', 'debito', 'valor', CAST(v_valor_parcelado AS DECIMAL(14,2))));
   IF COALESCE(p_entrada, 0) > 0 THEN
-    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'debito', 'valor', p_entrada));
+    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'debito', 'valor', CAST(p_entrada AS DECIMAL(14,2))));
   END IF;
-  SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_receber_id, 'tipo', 'credito', 'valor', v_soma_original));
+  SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_receber_id, 'tipo', 'credito', 'valor', CAST(v_soma_original AS DECIMAL(14,2))));
   IF (v_soma_multa + v_soma_juros) > 0 THEN
-    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_multas_juros_id, 'tipo', 'credito', 'valor', v_soma_multa + v_soma_juros));
+    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_multas_juros_id, 'tipo', 'credito', 'valor', CAST(v_soma_multa + v_soma_juros AS DECIMAL(14,2))));
   END IF;
 
   CALL registrar_lancamento_contabil(
     p_data, mes_competencia(p_data),
     'Parcelamento de faturas em atraso', v_itens, 'parcelamento', p_parcelamento_id, @lanc_contabil_id
   );
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -996,12 +1085,22 @@ BEGIN
   DECLARE v_i INT DEFAULT 0;
   DECLARE v_conta_id CHAR(36);
   DECLARE v_percentual DECIMAL(6,2);
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   SELECT id INTO v_receber_id FROM plano_contas WHERE codigo = '1.1.02';
   IF v_receber_id IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Conta "Contas a Receber" (1.1.02) não encontrada';
   END IF;
-  SET v_itens = JSON_ARRAY(JSON_OBJECT('conta_id', v_receber_id, 'tipo', 'debito', 'valor', p_valor));
+  SET v_itens = JSON_ARRAY(JSON_OBJECT('conta_id', v_receber_id, 'tipo', 'debito', 'valor', CAST(p_valor AS DECIMAL(14,2))));
 
   IF p_rateio IS NOT NULL AND JSON_LENGTH(p_rateio) > 0 THEN
     SET v_n = JSON_LENGTH(p_rateio);
@@ -1017,7 +1116,7 @@ BEGIN
         SET v_acumulado = v_acumulado + v_valor_linha;
       END IF;
 
-      SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_conta_id, 'tipo', 'credito', 'valor', v_valor_linha));
+      SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_conta_id, 'tipo', 'credito', 'valor', CAST(v_valor_linha AS DECIMAL(14,2))));
       SET v_i = v_i + 1;
     END WHILE;
     IF ABS(v_soma_pct - 100) > 0.01 THEN
@@ -1025,10 +1124,13 @@ BEGIN
     END IF;
   ELSE
     SELECT id INTO v_mensalidades_id FROM plano_contas WHERE codigo = '4.1.01';
-    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_mensalidades_id, 'tipo', 'credito', 'valor', p_valor));
+    SET v_itens = JSON_ARRAY_APPEND(v_itens, '$', JSON_OBJECT('conta_id', v_mensalidades_id, 'tipo', 'credito', 'valor', CAST(p_valor AS DECIMAL(14,2))));
   END IF;
 
   CALL registrar_lancamento_contabil(p_data, p_competencia, p_descricao, v_itens, 'fatura_provisao', p_lancamento_id, @lanc_contabil_id);
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -1046,6 +1148,16 @@ CREATE PROCEDURE criar_fatura_avulsa(
 BEGIN
   DECLARE v_desc VARCHAR(500);
   DECLARE v_comp DATE;
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -1068,6 +1180,9 @@ BEGIN
   );
 
   CALL _postar_provisao_fatura(p_lancamento_id, p_valor, CURRENT_DATE, v_comp, v_desc, p_rateio);
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -1089,11 +1204,22 @@ BEGIN
   DECLARE v_id CHAR(36);
   DECLARE v_valor_mensalidade DECIMAL(12,2);
   DECLARE v_lanc_id CHAR(36);
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
   DECLARE cur CURSOR FOR
     SELECT id, valor_mensalidade FROM irmaos
     WHERE situacao IN ('ativo', 'quite', 'irregular') AND valor_mensalidade > 0
       AND (p_irmao_id IS NULL OR id = p_irmao_id);
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -1129,6 +1255,9 @@ BEGIN
     END IF;
   END LOOP;
   CLOSE cur;
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -1154,6 +1283,16 @@ BEGIN
   DECLARE v_plano_conta_banco CHAR(36);
   DECLARE v_desc VARCHAR(500);
   DECLARE v_label VARCHAR(50);
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -1190,11 +1329,14 @@ BEGIN
   CALL registrar_lancamento_contabil(
     p_data, mes_competencia(p_data), v_desc,
     JSON_ARRAY(
-      JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'debito', 'valor', p_valor),
-      JSON_OBJECT('conta_id', p_plano_conta_id, 'tipo', 'credito', 'valor', p_valor)
+      JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'debito', 'valor', CAST(p_valor AS DECIMAL(14,2))),
+      JSON_OBJECT('conta_id', p_plano_conta_id, 'tipo', 'credito', 'valor', CAST(p_valor AS DECIMAL(14,2)))
     ),
     'recebimento_avulso', p_lancamento_id, @lanc_contabil_id
   );
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -1211,6 +1353,16 @@ CREATE PROCEDURE criar_transferencia(
 BEGIN
   DECLARE v_plano_origem CHAR(36);
   DECLARE v_plano_destino CHAR(36);
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -1238,11 +1390,14 @@ BEGIN
   CALL registrar_lancamento_contabil(
     p_data, mes_competencia(p_data), p_descricao,
     JSON_ARRAY(
-      JSON_OBJECT('conta_id', v_plano_destino, 'tipo', 'debito', 'valor', p_valor),
-      JSON_OBJECT('conta_id', v_plano_origem, 'tipo', 'credito', 'valor', p_valor)
+      JSON_OBJECT('conta_id', v_plano_destino, 'tipo', 'debito', 'valor', CAST(p_valor AS DECIMAL(14,2))),
+      JSON_OBJECT('conta_id', v_plano_origem, 'tipo', 'credito', 'valor', CAST(p_valor AS DECIMAL(14,2)))
     ),
     'transferencia', p_lancamento_id, @lanc_contabil_id
   );
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
 
@@ -1310,6 +1465,16 @@ BEGIN
   DECLARE v_valor_abs DECIMAL(14,2);
   DECLARE v_tipo VARCHAR(20);
   DECLARE v_itens JSON;
+  DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    IF v_own_tx THEN ROLLBACK; END IF;
+    RESIGNAL;
+  END;
+  IF @@in_transaction = 0 THEN
+    START TRANSACTION;
+    SET v_own_tx = TRUE;
+  END IF;
 
   IF NOT (has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'tesoureiro')) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
@@ -1341,18 +1506,21 @@ BEGIN
 
   IF v_tipo = 'entrada' THEN
     SET v_itens = JSON_ARRAY(
-      JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'debito', 'valor', v_valor_abs),
-      JSON_OBJECT('conta_id', p_plano_conta_id, 'tipo', 'credito', 'valor', v_valor_abs)
+      JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'debito', 'valor', CAST(v_valor_abs AS DECIMAL(14,2))),
+      JSON_OBJECT('conta_id', p_plano_conta_id, 'tipo', 'credito', 'valor', CAST(v_valor_abs AS DECIMAL(14,2)))
     );
   ELSE
     SET v_itens = JSON_ARRAY(
-      JSON_OBJECT('conta_id', p_plano_conta_id, 'tipo', 'debito', 'valor', v_valor_abs),
-      JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'credito', 'valor', v_valor_abs)
+      JSON_OBJECT('conta_id', p_plano_conta_id, 'tipo', 'debito', 'valor', CAST(v_valor_abs AS DECIMAL(14,2))),
+      JSON_OBJECT('conta_id', v_plano_conta_banco, 'tipo', 'credito', 'valor', CAST(v_valor_abs AS DECIMAL(14,2)))
     );
   END IF;
 
   CALL registrar_lancamento_contabil(v_data, mes_competencia(v_data), v_desc, v_itens, 'ofx_importado', p_lancamento_id, @lanc_contabil_id);
 
   UPDATE ofx_lancamentos SET conciliado = TRUE, lancamento_id = p_lancamento_id WHERE id = p_ofx_id;
+  IF v_own_tx THEN
+    COMMIT;
+  END IF;
 END$$
 DELIMITER ;
