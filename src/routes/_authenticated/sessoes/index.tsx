@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarSessoes, criarSessao } from "@/lib/server/sessoes";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,18 +25,17 @@ function SessoesList() {
 
   const { data = [] } = useQuery({
     queryKey: ["sessoes"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("sessoes").select("*").order("data", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => listarSessoes(),
   });
 
   const criar = async () => {
-    const { error } = await supabase.from("sessoes").insert(nova);
-    if (error) return toast.error(error.message);
-    toast.success("Sessão criada.");
-    qc.invalidateQueries({ queryKey: ["sessoes"] });
+    try {
+      await criarSessao({ data: nova });
+      toast.success("Sessão criada.");
+      qc.invalidateQueries({ queryKey: ["sessoes"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    }
   };
 
   return (

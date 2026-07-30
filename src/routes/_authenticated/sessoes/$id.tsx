@@ -1,6 +1,7 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { obterSessao, listarPresencas, togglePresenca as togglePresencaFn } from "@/lib/server/sessoes";
+import { listarIrmaos } from "@/lib/server/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,33 +22,34 @@ function SessaoDetail() {
 
   const sessao = useQuery({
     queryKey: ["sessao", id],
-    queryFn: async () => (await supabase.from("sessoes").select("*").eq("id", id).single()).data,
+    queryFn: () => obterSessao({ data: { id } }),
   });
 
   const irmaos = useQuery({
     queryKey: ["irmaos-ativos"],
-    queryFn: async () =>
-      (await supabase.from("irmaos").select("id, nome_civil, nome_simbolico, grau, situacao").neq("situacao", "adormecido").order("nome_civil")).data ?? [],
+    queryFn: async () => {
+      const todos = await listarIrmaos();
+      return todos
+        .filter((i) => i.situacao !== "adormecido")
+        .sort((a, b) => a.nome_civil.localeCompare(b.nome_civil));
+    },
   });
 
   const presencas = useQuery({
     queryKey: ["presencas", id],
-    queryFn: async () => (await supabase.from("presencas").select("*").eq("sessao_id", id)).data ?? [],
+    queryFn: () => listarPresencas({ data: { sessaoId: id } }),
   });
 
-  const map = new Map(presencas.data?.map((p: any) => [p.irmao_id, p]) ?? []);
+  const map = new Map(presencas.data?.map((p) => [p.irmao_id, p]) ?? []);
 
   const togglePresenca = async (irmaoId: string, presente: boolean) => {
     if (!can.isSecretario) return;
-    const existing: any = map.get(irmaoId);
-    if (existing) {
-      const { error } = await supabase.from("presencas").update({ presente }).eq("id", existing.id);
-      if (error) return toast.error(error.message);
-    } else {
-      const { error } = await supabase.from("presencas").insert({ sessao_id: id, irmao_id: irmaoId, presente });
-      if (error) return toast.error(error.message);
+    try {
+      await togglePresencaFn({ data: { sessaoId: id, irmaoId, presente } });
+      qc.invalidateQueries({ queryKey: ["presencas", id] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar presença.");
     }
-    qc.invalidateQueries({ queryKey: ["presencas", id] });
   };
 
   const s = sessao.data;

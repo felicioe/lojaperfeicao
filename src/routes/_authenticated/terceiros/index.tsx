@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarTerceiros, salvarTerceiro, alternarAtivoTerceiro, consultarCnpj, type Terceiro } from "@/lib/server/terceiros";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,26 +21,6 @@ export const Route = createFileRoute("/_authenticated/terceiros/")({
 });
 
 type Tipo = "fornecedor" | "cliente" | "ambos";
-
-type Terceiro = {
-  id: string;
-  tipo: Tipo;
-  nome: string;
-  nome_fantasia: string | null;
-  cnpj: string | null;
-  cpf: string | null;
-  contato: string | null;
-  email: string | null;
-  categoria: string | null;
-  cep: string | null;
-  logradouro: string | null;
-  numero: string | null;
-  bairro: string | null;
-  municipio: string | null;
-  uf: string | null;
-  observacoes: string | null;
-  ativo: boolean;
-};
 
 const TIPO_LABEL: Record<Tipo, string> = { fornecedor: "Fornecedor", cliente: "Cliente", ambos: "Fornecedor e Cliente" };
 
@@ -74,11 +54,7 @@ function Terceiros() {
 
   const { data = [] } = useQuery({
     queryKey: ["terceiros_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("terceiros").select("*").order("nome");
-      if (error) throw error;
-      return (data ?? []) as Terceiro[];
-    },
+    queryFn: () => listarTerceiros(),
   });
 
   const filtrados = data.filter((t) => {
@@ -89,56 +65,62 @@ function Terceiros() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["terceiros_all"] });
 
-  const consultarCnpj = async () => {
+  const buscarCnpj = async () => {
     const cnpj = form.cnpj.replace(/\D/g, "");
     if (cnpj.length !== 14) return toast.error("Informe um CNPJ com 14 dígitos.");
     setConsultando(true);
-    const { data, error } = await supabase.functions.invoke("consulta-cnpj", { body: { cnpj } });
-    setConsultando(false);
-    if (error || !data?.ok) return toast.error(data?.error ?? error?.message ?? "Falha na consulta.");
-    const d = data.data;
-    setForm({
-      ...form,
-      nome: d.nome || form.nome,
-      nome_fantasia: d.fantasia || form.nome_fantasia,
-      contato: d.contato || form.contato,
-      categoria: d.categoria || form.categoria,
-      logradouro: d.logradouro || form.logradouro,
-      numero: d.numero || form.numero,
-      bairro: d.bairro || form.bairro,
-      municipio: d.municipio || form.municipio,
-      uf: d.uf || form.uf,
-      cep: d.cep || form.cep,
-    });
-    toast.success(data.cache ? "Dados preenchidos (do cache)." : "Dados preenchidos.");
+    try {
+      const { dados: d, cache } = await consultarCnpj({ data: { cnpj } });
+      setForm({
+        ...form,
+        nome: d.nome || form.nome,
+        nome_fantasia: d.fantasia || form.nome_fantasia,
+        contato: d.contato || form.contato,
+        categoria: d.categoria || form.categoria,
+        logradouro: d.logradouro || form.logradouro,
+        numero: d.numero || form.numero,
+        bairro: d.bairro || form.bairro,
+        municipio: d.municipio || form.municipio,
+        uf: d.uf || form.uf,
+        cep: d.cep || form.cep,
+      });
+      toast.success(cache ? "Dados preenchidos (do cache)." : "Dados preenchidos.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha na consulta.");
+    } finally {
+      setConsultando(false);
+    }
   };
 
   const salvar = async () => {
     if (!form.nome.trim()) return;
-    const payload = {
-      tipo: form.tipo,
-      nome: form.nome.trim(),
-      nome_fantasia: form.nome_fantasia || null,
-      cnpj: form.cnpj ? form.cnpj.replace(/\D/g, "") : null,
-      cpf: form.cpf || null,
-      contato: form.contato || null,
-      email: form.email || null,
-      categoria: form.categoria || null,
-      cep: form.cep || null,
-      logradouro: form.logradouro || null,
-      numero: form.numero || null,
-      bairro: form.bairro || null,
-      municipio: form.municipio || null,
-      uf: form.uf || null,
-      observacoes: form.observacoes || null,
-    };
-    const { error } = form.id
-      ? await supabase.from("terceiros").update(payload).eq("id", form.id)
-      : await supabase.from("terceiros").insert(payload);
-    if (error) return toast.error(error.message);
-    toast.success(form.id ? "Atualizado." : "Cadastrado.");
-    setForm(FORM_VAZIO);
-    invalidate();
+    try {
+      await salvarTerceiro({
+        data: {
+          id: form.id,
+          tipo: form.tipo,
+          nome: form.nome.trim(),
+          nome_fantasia: form.nome_fantasia || null,
+          cnpj: form.cnpj ? form.cnpj.replace(/\D/g, "") : null,
+          cpf: form.cpf || null,
+          contato: form.contato || null,
+          email: form.email || null,
+          categoria: form.categoria || null,
+          cep: form.cep || null,
+          logradouro: form.logradouro || null,
+          numero: form.numero || null,
+          bairro: form.bairro || null,
+          municipio: form.municipio || null,
+          uf: form.uf || null,
+          observacoes: form.observacoes || null,
+        },
+      });
+      toast.success(form.id ? "Atualizado." : "Cadastrado.");
+      setForm(FORM_VAZIO);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    }
   };
 
   const editar = (t: Terceiro) =>
@@ -150,9 +132,12 @@ function Terceiros() {
     });
 
   const alternarAtivo = async (t: Terceiro) => {
-    const { error } = await supabase.from("terceiros").update({ ativo: !t.ativo }).eq("id", t.id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await alternarAtivoTerceiro({ data: { id: t.id, ativo: !t.ativo } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
   };
 
   return (
@@ -176,7 +161,7 @@ function Terceiros() {
               <Label>CNPJ</Label>
               <div className="flex gap-2">
                 <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
-                <Button type="button" variant="outline" onClick={consultarCnpj} disabled={consultando}>
+                <Button type="button" variant="outline" onClick={buscarCnpj} disabled={consultando}>
                   {consultando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </Button>
               </div>
