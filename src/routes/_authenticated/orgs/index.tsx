@@ -1,7 +1,18 @@
 import { Fragment } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listarOrgs,
+  listarPotencias,
+  salvarOrg,
+  alternarAtivoOrg,
+  listarOrgsGraus,
+  gerarGrausPadraoOrg,
+  criarOrgGrau,
+  renomearOrgGrau,
+  removerOrgGrau,
+  type Org,
+} from "@/lib/server/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,23 +33,6 @@ export const Route = createFileRoute("/_authenticated/orgs/")({
 });
 
 type Natureza = "loja" | "capitulo" | "conselho" | "areopago" | "consistorio" | "outro";
-
-type Org = {
-  id: string;
-  potencia_id: string | null;
-  nome: string;
-  sigla: string | null;
-  natureza: Natureza;
-  numero: string | null;
-  rito: string | null;
-  grau_min: number;
-  grau_max: number;
-  mensalidade_padrao: number;
-  cnpj: string | null;
-  fundacao: string | null;
-  endereco: string | null;
-  ativo: boolean;
-};
 
 const NATUREZA_LABEL: Record<Natureza, string> = {
   loja: "Loja",
@@ -73,47 +67,42 @@ function Orgs() {
 
   const { data: orgs = [] } = useQuery({
     queryKey: ["orgs_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orgs").select("*").order("nome");
-      if (error) throw error;
-      return (data ?? []) as Org[];
-    },
+    queryFn: () => listarOrgs(),
   });
 
   const { data: potencias = [] } = useQuery({
     queryKey: ["potencias_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("potencias").select("id,nome,sigla").order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string; sigla: string | null }[];
-    },
+    queryFn: () => listarPotencias(),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["orgs_all"] });
 
   const salvar = async () => {
     if (!form.nome.trim()) return;
-    const payload = {
-      potencia_id: form.potencia_id === "none" ? null : form.potencia_id,
-      nome: form.nome.trim(),
-      sigla: form.sigla || null,
-      natureza: form.natureza,
-      numero: form.numero || null,
-      rito: form.rito || null,
-      grau_min: Number(form.grau_min) || 1,
-      grau_max: Number(form.grau_max) || 3,
-      mensalidade_padrao: Number(form.mensalidade_padrao) || 0,
-      cnpj: form.cnpj || null,
-      fundacao: form.fundacao || null,
-      endereco: form.endereco || null,
-    };
-    const { error } = form.id
-      ? await supabase.from("orgs").update(payload).eq("id", form.id)
-      : await supabase.from("orgs").insert(payload);
-    if (error) return toast.error(error.message);
-    toast.success(form.id ? "Corpo atualizado." : "Corpo criado.");
-    setForm(FORM_VAZIO);
-    invalidate();
+    try {
+      await salvarOrg({
+        data: {
+          id: form.id,
+          potencia_id: form.potencia_id === "none" ? null : form.potencia_id,
+          nome: form.nome.trim(),
+          sigla: form.sigla || null,
+          natureza: form.natureza,
+          numero: form.numero || null,
+          rito: form.rito || null,
+          grau_min: Number(form.grau_min) || 1,
+          grau_max: Number(form.grau_max) || 3,
+          mensalidade_padrao: Number(form.mensalidade_padrao) || 0,
+          cnpj: form.cnpj || null,
+          fundacao: form.fundacao || null,
+          endereco: form.endereco || null,
+        },
+      });
+      toast.success(form.id ? "Corpo atualizado." : "Corpo criado.");
+      setForm(FORM_VAZIO);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    }
   };
 
   const editar = (o: Org) =>
@@ -134,9 +123,12 @@ function Orgs() {
     });
 
   const alternarAtivo = async (o: Org) => {
-    const { error } = await supabase.from("orgs").update({ ativo: !o.ativo }).eq("id", o.id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await alternarAtivoOrg({ data: { id: o.id, ativo: !o.ativo } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
   };
 
   return (
@@ -251,49 +243,55 @@ function Orgs() {
   );
 }
 
-type Grau = { id: string; org_id: string; grau: number; nome: string };
-
 function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
   const qc = useQueryClient();
   const [novoGrau, setNovoGrau] = useState<{ grau: string; nome: string }>({ grau: "", nome: "" });
 
   const { data: graus = [] } = useQuery({
     queryKey: ["orgs_graus", org.id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orgs_graus").select("*").eq("org_id", org.id).order("grau");
-      if (error) throw error;
-      return (data ?? []) as Grau[];
-    },
+    queryFn: () => listarOrgsGraus({ data: { orgId: org.id } }),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["orgs_graus", org.id] });
 
   const gerarPadrao = async () => {
-    const { error } = await supabase.rpc("gerar_graus_padrao_org", { _org_id: org.id });
-    if (error) return toast.error(error.message);
-    toast.success("Graus padrão gerados.");
-    invalidate();
+    try {
+      await gerarGrausPadraoOrg({ data: { orgId: org.id } });
+      toast.success("Graus padrão gerados.");
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar graus.");
+    }
   };
 
   const adicionar = async () => {
     const g = Number(novoGrau.grau);
     if (!g || !novoGrau.nome.trim()) return;
-    const { error } = await supabase.from("orgs_graus").insert({ org_id: org.id, grau: g, nome: novoGrau.nome.trim() });
-    if (error) return toast.error(error.message);
-    setNovoGrau({ grau: "", nome: "" });
-    invalidate();
+    try {
+      await criarOrgGrau({ data: { orgId: org.id, grau: g, nome: novoGrau.nome.trim() } });
+      setNovoGrau({ grau: "", nome: "" });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao adicionar.");
+    }
   };
 
   const renomear = async (id: string, nome: string) => {
-    const { error } = await supabase.from("orgs_graus").update({ nome }).eq("id", id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await renomearOrgGrau({ data: { id, nome } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao renomear.");
+    }
   };
 
   const remover = async (id: string) => {
-    const { error } = await supabase.from("orgs_graus").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await removerOrgGrau({ data: { id } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover.");
+    }
   };
 
   return (

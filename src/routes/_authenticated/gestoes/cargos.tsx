@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarCargos, salvarCargo, alternarAtivoCargo, type Cargo } from "@/lib/server/gestoes";
+import { listarOrgs } from "@/lib/server/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,8 +20,6 @@ export const Route = createFileRoute("/_authenticated/gestoes/cargos")({
   component: Cargos,
 });
 
-type Cargo = { id: string; org_id: string | null; nome: string; ordem: number; ativo: boolean };
-
 const FORM_VAZIO = { id: null as string | null, nome: "", org_id: "none", ordem: 0 };
 
 function Cargos() {
@@ -30,40 +29,42 @@ function Cargos() {
 
   const { data: cargos = [] } = useQuery({
     queryKey: ["cargos_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("cargos").select("*").order("ordem");
-      if (error) throw error;
-      return (data ?? []) as Cargo[];
-    },
+    queryFn: () => listarCargos(),
   });
 
   const { data: orgs = [] } = useQuery({
     queryKey: ["orgs_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orgs").select("id,nome,sigla").order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string; sigla: string | null }[];
-    },
+    queryFn: () => listarOrgs(),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["cargos_all"] });
 
   const salvar = async () => {
     if (!form.nome.trim()) return;
-    const payload = { nome: form.nome.trim(), org_id: form.org_id === "none" ? null : form.org_id, ordem: Number(form.ordem) || 0 };
-    const { error } = form.id
-      ? await supabase.from("cargos").update(payload).eq("id", form.id)
-      : await supabase.from("cargos").insert(payload);
-    if (error) return toast.error(error.message);
-    toast.success(form.id ? "Cargo atualizado." : "Cargo criado.");
-    setForm(FORM_VAZIO);
-    invalidate();
+    try {
+      await salvarCargo({
+        data: {
+          id: form.id,
+          nome: form.nome.trim(),
+          org_id: form.org_id === "none" ? null : form.org_id,
+          ordem: Number(form.ordem) || 0,
+        },
+      });
+      toast.success(form.id ? "Cargo atualizado." : "Cargo criado.");
+      setForm(FORM_VAZIO);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    }
   };
 
   const alternarAtivo = async (c: Cargo) => {
-    const { error } = await supabase.from("cargos").update({ ativo: !c.ativo }).eq("id", c.id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await alternarAtivoCargo({ data: { id: c.id, ativo: !c.ativo } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
   };
 
   const nomeOrg = (id: string | null) => orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? null;

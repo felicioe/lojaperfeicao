@@ -1,6 +1,30 @@
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  obterIrmao,
+  atualizarPerfilIrmao,
+  excluirIrmao,
+  uploadFotoIrmao,
+  listarIrmaoOrgs,
+  criarIrmaoOrg,
+  removerIrmaoOrg,
+  listarIrmaoElevacoes,
+  criarIrmaoElevacao,
+  removerIrmaoElevacao,
+  listarIrmaoFormacao,
+  criarIrmaoFormacao,
+  removerIrmaoFormacao,
+  listarIrmaoFilhos,
+  criarIrmaoFilho,
+  removerIrmaoFilho,
+  listarIrmaoParentes,
+  criarIrmaoParente,
+  removerIrmaoParente,
+  listarLancamentosIrmao,
+  listarCargosHistoricoIrmao,
+  type TipoParente,
+} from "@/lib/server/irmaos";
+import { listarOrgs } from "@/lib/server/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -45,11 +69,7 @@ function IrmaoDetail() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["irmao", id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmaos").select("*").eq("id", id).single();
-      if (error) throw error;
-      return data as Record<string, any>;
-    },
+    queryFn: () => obterIrmao({ data: { id } }),
   });
 
   useEffect(() => {
@@ -64,11 +84,15 @@ function IrmaoDetail() {
     setSaving(true);
     const payload: Record<string, any> = {};
     for (const k of CAMPOS_PERFIL) payload[k] = perfil[k] === "" ? null : perfil[k];
-    const { error } = await supabase.from("irmaos").update(payload).eq("id", id);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Salvo.");
-    qc.invalidateQueries({ queryKey: ["irmao", id] });
+    try {
+      await atualizarPerfilIrmao({ data: { id, perfil: payload } });
+      toast.success("Salvo.");
+      qc.invalidateQueries({ queryKey: ["irmao", id] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const buscarCep = async () => {
@@ -92,12 +116,19 @@ function IrmaoDetail() {
   };
 
   const uploadFoto = async (file: File) => {
-    const path = `${id}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("irmao-fotos").upload(path, file, { upsert: true });
-    if (error) return toast.error(error.message);
-    const { data: pub } = supabase.storage.from("irmao-fotos").getPublicUrl(path);
-    setPerfil({ ...perfil, foto_url: pub.publicUrl });
-    toast.success("Foto enviada — clique em Salvar para confirmar.");
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { url } = await uploadFotoIrmao({ data: { irmaoId: id, nomeArquivo: file.name, dataUrl } });
+      setPerfil({ ...perfil, foto_url: url });
+      toast.success("Foto enviada — clique em Salvar para confirmar.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar a foto.");
+    }
   };
 
   return (
@@ -128,10 +159,13 @@ function IrmaoDetail() {
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={async () => {
-                        const { error } = await supabase.from("irmaos").delete().eq("id", id);
-                        if (error) return toast.error(error.message);
-                        toast.success("Excluído.");
-                        nav({ to: "/irmaos" });
+                        try {
+                          await excluirIrmao({ data: { id } });
+                          toast.success("Excluído.");
+                          nav({ to: "/irmaos" });
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
+                        }
                       }}
                     >
                       Excluir
@@ -311,39 +345,41 @@ function CorposPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
 
   const { data: vinculos = [] } = useQuery({
     queryKey: ["irmao_orgs", irmaoId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmao_orgs").select("id,org_id,principal,grau_atual,orgs(nome,sigla)").eq("irmao_id", irmaoId);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarIrmaoOrgs({ data: { irmaoId } }),
   });
 
   const { data: orgs = [] } = useQuery({
     queryKey: ["orgs_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orgs").select("id,nome,sigla").order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string; sigla: string | null }[];
-    },
+    queryFn: () => listarOrgs(),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_orgs", irmaoId] });
 
   const adicionar = async () => {
     if (!novo.org_id) return;
-    const { error } = await supabase.from("irmao_orgs").insert({
-      irmao_id: irmaoId, org_id: novo.org_id, principal: novo.principal,
-      grau_atual: novo.grau_atual ? Number(novo.grau_atual) : null,
-    });
-    if (error) return toast.error(error.message);
-    setNovo({ org_id: "", grau_atual: "", principal: false });
-    invalidate();
+    try {
+      await criarIrmaoOrg({
+        data: {
+          irmaoId,
+          orgId: novo.org_id,
+          principal: novo.principal,
+          grauAtual: novo.grau_atual ? Number(novo.grau_atual) : null,
+        },
+      });
+      setNovo({ org_id: "", grau_atual: "", principal: false });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao adicionar.");
+    }
   };
 
   const remover = async (vid: string) => {
-    const { error } = await supabase.from("irmao_orgs").delete().eq("id", vid);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await removerIrmaoOrg({ data: { id: vid } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover.");
+    }
   };
 
   return (
@@ -392,11 +428,7 @@ function ElevacoesPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: 
 
   const { data: elevacoes = [] } = useQuery({
     queryKey: ["irmao_elevacoes", irmaoId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmao_elevacoes").select("*").eq("irmao_id", irmaoId).order("grau");
-      if (error) throw error;
-      return (data ?? []) as { id: string; grau: number; data: string | null }[];
-    },
+    queryFn: () => listarIrmaoElevacoes({ data: { irmaoId } }),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_elevacoes", irmaoId] });
@@ -404,16 +436,22 @@ function ElevacoesPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: 
   const adicionar = async () => {
     const g = Number(novo.grau);
     if (!g) return;
-    const { error } = await supabase.from("irmao_elevacoes").insert({ irmao_id: irmaoId, grau: g, data: novo.data || null });
-    if (error) return toast.error(error.message);
-    setNovo({ grau: "", data: "" });
-    invalidate();
+    try {
+      await criarIrmaoElevacao({ data: { irmaoId, grau: g, data: novo.data || null } });
+      setNovo({ grau: "", data: "" });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao adicionar.");
+    }
   };
 
   const remover = async (id: string) => {
-    const { error } = await supabase.from("irmao_elevacoes").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await removerIrmaoElevacao({ data: { id } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover.");
+    }
   };
 
   return (
@@ -454,30 +492,37 @@ function FormacaoPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: b
 
   const { data: itens = [] } = useQuery({
     queryKey: ["irmao_formacao", irmaoId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmao_formacao").select("*").eq("irmao_id", irmaoId).order("ano_conclusao", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarIrmaoFormacao({ data: { irmaoId } }),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_formacao", irmaoId] });
 
   const adicionar = async () => {
     if (!novo.curso.trim()) return;
-    const { error } = await supabase.from("irmao_formacao").insert({
-      irmao_id: irmaoId, curso: novo.curso.trim(), instituicao: novo.instituicao || null,
-      nivel: novo.nivel || null, ano_conclusao: novo.ano_conclusao ? Number(novo.ano_conclusao) : null,
-    });
-    if (error) return toast.error(error.message);
-    setNovo({ curso: "", instituicao: "", nivel: "", ano_conclusao: "" });
-    invalidate();
+    try {
+      await criarIrmaoFormacao({
+        data: {
+          irmaoId,
+          curso: novo.curso.trim(),
+          instituicao: novo.instituicao || null,
+          nivel: novo.nivel || null,
+          anoConclusao: novo.ano_conclusao ? Number(novo.ano_conclusao) : null,
+        },
+      });
+      setNovo({ curso: "", instituicao: "", nivel: "", ano_conclusao: "" });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao adicionar.");
+    }
   };
 
   const remover = async (id: string) => {
-    const { error } = await supabase.from("irmao_formacao").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await removerIrmaoFormacao({ data: { id } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover.");
+    }
   };
 
   return (
@@ -522,27 +567,29 @@ function FilhosPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
 
   const { data: itens = [] } = useQuery({
     queryKey: ["irmao_filhos", irmaoId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmao_filhos").select("*").eq("irmao_id", irmaoId).order("data_nascimento");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarIrmaoFilhos({ data: { irmaoId } }),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_filhos", irmaoId] });
 
   const adicionar = async () => {
     if (!novo.nome.trim()) return;
-    const { error } = await supabase.from("irmao_filhos").insert({ irmao_id: irmaoId, nome: novo.nome.trim(), data_nascimento: novo.data_nascimento || null });
-    if (error) return toast.error(error.message);
-    setNovo({ nome: "", data_nascimento: "" });
-    invalidate();
+    try {
+      await criarIrmaoFilho({ data: { irmaoId, nome: novo.nome.trim(), dataNascimento: novo.data_nascimento || null } });
+      setNovo({ nome: "", data_nascimento: "" });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao adicionar.");
+    }
   };
 
   const remover = async (id: string) => {
-    const { error } = await supabase.from("irmao_filhos").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await removerIrmaoFilho({ data: { id } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover.");
+    }
   };
 
   return (
@@ -580,39 +627,45 @@ function FilhosPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
 // (pai/mãe/cônjuge/contato de emergência); sem "unico" vira lista livre
 // (outros aniversariantes).
 // =========================================
-type TipoParente = "pai" | "mae" | "conjuge" | "contato_emergencia" | "outro";
-
 function ParentesPanel({ irmaoId, tipo, titulo, podeEditar, unico }: { irmaoId: string; tipo: TipoParente; titulo: string; podeEditar: boolean; unico?: boolean }) {
   const qc = useQueryClient();
   const [novo, setNovo] = useState({ nome: "", data_nascimento: "", telefone: "", profissao: "", data_casamento: "" });
 
   const { data: itens = [] } = useQuery({
     queryKey: ["irmao_parentes", irmaoId, tipo],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmao_parentes").select("*").eq("irmao_id", irmaoId).eq("tipo", tipo).order("nome");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarIrmaoParentes({ data: { irmaoId, tipo } }),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_parentes", irmaoId, tipo] });
 
   const adicionar = async () => {
     if (!novo.nome.trim()) return;
-    const { error } = await supabase.from("irmao_parentes").insert({
-      irmao_id: irmaoId, tipo, nome: novo.nome.trim(),
-      data_nascimento: novo.data_nascimento || null, telefone: novo.telefone || null,
-      profissao: novo.profissao || null, data_casamento: novo.data_casamento || null,
-    });
-    if (error) return toast.error(error.message);
-    setNovo({ nome: "", data_nascimento: "", telefone: "", profissao: "", data_casamento: "" });
-    invalidate();
+    try {
+      await criarIrmaoParente({
+        data: {
+          irmaoId,
+          tipo,
+          nome: novo.nome.trim(),
+          dataNascimento: novo.data_nascimento || null,
+          telefone: novo.telefone || null,
+          profissao: novo.profissao || null,
+          dataCasamento: novo.data_casamento || null,
+        },
+      });
+      setNovo({ nome: "", data_nascimento: "", telefone: "", profissao: "", data_casamento: "" });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao adicionar.");
+    }
   };
 
   const remover = async (id: string) => {
-    const { error } = await supabase.from("irmao_parentes").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await removerIrmaoParente({ data: { id } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover.");
+    }
   };
 
   const podeAdicionar = !unico || itens.length === 0;
@@ -654,11 +707,7 @@ function ParentesPanel({ irmaoId, tipo, titulo, podeEditar, unico }: { irmaoId: 
 function FinanceiroPanel({ irmaoId }: { irmaoId: string }) {
   const { data: itens = [] } = useQuery({
     queryKey: ["irmao_lancamentos", irmaoId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("lancamentos").select("*").eq("irmao_id", irmaoId).order("data", { ascending: false }).limit(100);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarLancamentosIrmao({ data: { irmaoId } }),
   });
 
   return (
@@ -691,14 +740,7 @@ function FinanceiroPanel({ irmaoId }: { irmaoId: string }) {
 function CargosHistoricoPanel({ irmaoId }: { irmaoId: string }) {
   const { data: itens = [] } = useQuery({
     queryKey: ["irmao_cargos_historico", irmaoId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("gestao_cargos")
-        .select("id,cargos(nome),gestoes(nome,ativo,org_id,orgs(nome,sigla))")
-        .eq("irmao_id", irmaoId);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarCargosHistoricoIrmao({ data: { irmaoId } }),
   });
 
   return (

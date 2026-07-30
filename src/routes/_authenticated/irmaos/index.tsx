@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarIrmaos } from "@/lib/server/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,14 +27,7 @@ function IrmaosList() {
   const can = useCan();
   const { data = [], isLoading } = useQuery({
     queryKey: ["irmaos"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("irmaos")
-        .select("*")
-        .order("nome_civil");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => listarIrmaos(),
   });
 
   const filtered = data.filter((i: any) =>

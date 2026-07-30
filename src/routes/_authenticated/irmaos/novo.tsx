@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { criarIrmao } from "@/lib/server/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { IrmaoForm } from "@/components/app/IrmaoForm";
 import { toast } from "sonner";
@@ -20,11 +20,15 @@ function NovoIrmao() {
         submitting={saving}
         onSubmit={async (d) => {
           setSaving(true);
-          const { error } = await supabase.from("irmaos").insert(d);
-          setSaving(false);
-          if (error) return toast.error(error.message);
-          toast.success("Irmão cadastrado.");
-          nav({ to: "/irmaos" });
+          try {
+            await criarIrmao({ data: d });
+            toast.success("Irmão cadastrado.");
+            nav({ to: "/irmaos" });
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erro ao cadastrar.");
+          } finally {
+            setSaving(false);
+          }
         }}
       />
     </>
