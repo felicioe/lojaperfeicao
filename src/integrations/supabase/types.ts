@@ -447,6 +447,66 @@ export type Database = {
         }
         Relationships: []
       }
+      ofx_lancamentos: {
+        Row: {
+          chave_dedupe: string
+          conciliado: boolean
+          conta_financeira_id: string
+          data: string
+          descricao: string | null
+          fitid: string | null
+          id: string
+          importado_em: string
+          importado_por: string | null
+          lancamento_id: string | null
+          tipo_ofx: string | null
+          valor: number
+        }
+        Insert: {
+          chave_dedupe: string
+          conciliado?: boolean
+          conta_financeira_id: string
+          data: string
+          descricao?: string | null
+          fitid?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          lancamento_id?: string | null
+          tipo_ofx?: string | null
+          valor: number
+        }
+        Update: {
+          chave_dedupe?: string
+          conciliado?: boolean
+          conta_financeira_id?: string
+          data?: string
+          descricao?: string | null
+          fitid?: string | null
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          lancamento_id?: string | null
+          tipo_ofx?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ofx_lancamentos_conta_financeira_id_fkey"
+            columns: ["conta_financeira_id"]
+            isOneToOne: false
+            referencedRelation: "contas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ofx_lancamentos_lancamento_id_fkey"
+            columns: ["lancamento_id"]
+            isOneToOne: false
+            referencedRelation: "lancamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parcelamentos: {
         Row: {
           created_at: string
@@ -1475,6 +1535,21 @@ export type Database = {
           _data?: string
           _descricao?: string
           _valor: number
+        }
+        Returns: string
+      }
+      conciliar_ofx_existente: {
+        Args: { _lancamento_id: string; _ofx_id: string }
+        Returns: undefined
+      }
+      criar_lancamento_de_ofx: {
+        Args: {
+          _categoria?: Database["public"]["Enums"]["categoria_recebimento"]
+          _descricao?: string
+          _irmao_id?: string
+          _ofx_id: string
+          _plano_conta_id: string
+          _terceiro_id?: string
         }
         Returns: string
       }
