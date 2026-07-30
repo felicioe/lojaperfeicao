@@ -135,6 +135,24 @@ ser rotas do próprio servidor Node.js já publicado na Hostinger (issue #54). A
 de parsing (OFX/SGML, detecção de encoding) é JS puro e portável quase 1:1; só muda
 o runtime (Deno → Node) e o cliente de banco (Postgres → MySQL).
 
+### 10. Chamar uma procedure com parâmetro JSON a partir do driver (`mysql2`)
+Validado com o driver real (`mysql2`) contra um MariaDB 10.11 local: **`CAST(... AS
+JSON)` não é sintaxe válida no MariaDB** — `JSON` ali é só um alias de `LONGTEXT` com
+uma constraint de validação, não um tipo de destino reconhecido por `CAST`
+(`SELECT CAST('[{"a":1}]' AS JSON)` já falha sozinho, sem nenhum parâmetro
+envolvido). Ao chamar uma procedure com parâmetro `IN ... JSON` a partir do Node
+(`conn.query("CALL proc(?, ?, ...)", [..., JSON.stringify(itens), ...])`), **não**
+envolva o placeholder em `CAST(? AS JSON)` — passe a string (via `JSON.stringify`)
+direto como um parâmetro normal; o próprio parser aceita a string onde o parâmetro é
+tipado `JSON`. Isso não afeta nada dentro das stored procedures em si (elas usam
+`JSON_EXTRACT`/`JSON_LENGTH` normalmente sobre o valor recebido) — é só uma
+convenção de chamada que a camada de API (issue #53) precisa seguir.
+
+Também confirmado ponta a ponta com o driver real: o padrão de `SET
+@current_usuario_id = ?` a cada conexão retirada do pool + `CALL procedure(...)` +
+`SELECT @out_param` para ler o `OUT` funciona exatamente como esperado, incluindo
+`has_role()` reconhecendo a variável de sessão setada pelo driver.
+
 ## Variáveis de ambiente previstas (conexão fica para a issue #53)
 Convenção reservada para quando a camada de aplicação existir — não commitar
 valores reais, nunca em texto plano no repositório:
