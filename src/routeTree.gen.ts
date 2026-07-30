@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ShelltestRouteImport } from './routes/shelltest'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -48,11 +47,6 @@ import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 
-const ShelltestRoute = ShelltestRouteImport.update({
-  id: '/shelltest',
-  path: '/shelltest',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -270,7 +264,6 @@ const AuthenticatedContabilidadeAuditoriaRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/shelltest': typeof ShelltestRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -309,7 +302,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/shelltest': typeof ShelltestRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -350,7 +342,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/shelltest': typeof ShelltestRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -391,7 +382,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/shelltest'
     | '/dashboard'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
@@ -430,7 +420,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/shelltest'
     | '/dashboard'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
@@ -470,7 +459,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
-    | '/shelltest'
     | '/_authenticated/dashboard'
     | '/_authenticated/contabilidade/auditoria'
     | '/_authenticated/contabilidade/balancete'
@@ -511,18 +499,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
-  ShelltestRoute: typeof ShelltestRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/shelltest': {
-      id: '/shelltest'
-      path: '/shelltest'
-      fullPath: '/shelltest'
-      preLoaderRoute: typeof ShelltestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -881,7 +861,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
-  ShelltestRoute: ShelltestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
