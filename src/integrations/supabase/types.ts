@@ -391,6 +391,134 @@ export type Database = {
           },
         ]
       }
+      cargos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+          org_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+          org_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          org_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargos_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gestoes: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          id: string
+          nome: string
+          org_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          id?: string
+          nome: string
+          org_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          id?: string
+          nome?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gestoes_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gestao_cargos: {
+        Row: {
+          cargo_id: string
+          created_at: string
+          data_fim: string | null
+          data_inicio: string | null
+          gestao_id: string
+          id: string
+          irmao_id: string
+          observacoes: string | null
+        }
+        Insert: {
+          cargo_id: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          gestao_id: string
+          id?: string
+          irmao_id: string
+          observacoes?: string | null
+        }
+        Update: {
+          cargo_id?: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
+          gestao_id?: string
+          id?: string
+          irmao_id?: string
+          observacoes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gestao_cargos_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gestao_cargos_gestao_id_fkey"
+            columns: ["gestao_id"]
+            isOneToOne: false
+            referencedRelation: "gestoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gestao_cargos_irmao_id_fkey"
+            columns: ["irmao_id"]
+            isOneToOne: false
+            referencedRelation: "irmaos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plano_contas: {
         Row: {
           analitica: boolean
