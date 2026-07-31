@@ -9,7 +9,7 @@ import {
   definirValorOrcamento,
   aprovarOrcamento,
   reabrirOrcamento,
-} from "@/lib/server/contabilidade-orcamento";
+} from "@/lib/backend/contabilidade-orcamento";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listarOrcamentos, listarOrcamentoItens, listarContasOrcamento } from "@/lib/server/contabilidade-orcamento";
-import { listarItensContabeisPeriodo } from "@/lib/server/contabilidade";
+import { listarOrcamentos, listarOrcamentoItens, listarContasOrcamento } from "@/lib/backend/contabilidade-orcamento";
+import { listarItensContabeisPeriodo } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";

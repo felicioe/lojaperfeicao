@@ -5,8 +5,8 @@ import {
   obterFluxoAnteriores,
   listarMovimentosRealizados,
   listarMovimentosPendentes,
-} from "@/lib/server/fluxo-caixa";
-import { listarSaldoContas } from "@/lib/server/tesouraria-contas";
+} from "@/lib/backend/fluxo-caixa";
+import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

@@ -9,9 +9,9 @@ import {
   criarGestaoCargo,
   removerGestaoCargo,
   type Gestao,
-} from "@/lib/server/gestoes";
-import { listarOrgs } from "@/lib/server/orgs";
-import { listarIrmaosNomes } from "@/lib/server/irmaos";
+} from "@/lib/backend/gestoes";
+import { listarOrgs } from "@/lib/backend/orgs";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

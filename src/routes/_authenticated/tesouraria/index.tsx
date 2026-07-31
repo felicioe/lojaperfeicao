@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
-import { listarPlanoContas } from "@/lib/server/plano-contas";
+import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarPlanoContas } from "@/lib/backend/plano-contas";
 import {
   listarLancamentos,
   marcarLancamentoPago,
   criarLancamentoManual,
   criarTransferencia,
   gerarMensalidades as gerarMensalidadesFn,
-} from "@/lib/server/tesouraria-lancamentos";
+} from "@/lib/backend/tesouraria-lancamentos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -7,9 +7,9 @@ import {
   criarLancamentoDeOfx,
   importarOfx,
   type OfxLancamento,
-} from "@/lib/server/tesouraria-conciliacao";
-import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
-import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
+} from "@/lib/backend/tesouraria-conciliacao";
+import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

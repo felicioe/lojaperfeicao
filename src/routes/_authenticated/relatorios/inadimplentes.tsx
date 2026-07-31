@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { relatorioInadimplentes, type ItemInadimplente } from "@/lib/server/relatorios";
+import { relatorioInadimplentes, type ItemInadimplente } from "@/lib/backend/relatorios";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

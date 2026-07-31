@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { obterParametrosFinanceiros, salvarParametrosFinanceiros } from "@/lib/server/tesouraria-parametros";
+import { obterParametrosFinanceiros, salvarParametrosFinanceiros } from "@/lib/backend/tesouraria-parametros";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

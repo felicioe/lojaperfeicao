@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listarContasAPagarProximas, obterProjecaoFluxo } from "@/lib/server/dashboard";
-import { listarSaldoContas } from "@/lib/server/tesouraria-contas";
+import { listarContasAPagarProximas, obterProjecaoFluxo } from "@/lib/backend/dashboard";
+import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/AppShell";
 import { brl, fmtDate } from "@/lib/format";

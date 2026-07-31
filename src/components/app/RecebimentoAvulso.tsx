@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { listarLancamentos, registrarRecebimentoAvulso } from "@/lib/server/tesouraria-lancamentos";
-import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
+import { listarLancamentos, registrarRecebimentoAvulso } from "@/lib/backend/tesouraria-lancamentos";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

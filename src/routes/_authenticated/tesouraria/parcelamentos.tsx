@@ -7,10 +7,10 @@ import {
   criarParcelamento,
   listarLancamentosDoParcelamento,
   type Parcelamento,
-} from "@/lib/server/tesouraria-parcelamentos";
-import { calcularMultaJuros } from "@/lib/server/tesouraria-faturas";
-import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
-import { listarIrmaosNomes } from "@/lib/server/irmaos";
+} from "@/lib/backend/tesouraria-parcelamentos";
+import { calcularMultaJuros } from "@/lib/backend/tesouraria-faturas";
+import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

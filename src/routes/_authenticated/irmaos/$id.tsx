@@ -23,8 +23,8 @@ import {
   listarLancamentosIrmao,
   listarCargosHistoricoIrmao,
   type TipoParente,
-} from "@/lib/server/irmaos";
-import { listarOrgs } from "@/lib/server/orgs";
+} from "@/lib/backend/irmaos";
+import { listarOrgs } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";

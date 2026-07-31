@@ -7,7 +7,7 @@ import {
   previewResultadoFechamento,
   fecharExercicio,
   reabrirExercicio,
-} from "@/lib/server/contabilidade-fechamento";
+} from "@/lib/backend/contabilidade-fechamento";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

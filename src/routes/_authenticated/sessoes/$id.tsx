@@ -1,7 +1,7 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { obterSessao, listarPresencas, togglePresenca as togglePresencaFn } from "@/lib/server/sessoes";
-import { listarIrmaos } from "@/lib/server/irmaos";
+import { obterSessao, listarPresencas, togglePresenca as togglePresencaFn } from "@/lib/backend/sessoes";
+import { listarIrmaos } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";

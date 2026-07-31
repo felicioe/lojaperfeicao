@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { login, signup, contarUsuarios, getSessao } from "@/lib/server/auth";
+import { login, signup, contarUsuarios, getSessao } from "@/lib/backend/auth";
 import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

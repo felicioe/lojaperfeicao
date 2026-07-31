@@ -7,9 +7,9 @@ import {
   alternarAtivoRecorrente,
   efetivarRecorrentesVencidas,
   type DespesaRecorrente,
-} from "@/lib/server/tesouraria-recorrentes";
-import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
-import { listarFornecedores } from "@/lib/server/terceiros";
+} from "@/lib/backend/tesouraria-recorrentes";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
+import { listarFornecedores } from "@/lib/backend/terceiros";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

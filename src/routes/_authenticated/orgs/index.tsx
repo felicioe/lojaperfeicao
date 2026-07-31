@@ -12,7 +12,7 @@ import {
   renomearOrgGrau,
   removerOrgGrau,
   type Org,
-} from "@/lib/server/orgs";
+} from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -168,7 +168,7 @@ Também confirmado ponta a ponta com o driver real: o padrão de `SET
 Bug real, confirmado contra MariaDB local (não hipotético): por padrão, o driver
 `mysql2` devolve toda coluna `BOOLEAN`/`TINYINT(1)` como **number** (`0`/`1`), não
 como `boolean` do JS (`SELECT ativo FROM potencias` devolvia `{ativo: 1}`,
-`typeof 1 === "number"`) — apesar dos tipos TypeScript de `src/lib/server/*.ts`
+`typeof 1 === "number"`) — apesar dos tipos TypeScript de `src/lib/backend/*.ts`
 declararem `boolean`. O mesmo vale para colunas `DATE`/`DATETIME`/`TIMESTAMP`: por
 padrão viram objeto `Date` do JS, que ao serializar (JSON, resposta de
 `createServerFn`) vira uma string ISO com hora e fuso embutidos
@@ -176,7 +176,7 @@ padrão viram objeto `Date` do JS, que ao serializar (JSON, resposta de
 front-end (inputs `type="date"`, `fmtDate()`) sempre esperou (mesmo formato que o
 Postgres/Supabase devolvia).
 
-Corrigido de uma vez para toda a aplicação em `src/lib/server/db.ts`, na
+Corrigido de uma vez para toda a aplicação em `src/lib/backend/db.ts`, na
 configuração do pool:
 
 ```ts
@@ -202,7 +202,7 @@ pool, vale para toda query feita a partir de agora — não precisa (e não deve
 Um runtime de edge desse tipo **não tem `node:fs` gravável nem suporta socket TCP
 cru** (o que `mysql2` usa para falar com o MySQL) — se o build publicado no
 Hostinger acabar usando esse preset em vez de um preset Node "de verdade", tanto
-`src/lib/server/db.ts` (toda a camada MySQL) quanto `uploadFotoIrmao` (grava em
+`src/lib/backend/db.ts` (toda a camada MySQL) quanto `uploadFotoIrmao` (grava em
 `public/uploads/...` via `node:fs/promises`) simplesmente não funcionariam em
 produção. Não encontrado, neste repositório, nenhum override de preset — precisa
 ser confirmado/definido explicitamente (ex.: `nitro: { preset: "node-server" }`,
@@ -210,18 +210,18 @@ ajustando para o preset correto do pipeline de publicação da Hostinger) antes 
 cutover de produção (issue #55), não depois.
 
 ### 11. Autenticação e sessão (issue #49) — implementado
-`src/lib/server/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
+`src/lib/backend/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
 explícito — ver seção acima sobre o gotcha do charset) e `withUserConnection()`,
 que encapsula exatamente o padrão validado na seção 10 (checkout do pool + `SET
 @current_usuario_id` + devolução ao pool no `finally`).
 
-`src/lib/server/session.ts` usa o sistema de sessão **já embutido** no TanStack
+`src/lib/backend/session.ts` usa o sistema de sessão **já embutido** no TanStack
 Start (`getSession`/`updateSession`/`clearSession` de
 `@tanstack/react-start/server`) — cookie assinado/selado automaticamente, sem
 precisar de JWT nem biblioteca de cookie própria. Precisa de `SESSION_SECRET`
 (mín. 32 caracteres) no ambiente.
 
-`src/lib/server/auth.ts` expõe `login`/`signup`/`logout`/`getSessao`/`contarUsuarios`
+`src/lib/backend/auth.ts` expõe `login`/`signup`/`logout`/`getSessao`/`contarUsuarios`
 como `createServerFn`. Só `signup` é uma escrita de mais de uma linha
 (`usuarios` + `usuarios_papeis`), então vira a stored procedure `criar_usuario`
 (`mysql/migrations/0006_autenticacao.sql`), com o mesmo padrão de transação

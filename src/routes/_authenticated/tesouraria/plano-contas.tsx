@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listarPlanoContas, salvarConta, alternarAtivoConta, type Conta, type TipoConta } from "@/lib/server/plano-contas";
+import { listarPlanoContas, salvarConta, alternarAtivoConta, type Conta, type TipoConta } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

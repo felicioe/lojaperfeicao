@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
-import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
+import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import {
   listarFaturasAbertas,
   calcularMultaJuros,
   baixarFaturas,
   listarPreviewLoteMensalidades,
   criarFaturaAvulsa,
-} from "@/lib/server/tesouraria-faturas";
-import { gerarMensalidades } from "@/lib/server/tesouraria-lancamentos";
-import { listarIrmaosNomes } from "@/lib/server/irmaos";
+} from "@/lib/backend/tesouraria-faturas";
+import { gerarMensalidades } from "@/lib/backend/tesouraria-lancamentos";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

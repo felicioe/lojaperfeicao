@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { criarIrmao } from "@/lib/server/irmaos";
+import { criarIrmao } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { IrmaoForm } from "@/components/app/IrmaoForm";
 import { toast } from "sonner";

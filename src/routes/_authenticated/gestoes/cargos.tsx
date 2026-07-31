@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listarCargos, salvarCargo, alternarAtivoCargo, type Cargo } from "@/lib/server/gestoes";
-import { listarOrgs } from "@/lib/server/orgs";
+import { listarCargos, salvarCargo, alternarAtivoCargo, type Cargo } from "@/lib/backend/gestoes";
+import { listarOrgs } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

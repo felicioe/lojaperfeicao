@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listarPotencias, salvarPotencia, alternarAtivoPotencia, type Potencia } from "@/lib/server/orgs";
+import { listarPotencias, salvarPotencia, alternarAtivoPotencia, type Potencia } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

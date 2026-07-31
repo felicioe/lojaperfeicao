@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listarTerceiros, salvarTerceiro, alternarAtivoTerceiro, consultarCnpj, type Terceiro } from "@/lib/server/terceiros";
+import { listarTerceiros, salvarTerceiro, alternarAtivoTerceiro, consultarCnpj, type Terceiro } from "@/lib/backend/terceiros";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

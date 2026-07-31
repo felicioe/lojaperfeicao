@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listarRecibos, listarReciboItens } from "@/lib/server/tesouraria-recibos";
+import { listarRecibos, listarReciboItens } from "@/lib/backend/tesouraria-recibos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

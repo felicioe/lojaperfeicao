@@ -6,10 +6,10 @@ import {
   criarContaPagar,
   baixarContaPagar,
   type ContaPagar,
-} from "@/lib/server/tesouraria-contas-pagar";
-import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
-import { listarFornecedores } from "@/lib/server/terceiros";
-import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
+} from "@/lib/backend/tesouraria-contas-pagar";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
+import { listarFornecedores } from "@/lib/backend/terceiros";
+import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

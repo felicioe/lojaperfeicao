@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { getSessao } from "@/lib/server/auth";
-import type { Papel } from "@/lib/server/auth";
+import { getSessao } from "@/lib/backend/auth";
+import type { Papel } from "@/lib/backend/auth";
 
 export type Role = Papel;
 
