@@ -343,7 +343,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Sheet>
 
         <main className="min-w-0 flex-1">
-          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-5 lg:p-6">{children}</div>
+          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
         </main>
       </div>
 
@@ -354,12 +354,48 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+    <div className="mb-6 flex flex-col gap-3 border-b pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:pb-5">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        <h1 className="text-[1.35rem] font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">
+          {title}
+        </h1>
+        {description && (
+          <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+            {description}
+          </p>
+        )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 [&>*]:min-w-0 [&_button]:max-w-full">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
+
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon?: any;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 px-4 py-12 text-center">
+      {Icon && (
+        <div className="mb-1 flex h-11 w-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Icon className="h-5 w-5" />
+        </div>
+      )}
+      <div className="text-sm font-medium">{title}</div>
+      {description && <p className="max-w-sm text-xs text-muted-foreground sm:text-sm">{description}</p>}
+      {action && <div className="mt-3">{action}</div>}
+    </div>
+  );
+}
+
