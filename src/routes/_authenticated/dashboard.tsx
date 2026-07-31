@@ -48,7 +48,7 @@ function Dashboard() {
     <>
       <PageHeader title="Dashboard" description="Visão geral financeira dos próximos 30 dias." />
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           icon={CalendarClock}
           label="Contas a Pagar (30 dias)"
