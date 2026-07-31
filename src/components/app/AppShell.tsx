@@ -292,6 +292,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Button variant="outline" size="sm" className="w-full" onClick={signOut}>
             <LogOut className="mr-1 h-3 w-3" /> Sair
           </Button>
+          <Link to="/privacidade" target="_blank" className="mt-2 block text-center text-[11px] text-muted-foreground underline">
+            Política de Privacidade
+          </Link>
         </div>
       </aside>
 
@@ -343,6 +346,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Button variant="outline" className="h-10 w-full" onClick={signOut}>
                 <LogOut className="mr-1.5 h-4 w-4" /> Sair
               </Button>
+              <Link to="/privacidade" target="_blank" className="mt-2 block text-center text-xs text-muted-foreground underline">
+                Política de Privacidade
+              </Link>
             </div>
           </SheetContent>
         </Sheet>

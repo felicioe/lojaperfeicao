@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AceiteTermosRouteImport } from './routes/aceite-termos'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
@@ -49,9 +51,19 @@ import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AceiteTermosRoute = AceiteTermosRouteImport.update({
+  id: '/aceite-termos',
+  path: '/aceite-termos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -276,7 +288,9 @@ const AuthenticatedContabilidadeAuditoriaRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
@@ -316,7 +330,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
@@ -358,7 +374,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
@@ -400,7 +418,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/aceite-termos'
     | '/auth'
+    | '/privacidade'
     | '/dashboard'
     | '/painel'
     | '/contabilidade/auditoria'
@@ -440,7 +460,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/aceite-termos'
     | '/auth'
+    | '/privacidade'
     | '/dashboard'
     | '/painel'
     | '/contabilidade/auditoria'
@@ -481,7 +503,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/aceite-termos'
     | '/auth'
+    | '/privacidade'
     | '/_authenticated/dashboard'
     | '/_authenticated/painel'
     | '/_authenticated/contabilidade/auditoria'
@@ -523,16 +547,32 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AceiteTermosRoute: typeof AceiteTermosRoute
   AuthRoute: typeof AuthRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aceite-termos': {
+      id: '/aceite-termos'
+      path: '/aceite-termos'
+      fullPath: '/aceite-termos'
+      preLoaderRoute: typeof AceiteTermosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -903,7 +943,9 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AceiteTermosRoute: AceiteTermosRoute,
   AuthRoute: AuthRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

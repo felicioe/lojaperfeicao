@@ -7,6 +7,10 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
     const usuario = await getSessao();
     if (!usuario) throw redirect({ to: "/auth" });
+    // LGPD: contas criadas pelo admin (ou já existentes antes desta
+    // migration) ainda não aceitaram a Política de Privacidade — barra o
+    // acesso ao resto do sistema até aceitar.
+    if (!usuario.consentimentoLgpdEm) throw redirect({ to: "/aceite-termos" });
     return { usuario };
   },
   component: () => (

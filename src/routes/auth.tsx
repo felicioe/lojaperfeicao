@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { login, signup, contarUsuarios, getSessao } from "@/lib/backend/auth";
@@ -6,6 +6,7 @@ import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,6 +29,7 @@ function AuthPage() {
   const [nome, setNome] = useState("");
   const [loading, setLoading] = useState(false);
   const [firstUser, setFirstUser] = useState<boolean | null>(null);
+  const [aceiteLgpd, setAceiteLgpd] = useState(false);
 
   useEffect(() => {
     contarUsuarios().then((total) => setFirstUser(total === 0));
@@ -53,9 +55,10 @@ function AuthPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!aceiteLgpd) return toast.error("É preciso aceitar a Política de Privacidade.");
     setLoading(true);
     try {
-      const usuario = await signup({ data: { email, senha: password, nomeCompleto: nome } });
+      const usuario = await signup({ data: { email, senha: password, nomeCompleto: nome, aceiteLgpd } });
       queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
       toast.success("Conta criada!");
       navigate({ to: "/dashboard" });
@@ -97,7 +100,19 @@ function AuthPage() {
                     <Label>Senha</Label>
                     <Input type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={aceiteLgpd}
+                      onCheckedChange={(v) => setAceiteLgpd(v === true)}
+                      className="mt-0.5"
+                    />
+                    Li e aceito a{" "}
+                    <Link to="/privacidade" target="_blank" className="underline">
+                      Política de Privacidade
+                    </Link>
+                    .
+                  </label>
+                  <Button type="submit" className="w-full" disabled={loading || !aceiteLgpd}>
                     {loading ? "Criando…" : "Criar conta de administrador"}
                   </Button>
                   <p className="text-xs text-muted-foreground">
