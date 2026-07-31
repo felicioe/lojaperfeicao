@@ -17,7 +17,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -150,10 +149,14 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
       <CardContent className="grid gap-3 md:grid-cols-4">
         <div className="md:col-span-2">
           <Label>Irmão</Label>
-          <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>{irmaos.map((i) => <SelectItem key={i.id} value={i.id}>{i.nome_civil}</SelectItem>)}</SelectContent>
-          </Select>
+          <select
+            value={irmaoId}
+            onChange={(e) => setIrmaoId(e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="">Selecione…</option>
+            {irmaos.map((i) => <option key={i.id} value={i.id}>{i.nome_civil}</option>)}
+          </select>
         </div>
 
         {irmaoId && (
@@ -180,12 +183,14 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
         {entrada > 0 && (
           <div>
             <Label>Conta que recebeu a entrada</Label>
-            <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-              <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-              <SelectContent>
-                {contas.map((c) => <SelectItem key={c.id} value={c.id} disabled={!c.plano_conta_id}>{c.nome}{!c.plano_conta_id ? " (sem categoria contábil)" : ""}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <select
+              value={contaFinanceiraId}
+              onChange={(e) => setContaFinanceiraId(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">Selecione…</option>
+              {contas.map((c) => <option key={c.id} value={c.id} disabled={!c.plano_conta_id}>{c.nome}{!c.plano_conta_id ? " (sem categoria contábil)" : ""}</option>)}
+            </select>
           </div>
         )}
         <div><Label>Data do acordo</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>
