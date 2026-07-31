@@ -164,6 +164,51 @@ Também confirmado ponta a ponta com o driver real: o padrão de `SET
 `SELECT @out_param` para ler o `OUT` funciona exatamente como esperado, incluindo
 `has_role()` reconhecendo a variável de sessão setada pelo driver.
 
+### 12. `mysql2` não devolve BOOLEAN/DATE no formato que o app espera — achado na revisão da issue #53
+Bug real, confirmado contra MariaDB local (não hipotético): por padrão, o driver
+`mysql2` devolve toda coluna `BOOLEAN`/`TINYINT(1)` como **number** (`0`/`1`), não
+como `boolean` do JS (`SELECT ativo FROM potencias` devolvia `{ativo: 1}`,
+`typeof 1 === "number"`) — apesar dos tipos TypeScript de `src/lib/server/*.ts`
+declararem `boolean`. O mesmo vale para colunas `DATE`/`DATETIME`/`TIMESTAMP`: por
+padrão viram objeto `Date` do JS, que ao serializar (JSON, resposta de
+`createServerFn`) vira uma string ISO com hora e fuso embutidos
+(`"2026-01-10T00:00:00.000Z"`), não a string simples `"2026-01-10"` que o
+front-end (inputs `type="date"`, `fmtDate()`) sempre esperou (mesmo formato que o
+Postgres/Supabase devolvia).
+
+Corrigido de uma vez para toda a aplicação em `src/lib/server/db.ts`, na
+configuração do pool:
+
+```ts
+mysql.createPool({
+  // ...
+  dateStrings: true, // DATE/DATETIME/TIMESTAMP como string 'YYYY-MM-DD[ HH:MM:SS]'
+  typeCast(field, next) {
+    if (field.type === "TINY" && field.length === 1) return field.string() === "1";
+    return next();
+  },
+});
+```
+
+Validado ponta a ponta (irmão com `fundador`/`benemerito`, sessão+presença, todos
+batendo `boolean`/string plana corretos após a mudança). Como é configuração do
+pool, vale para toda query feita a partir de agora — não precisa (e não deve)
+`!!coluna` manualmente em cada função nova.
+
+### 13. Preset do Nitro (build) — verificar antes de publicar em produção
+`vite.config.ts` não define `nitro.preset` explicitamente, e o preset padrão do
+`@lovable.dev/vite-tanstack-config` quando nenhum é informado é `cloudflare-module`
+(edge/Workers) — visto no próprio pacote (`defaultPreset: "cloudflare-module"`).
+Um runtime de edge desse tipo **não tem `node:fs` gravável nem suporta socket TCP
+cru** (o que `mysql2` usa para falar com o MySQL) — se o build publicado no
+Hostinger acabar usando esse preset em vez de um preset Node "de verdade", tanto
+`src/lib/server/db.ts` (toda a camada MySQL) quanto `uploadFotoIrmao` (grava em
+`public/uploads/...` via `node:fs/promises`) simplesmente não funcionariam em
+produção. Não encontrado, neste repositório, nenhum override de preset — precisa
+ser confirmado/definido explicitamente (ex.: `nitro: { preset: "node-server" }`,
+ajustando para o preset correto do pipeline de publicação da Hostinger) antes do
+cutover de produção (issue #55), não depois.
+
 ### 11. Autenticação e sessão (issue #49) — implementado
 `src/lib/server/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
 explícito — ver seção acima sobre o gotcha do charset) e `withUserConnection()`,

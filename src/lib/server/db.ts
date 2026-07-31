@@ -6,6 +6,21 @@ import mysql from "mysql2/promise";
 // reaproveitada entre requisições de usuários diferentes.
 let pool: mysql.Pool | undefined;
 
+// mysql2 não converte TINYINT(1)/BOOLEAN para boolean do JS por padrão —
+// devolve 0/1 (number). Sem isso, toda coluna BOOLEAN (ativo, presente,
+// fundador, pago, is_mensalidade etc.) voltaria como número para o
+// front-end, apesar dos tipos TypeScript declararem `boolean`. Confirmado
+// localmente contra MariaDB (SELECT ... de uma coluna BOOLEAN real
+// devolvia `{ativo: 1}`, typeof "number", antes deste typeCast).
+type CampoTipado = { type: string; length: number; string: () => string | null };
+
+function typeCast(field: CampoTipado, next: () => unknown) {
+  if (field.type === "TINY" && field.length === 1) {
+    return field.string() === "1";
+  }
+  return next();
+}
+
 function getPool(): mysql.Pool {
   if (!pool) {
     pool = mysql.createPool({
@@ -17,6 +32,12 @@ function getPool(): mysql.Pool {
       connectionLimit: 10,
       decimalNumbers: true,
       charset: "utf8mb4",
+      // DATE/DATETIME/TIMESTAMP como string 'YYYY-MM-DD'/'YYYY-MM-DD HH:MM:SS'
+      // (não Date do JS) — é o formato que todo o front-end já espera (mesmo
+      // formato que o Postgres/Supabase devolvia) e evita o descompasso de
+      // fuso horário de serializar um Date como ISO com hora embutida.
+      dateStrings: true,
+      typeCast,
     });
   }
   return pool;
