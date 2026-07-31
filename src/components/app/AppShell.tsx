@@ -42,7 +42,6 @@ import {
   FolderKanban,
   ChevronDown,
   Menu,
-  UserRound,
   UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -167,9 +166,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const dashboard: NavItem = can.isMemberOnly
-    ? { to: "/painel", label: "Meu Painel", icon: UserRound, show: true }
-    : { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true };
+  const dashboard: NavItem = { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true };
 
   const groups: NavGroup[] = [
     {
@@ -239,9 +236,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isActive = (to: string) =>
     loc.pathname === to || (to !== "/dashboard" && to !== "/tesouraria" && loc.pathname.startsWith(to + "/"));
 
-  const visibleGroups = can.isMemberOnly
-    ? []
-    : groups.map((g) => ({ ...g, items: g.items.filter((i) => i.show) })).filter((g) => g.items.length > 0);
+  const visibleGroups = groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
+    .filter((g) => g.items.length > 0);
 
   const activeGroupId = visibleGroups.find((g) => g.items.some((i) => isActive(i.to)))?.id ?? null;
 
@@ -265,6 +262,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const primaryRole = can.roles[0] ?? "irmao";
+
+  // Quem só tem o papel "irmao" usa o shell próprio de app (PainelShell,
+  // dentro de _authenticated/painel/route.tsx) — aqui é só passthrough.
+  // Fica depois de todos os hooks acima para não violar as Rules of Hooks
+  // (o número/ordem de hooks precisa ser igual em todo render).
+  if (can.isMemberOnly) {
+    return (
+      <>
+        {children}
+        <Toaster position="top-right" richColors />
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full bg-muted/30">
