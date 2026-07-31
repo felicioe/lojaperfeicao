@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
+import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
+import {
+  listarFaturasAbertas,
+  calcularMultaJuros,
+  baixarFaturas,
+  listarPreviewLoteMensalidades,
+  criarFaturaAvulsa,
+} from "@/lib/server/tesouraria-faturas";
+import { gerarMensalidades } from "@/lib/server/tesouraria-lancamentos";
+import { listarIrmaosNomes } from "@/lib/server/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,24 +73,12 @@ function Faturas() {
 
   const { data: receitas = [] } = useQuery({
     queryKey: ["planos_receita"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plano_contas").select("id,codigo,nome").eq("tipo", "receita").eq("analitica", true).eq("ativo", true).order("codigo");
-      if (error) throw error;
-      return (data ?? []) as { id: string; codigo: string; nome: string }[];
-    },
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "receita" } }),
   });
 
   const { data: abertas = [] } = useQuery({
     queryKey: ["faturas_abertas"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos")
-        .select("id,irmao_id,descricao,valor,data_vencimento,competencia_mes,irmaos(nome_civil,telefone,celular)")
-        .eq("tipo", "entrada").eq("is_mensalidade", true).eq("pago", false)
-        .order("data_vencimento");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarFaturasAbertas(),
   });
 
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
@@ -197,18 +195,20 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("contas_financeiras").select("id,nome,plano_conta_id").eq("ativo", true).order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string; plano_conta_id: string | null }[];
-    },
+    queryFn: () => listarContasFinanceiras(),
   });
 
   useEffect(() => {
     (async () => {
       const entries = await Promise.all(faturas.map(async (f) => {
-        const { data } = await supabase.rpc("calcular_multa_juros", { _valor: f.valor, _vencimento: f.data_vencimento, _data_referencia: dataPagamento });
-        return [f.id, (data as any)?.[0] ?? { multa: 0, juros: 0, dias_atraso: 0, total: f.valor }] as const;
+        try {
+          const calculo = await calcularMultaJuros({
+            data: { valor: f.valor, vencimento: f.data_vencimento, dataReferencia: dataPagamento },
+          });
+          return [f.id, calculo] as const;
+        } catch {
+          return [f.id, { multa: 0, juros: 0, dias_atraso: 0, total: f.valor }] as const;
+        }
       }));
       setCalculos(Object.fromEntries(entries));
     })();
@@ -222,18 +222,24 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
   const confirmar = async () => {
     if (!contaFinanceiraId) return toast.error("Selecione a conta que recebeu o pagamento.");
     setSalvando(true);
-    const { error } = await supabase.rpc("baixar_faturas", {
-      _lancamento_ids: faturas.map((f) => f.id),
-      _conta_financeira_id: contaFinanceiraId,
-      _forma_pagamento: formaPagamento || null,
-      _data_pagamento: dataPagamento,
-      _desconto: Number(desconto) || 0,
-      _observacoes: observacoes || null,
-    });
-    setSalvando(false);
-    if (error) return toast.error(error.message);
-    toast.success("Baixa registrada, recibo emitido e lançamento contábil postado.");
-    onDone();
+    try {
+      await baixarFaturas({
+        data: {
+          lancamentoIds: faturas.map((f) => f.id),
+          contaFinanceiraId,
+          formaPagamento: formaPagamento || null,
+          dataPagamento,
+          desconto: Number(desconto) || 0,
+          observacoes: observacoes || null,
+        },
+      });
+      toast.success("Baixa registrada, recibo emitido e lançamento contábil postado.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao baixar.");
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -297,15 +303,7 @@ function LoteForm({ receitas, onDone }: { receitas: { id: string; codigo: string
 
   const { data: preview = [] } = useQuery({
     queryKey: ["preview_lote", competencia],
-    queryFn: async () => {
-      const { data: irmaosAtivos, error } = await supabase
-        .from("irmaos").select("id,nome_civil,valor_mensalidade")
-        .in("situacao", ["ativo", "quite", "irregular"]).gt("valor_mensalidade", 0);
-      if (error) throw error;
-      const { data: jaGerados } = await supabase.from("lancamentos").select("irmao_id").eq("is_mensalidade", true).eq("competencia_mes", competencia);
-      const gerados = new Set((jaGerados ?? []).map((l: any) => l.irmao_id));
-      return (irmaosAtivos ?? []).filter((i: any) => !gerados.has(i.id));
-    },
+    queryFn: () => listarPreviewLoteMensalidades({ data: { competencia } }),
   });
 
   const gerar = async () => {
@@ -313,15 +311,17 @@ function LoteForm({ receitas, onDone }: { receitas: { id: string; codigo: string
       return toast.error("O rateio precisa somar 100%.");
     }
     setGerando(true);
-    const { data, error } = await supabase.rpc("gerar_mensalidades", {
-      _competencia: competencia,
-      _data_vencimento: vencimento || null,
-      _rateio: rateio.length > 0 ? rateio : null,
-    });
-    setGerando(false);
-    if (error) return toast.error(error.message);
-    toast.success(`${data ?? 0} fatura(s) gerada(s).`);
-    onDone();
+    try {
+      const total = await gerarMensalidades({
+        data: { competencia, dataVencimento: vencimento || null, rateio: rateio.length > 0 ? rateio : null },
+      });
+      toast.success(`${total} fatura(s) gerada(s).`);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar.");
+    } finally {
+      setGerando(false);
+    }
   };
 
   return (
@@ -366,11 +366,7 @@ function IndividualForm({ receitas, onDone }: { receitas: { id: string; codigo: 
 
   const { data: irmaos = [] } = useQuery({
     queryKey: ["irmaos_nomes"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmaos").select("id,nome_civil").order("nome_civil");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome_civil: string }[];
-    },
+    queryFn: () => listarIrmaosNomes(),
   });
 
   const salvar = async () => {
@@ -379,21 +375,27 @@ function IndividualForm({ receitas, onDone }: { receitas: { id: string; codigo: 
       return toast.error("O rateio precisa somar 100%.");
     }
     setSalvando(true);
-    const { error } = await supabase.rpc("criar_fatura_avulsa", {
-      _irmao_id: irmaoId,
-      _valor: Number(valor),
-      _competencia_mes: competencia,
-      _data_vencimento: vencimento,
-      _descricao: descricao || null,
-      _rateio: rateio.length > 0 ? rateio : null,
-    });
-    setSalvando(false);
-    if (error) return toast.error(error.message);
-    toast.success("Fatura criada e provisão contábil lançada.");
-    setValor(0);
-    setDescricao("");
-    setRateio([]);
-    onDone();
+    try {
+      await criarFaturaAvulsa({
+        data: {
+          irmaoId,
+          valor: Number(valor),
+          competenciaMes: competencia,
+          dataVencimento: vencimento,
+          descricao: descricao || null,
+          rateio: rateio.length > 0 ? rateio : null,
+        },
+      });
+      toast.success("Fatura criada e provisão contábil lançada.");
+      setValor(0);
+      setDescricao("");
+      setRateio([]);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
