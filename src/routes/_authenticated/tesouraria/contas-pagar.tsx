@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listarContasPagarAbertas,
+  listarContasPagarPagas,
+  criarContaPagar,
+  baixarContaPagar,
+  type ContaPagar,
+} from "@/lib/server/tesouraria-contas-pagar";
+import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
+import { listarFornecedores } from "@/lib/server/terceiros";
+import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,8 +32,6 @@ export const Route = createFileRoute("/_authenticated/tesouraria/contas-pagar")(
   component: ContasPagar,
 });
 
-const SELECT_COLS = "id,data,data_vencimento,data_pagamento,descricao,valor,pago,forma_pagamento,plano_contas(codigo,nome),terceiros(nome),contas_financeiras!lancamentos_conta_id_fkey(nome)";
-
 function ContasPagar() {
   const can = useCan();
   const qc = useQueryClient();
@@ -33,20 +40,12 @@ function ContasPagar() {
 
   const { data: abertas = [], isLoading } = useQuery({
     queryKey: ["contas_pagar_abertas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("lancamentos").select(SELECT_COLS).eq("tipo", "saida").eq("pago", false).order("data_vencimento");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarContasPagarAbertas(),
   });
 
   const { data: pagas = [] } = useQuery({
     queryKey: ["contas_pagar_pagas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("lancamentos").select(SELECT_COLS).eq("tipo", "saida").eq("pago", true).order("data_pagamento", { ascending: false }).limit(200);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarContasPagarPagas(),
   });
 
   const invalidate = () => {
@@ -174,38 +173,36 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
 
   const { data: planos = [] } = useQuery({
     queryKey: ["planos_despesa"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plano_contas").select("id,codigo,nome").eq("tipo", "despesa").eq("analitica", true).eq("ativo", true).order("codigo");
-      if (error) throw error;
-      return (data ?? []) as { id: string; codigo: string; nome: string }[];
-    },
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
   });
 
   const { data: terceiros = [] } = useQuery({
     queryKey: ["terceiros_fornecedores"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("terceiros").select("id,nome").in("tipo", ["fornecedor", "ambos"]).eq("ativo", true).order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string }[];
-    },
+    queryFn: () => listarFornecedores(),
   });
 
   const salvar = async () => {
     if (!d.descricao.trim() || !d.valor || !d.plano_conta_id) return;
     setSaving(true);
-    const { error } = await supabase.rpc("criar_conta_pagar", {
-      _descricao: d.descricao.trim(),
-      _valor: Number(d.valor),
-      _plano_conta_id: d.plano_conta_id,
-      _data: d.data,
-      _data_vencimento: d.data_vencimento,
-      _terceiro_id: d.terceiro_id === "none" ? null : d.terceiro_id,
-      _observacoes: d.observacoes || null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Conta a pagar registrada e provisão contábil lançada.");
-    onDone();
+    try {
+      await criarContaPagar({
+        data: {
+          descricao: d.descricao.trim(),
+          valor: Number(d.valor),
+          planoContaId: d.plano_conta_id,
+          data: d.data,
+          dataVencimento: d.data_vencimento,
+          terceiroId: d.terceiro_id === "none" ? null : d.terceiro_id,
+          observacoes: d.observacoes || null,
+        },
+      });
+      toast.success("Conta a pagar registrada e provisão contábil lançada.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao registrar.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -242,7 +239,7 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
   );
 }
 
-function BaixarContaPagarDialog({ lancamento, onDone }: { lancamento: any; onDone: () => void }) {
+function BaixarContaPagarDialog({ lancamento, onDone }: { lancamento: ContaPagar; onDone: () => void }) {
   const [contaFinanceiraId, setContaFinanceiraId] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("");
   const [dataPagamento, setDataPagamento] = useState(toISODate(new Date()));
@@ -250,26 +247,23 @@ function BaixarContaPagarDialog({ lancamento, onDone }: { lancamento: any; onDon
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("contas_financeiras").select("id,nome,plano_conta_id").eq("ativo", true).order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string; plano_conta_id: string | null }[];
-    },
+    queryFn: () => listarContasFinanceiras(),
   });
 
   const baixar = async () => {
     if (!contaFinanceiraId) return toast.error("Selecione a conta que pagou.");
     setSaving(true);
-    const { error } = await supabase.rpc("baixar_conta_pagar", {
-      _lancamento_id: lancamento.id,
-      _conta_financeira_id: contaFinanceiraId,
-      _forma_pagamento: formaPagamento || null,
-      _data_pagamento: dataPagamento,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Baixa registrada e lançamento contábil postado.");
-    onDone();
+    try {
+      await baixarContaPagar({
+        data: { lancamentoId: lancamento.id, contaFinanceiraId, formaPagamento: formaPagamento || null, dataPagamento },
+      });
+      toast.success("Baixa registrada e lançamento contábil postado.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao baixar.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

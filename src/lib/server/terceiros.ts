@@ -35,6 +35,18 @@ export const listarTerceiros = createServerFn({ method: "GET" }).handler(async (
   });
 });
 
+/** Fornecedores ativos ("fornecedor" ou "ambos") — usado no seletor de contas a pagar/recorrentes. */
+export const listarFornecedores = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ id: string; nome: string }[]> => {
+    return comPapel(PAPEIS_LEITURA, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT id, nome FROM terceiros WHERE tipo IN ('fornecedor', 'ambos') AND ativo = TRUE ORDER BY nome",
+      );
+      return rows as { id: string; nome: string }[];
+    });
+  },
+);
+
 const terceiroSchema = z.object({
   id: z.string().uuid().nullable(),
   tipo: z.enum(["fornecedor", "cliente", "ambos"]),
