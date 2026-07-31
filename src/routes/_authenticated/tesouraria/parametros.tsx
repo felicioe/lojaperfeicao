@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { obterParametrosFinanceiros, salvarParametrosFinanceiros } from "@/lib/server/tesouraria-parametros";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,11 +24,7 @@ function Parametros() {
 
   const { data } = useQuery({
     queryKey: ["parametros_financeiros"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("parametros_financeiros").select("*").single();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => obterParametrosFinanceiros(),
   });
 
   useEffect(() => {
@@ -39,11 +35,15 @@ function Parametros() {
 
   const salvar = async () => {
     setSaving(true);
-    const { error } = await supabase.from("parametros_financeiros").update(form).eq("id", true);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Parâmetros salvos.");
-    qc.invalidateQueries({ queryKey: ["parametros_financeiros"] });
+    try {
+      await salvarParametrosFinanceiros({ data: form });
+      toast.success("Parâmetros salvos.");
+      qc.invalidateQueries({ queryKey: ["parametros_financeiros"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

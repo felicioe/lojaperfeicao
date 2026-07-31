@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listarLancamentosParaConciliar,
+  listarOfxPendentes,
+  conciliarOfxExistente,
+  criarLancamentoDeOfx,
+  importarOfx,
+  type OfxLancamento,
+} from "@/lib/server/tesouraria-conciliacao";
+import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
+import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,31 +45,19 @@ function Conciliacao() {
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("contas_financeiras").select("id,nome").eq("ativo", true).order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string }[];
-    },
+    queryFn: () => listarContasFinanceiras(),
   });
 
   const { data: sistema = [] } = useQuery({
     queryKey: ["conciliacao_sistema", contaId],
     enabled: !!contaId,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("lancamentos").select("id,data,descricao,valor,tipo").eq("conta_id", contaId).eq("pago", false).order("data");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarLancamentosParaConciliar({ data: { contaId } }),
   });
 
   const { data: ofx = [] } = useQuery({
     queryKey: ["conciliacao_ofx", contaId],
     enabled: !!contaId,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("ofx_lancamentos").select("*").eq("conta_financeira_id", contaId).eq("conciliado", false).order("data");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarOfxPendentes({ data: { contaId } }),
   });
 
   const invalidate = () => {
@@ -74,27 +71,34 @@ function Conciliacao() {
     const file = fileRef.current?.files?.[0];
     if (!file || !contaId) return toast.error("Selecione a conta e o arquivo OFX.");
     setImportando(true);
-    const buffer = await file.arrayBuffer();
-    const base64 = btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ""));
-    const { data, error } = await supabase.functions.invoke("importar-ofx", { body: { conta_financeira_id: contaId, arquivo_base64: base64 } });
-    setImportando(false);
-    if (error || !data?.ok) return toast.error(data?.error ?? error?.message ?? "Falha na importação.");
-    toast.success(`${data.novos} nova(s) linha(s), ${data.ja_importados} já importada(s) anteriormente.`);
-    if (fileRef.current) fileRef.current.value = "";
-    invalidate();
+    try {
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ""));
+      const resultado = await importarOfx({ data: { contaFinanceiraId: contaId, arquivoBase64: base64 } });
+      toast.success(`${resultado.novos} nova(s) linha(s), ${resultado.jaImportados} já importada(s) anteriormente.`);
+      if (fileRef.current) fileRef.current.value = "";
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha na importação.");
+    } finally {
+      setImportando(false);
+    }
   };
 
   const vincular = async () => {
     if (!selSistema || !selOfx) return;
-    const { error } = await supabase.rpc("conciliar_ofx_existente", { _ofx_id: selOfx, _lancamento_id: selSistema });
-    if (error) return toast.error(error.message);
-    toast.success("Linhas conciliadas.");
-    invalidate();
+    try {
+      await conciliarOfxExistente({ data: { ofxId: selOfx, lancamentoId: selSistema } });
+      toast.success("Linhas conciliadas.");
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao vincular.");
+    }
   };
 
-  const sistemaFiltrado = sistema.filter((s: any) => !buscaSistema || s.descricao.toLowerCase().includes(buscaSistema.toLowerCase()));
-  const ofxFiltrado = ofx.filter((o: any) => !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase()));
-  const ofxSelecionado = ofx.find((o: any) => o.id === selOfx);
+  const sistemaFiltrado = sistema.filter((s) => !buscaSistema || s.descricao.toLowerCase().includes(buscaSistema.toLowerCase()));
+  const ofxFiltrado = ofx.filter((o) => !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase()));
+  const ofxSelecionado = ofx.find((o) => o.id === selOfx);
 
   return (
     <>
@@ -184,7 +188,7 @@ function Conciliacao() {
   );
 }
 
-function CriarLancamentoDialog({ ofxLinha, onDone }: { ofxLinha: any; onDone: () => void }) {
+function CriarLancamentoDialog({ ofxLinha, onDone }: { ofxLinha: OfxLancamento; onDone: () => void }) {
   const isEntrada = Number(ofxLinha.valor) >= 0;
   const [categoria, setCategoria] = useState("outros");
   const [planoContaId, setPlanoContaId] = useState("");
@@ -193,26 +197,28 @@ function CriarLancamentoDialog({ ofxLinha, onDone }: { ofxLinha: any; onDone: ()
 
   const { data: planos = [] } = useQuery({
     queryKey: ["planos_por_tipo", isEntrada],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plano_contas").select("id,codigo,nome").eq("tipo", isEntrada ? "receita" : "despesa").eq("analitica", true).eq("ativo", true).order("codigo");
-      if (error) throw error;
-      return (data ?? []) as { id: string; codigo: string; nome: string }[];
-    },
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: isEntrada ? "receita" : "despesa" } }),
   });
 
   const salvar = async () => {
     if (!planoContaId) return toast.error("Selecione a categoria contábil.");
     setSaving(true);
-    const { error } = await supabase.rpc("criar_lancamento_de_ofx", {
-      _ofx_id: ofxLinha.id,
-      _plano_conta_id: planoContaId,
-      _categoria: isEntrada ? (categoria as any) : undefined,
-      _descricao: descricao || null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Lançamento criado e conciliado.");
-    onDone();
+    try {
+      await criarLancamentoDeOfx({
+        data: {
+          ofxId: ofxLinha.id,
+          planoContaId,
+          categoria: isEntrada ? (categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros") : null,
+          descricao: descricao || null,
+        },
+      });
+      toast.success("Lançamento criado e conciliado.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

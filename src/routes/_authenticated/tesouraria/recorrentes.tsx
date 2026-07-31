@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listarDespesasRecorrentes,
+  listarRecorrentesEfetivadasNoMes,
+  salvarDespesaRecorrente,
+  alternarAtivoRecorrente,
+  efetivarRecorrentesVencidas,
+  type DespesaRecorrente,
+} from "@/lib/server/tesouraria-recorrentes";
+import { listarPlanoContasPorTipo } from "@/lib/server/plano-contas";
+import { listarFornecedores } from "@/lib/server/terceiros";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,20 +31,7 @@ export const Route = createFileRoute("/_authenticated/tesouraria/recorrentes")({
   component: Recorrentes,
 });
 
-type Recorrente = {
-  id: string;
-  descricao: string;
-  valor: number;
-  dia_vencimento: number;
-  plano_conta_id: string;
-  terceiro_id: string | null;
-  data_inicio: string;
-  data_fim: string | null;
-  ativo: boolean;
-  observacoes: string | null;
-  plano_contas: { codigo: string; nome: string } | null;
-  terceiros: { nome: string } | null;
-};
+type Recorrente = DespesaRecorrente;
 
 type Status = "inativa" | "fora_periodo" | "efetivada" | "vencida" | "aguardando";
 
@@ -80,40 +76,24 @@ function Recorrentes() {
 
   const { data: recorrentes = [] } = useQuery({
     queryKey: ["despesas_recorrentes"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("despesas_recorrentes").select("*,plano_contas(codigo,nome),terceiros(nome)").order("descricao");
-      if (error) throw error;
-      return (data ?? []) as Recorrente[];
-    },
+    queryFn: () => listarDespesasRecorrentes(),
   });
 
   const inicioMes = toISODate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const { data: efetivadas = [] } = useQuery({
+  const { data: efetivadasIds = [] } = useQuery({
     queryKey: ["recorrentes_efetivadas_mes", inicioMes],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("lancamentos").select("recorrente_id").eq("competencia_mes", inicioMes).not("recorrente_id", "is", null);
-      if (error) throw error;
-      return (data ?? []) as { recorrente_id: string }[];
-    },
+    queryFn: () => listarRecorrentesEfetivadasNoMes({ data: { inicioMes } }),
   });
-  const efetivadasSet = new Set(efetivadas.map((e) => e.recorrente_id));
+  const efetivadasSet = new Set(efetivadasIds);
 
   const { data: planos = [] } = useQuery({
     queryKey: ["planos_despesa"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plano_contas").select("id,codigo,nome").eq("tipo", "despesa").eq("analitica", true).eq("ativo", true).order("codigo");
-      if (error) throw error;
-      return (data ?? []) as { id: string; codigo: string; nome: string }[];
-    },
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
   });
 
   const { data: terceiros = [] } = useQuery({
     queryKey: ["terceiros_fornecedores"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("terceiros").select("id,nome").in("tipo", ["fornecedor", "ambos"]).eq("ativo", true).order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string }[];
-    },
+    queryFn: () => listarFornecedores(),
   });
 
   const invalidate = () => {
@@ -123,23 +103,26 @@ function Recorrentes() {
 
   const salvar = async () => {
     if (!form.descricao.trim() || !form.valor || !form.plano_conta_id) return;
-    const payload = {
-      descricao: form.descricao.trim(),
-      valor: Number(form.valor),
-      dia_vencimento: Number(form.dia_vencimento),
-      plano_conta_id: form.plano_conta_id,
-      terceiro_id: form.terceiro_id === "none" ? null : form.terceiro_id,
-      data_inicio: form.data_inicio,
-      data_fim: form.data_fim || null,
-      observacoes: form.observacoes || null,
-    };
-    const { error } = form.id
-      ? await supabase.from("despesas_recorrentes").update(payload).eq("id", form.id)
-      : await supabase.from("despesas_recorrentes").insert(payload);
-    if (error) return toast.error(error.message);
-    toast.success(form.id ? "Atualizada." : "Recorrência criada.");
-    setForm(FORM_VAZIO);
-    invalidate();
+    try {
+      await salvarDespesaRecorrente({
+        data: {
+          id: form.id,
+          descricao: form.descricao.trim(),
+          valor: Number(form.valor),
+          dia_vencimento: Number(form.dia_vencimento),
+          plano_conta_id: form.plano_conta_id,
+          terceiro_id: form.terceiro_id === "none" ? null : form.terceiro_id,
+          data_inicio: form.data_inicio,
+          data_fim: form.data_fim || null,
+          observacoes: form.observacoes || null,
+        },
+      });
+      toast.success(form.id ? "Atualizada." : "Recorrência criada.");
+      setForm(FORM_VAZIO);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    }
   };
 
   const editar = (r: Recorrente) =>
@@ -150,18 +133,25 @@ function Recorrentes() {
     });
 
   const alternarAtivo = async (r: Recorrente) => {
-    const { error } = await supabase.from("despesas_recorrentes").update({ ativo: !r.ativo }).eq("id", r.id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await alternarAtivoRecorrente({ data: { id: r.id, ativo: !r.ativo } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
   };
 
   const efetivarAgora = async () => {
     setEfetivando(true);
-    const { data, error } = await supabase.rpc("efetivar_recorrentes_vencidas");
-    setEfetivando(false);
-    if (error) return toast.error(error.message);
-    toast.success(`${data ?? 0} conta(s) a pagar gerada(s).`);
-    invalidate();
+    try {
+      const total = await efetivarRecorrentesVencidas();
+      toast.success(`${total} conta(s) a pagar gerada(s).`);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao efetivar.");
+    } finally {
+      setEfetivando(false);
+    }
   };
 
   return (
