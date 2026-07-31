@@ -27,12 +27,18 @@ export function useRoles() {
 export function useCan() {
   const { data: roles = [] } = useRoles();
   const has = (r: Role) => roles.includes(r);
+  const isAdmin = has("admin");
+  const isTesoureiro = isAdmin || has("tesoureiro");
+  const isSecretario = isAdmin || has("secretario");
   return {
     roles,
-    isAdmin: has("admin"),
-    isTesoureiro: has("admin") || has("tesoureiro"),
-    isSecretario: has("admin") || has("secretario"),
-    canManageIrmaos: has("admin") || has("secretario"),
-    canManageFinancas: has("admin") || has("tesoureiro"),
+    isAdmin,
+    isTesoureiro,
+    isSecretario,
+    canManageIrmaos: isAdmin || has("secretario"),
+    canManageFinancas: isAdmin || has("tesoureiro"),
+    // só tem o papel "irmao", sem nenhum papel privilegiado — vai para o
+    // painel reduzido (/painel) em vez do dashboard administrativo.
+    isMemberOnly: has("irmao") && !isAdmin && !isTesoureiro && !isSecretario,
   };
 }

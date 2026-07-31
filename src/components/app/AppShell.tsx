@@ -42,6 +42,7 @@ import {
   FolderKanban,
   ChevronDown,
   Menu,
+  UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
@@ -165,12 +166,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const dashboard: NavItem = {
-    to: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    show: true,
-  };
+  const dashboard: NavItem = can.isMemberOnly
+    ? { to: "/painel", label: "Meu Painel", icon: UserRound, show: true }
+    : { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true };
 
   const groups: NavGroup[] = [
     {
@@ -234,9 +232,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isActive = (to: string) =>
     loc.pathname === to || (to !== "/dashboard" && to !== "/tesouraria" && loc.pathname.startsWith(to + "/"));
 
-  const visibleGroups = groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
-    .filter((g) => g.items.length > 0);
+  const visibleGroups = can.isMemberOnly
+    ? []
+    : groups.map((g) => ({ ...g, items: g.items.filter((i) => i.show) })).filter((g) => g.items.length > 0);
 
   const activeGroupId = visibleGroups.find((g) => g.items.some((i) => isActive(i.to)))?.id ?? null;
 

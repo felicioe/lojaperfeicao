@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
 import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authenticated/terceiros/index'
@@ -60,6 +61,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/painel': typeof AuthenticatedPainelRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -303,6 +310,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/painel': typeof AuthenticatedPainelRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -343,6 +351,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/_authenticated/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -383,6 +392,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/painel'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
     | '/contabilidade/diario'
@@ -421,6 +431,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/painel'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
     | '/contabilidade/diario'
@@ -460,6 +471,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/painel'
     | '/_authenticated/contabilidade/auditoria'
     | '/_authenticated/contabilidade/balancete'
     | '/_authenticated/contabilidade/diario'
@@ -523,6 +535,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/painel': {
+      id: '/_authenticated/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof AuthenticatedPainelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
@@ -767,6 +786,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
   AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
   AuthenticatedContabilidadeDiarioRoute: typeof AuthenticatedContabilidadeDiarioRoute
@@ -804,6 +824,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedContabilidadeAuditoriaRoute:
     AuthenticatedContabilidadeAuditoriaRoute,
   AuthenticatedContabilidadeBalanceteRoute:

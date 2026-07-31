@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listarContasAPagarProximas, obterProjecaoFluxo } from "@/lib/backend/dashboard";
 import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
@@ -10,6 +10,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  // quem só tem o papel "irmao" (sem admin/tesoureiro/secretario) usa o
+  // painel reduzido, não o dashboard administrativo.
+  beforeLoad: ({ context }) => {
+    const papeis = context.usuario?.papeis ?? [];
+    const privilegiado = papeis.some((p) => p === "admin" || p === "tesoureiro" || p === "secretario");
+    if (papeis.includes("irmao") && !privilegiado) {
+      throw redirect({ to: "/painel" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Dashboard — Gestão Maçônica" },

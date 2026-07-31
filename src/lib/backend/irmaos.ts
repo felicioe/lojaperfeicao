@@ -459,6 +459,18 @@ export const removerIrmaoParente = createServerFn({ method: "POST" })
     });
   });
 
+// Resolve o cadastro de irmão vinculado ao usuário logado (painel do
+// próprio irmão) — retorna null se o login ainda não foi vinculado a um
+// cadastro (admin precisa vincular via irmaos.usuario_id).
+export const obterMeuIrmao = createServerFn({ method: "GET" }).handler(async (): Promise<Irmao | null> => {
+  return comSessao(async (conn, usuarioId) => {
+    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM irmaos WHERE usuario_id = ? LIMIT 1", [
+      usuarioId,
+    ]);
+    return (rows[0] as Irmao) ?? null;
+  });
+});
+
 // ---------- Painéis somente-leitura (financeiro / cargos histórico) ----------
 export type LancamentoIrmao = {
   id: string;
@@ -481,6 +493,43 @@ export const listarLancamentosIrmao = createServerFn({ method: "GET" })
         [data.irmaoId],
       );
       return rows as LancamentoIrmao[];
+    });
+  });
+
+export type FrequenciaSessaoIrmao = {
+  id: string;
+  data: string;
+  tipo: string;
+  grau: string;
+  presente: boolean | null;
+  justificado: boolean;
+};
+
+// Sessões (leitura livre) com a presença do irmão específico marcada via
+// LEFT JOIN — presente = null quando a sessão ainda não teve chamada
+// registrada para esse irmão. Mesma visibilidade "privilegiado ou próprio"
+// de listarLancamentosIrmao.
+export const listarFrequenciaIrmao = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ irmaoId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<FrequenciaSessaoIrmao[]> => {
+    return comSessao(async (conn, usuarioId) => {
+      if (!(await podeVerIrmao(conn, usuarioId, data.irmaoId))) throw new SemPermissaoError();
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT s.id, s.data, s.tipo, s.grau, p.presente, p.justificado
+         FROM sessoes s
+         LEFT JOIN presencas p ON p.sessao_id = s.id AND p.irmao_id = ?
+         ORDER BY s.data DESC
+         LIMIT 100`,
+        [data.irmaoId],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        data: r.data,
+        tipo: r.tipo,
+        grau: r.grau,
+        presente: r.presente === null ? null : !!r.presente,
+        justificado: !!r.justificado,
+      }));
     });
   });
 
