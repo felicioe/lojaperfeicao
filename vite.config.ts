@@ -4,7 +4,15 @@
 // nitro (build-only), VITE_* env injection, @ path alias, React/TanStack dedupe, error logger
 // plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+const floatingUiReactDomEsm = fileURLToPath(
+  new URL(
+    "./node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs",
+    import.meta.url,
+  ),
+);
 
 export default defineConfig({
   tanstackStart: {
@@ -13,10 +21,12 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    ssr: {
-      // Nitro 3 beta corrupts this package's generated CommonJS helper when
-      // bundling the production SSR service. Keep the dependency external.
-      external: ["@floating-ui/react-dom"],
+    resolve: {
+      // Force the ESM distribution. The UMD/CommonJS variant is corrupted by
+      // the current Nitro/Vite production SSR bundling path on Hostinger.
+      alias: {
+        "@floating-ui/react-dom": floatingUiReactDomEsm,
+      },
     },
   },
   // O deploy é feito pelo Hostinger puxando do GitHub e rodando o build ele
