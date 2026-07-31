@@ -195,19 +195,71 @@ batendo `boolean`/string plana corretos após a mudança). Como é configuraçã
 pool, vale para toda query feita a partir de agora — não precisa (e não deve)
 `!!coluna` manualmente em cada função nova.
 
-### 13. Preset do Nitro (build) — verificar antes de publicar em produção
-`vite.config.ts` não define `nitro.preset` explicitamente, e o preset padrão do
+### 13. Preset do Nitro (build) — RESOLVIDO
+`vite.config.ts` não definia `nitro.preset` explicitamente, e o preset padrão do
 `@lovable.dev/vite-tanstack-config` quando nenhum é informado é `cloudflare-module`
 (edge/Workers) — visto no próprio pacote (`defaultPreset: "cloudflare-module"`).
 Um runtime de edge desse tipo **não tem `node:fs` gravável nem suporta socket TCP
-cru** (o que `mysql2` usa para falar com o MySQL) — se o build publicado no
-Hostinger acabar usando esse preset em vez de um preset Node "de verdade", tanto
+cru** (o que `mysql2` usa para falar com o MySQL) — isso faria tanto
 `src/lib/backend/db.ts` (toda a camada MySQL) quanto `uploadFotoIrmao` (grava em
-`public/uploads/...` via `node:fs/promises`) simplesmente não funcionariam em
-produção. Não encontrado, neste repositório, nenhum override de preset — precisa
-ser confirmado/definido explicitamente (ex.: `nitro: { preset: "node-server" }`,
-ajustando para o preset correto do pipeline de publicação da Hostinger) antes do
-cutover de produção (issue #55), não depois.
+`public/uploads/...` via `node:fs/promises`) simplesmente não funcionarem em
+produção.
+
+Confirmado com o usuário que o deploy real é o Hostinger puxando do GitHub e
+rodando o build ele mesmo (fora do sandbox do Lovable), num Node comum. Corrigido
+fixando `nitro: { preset: "node-server" }` em `vite.config.ts`. Validado com
+`npm run build` real (exit 0, `.output/nitro.json` confirma
+`"preset": "node-server"` e `.output/server/index.mjs` gerado com `mysql2`
+empacotado) e com um deploy de teste publicado com sucesso via Hostinger.
+
+Nesta mesma validação foi encontrado e corrigido um segundo bug de build,
+independente do preset: o TanStack Start proíbe, por padrão, que qualquer
+arquivo dentro de uma pasta chamada literalmente `server/` (checado só pelo
+caminho, `**/server/**`, não pelo conteúdo) seja importado por código que chega
+ao bundle do navegador. Como nenhuma rota deste app tem code-splitting
+automático habilitado, toda página importa suas server functions diretamente
+no topo do arquivo — e isso derrubava o build inteiro (confirmado: parava no
+primeiro arquivo da árvore de rotas, e continuava no próximo assim que o
+anterior era corrigido). Resolvido renomeando `src/lib/server/` para
+`src/lib/backend/` e ajustando os ~40 imports afetados em todo o projeto.
+
+### 14. Checklist de corte de produção (issue #55)
+Confirmado com o usuário: o projeto ainda não tem dado real de uso em produção
+no Supabase, então **não há etapa de migração de dados** (exportar Postgres →
+importar MySQL) — o corte é só de configuração e troca de fonte de verdade.
+
+1. **Variáveis de ambiente no Node.js da Hostinger** (hPanel → seu app Node.js
+   → variáveis de ambiente — nunca commitadas em `.env`, ver `.env.example` na
+   raiz do repositório para a lista completa):
+   - `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`
+     — credenciais do banco MySQL já provisionado na Hostinger.
+   - `SESSION_SECRET` — string aleatória de 32+ caracteres, gerada só para
+     produção (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`),
+     nunca reaproveitando a de desenvolvimento local.
+   - `NODE_ENV=production` — habilita o cookie de sessão com `secure: true`
+     (exige HTTPS).
+   - `MYSQL_CONNECTION_LIMIT` — ver item 2 abaixo.
+2. **Tamanho do pool de conexões**: `src/lib/backend/db.ts` lê
+   `MYSQL_CONNECTION_LIMIT` do ambiente (default 5 se não setada). Hospedagem
+   compartilhada tem um limite baixo de conexões MySQL concorrentes — confirme
+   o limite real do plano em hPanel antes de aumentar esse valor. Comece
+   conservador; é seguro aumentar depois de validado, não é seguro descobrir o
+   limite em produção sob carga real.
+3. **Teste de carga básico**: `mysql/load-test.mjs` dispara N requisições
+   concorrentes contra o banco configurado nas mesmas env vars da aplicação e
+   reporta sucesso/falha e latência (p50/p95/máx). Rodar **contra o MySQL real
+   da Hostinger**, não só localmente, antes do corte definitivo:
+   ```
+   MYSQL_HOST=... MYSQL_USER=... MYSQL_PASSWORD=... MYSQL_DATABASE=... \
+   MYSQL_CONNECTION_LIMIT=5 CONCURRENCY=20 REQUESTS=200 node mysql/load-test.mjs
+   ```
+   Se aparecer erro de limite de conexões, reduza a concorrência esperada da
+   aplicação ou peça um limite maior à Hostinger — nunca configure
+   `MYSQL_CONNECTION_LIMIT` acima do que o plano realmente permite.
+4. **Corte do domínio**: com 1–3 validados, apontar o domínio publicado (deploy
+   via GitHub já configurado e testado na Hostinger, branch `main`) para esta
+   versão. Depois de confirmado que está tudo funcionando em produção real,
+   desativar/arquivar o projeto Supabase.
 
 ### 11. Autenticação e sessão (issue #49) — implementado
 `src/lib/backend/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
@@ -236,18 +288,10 @@ ponta a ponta com `mysql2` real: primeiro signup → admin, segundo → irmao,
 login certo/errado, e-mail inexistente, e-mail duplicado — todos os casos
 retornam o resultado esperado.
 
-## Variáveis de ambiente previstas (conexão fica para a issue #53)
-Convenção reservada para quando a camada de aplicação existir — não commitar
-valores reais, nunca em texto plano no repositório:
-
-```
-MYSQL_HOST=
-MYSQL_PORT=3306
-MYSQL_DATABASE=
-MYSQL_USER=
-MYSQL_PASSWORD=
-SESSION_SECRET=
-```
+## Variáveis de ambiente
+Implementado — ver `.env.example` na raiz do repositório para a lista completa
+e comentada, e a seção 14 acima para o checklist de configuração em produção.
+Nunca commitar valores reais (`.env` está no `.gitignore`).
 
 ## O que NÃO muda
 - O desenho de domínio (quais tabelas existem, quais campos, as regras de negócio

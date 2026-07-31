@@ -20,6 +20,12 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Segredos de ambiente — nunca versionar (MYSQL_PASSWORD, SESSION_SECRET
+# etc.). Use .env.example como referência do que precisa ser configurado.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
