@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarLancamentosDiario } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,17 +27,7 @@ function Diario() {
 
   const { data: lancamentos = [] } = useQuery({
     queryKey: ["diario_lancamentos", de, ate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_contabeis")
-        .select("id,data,descricao,origem_tipo,lancamentos_contabeis_itens(id,tipo,valor,descricao,plano_contas(codigo,nome))")
-        .gte("data", de)
-        .lte("data", ate)
-        .order("data")
-        .order("criado_em");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarLancamentosDiario({ data: { de, ate } }),
   });
 
   const totalGeral = lancamentos.reduce((s, l) => s + (l.lancamentos_contabeis_itens ?? []).filter((i: any) => i.tipo === "debito").reduce((s2: number, i: any) => s2 + Number(i.valor), 0), 0);
@@ -47,7 +37,7 @@ function Diario() {
     const linhas: string[][] = [];
     for (const l of lancamentos) {
       for (const it of l.lancamentos_contabeis_itens ?? []) {
-        linhas.push([fmtDate(l.data), l.descricao, l.origem_tipo ?? "", `${it.plano_contas?.codigo} — ${it.plano_contas?.nome}`, it.tipo, it.valor]);
+        linhas.push([fmtDate(l.data), l.descricao, l.origem_tipo ?? "", `${it.plano_contas?.codigo} — ${it.plano_contas?.nome}`, it.tipo, String(it.valor)]);
       }
     }
     const csv = [cabecalho, ...linhas].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");

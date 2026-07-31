@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarSaldoContas, criarContaFinanceira } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,15 +23,18 @@ function Contas() {
 
   const saldos = useQuery({
     queryKey: ["saldos"],
-    queryFn: async () => (await supabase.from("v_saldo_contas").select("*")).data ?? [],
+    queryFn: () => listarSaldoContas(),
   });
 
   const criar = async () => {
-    const { error } = await supabase.from("contas_financeiras").insert(nova);
-    if (error) return toast.error(error.message);
-    toast.success("Conta criada.");
-    setNova({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "" });
-    qc.invalidateQueries({ queryKey: ["saldos"] });
+    try {
+      await criarContaFinanceira({ data: { ...nova, banco: nova.banco || null } });
+      toast.success("Conta criada.");
+      setNova({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "" });
+      qc.invalidateQueries({ queryKey: ["saldos"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    }
   };
 
   return (

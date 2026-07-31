@@ -19,7 +19,18 @@ recursos é substituído.
 - Cada migration é idempotente sempre que possível (`CREATE TABLE IF NOT EXISTS`,
   `INSERT ... ON DUPLICATE KEY UPDATE` ou checagem prévia), mesmo espírito do
   `ON CONFLICT DO NOTHING` usado do lado Postgres.
-- Aplicar em ordem, uma vez, via `mysql -u <user> -p <banco> < mysql/migrations/000N_*.sql`.
+- Aplicar em ordem, uma vez, via
+  `mysql --default-character-set=utf8mb4 -u <user> -p <banco> < mysql/migrations/000N_*.sql`.
+  **A flag `--default-character-set=utf8mb4` não é opcional**: o cliente `mysql` usa
+  `latin1` como charset padrão de conexão se nada for especificado — isso não afeta
+  texto ASCII simples, mas qualquer literal com acento dentro do `.sql` (mensagens de
+  `SIGNAL ... MESSAGE_TEXT`, nomes de conta no seed do plano de contas etc.) é
+  interpretado como `latin1` na hora do `CREATE PROCEDURE`/`INSERT`, fica **gravado
+  errado de forma permanente** (mojibake, ex.: "Já existe" vira "JÃ¡ existe" quando lido
+  de volta) e só se percebe rodando a aplicação de verdade. Descoberto durante a
+  validação da issue #49 (`criar_usuario`, veja seção 11). Banco criado (`CREATE
+  DATABASE`) e usuário de aplicação também devem usar `utf8mb4`
+  (`CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`).
   Não existe (ainda) uma ferramenta de migração automatizada tipo Supabase CLI — isso
   é left para quando o cliente MySQL do app (issue #53) estiver pronto; por ora, é
   aplicação manual mesmo, como o próprio projeto legado em PHP fazia.
@@ -135,6 +146,96 @@ ser rotas do próprio servidor Node.js já publicado na Hostinger (issue #54). A
 de parsing (OFX/SGML, detecção de encoding) é JS puro e portável quase 1:1; só muda
 o runtime (Deno → Node) e o cliente de banco (Postgres → MySQL).
 
+### 10. Chamar uma procedure com parâmetro JSON a partir do driver (`mysql2`)
+Validado com o driver real (`mysql2`) contra um MariaDB 10.11 local: **`CAST(... AS
+JSON)` não é sintaxe válida no MariaDB** — `JSON` ali é só um alias de `LONGTEXT` com
+uma constraint de validação, não um tipo de destino reconhecido por `CAST`
+(`SELECT CAST('[{"a":1}]' AS JSON)` já falha sozinho, sem nenhum parâmetro
+envolvido). Ao chamar uma procedure com parâmetro `IN ... JSON` a partir do Node
+(`conn.query("CALL proc(?, ?, ...)", [..., JSON.stringify(itens), ...])`), **não**
+envolva o placeholder em `CAST(? AS JSON)` — passe a string (via `JSON.stringify`)
+direto como um parâmetro normal; o próprio parser aceita a string onde o parâmetro é
+tipado `JSON`. Isso não afeta nada dentro das stored procedures em si (elas usam
+`JSON_EXTRACT`/`JSON_LENGTH` normalmente sobre o valor recebido) — é só uma
+convenção de chamada que a camada de API (issue #53) precisa seguir.
+
+Também confirmado ponta a ponta com o driver real: o padrão de `SET
+@current_usuario_id = ?` a cada conexão retirada do pool + `CALL procedure(...)` +
+`SELECT @out_param` para ler o `OUT` funciona exatamente como esperado, incluindo
+`has_role()` reconhecendo a variável de sessão setada pelo driver.
+
+### 12. `mysql2` não devolve BOOLEAN/DATE no formato que o app espera — achado na revisão da issue #53
+Bug real, confirmado contra MariaDB local (não hipotético): por padrão, o driver
+`mysql2` devolve toda coluna `BOOLEAN`/`TINYINT(1)` como **number** (`0`/`1`), não
+como `boolean` do JS (`SELECT ativo FROM potencias` devolvia `{ativo: 1}`,
+`typeof 1 === "number"`) — apesar dos tipos TypeScript de `src/lib/backend/*.ts`
+declararem `boolean`. O mesmo vale para colunas `DATE`/`DATETIME`/`TIMESTAMP`: por
+padrão viram objeto `Date` do JS, que ao serializar (JSON, resposta de
+`createServerFn`) vira uma string ISO com hora e fuso embutidos
+(`"2026-01-10T00:00:00.000Z"`), não a string simples `"2026-01-10"` que o
+front-end (inputs `type="date"`, `fmtDate()`) sempre esperou (mesmo formato que o
+Postgres/Supabase devolvia).
+
+Corrigido de uma vez para toda a aplicação em `src/lib/backend/db.ts`, na
+configuração do pool:
+
+```ts
+mysql.createPool({
+  // ...
+  dateStrings: true, // DATE/DATETIME/TIMESTAMP como string 'YYYY-MM-DD[ HH:MM:SS]'
+  typeCast(field, next) {
+    if (field.type === "TINY" && field.length === 1) return field.string() === "1";
+    return next();
+  },
+});
+```
+
+Validado ponta a ponta (irmão com `fundador`/`benemerito`, sessão+presença, todos
+batendo `boolean`/string plana corretos após a mudança). Como é configuração do
+pool, vale para toda query feita a partir de agora — não precisa (e não deve)
+`!!coluna` manualmente em cada função nova.
+
+### 13. Preset do Nitro (build) — verificar antes de publicar em produção
+`vite.config.ts` não define `nitro.preset` explicitamente, e o preset padrão do
+`@lovable.dev/vite-tanstack-config` quando nenhum é informado é `cloudflare-module`
+(edge/Workers) — visto no próprio pacote (`defaultPreset: "cloudflare-module"`).
+Um runtime de edge desse tipo **não tem `node:fs` gravável nem suporta socket TCP
+cru** (o que `mysql2` usa para falar com o MySQL) — se o build publicado no
+Hostinger acabar usando esse preset em vez de um preset Node "de verdade", tanto
+`src/lib/backend/db.ts` (toda a camada MySQL) quanto `uploadFotoIrmao` (grava em
+`public/uploads/...` via `node:fs/promises`) simplesmente não funcionariam em
+produção. Não encontrado, neste repositório, nenhum override de preset — precisa
+ser confirmado/definido explicitamente (ex.: `nitro: { preset: "node-server" }`,
+ajustando para o preset correto do pipeline de publicação da Hostinger) antes do
+cutover de produção (issue #55), não depois.
+
+### 11. Autenticação e sessão (issue #49) — implementado
+`src/lib/backend/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
+explícito — ver seção acima sobre o gotcha do charset) e `withUserConnection()`,
+que encapsula exatamente o padrão validado na seção 10 (checkout do pool + `SET
+@current_usuario_id` + devolução ao pool no `finally`).
+
+`src/lib/backend/session.ts` usa o sistema de sessão **já embutido** no TanStack
+Start (`getSession`/`updateSession`/`clearSession` de
+`@tanstack/react-start/server`) — cookie assinado/selado automaticamente, sem
+precisar de JWT nem biblioteca de cookie própria. Precisa de `SESSION_SECRET`
+(mín. 32 caracteres) no ambiente.
+
+`src/lib/backend/auth.ts` expõe `login`/`signup`/`logout`/`getSessao`/`contarUsuarios`
+como `createServerFn`. Só `signup` é uma escrita de mais de uma linha
+(`usuarios` + `usuarios_papeis`), então vira a stored procedure `criar_usuario`
+(`mysql/migrations/0006_autenticacao.sql`), com o mesmo padrão de transação
+própria das demais procedures multi-escrita. `login`/`getSessao` são só
+`SELECT` — comparação de senha com `bcryptjs` acontece inteiramente na camada
+de aplicação, nunca no banco.
+
+Preservado o comportamento do trigger Postgres `handle_new_user()`: signup
+nunca é bloqueado no banco; o primeiro usuário do sistema (`usuarios_papeis`
+vazia) vira `admin` automaticamente, os demais viram `irmao`. Validado
+ponta a ponta com `mysql2` real: primeiro signup → admin, segundo → irmao,
+login certo/errado, e-mail inexistente, e-mail duplicado — todos os casos
+retornam o resultado esperado.
+
 ## Variáveis de ambiente previstas (conexão fica para a issue #53)
 Convenção reservada para quando a camada de aplicação existir — não commitar
 valores reais, nunca em texto plano no repositório:
@@ -145,6 +246,7 @@ MYSQL_PORT=3306
 MYSQL_DATABASE=
 MYSQL_USER=
 MYSQL_PASSWORD=
+SESSION_SECRET=
 ```
 
 ## O que NÃO muda

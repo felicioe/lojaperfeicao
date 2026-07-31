@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { relatorioInadimplentes, type ItemInadimplente } from "@/lib/backend/relatorios";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,19 +17,13 @@ function Inadimplentes() {
     queryKey: ["inadimplentes"],
     queryFn: async () => {
       const hoje = new Date().toISOString().slice(0, 10);
-      const { data: pend } = await supabase
-        .from("lancamentos")
-        .select("id, irmao_id, valor, data_vencimento, competencia_mes, descricao, irmaos(nome_civil, nome_simbolico)")
-        .eq("is_mensalidade", true)
-        .eq("pago", false)
-        .lt("data_vencimento", hoje)
-        .order("data_vencimento");
+      const pend = await relatorioInadimplentes({ data: { hoje } });
 
-      const grupos = new Map<string, any>();
-      (pend ?? []).forEach((l: any) => {
+      const grupos = new Map<string, { irmao: { nome_civil: string; nome_simbolico: string | null }; itens: ItemInadimplente[]; total: number }>();
+      pend.forEach((l) => {
         const key = l.irmao_id;
         if (!key) return;
-        const cur = grupos.get(key) ?? { irmao: l.irmaos, itens: [], total: 0 };
+        const cur = grupos.get(key) ?? { irmao: { nome_civil: l.nome_civil, nome_simbolico: l.nome_simbolico }, itens: [], total: 0 };
         cur.itens.push(l);
         cur.total += Number(l.valor);
         grupos.set(key, cur);

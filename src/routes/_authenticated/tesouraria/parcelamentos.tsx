@@ -1,7 +1,16 @@
 import { Fragment, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listarParcelamentos,
+  listarFaturasAbertasPorIrmao,
+  criarParcelamento,
+  listarLancamentosDoParcelamento,
+  type Parcelamento,
+} from "@/lib/backend/tesouraria-parcelamentos";
+import { calcularMultaJuros } from "@/lib/backend/tesouraria-faturas";
+import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,14 +39,7 @@ function Parcelamentos() {
 
   const { data: acordos = [] } = useQuery({
     queryKey: ["parcelamentos_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("parcelamentos")
-        .select("*,irmaos(nome_civil)")
-        .order("data", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarParcelamentos(),
   });
 
   const invalidate = () => {
@@ -70,31 +72,18 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
 
   const { data: irmaos = [] } = useQuery({
     queryKey: ["irmaos_nomes"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmaos").select("id,nome_civil").order("nome_civil");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome_civil: string }[];
-    },
+    queryFn: () => listarIrmaosNomes(),
   });
 
   const { data: faturasIrmao = [] } = useQuery({
     queryKey: ["faturas_irmao_parcelamento", irmaoId],
     enabled: !!irmaoId,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("lancamentos").select("id,descricao,valor,data_vencimento")
-        .eq("irmao_id", irmaoId).eq("tipo", "entrada").eq("pago", false).order("data_vencimento");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarFaturasAbertasPorIrmao({ data: { irmaoId } }),
   });
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("contas_financeiras").select("id,nome,plano_conta_id").eq("ativo", true).order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string; plano_conta_id: string | null }[];
-    },
+    queryFn: () => listarContasFinanceiras(),
   });
 
   useEffect(() => {
@@ -103,17 +92,23 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
 
   useEffect(() => {
     (async () => {
-      const faturasSelecionadas = faturasIrmao.filter((f: any) => selecionadas.includes(f.id));
-      const entries = await Promise.all(faturasSelecionadas.map(async (f: any) => {
-        const { data: r } = await supabase.rpc("calcular_multa_juros", { _valor: f.valor, _vencimento: f.data_vencimento, _data_referencia: data });
-        return [f.id, (r as any)?.[0] ?? { multa: 0, juros: 0, total: f.valor }] as const;
+      const faturasSelecionadas = faturasIrmao.filter((f) => selecionadas.includes(f.id));
+      const entries = await Promise.all(faturasSelecionadas.map(async (f) => {
+        try {
+          const r = await calcularMultaJuros({
+            data: { valor: f.valor, vencimento: f.data_vencimento, dataReferencia: data },
+          });
+          return [f.id, r] as const;
+        } catch {
+          return [f.id, { multa: 0, juros: 0, dias_atraso: 0, total: f.valor }] as const;
+        }
       }));
       setCalculos(Object.fromEntries(entries));
     })();
   }, [selecionadas, faturasIrmao, data]);
 
-  const faturasSelecionadas = faturasIrmao.filter((f: any) => selecionadas.includes(f.id));
-  const somaOriginal = faturasSelecionadas.reduce((s: number, f: any) => s + Number(f.valor), 0);
+  const faturasSelecionadas = faturasIrmao.filter((f) => selecionadas.includes(f.id));
+  const somaOriginal = faturasSelecionadas.reduce((s, f) => s + Number(f.valor), 0);
   const somaMulta = incluirMultaJuros ? Object.values(calculos).reduce((s, c) => s + Number(c.multa), 0) : 0;
   const somaJuros = incluirMultaJuros ? Object.values(calculos).reduce((s, c) => s + Number(c.juros), 0) : 0;
   const valorParcelado = somaOriginal + somaMulta + somaJuros - Number(entrada || 0);
@@ -125,22 +120,28 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
     if (selecionadas.length === 0) return toast.error("Selecione ao menos uma fatura.");
     if (entrada > 0 && !contaFinanceiraId) return toast.error("Selecione a conta que recebeu a entrada.");
     setSalvando(true);
-    const { error } = await supabase.rpc("criar_parcelamento", {
-      _lancamento_ids: selecionadas,
-      _numero_parcelas: numeroParcelas,
-      _entrada: Number(entrada) || 0,
-      _conta_financeira_id: entrada > 0 ? contaFinanceiraId : null,
-      _data: data,
-      _incluir_multa_juros: incluirMultaJuros,
-      _observacoes: observacoes || null,
-    });
-    setSalvando(false);
-    if (error) return toast.error(error.message);
-    toast.success("Acordo de parcelamento criado.");
-    setSelecionadas([]);
-    setEntrada(0);
-    setObservacoes("");
-    onDone();
+    try {
+      await criarParcelamento({
+        data: {
+          lancamentoIds: selecionadas,
+          numeroParcelas,
+          entrada: Number(entrada) || 0,
+          contaFinanceiraId: entrada > 0 ? contaFinanceiraId : null,
+          data,
+          incluirMultaJuros,
+          observacoes: observacoes || null,
+        },
+      });
+      toast.success("Acordo de parcelamento criado.");
+      setSelecionadas([]);
+      setEntrada(0);
+      setObservacoes("");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar acordo.");
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -212,7 +213,7 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-function ListaAcordos({ acordos }: { acordos: any[] }) {
+function ListaAcordos({ acordos }: { acordos: Parcelamento[] }) {
   const [expandido, setExpandido] = useState<string | null>(null);
 
   return (
@@ -266,11 +267,7 @@ function ListaAcordos({ acordos }: { acordos: any[] }) {
 function AcordoDetalhe({ parcelamentoId }: { parcelamentoId: string }) {
   const { data: itens = [] } = useQuery({
     queryKey: ["parcelamento_lancamentos", parcelamentoId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("lancamentos").select("id,descricao,valor,data_vencimento,pago,parcelado").eq("parcelamento_id", parcelamentoId).order("data_vencimento");
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarLancamentosDoParcelamento({ data: { parcelamentoId } }),
   });
 
   return (

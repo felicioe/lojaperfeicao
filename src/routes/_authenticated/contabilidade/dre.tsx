@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarItensContabeisPeriodo } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,21 +30,14 @@ function Dre() {
   const { data: linhas = [] } = useQuery({
     queryKey: ["dre", de, ate],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_contabeis_itens")
-        .select("tipo,valor,plano_contas!inner(id,codigo,nome,tipo),lancamentos_contabeis!inner(data)")
-        .in("plano_contas.tipo", ["receita", "despesa"])
-        .gte("lancamentos_contabeis.data", de)
-        .lte("lancamentos_contabeis.data", ate);
-      if (error) throw error;
-
+      const itens = await listarItensContabeisPeriodo({ data: { de, ate } });
       const porConta = new Map<string, Linha>();
-      for (const it of data ?? []) {
-        const pc = (it as any).plano_contas;
-        const atual = porConta.get(pc.id) ?? { id: pc.id, codigo: pc.codigo, nome: pc.nome, tipo: pc.tipo, valor: 0 };
-        const sinal = pc.tipo === "receita" ? (it.tipo === "credito" ? 1 : -1) : (it.tipo === "debito" ? 1 : -1);
+      for (const it of itens) {
+        if (it.conta_tipo !== "receita" && it.conta_tipo !== "despesa") continue;
+        const atual = porConta.get(it.conta_id) ?? { id: it.conta_id, codigo: it.codigo, nome: it.nome, tipo: it.conta_tipo, valor: 0 };
+        const sinal = it.conta_tipo === "receita" ? (it.tipo === "credito" ? 1 : -1) : (it.tipo === "debito" ? 1 : -1);
         atual.valor += sinal * Number(it.valor);
-        porConta.set(pc.id, atual);
+        porConta.set(it.conta_id, atual);
       }
       return Array.from(porConta.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
     },

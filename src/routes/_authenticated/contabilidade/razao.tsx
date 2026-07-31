@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarContasAnaliticas, obterSaldoAnteriorConta, listarItensRazao } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,41 +29,19 @@ function Razao() {
 
   const { data: contas = [] } = useQuery({
     queryKey: ["plano_contas_analiticas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plano_contas").select("id,codigo,nome").eq("analitica", true).order("codigo");
-      if (error) throw error;
-      return (data ?? []) as { id: string; codigo: string; nome: string }[];
-    },
+    queryFn: () => listarContasAnaliticas(),
   });
 
   const { data: saldoAnterior = 0 } = useQuery({
     queryKey: ["razao_saldo_anterior", contaId, de],
     enabled: !!contaId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_contabeis_itens")
-        .select("tipo,valor,lancamentos_contabeis!inner(data)")
-        .eq("conta_id", contaId)
-        .lt("lancamentos_contabeis.data", de);
-      if (error) throw error;
-      return (data ?? []).reduce((s, i: any) => s + (i.tipo === "debito" ? Number(i.valor) : -Number(i.valor)), 0);
-    },
+    queryFn: () => obterSaldoAnteriorConta({ data: { contaId, antesDe: de } }),
   });
 
   const { data: itens = [] } = useQuery({
     queryKey: ["razao_itens", contaId, de, ate],
     enabled: !!contaId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_contabeis_itens")
-        .select("id,tipo,valor,descricao,lancamentos_contabeis!inner(data,descricao,origem_tipo)")
-        .eq("conta_id", contaId)
-        .gte("lancamentos_contabeis.data", de)
-        .lte("lancamentos_contabeis.data", ate)
-        .order("data", { referencedTable: "lancamentos_contabeis" });
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarItensRazao({ data: { contaId, de, ate } }),
   });
 
   const linhas = useMemo(() => {

@@ -1,42 +1,27 @@
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { getSessao } from "@/lib/backend/auth";
+import type { Papel } from "@/lib/backend/auth";
 
-export function useSession() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export type Role = Papel;
 
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null);
-    });
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+export const SESSAO_QUERY_KEY = ["sessao"] as const;
 
-  return { user, loading };
+function useSessaoQuery() {
+  return useQuery({
+    queryKey: SESSAO_QUERY_KEY,
+    queryFn: () => getSessao(),
+    staleTime: 60_000,
+  });
 }
 
-export type Role = "admin" | "tesoureiro" | "secretario" | "irmao";
+export function useSession() {
+  const { data, isLoading } = useSessaoQuery();
+  return { user: data ?? null, loading: isLoading };
+}
 
 export function useRoles() {
-  const { user } = useSession();
-  return useQuery({
-    queryKey: ["user_roles", user?.id],
-    enabled: !!user,
-    queryFn: async (): Promise<Role[]> => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user!.id);
-      if (error) throw error;
-      return (data ?? []).map((r: any) => r.role);
-    },
-  });
+  const { data } = useSessaoQuery();
+  return { data: (data?.papeis ?? []) as Role[] };
 }
 
 export function useCan() {

@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { login, signup, contarUsuarios, getSessao } from "@/lib/backend/auth";
+import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +22,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
@@ -27,40 +30,40 @@ function AuthPage() {
   const [firstUser, setFirstUser] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if any users exist to reveal "primeiro admin" tab
-    supabase.from("user_roles").select("id", { count: "exact", head: true }).then(({ count }) => {
-      setFirstUser((count ?? 0) === 0);
-    });
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/dashboard" });
+    contarUsuarios().then((total) => setFirstUser(total === 0));
+    getSessao().then((usuario) => {
+      if (usuario) navigate({ to: "/dashboard" });
     });
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Bem-vindo!");
-    navigate({ to: "/dashboard" });
+    try {
+      const usuario = await login({ data: { email, senha: password } });
+      queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
+      toast.success("Bem-vindo!");
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao entrar.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: nome },
-        emailRedirectTo: window.location.origin,
-      },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Conta criada! Faça login.");
-    setFirstUser(false);
+    try {
+      const usuario = await signup({ data: { email, senha: password, nomeCompleto: nome } });
+      queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
+      toast.success("Conta criada!");
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar conta.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

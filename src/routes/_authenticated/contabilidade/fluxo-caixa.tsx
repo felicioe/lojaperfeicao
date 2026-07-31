@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  obterSaldoBaseContas,
+  obterFluxoAnteriores,
+  listarMovimentosRealizados,
+  listarMovimentosPendentes,
+} from "@/lib/backend/fluxo-caixa";
+import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -55,41 +61,17 @@ function FluxoRealizado() {
 
   const { data: saldoBaseContas = 0 } = useQuery({
     queryKey: ["fluxo_saldo_base_contas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("contas_financeiras").select("saldo_inicial");
-      if (error) throw error;
-      return (data ?? []).reduce((s, c: any) => s + Number(c.saldo_inicial), 0);
-    },
+    queryFn: () => obterSaldoBaseContas(),
   });
 
   const { data: anteriores = 0 } = useQuery({
     queryKey: ["fluxo_anteriores", de],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos")
-        .select("valor,tipo")
-        .eq("pago", true)
-        .in("tipo", ["entrada", "saida"])
-        .lt("data_pagamento", de);
-      if (error) throw error;
-      return (data ?? []).reduce((s, l: any) => s + (l.tipo === "entrada" ? Number(l.valor) : -Number(l.valor)), 0);
-    },
+    queryFn: () => obterFluxoAnteriores({ data: { de } }),
   });
 
   const { data: movimentos = [] } = useQuery({
     queryKey: ["fluxo_movimentos", de, ate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos")
-        .select("valor,tipo,data_pagamento")
-        .eq("pago", true)
-        .in("tipo", ["entrada", "saida"])
-        .gte("data_pagamento", de)
-        .lte("data_pagamento", ate)
-        .order("data_pagamento");
-      if (error) throw error;
-      return (data ?? []) as { valor: number; tipo: string; data_pagamento: string }[];
-    },
+    queryFn: () => listarMovimentosRealizados({ data: { de, ate } }),
   });
 
   const saldoAnterior = saldoBaseContas + anteriores;
@@ -207,8 +189,6 @@ function FluxoRealizado() {
   );
 }
 
-type MovimentoPendente = { data_vencimento: string; descricao: string; valor: number; tipo: "entrada" | "saida" };
-
 function FluxoProjetado() {
   const [horizonte, setHorizonte] = useState("30");
 
@@ -219,29 +199,15 @@ function FluxoProjetado() {
     return toISODate(d);
   }, [horizonte]);
 
-  const { data: saldoAtual = 0 } = useQuery({
+  const { data: saldos = [] } = useQuery({
     queryKey: ["fluxo_saldo_atual"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("v_saldo_contas").select("saldo_atual");
-      if (error) throw error;
-      return (data ?? []).reduce((s, c: any) => s + Number(c.saldo_atual ?? 0), 0);
-    },
+    queryFn: () => listarSaldoContas(),
   });
+  const saldoAtual = saldos.reduce((s, c) => s + Number(c.saldo_atual ?? 0), 0);
 
   const { data: pendentes = [] } = useQuery({
     queryKey: ["fluxo_pendentes", dataLimite],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos")
-        .select("descricao,valor,tipo,data_vencimento")
-        .eq("pago", false)
-        .in("tipo", ["entrada", "saida"])
-        .gte("data_vencimento", hoje)
-        .lte("data_vencimento", dataLimite)
-        .order("data_vencimento");
-      if (error) throw error;
-      return (data ?? []) as MovimentoPendente[];
-    },
+    queryFn: () => listarMovimentosPendentes({ data: { hoje, dataLimite } }),
   });
 
   const porDia = useMemo(() => {

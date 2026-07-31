@@ -1,0 +1,239 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import type { PoolConnection } from "mysql2/promise";
+import type { RowDataPacket } from "mysql2";
+import { comSessao, comPapel } from "./authz";
+
+// RLS original: SELECT admin/tesoureiro/secretario (tudo) OU o próprio
+// irmão vinculado; escrita (INSERT/UPDATE direto, sem procedure) admin OU
+// tesoureiro.
+const PAPEIS_LEITURA = ["admin", "tesoureiro", "secretario"];
+const PAPEIS_ESCRITA = ["admin", "tesoureiro"];
+
+async function ehPrivilegiadoLancamentos(conn: PoolConnection): Promise<boolean> {
+  const condicoes = PAPEIS_LEITURA.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
+  const [[row]] = await conn.query<RowDataPacket[]>(`SELECT (${condicoes}) AS ok`, PAPEIS_LEITURA);
+  return !!row.ok;
+}
+
+export type Lancamento = {
+  id: string;
+  data: string;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  descricao: string;
+  valor: number;
+  tipo: "entrada" | "saida" | "transferencia";
+  pago: boolean;
+  forma_pagamento: string | null;
+  categoria_recebimento: string | null;
+  conta_id: string | null;
+  conta_destino_id: string | null;
+  plano_conta_id: string | null;
+  contas_financeiras: { nome: string } | null;
+  destino: { nome: string } | null;
+  plano_contas: { nome: string } | null;
+};
+
+const filtrosSchema = z.object({
+  de: z.string().nullable().optional(),
+  ate: z.string().nullable().optional(),
+  contaId: z.string().uuid().nullable().optional(),
+  tipo: z.enum(["entrada", "saida", "transferencia"]).nullable().optional(),
+  categoria: z.string().nullable().optional(),
+  limite: z.number().int().positive().max(1000).optional(),
+});
+
+export const listarLancamentos = createServerFn({ method: "GET" })
+  .validator((d: unknown) => filtrosSchema.parse(d ?? {}))
+  .handler(async ({ data }): Promise<Lancamento[]> => {
+    return comSessao(async (conn, usuarioId) => {
+      const privilegiado = await ehPrivilegiadoLancamentos(conn);
+      const condicoes: string[] = [];
+      const valores: unknown[] = [];
+      if (!privilegiado) {
+        condicoes.push("l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
+        valores.push(usuarioId);
+      }
+      if (data.de) {
+        condicoes.push("l.data >= ?");
+        valores.push(data.de);
+      }
+      if (data.ate) {
+        condicoes.push("l.data <= ?");
+        valores.push(data.ate);
+      }
+      if (data.contaId) {
+        condicoes.push("l.conta_id = ?");
+        valores.push(data.contaId);
+      }
+      if (data.tipo) {
+        condicoes.push("l.tipo = ?");
+        valores.push(data.tipo);
+      }
+      if (data.categoria) {
+        condicoes.push("l.categoria_recebimento = ?");
+        valores.push(data.categoria);
+      }
+      const where = condicoes.length > 0 ? `WHERE ${condicoes.join(" AND ")}` : "";
+      const limite = data.limite ?? 200;
+
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.tipo, l.pago,
+                l.forma_pagamento, l.categoria_recebimento, l.conta_id, l.conta_destino_id, l.plano_conta_id,
+                cf.nome AS conta_nome, cfd.nome AS destino_nome, pc.nome AS plano_conta_nome
+         FROM lancamentos l
+         LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
+         LEFT JOIN contas_financeiras cfd ON cfd.id = l.conta_destino_id
+         LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
+         ${where}
+         ORDER BY l.data DESC
+         LIMIT ?`,
+        [...valores, limite],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        data: r.data,
+        data_vencimento: r.data_vencimento,
+        data_pagamento: r.data_pagamento,
+        descricao: r.descricao,
+        valor: r.valor,
+        tipo: r.tipo,
+        pago: r.pago,
+        forma_pagamento: r.forma_pagamento,
+        categoria_recebimento: r.categoria_recebimento,
+        conta_id: r.conta_id,
+        conta_destino_id: r.conta_destino_id,
+        plano_conta_id: r.plano_conta_id,
+        contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
+        destino: r.destino_nome ? { nome: r.destino_nome } : null,
+        plano_contas: r.plano_conta_nome ? { nome: r.plano_conta_nome } : null,
+      }));
+    });
+  });
+
+export const marcarLancamentoPago = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid(), dataPagamento: z.string() }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      await conn.query("UPDATE lancamentos SET pago = TRUE, data_pagamento = ? WHERE id = ?", [
+        data.dataPagamento,
+        data.id,
+      ]);
+    });
+  });
+
+const novoLancamentoSchema = z.object({
+  data: z.string(),
+  data_vencimento: z.string().nullable(),
+  descricao: z.string().min(1),
+  valor: z.number(),
+  tipo: z.enum(["entrada", "saida"]),
+  conta_id: z.string().uuid(),
+  plano_conta_id: z.string().uuid().nullable(),
+  pago: z.boolean(),
+  data_pagamento: z.string().nullable(),
+  observacoes: z.string().nullable(),
+});
+
+// Lançamento manual — igual ao original, é INSERT direto (sem stored
+// procedure), não gera lançamento contábil de partida dobrada.
+export const criarLancamentoManual = createServerFn({ method: "POST" })
+  .validator((d: unknown) => novoLancamentoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      await conn.query(
+        `INSERT INTO lancamentos (data, data_vencimento, descricao, valor, tipo, conta_id, plano_conta_id, pago, data_pagamento, observacoes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          data.data,
+          data.data_vencimento,
+          data.descricao,
+          data.valor,
+          data.tipo,
+          data.conta_id,
+          data.plano_conta_id,
+          data.pago,
+          data.data_pagamento,
+          data.observacoes,
+        ],
+      );
+    });
+  });
+
+const recebimentoAvulsoSchema = z.object({
+  valor: z.number().positive(),
+  categoria: z.enum(["mensalidade", "taxa_grau", "tronco", "doacao", "outros"]),
+  planoContaId: z.string().uuid(),
+  contaFinanceiraId: z.string().uuid(),
+  data: z.string(),
+  formaPagamento: z.string().nullable(),
+  descricao: z.string().nullable(),
+  observacoes: z.string().nullable(),
+});
+
+export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
+  .validator((d: unknown) => recebimentoAvulsoSchema.parse(d))
+  .handler(async ({ data }): Promise<{ id: string }> => {
+    return comSessao(async (conn) => {
+      await conn.query(
+        "CALL registrar_recebimento_avulso(?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, @lanc_id)",
+        [
+          data.valor,
+          data.categoria,
+          data.planoContaId,
+          data.contaFinanceiraId,
+          data.data,
+          data.formaPagamento,
+          data.descricao,
+          data.observacoes,
+        ],
+      );
+      const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+      return { id: lanc_id };
+    });
+  });
+
+const transferenciaSchema = z.object({
+  contaOrigemId: z.string().uuid(),
+  contaDestinoId: z.string().uuid(),
+  valor: z.number().positive(),
+  data: z.string(),
+  descricao: z.string().min(1),
+});
+
+export const criarTransferencia = createServerFn({ method: "POST" })
+  .validator((d: unknown) => transferenciaSchema.parse(d))
+  .handler(async ({ data }): Promise<{ id: string }> => {
+    return comSessao(async (conn) => {
+      await conn.query("CALL criar_transferencia(?, ?, ?, ?, ?, @lanc_id)", [
+        data.contaOrigemId,
+        data.contaDestinoId,
+        data.valor,
+        data.data,
+        data.descricao,
+      ]);
+      const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+      return { id: lanc_id };
+    });
+  });
+
+const rateioSchema = z.array(z.object({ conta_id: z.string().uuid(), percentual: z.number() })).nullable();
+
+export const gerarMensalidades = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z
+      .object({ competencia: z.string(), dataVencimento: z.string().nullable().optional(), rateio: rateioSchema.optional() })
+      .parse(d),
+  )
+  .handler(async ({ data }): Promise<number> => {
+    return comSessao(async (conn) => {
+      await conn.query("CALL gerar_mensalidades(?, ?, NULL, ?, @total)", [
+        data.competencia,
+        data.dataVencimento ?? null,
+        data.rateio ? JSON.stringify(data.rateio) : null,
+      ]);
+      const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT @total AS total");
+      return Number(total);
+    });
+  });

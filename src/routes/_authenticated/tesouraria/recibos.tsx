@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarRecibos, listarReciboItens } from "@/lib/backend/tesouraria-recibos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,15 +19,7 @@ function Recibos() {
 
   const { data: recibos = [] } = useQuery({
     queryKey: ["recibos_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("recibos")
-        .select("id,data,valor_original,valor_multa,valor_juros,desconto,valor_total,forma_pagamento,irmaos(nome_civil),contas_financeiras(nome)")
-        .order("data", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarRecibos(),
   });
 
   return (
@@ -88,11 +80,7 @@ function Recibos() {
 function ReciboItensPanel({ reciboId }: { reciboId: string }) {
   const { data: itens = [] } = useQuery({
     queryKey: ["recibo_itens", reciboId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("recibo_itens").select("*,lancamentos(descricao,data_vencimento)").eq("recibo_id", reciboId);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarReciboItens({ data: { reciboId } }),
   });
 
   return (

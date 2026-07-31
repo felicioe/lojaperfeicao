@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarContasAPagarProximas, obterProjecaoFluxo } from "@/lib/backend/dashboard";
+import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/AppShell";
 import { brl, fmtDate } from "@/lib/format";
@@ -25,52 +26,18 @@ function Dashboard() {
   const in30Iso = in30.toISOString().slice(0, 10);
 
   const contasPagar = useQuery({
-    queryKey: ["dash", "contasPagar"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos")
-        .select("id, descricao, valor, data_vencimento, tipo")
-        .eq("tipo", "saida")
-        .eq("pago", false)
-        .gte("data_vencimento", today)
-        .lte("data_vencimento", in30Iso)
-        .order("data_vencimento");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryKey: ["dash", "contasPagar", today, in30Iso],
+    queryFn: () => listarContasAPagarProximas({ data: { de: today, ate: in30Iso } }),
   });
 
   const saldos = useQuery({
     queryKey: ["dash", "saldos"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("v_saldo_contas").select("*");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => listarSaldoContas(),
   });
 
   const projecao = useQuery({
-    queryKey: ["dash", "projecao"],
-    queryFn: async () => {
-      const { data: e, error: e1 } = await supabase
-        .from("lancamentos")
-        .select("valor")
-        .eq("tipo", "entrada")
-        .eq("pago", false)
-        .gte("data_vencimento", today)
-        .lte("data_vencimento", in30Iso);
-      const { data: s, error: e2 } = await supabase
-        .from("lancamentos")
-        .select("valor")
-        .eq("tipo", "saida")
-        .eq("pago", false)
-        .gte("data_vencimento", today)
-        .lte("data_vencimento", in30Iso);
-      if (e1 || e2) throw e1 ?? e2;
-      const somaE = (e ?? []).reduce((a, r: any) => a + Number(r.valor), 0);
-      const somaS = (s ?? []).reduce((a, r: any) => a + Number(r.valor), 0);
-      return { somaE, somaS, delta: somaE - somaS };
-    },
+    queryKey: ["dash", "projecao", today, in30Iso],
+    queryFn: () => obterProjecaoFluxo({ data: { de: today, ate: in30Iso } }),
   });
 
   const totalPagar = (contasPagar.data ?? []).reduce((a, r: any) => a + Number(r.valor), 0);

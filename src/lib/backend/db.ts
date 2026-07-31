@@ -1,0 +1,66 @@
+import mysql from "mysql2/promise";
+
+// Pool único por processo Node — nunca criar um pool por requisição.
+// Ver mysql/README.md, seção 3: a variável de sessão @current_usuario_id
+// precisa ser (re)setada a cada checkout do pool, já que a conexão é
+// reaproveitada entre requisições de usuários diferentes.
+let pool: mysql.Pool | undefined;
+
+// mysql2 não converte TINYINT(1)/BOOLEAN para boolean do JS por padrão —
+// devolve 0/1 (number). Sem isso, toda coluna BOOLEAN (ativo, presente,
+// fundador, pago, is_mensalidade etc.) voltaria como número para o
+// front-end, apesar dos tipos TypeScript declararem `boolean`. Confirmado
+// localmente contra MariaDB (SELECT ... de uma coluna BOOLEAN real
+// devolvia `{ativo: 1}`, typeof "number", antes deste typeCast).
+type CampoTipado = { type: string; length: number; string: () => string | null };
+
+function typeCast(field: CampoTipado, next: () => unknown) {
+  if (field.type === "TINY" && field.length === 1) {
+    return field.string() === "1";
+  }
+  return next();
+}
+
+function getPool(): mysql.Pool {
+  if (!pool) {
+    pool = mysql.createPool({
+      host: process.env.MYSQL_HOST,
+      port: process.env.MYSQL_PORT ? Number(process.env.MYSQL_PORT) : 3306,
+      user: process.env.MYSQL_USER,
+      password: process.env.MYSQL_PASSWORD,
+      database: process.env.MYSQL_DATABASE,
+      connectionLimit: 10,
+      decimalNumbers: true,
+      charset: "utf8mb4",
+      // DATE/DATETIME/TIMESTAMP como string 'YYYY-MM-DD'/'YYYY-MM-DD HH:MM:SS'
+      // (não Date do JS) — é o formato que todo o front-end já espera (mesmo
+      // formato que o Postgres/Supabase devolvia) e evita o descompasso de
+      // fuso horário de serializar um Date como ISO com hora embutida.
+      dateStrings: true,
+      typeCast,
+    });
+  }
+  return pool;
+}
+
+/**
+ * Retira uma conexão do pool, seta @current_usuario_id para o usuário
+ * autenticado da requisição atual (ou NULL, contexto de sistema) e a
+ * devolve ao pool ao final — sempre, mesmo em caso de erro.
+ */
+export async function withUserConnection<T>(
+  usuarioId: string | null,
+  fn: (conn: mysql.PoolConnection) => Promise<T>,
+): Promise<T> {
+  const conn = await getPool().getConnection();
+  try {
+    if (usuarioId) {
+      await conn.query("SET @current_usuario_id = ?", [usuarioId]);
+    } else {
+      await conn.query("SET @current_usuario_id = NULL");
+    }
+    return await fn(conn);
+  } finally {
+    conn.release();
+  }
+}

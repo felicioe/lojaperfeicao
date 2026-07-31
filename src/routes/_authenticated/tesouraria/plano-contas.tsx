@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarPlanoContas, salvarConta, alternarAtivoConta, type Conta, type TipoConta } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,18 +18,6 @@ export const Route = createFileRoute("/_authenticated/tesouraria/plano-contas")(
   head: () => ({ meta: [{ title: "Plano de Contas — Gestão Maçônica" }] }),
   component: PlanoContas,
 });
-
-type TipoConta = "ativo" | "passivo" | "patrimonio_liquido" | "receita" | "despesa";
-
-type Conta = {
-  id: string;
-  codigo: string;
-  nome: string;
-  tipo: TipoConta;
-  ativo: boolean;
-  analitica: boolean;
-  parent_id: string | null;
-};
 
 const TIPO_LABEL: Record<TipoConta, string> = {
   ativo: "Ativo",
@@ -87,11 +75,7 @@ function PlanoContas() {
 
   const { data = [] } = useQuery({
     queryKey: ["plano_contas_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plano_contas").select("*").order("codigo");
-      if (error) throw error;
-      return (data ?? []) as Conta[];
-    },
+    queryFn: () => listarPlanoContas(),
   });
 
   const arvore = useMemo(() => montarArvore(data), [data]);
@@ -107,20 +91,23 @@ function PlanoContas() {
 
   const salvar = async () => {
     if (!form.codigo.trim() || !form.nome.trim()) return;
-    const payload = {
-      codigo: form.codigo.trim(),
-      nome: form.nome.trim(),
-      tipo: form.tipo,
-      parent_id: form.parent_id === "none" ? null : form.parent_id,
-      analitica: form.analitica,
-    };
-    const { error } = form.id
-      ? await supabase.from("plano_contas").update(payload).eq("id", form.id)
-      : await supabase.from("plano_contas").insert(payload);
-    if (error) return toast.error(error.message);
-    toast.success(form.id ? "Conta atualizada." : "Conta criada.");
-    setForm(FORM_VAZIO);
-    invalidate();
+    try {
+      await salvarConta({
+        data: {
+          id: form.id,
+          codigo: form.codigo.trim(),
+          nome: form.nome.trim(),
+          tipo: form.tipo,
+          parent_id: form.parent_id === "none" ? null : form.parent_id,
+          analitica: form.analitica,
+        },
+      });
+      toast.success(form.id ? "Conta atualizada." : "Conta criada.");
+      setForm(FORM_VAZIO);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    }
   };
 
   const editar = (c: Conta) =>
@@ -134,9 +121,12 @@ function PlanoContas() {
     });
 
   const alternarAtivo = async (c: Conta) => {
-    const { error } = await supabase.from("plano_contas").update({ ativo: !c.ativo }).eq("id", c.id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await alternarAtivoConta({ data: { id: c.id, ativo: !c.ativo } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
   };
 
   return (

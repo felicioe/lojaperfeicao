@@ -1,7 +1,17 @@
 import { Fragment, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listarGestoes,
+  criarGestao,
+  listarGestaoCargos,
+  listarCargosDisponiveis,
+  criarGestaoCargo,
+  removerGestaoCargo,
+  type Gestao,
+} from "@/lib/backend/gestoes";
+import { listarOrgs } from "@/lib/backend/orgs";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +30,6 @@ export const Route = createFileRoute("/_authenticated/gestoes/")({
   component: Gestoes,
 });
 
-type Gestao = { id: string; org_id: string; nome: string; data_inicio: string; data_fim: string; ativo: boolean };
 type Org = { id: string; nome: string; sigla: string | null };
 
 const FORM_VAZIO = { org_id: "", nome: "", data_inicio: "", data_fim: "", ativo: true };
@@ -33,37 +42,34 @@ function Gestoes() {
 
   const { data: orgs = [] } = useQuery({
     queryKey: ["orgs_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orgs").select("id,nome,sigla").order("nome");
-      if (error) throw error;
-      return (data ?? []) as Org[];
-    },
+    queryFn: () => listarOrgs(),
   });
 
   const { data: gestoes = [] } = useQuery({
     queryKey: ["gestoes_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("gestoes").select("*").order("data_inicio", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Gestao[];
-    },
+    queryFn: () => listarGestoes(),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["gestoes_all"] });
 
   const salvar = async () => {
     if (!form.org_id || !form.nome.trim() || !form.data_inicio || !form.data_fim) return;
-    const { error } = await supabase.from("gestoes").insert({
-      org_id: form.org_id,
-      nome: form.nome.trim(),
-      data_inicio: form.data_inicio,
-      data_fim: form.data_fim,
-      ativo: form.ativo,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("Gestão criada.");
-    setForm(FORM_VAZIO);
-    invalidate();
+    try {
+      await criarGestao({
+        data: {
+          org_id: form.org_id,
+          nome: form.nome.trim(),
+          data_inicio: form.data_inicio,
+          data_fim: form.data_fim,
+          ativo: form.ativo,
+        },
+      });
+      toast.success("Gestão criada.");
+      setForm(FORM_VAZIO);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    }
   };
 
   const nomeOrg = (id: string) => orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? "—";
@@ -149,56 +155,45 @@ function Gestoes() {
   );
 }
 
-type CargoOcupado = { id: string; cargo_id: string; irmao_id: string; cargos: { nome: string } | null; irmaos: { nome_civil: string } | null };
-
 function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: boolean }) {
   const qc = useQueryClient();
   const [novo, setNovo] = useState({ cargo_id: "", irmao_id: "" });
 
   const { data: ocupantes = [] } = useQuery({
     queryKey: ["gestao_cargos", gestao.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("gestao_cargos")
-        .select("id,cargo_id,irmao_id,cargos(nome),irmaos(nome_civil)")
-        .eq("gestao_id", gestao.id);
-      if (error) throw error;
-      return (data ?? []) as unknown as CargoOcupado[];
-    },
+    queryFn: () => listarGestaoCargos({ data: { gestaoId: gestao.id } }),
   });
 
   const { data: cargos = [] } = useQuery({
     queryKey: ["cargos_disponiveis", gestao.org_id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("cargos").select("id,nome").eq("ativo", true).or(`org_id.eq.${gestao.org_id},org_id.is.null`).order("ordem");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string }[];
-    },
+    queryFn: () => listarCargosDisponiveis({ data: { orgId: gestao.org_id } }),
   });
 
   const { data: irmaos = [] } = useQuery({
     queryKey: ["irmaos_nomes"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("irmaos").select("id,nome_civil").order("nome_civil");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome_civil: string }[];
-    },
+    queryFn: () => listarIrmaosNomes(),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["gestao_cargos", gestao.id] });
 
   const adicionar = async () => {
     if (!novo.cargo_id || !novo.irmao_id) return;
-    const { error } = await supabase.from("gestao_cargos").insert({ gestao_id: gestao.id, cargo_id: novo.cargo_id, irmao_id: novo.irmao_id });
-    if (error) return toast.error(error.message);
-    setNovo({ cargo_id: "", irmao_id: "" });
-    invalidate();
+    try {
+      await criarGestaoCargo({ data: { gestaoId: gestao.id, cargoId: novo.cargo_id, irmaoId: novo.irmao_id } });
+      setNovo({ cargo_id: "", irmao_id: "" });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao adicionar.");
+    }
   };
 
   const remover = async (id: string) => {
-    const { error } = await supabase.from("gestao_cargos").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await removerGestaoCargo({ data: { id } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover.");
+    }
   };
 
   return (

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarPotencias, salvarPotencia, alternarAtivoPotencia, type Potencia } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +18,6 @@ export const Route = createFileRoute("/_authenticated/orgs/potencias")({
   component: Potencias,
 });
 
-type Potencia = { id: string; nome: string; sigla: string | null; jurisdicao: string | null; site: string | null; ativo: boolean };
-
 const FORM_VAZIO = { id: null as string | null, nome: "", sigla: "", jurisdicao: "", site: "" };
 
 function Potencias() {
@@ -29,31 +27,38 @@ function Potencias() {
 
   const { data = [] } = useQuery({
     queryKey: ["potencias_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("potencias").select("*").order("nome");
-      if (error) throw error;
-      return (data ?? []) as Potencia[];
-    },
+    queryFn: () => listarPotencias(),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["potencias_all"] });
 
   const salvar = async () => {
     if (!form.nome.trim()) return;
-    const payload = { nome: form.nome.trim(), sigla: form.sigla || null, jurisdicao: form.jurisdicao || null, site: form.site || null };
-    const { error } = form.id
-      ? await supabase.from("potencias").update(payload).eq("id", form.id)
-      : await supabase.from("potencias").insert(payload);
-    if (error) return toast.error(error.message);
-    toast.success(form.id ? "Potência atualizada." : "Potência criada.");
-    setForm(FORM_VAZIO);
-    invalidate();
+    try {
+      await salvarPotencia({
+        data: {
+          id: form.id,
+          nome: form.nome.trim(),
+          sigla: form.sigla || null,
+          jurisdicao: form.jurisdicao || null,
+          site: form.site || null,
+        },
+      });
+      toast.success(form.id ? "Potência atualizada." : "Potência criada.");
+      setForm(FORM_VAZIO);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    }
   };
 
   const alternarAtivo = async (p: Potencia) => {
-    const { error } = await supabase.from("potencias").update({ ativo: !p.ativo }).eq("id", p.id);
-    if (error) return toast.error(error.message);
-    invalidate();
+    try {
+      await alternarAtivoPotencia({ data: { id: p.id, ativo: !p.ativo } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
   };
 
   return (

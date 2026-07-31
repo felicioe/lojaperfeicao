@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarLancamentos, registrarRecebimentoAvulso } from "@/lib/backend/tesouraria-lancamentos";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,23 +28,17 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
 
   const { data: movimentos = [] } = useQuery({
     queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria],
-    queryFn: async () => {
-      let q = supabase
-        .from("lancamentos")
-        .select(
-          "id,data,descricao,valor,tipo,pago,forma_pagamento,categoria_recebimento,contas_financeiras!lancamentos_conta_id_fkey(nome),destino:contas_financeiras!lancamentos_conta_destino_id_fkey(nome),plano_contas(nome)",
-        )
-        .order("data", { ascending: false })
-        .limit(300);
-      if (de) q = q.gte("data", de);
-      if (ate) q = q.lte("data", ate);
-      if (contaId !== "todas") q = q.eq("conta_id", contaId);
-      if (tipo !== "todos") q = q.eq("tipo", tipo);
-      if (categoria !== "todas") q = q.eq("categoria_recebimento", categoria);
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () =>
+      listarLancamentos({
+        data: {
+          de: de || null,
+          ate: ate || null,
+          contaId: contaId !== "todas" ? contaId : null,
+          tipo: tipo !== "todos" ? (tipo as "entrada" | "saida" | "transferencia") : null,
+          categoria: categoria !== "todas" ? categoria : null,
+          limite: 300,
+        },
+      }),
   });
 
   return { movimentos, de, setDe, ate, setAte, contaId, setContaId, tipo, setTipo, categoria, setCategoria };
@@ -62,30 +57,32 @@ export function RecebimentoAvulsoDialog({ contas, onDone, categoriaInicial = "do
 
   const { data: receitas = [] } = useQuery({
     queryKey: ["planos_receita"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plano_contas").select("id,codigo,nome").eq("tipo", "receita").eq("analitica", true).eq("ativo", true).order("codigo");
-      if (error) throw error;
-      return (data ?? []) as { id: string; codigo: string; nome: string }[];
-    },
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "receita" } }),
   });
 
   const salvar = async () => {
     if (!valor || !planoContaId || !contaFinanceiraId) return toast.error("Preencha valor, categoria contábil e conta.");
     setSaving(true);
-    const { error } = await supabase.rpc("registrar_recebimento_avulso", {
-      _valor: Number(valor),
-      _categoria: categoria as any,
-      _plano_conta_id: planoContaId,
-      _conta_financeira_id: contaFinanceiraId,
-      _data: data,
-      _forma_pagamento: formaPagamento || null,
-      _descricao: descricao || null,
-      _observacoes: observacoes || null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Recebimento registrado e lançamento contábil postado.");
-    onDone();
+    try {
+      await registrarRecebimentoAvulso({
+        data: {
+          valor: Number(valor),
+          categoria: categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros",
+          planoContaId,
+          contaFinanceiraId,
+          data,
+          formaPagamento: formaPagamento || null,
+          descricao: descricao || null,
+          observacoes: observacoes || null,
+        },
+      });
+      toast.success("Recebimento registrado e lançamento contábil postado.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao registrar.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
