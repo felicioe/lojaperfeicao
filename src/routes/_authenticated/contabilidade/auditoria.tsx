@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarAuditoriaDesbalanceados, listarSaldoPlanoContas } from "@/lib/server/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,44 +13,15 @@ export const Route = createFileRoute("/_authenticated/contabilidade/auditoria")(
   component: AuditoriaContabil,
 });
 
-type Desbalanceado = {
-  lancamento_id: string;
-  data: string;
-  descricao: string;
-  origem_tipo: string | null;
-  origem_id: string | null;
-  total_debito: number;
-  total_credito: number;
-  diferenca: number;
-};
-
-type SaldoConta = {
-  id: string;
-  codigo: string;
-  nome: string;
-  tipo: string;
-  total_debito: number;
-  total_credito: number;
-  saldo_devedor: number;
-};
-
 function AuditoriaContabil() {
   const { data: desbalanceados = [], isLoading: loadingDesbalanceados } = useQuery({
     queryKey: ["v_auditoria_contabil_desbalanceados"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("v_auditoria_contabil_desbalanceados").select("*");
-      if (error) throw error;
-      return (data ?? []) as Desbalanceado[];
-    },
+    queryFn: () => listarAuditoriaDesbalanceados(),
   });
 
   const { data: saldos = [] } = useQuery({
     queryKey: ["v_saldo_plano_contas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("v_saldo_plano_contas").select("*").order("codigo");
-      if (error) throw error;
-      return (data ?? []) as SaldoConta[];
-    },
+    queryFn: () => listarSaldoPlanoContas(),
   });
 
   const totalDebito = saldos.reduce((s, c) => s + Number(c.total_debito), 0);
