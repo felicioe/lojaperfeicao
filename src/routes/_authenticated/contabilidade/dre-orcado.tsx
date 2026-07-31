@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarOrcamentos, listarOrcamentoItens, listarContasOrcamento } from "@/lib/server/contabilidade-orcamento";
+import { listarItensContabeisPeriodo } from "@/lib/server/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -22,60 +23,48 @@ function DreOrcado() {
 
   const { data: orcamentos = [] } = useQuery({
     queryKey: ["orcamentos_para_dre"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orcamentos").select("id,ano,status").order("ano", { ascending: false });
-      if (error) throw error;
-      return data as { id: string; ano: number; status: string }[];
-    },
+    queryFn: () => listarOrcamentos(),
   });
 
   const selecionado = orcamentos.find((o) => o.id === orcamentoId) ?? orcamentos[0] ?? null;
 
+  const { data: contas = [] } = useQuery({
+    queryKey: ["plano_contas_orcamento"],
+    queryFn: () => listarContasOrcamento(),
+  });
+
   const { data: itens = [] } = useQuery({
     queryKey: ["dre_orcado_itens", selecionado?.id],
     enabled: !!selecionado,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orcamento_itens")
-        .select("conta_id,valor,plano_contas!inner(id,codigo,nome,tipo)")
-        .eq("orcamento_id", selecionado!.id);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarOrcamentoItens({ data: { orcamentoId: selecionado!.id } }),
   });
 
   const { data: realizado = [] } = useQuery({
     queryKey: ["dre_orcado_realizado", selecionado?.ano],
     enabled: !!selecionado,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_contabeis_itens")
-        .select("tipo,valor,plano_contas!inner(id,codigo,nome,tipo),lancamentos_contabeis!inner(data)")
-        .in("plano_contas.tipo", ["receita", "despesa"])
-        .gte("lancamentos_contabeis.data", `${selecionado!.ano}-01-01`)
-        .lte("lancamentos_contabeis.data", `${selecionado!.ano}-12-31`);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () =>
+      listarItensContabeisPeriodo({ data: { de: `${selecionado!.ano}-01-01`, ate: `${selecionado!.ano}-12-31` } }),
   });
 
   const linhas = useMemo(() => {
     const porConta = new Map<string, Linha>();
+    const contaPorId = new Map(contas.map((c) => [c.id, c]));
     for (const it of itens) {
-      const pc = it.plano_contas;
-      const atual = porConta.get(pc.id) ?? { id: pc.id, codigo: pc.codigo, nome: pc.nome, tipo: pc.tipo, orcado: 0, realizado: 0 };
+      const conta = contaPorId.get(it.conta_id);
+      if (!conta) continue;
+      const atual = porConta.get(conta.id) ?? { id: conta.id, codigo: conta.codigo, nome: conta.nome, tipo: conta.tipo, orcado: 0, realizado: 0 };
       atual.orcado += Number(it.valor);
-      porConta.set(pc.id, atual);
+      porConta.set(conta.id, atual);
     }
     for (const it of realizado) {
-      const pc = it.plano_contas;
-      const atual = porConta.get(pc.id) ?? { id: pc.id, codigo: pc.codigo, nome: pc.nome, tipo: pc.tipo, orcado: 0, realizado: 0 };
-      const sinal = pc.tipo === "receita" ? (it.tipo === "credito" ? 1 : -1) : it.tipo === "debito" ? 1 : -1;
+      if (it.conta_tipo !== "receita" && it.conta_tipo !== "despesa") continue;
+      const atual = porConta.get(it.conta_id) ?? { id: it.conta_id, codigo: it.codigo, nome: it.nome, tipo: it.conta_tipo, orcado: 0, realizado: 0 };
+      const sinal = it.conta_tipo === "receita" ? (it.tipo === "credito" ? 1 : -1) : it.tipo === "debito" ? 1 : -1;
       atual.realizado += sinal * Number(it.valor);
-      porConta.set(pc.id, atual);
+      porConta.set(it.conta_id, atual);
     }
     return Array.from(porConta.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
-  }, [itens, realizado]);
+  }, [itens, realizado, contas]);
 
   const receitas = linhas.filter((l) => l.tipo === "receita");
   const despesas = linhas.filter((l) => l.tipo === "despesa");

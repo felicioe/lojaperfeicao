@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listarOrcamentos,
+  listarOrcamentoItens,
+  listarContasOrcamento,
+  listarRealizadoAnual,
+  criarOrcamento,
+  definirValorOrcamento,
+  aprovarOrcamento,
+  reabrirOrcamento,
+} from "@/lib/server/contabilidade-orcamento";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,16 +41,6 @@ export const Route = createFileRoute("/_authenticated/contabilidade/orcamento")(
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
-type OrcamentoRow = {
-  id: string;
-  ano: number;
-  status: "rascunho" | "aprovado";
-  observacoes: string | null;
-  aprovado_em: string | null;
-};
-
-type Conta = { id: string; codigo: string; nome: string; tipo: "receita" | "despesa" };
-
 function Orcamento() {
   const can = useCan();
   const qc = useQueryClient();
@@ -52,56 +51,26 @@ function Orcamento() {
 
   const { data: orcamentos = [] } = useQuery({
     queryKey: ["orcamentos"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("orcamentos").select("*").order("ano", { ascending: false });
-      if (error) throw error;
-      return data as OrcamentoRow[];
-    },
+    queryFn: () => listarOrcamentos(),
   });
 
   const selecionado = orcamentos.find((o) => o.id === selecionadoId) ?? orcamentos[0] ?? null;
 
   const { data: contas = [] } = useQuery({
     queryKey: ["plano_contas_orcamento"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("plano_contas")
-        .select("id,codigo,nome,tipo")
-        .eq("analitica", true)
-        .in("tipo", ["receita", "despesa"])
-        .eq("ativo", true)
-        .order("codigo");
-      if (error) throw error;
-      return data as Conta[];
-    },
+    queryFn: () => listarContasOrcamento(),
   });
 
   const { data: itens = [] } = useQuery({
     queryKey: ["orcamento_itens", selecionado?.id],
     enabled: !!selecionado,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orcamento_itens")
-        .select("conta_id,mes,valor")
-        .eq("orcamento_id", selecionado!.id);
-      if (error) throw error;
-      return data as { conta_id: string; mes: number; valor: number }[];
-    },
+    queryFn: () => listarOrcamentoItens({ data: { orcamentoId: selecionado!.id } }),
   });
 
   const { data: realizado = [] } = useQuery({
     queryKey: ["orcamento_realizado", selecionado?.ano],
     enabled: !!selecionado,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_contabeis_itens")
-        .select("tipo,valor,plano_contas!inner(id,tipo),lancamentos_contabeis!inner(data)")
-        .in("plano_contas.tipo", ["receita", "despesa"])
-        .gte("lancamentos_contabeis.data", `${selecionado!.ano}-01-01`)
-        .lte("lancamentos_contabeis.data", `${selecionado!.ano}-12-31`);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
+    queryFn: () => listarRealizadoAnual({ data: { ano: selecionado!.ano } }),
   });
 
   const valorMap = useMemo(() => {
@@ -114,9 +83,8 @@ function Orcamento() {
     const receita = Array(12).fill(0);
     const despesa = Array(12).fill(0);
     for (const it of realizado) {
-      const pc = it.plano_contas;
-      const mes = new Date(it.lancamentos_contabeis.data + "T00:00:00").getMonth();
-      if (pc.tipo === "receita") {
+      const mes = new Date(it.data + "T00:00:00").getMonth();
+      if (it.conta_tipo === "receita") {
         receita[mes] += it.tipo === "credito" ? Number(it.valor) : -Number(it.valor);
       } else {
         despesa[mes] += it.tipo === "debito" ? Number(it.valor) : -Number(it.valor);
@@ -138,13 +106,7 @@ function Orcamento() {
   }, [itens, contas]);
 
   const criarMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("criar_orcamento", {
-        _ano: Number(novoAno),
-        _observacoes: novoObs || undefined,
-      });
-      if (error) throw error;
-    },
+    mutationFn: () => criarOrcamento({ data: { ano: Number(novoAno), observacoes: novoObs || null } }),
     onSuccess: () => {
       toast.success("Orçamento criado");
       setNovoOpen(false);
@@ -155,24 +117,14 @@ function Orcamento() {
   });
 
   const salvarValorMutation = useMutation({
-    mutationFn: async ({ contaId, mes, valor }: { contaId: string; mes: number; valor: number }) => {
-      const { error } = await supabase.rpc("definir_valor_orcamento", {
-        _orcamento_id: selecionado!.id,
-        _conta_id: contaId,
-        _mes: mes,
-        _valor: valor,
-      });
-      if (error) throw error;
-    },
+    mutationFn: ({ contaId, mes, valor }: { contaId: string; mes: number; valor: number }) =>
+      definirValorOrcamento({ data: { orcamentoId: selecionado!.id, contaId, mes, valor } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orcamento_itens", selecionado?.id] }),
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar valor"),
   });
 
   const aprovarMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("aprovar_orcamento", { _orcamento_id: selecionado!.id });
-      if (error) throw error;
-    },
+    mutationFn: () => aprovarOrcamento({ data: { orcamentoId: selecionado!.id } }),
     onSuccess: () => {
       toast.success("Orçamento aprovado");
       qc.invalidateQueries({ queryKey: ["orcamentos"] });
@@ -181,10 +133,7 @@ function Orcamento() {
   });
 
   const reabrirMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("reabrir_orcamento", { _orcamento_id: selecionado!.id });
-      if (error) throw error;
-    },
+    mutationFn: () => reabrirOrcamento({ data: { orcamentoId: selecionado!.id } }),
     onSuccess: () => {
       toast.success("Orçamento reaberto para edição");
       qc.invalidateQueries({ queryKey: ["orcamentos"] });
