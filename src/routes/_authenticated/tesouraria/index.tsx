@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
+import { listarPlanoContas } from "@/lib/server/plano-contas";
+import {
+  listarLancamentos,
+  marcarLancamentoPago,
+  criarLancamentoManual,
+  criarTransferencia,
+  gerarMensalidades as gerarMensalidadesFn,
+} from "@/lib/server/tesouraria-lancamentos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,32 +38,37 @@ function Tesouraria() {
 
   const contas = useQuery({
     queryKey: ["contas"],
-    queryFn: async () => (await supabase.from("contas_financeiras").select("*").eq("ativo", true).order("nome")).data ?? [],
+    queryFn: () => listarContasFinanceiras(),
   });
   const planos = useQuery({
     queryKey: ["planos"],
-    queryFn: async () => (await supabase.from("plano_contas").select("*").eq("ativo", true).order("codigo")).data ?? [],
+    queryFn: async () => (await listarPlanoContas()).filter((p) => p.ativo),
   });
   const lancamentos = useQuery({
     queryKey: ["lancamentos"],
-    queryFn: async () =>
-      (await supabase.from("lancamentos").select("*, contas_financeiras!lancamentos_conta_id_fkey(nome), destino:contas_financeiras!lancamentos_conta_destino_id_fkey(nome), plano_contas(nome)").order("data", { ascending: false }).limit(200)).data ?? [],
+    queryFn: () => listarLancamentos({ data: { limite: 200 } }),
   });
 
   const marcarPago = async (id: string) => {
-    const { error } = await supabase.from("lancamentos").update({ pago: true, data_pagamento: toISODate(new Date()) }).eq("id", id);
-    if (error) return toast.error(error.message);
-    qc.invalidateQueries({ queryKey: ["lancamentos"] });
-    toast.success("Lançamento pago.");
+    try {
+      await marcarLancamentoPago({ data: { id, dataPagamento: toISODate(new Date()) } });
+      qc.invalidateQueries({ queryKey: ["lancamentos"] });
+      toast.success("Lançamento pago.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
   };
 
   const gerarMensalidades = async () => {
     const hoje = new Date();
     const comp = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`;
-    const { data, error } = await supabase.rpc("gerar_mensalidades", { _competencia: comp });
-    if (error) return toast.error(error.message);
-    toast.success(`${data ?? 0} mensalidade(s) geradas para ${comp.slice(0, 7)}.`);
-    qc.invalidateQueries({ queryKey: ["lancamentos"] });
+    try {
+      const total = await gerarMensalidadesFn({ data: { competencia: comp } });
+      toast.success(`${total} mensalidade(s) geradas para ${comp.slice(0, 7)}.`);
+      qc.invalidateQueries({ queryKey: ["lancamentos"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar mensalidades.");
+    }
   };
 
   return (
@@ -152,14 +165,28 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
   const [saving, setSaving] = useState(false);
   const save = async () => {
     setSaving(true);
-    const payload: any = { ...d, valor: Number(d.valor) };
-    if (!payload.plano_conta_id) delete payload.plano_conta_id;
-    if (payload.pago) payload.data_pagamento = payload.data;
-    const { error } = await supabase.from("lancamentos").insert(payload);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Lançamento salvo.");
-    onDone();
+    try {
+      await criarLancamentoManual({
+        data: {
+          data: d.data,
+          data_vencimento: d.data_vencimento || null,
+          descricao: d.descricao,
+          valor: Number(d.valor),
+          tipo: d.tipo as "entrada" | "saida",
+          conta_id: d.conta_id,
+          plano_conta_id: d.plano_conta_id || null,
+          pago: d.pago,
+          data_pagamento: d.pago ? d.data : null,
+          observacoes: d.observacoes || null,
+        },
+      });
+      toast.success("Lançamento salvo.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <DialogContent className="max-w-lg">
@@ -233,17 +260,23 @@ function TransferenciaDialog({ contas, onDone }: any) {
   const save = async () => {
     if (d.conta_id === d.conta_destino_id) return toast.error("Contas devem ser diferentes.");
     setSaving(true);
-    const { error } = await supabase.rpc("criar_transferencia", {
-      _conta_origem_id: d.conta_id,
-      _conta_destino_id: d.conta_destino_id,
-      _valor: Number(d.valor),
-      _data: d.data,
-      _descricao: d.descricao,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Transferência registrada e lançamento contábil postado.");
-    onDone();
+    try {
+      await criarTransferencia({
+        data: {
+          contaOrigemId: d.conta_id,
+          contaDestinoId: d.conta_destino_id,
+          valor: Number(d.valor),
+          data: d.data,
+          descricao: d.descricao,
+        },
+      });
+      toast.success("Transferência registrada e lançamento contábil postado.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao transferir.");
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <DialogContent>

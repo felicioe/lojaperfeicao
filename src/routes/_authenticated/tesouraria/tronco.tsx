@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { listarContasFinanceiras } from "@/lib/server/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,11 +26,7 @@ function Tronco() {
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("contas_financeiras").select("id,nome").eq("ativo", true).order("nome");
-      if (error) throw error;
-      return (data ?? []) as { id: string; nome: string }[];
-    },
+    queryFn: () => listarContasFinanceiras(),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
