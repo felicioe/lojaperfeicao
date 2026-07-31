@@ -12,6 +12,13 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    ssr: {
+      // Nitro 3 beta corrupts this package's generated CommonJS helper when
+      // bundling the production SSR service. Keep the dependency external.
+      external: ["@floating-ui/react-dom"],
+    },
+  },
   // O deploy é feito pelo Hostinger puxando do GitHub e rodando o build ele
   // mesmo (fora do sandbox do Lovable), num Node normal — não Cloudflare
   // Workers. Sem isso, o preset padrão do Nitro ("cloudflare-module") gera um
@@ -20,8 +27,6 @@ export default defineConfig({
   // fotos (node:fs/promises). Ver mysql/README.md, seção 13.
   nitro: {
     preset: "node-server",
-    // Work around Nitro 3 beta minifier corrupting the generated CommonJS
-    // helper used by @floating-ui/react-dom in the SSR bundle.
     minify: false,
   },
 });
