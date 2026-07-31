@@ -1,6 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listarFechamentos,
+  listarEventosFechamento,
+  listarNomesUsuarios,
+  previewResultadoFechamento,
+  fecharExercicio,
+  reabrirExercicio,
+} from "@/lib/server/contabilidade-fechamento";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -28,68 +35,30 @@ export const Route = createFileRoute("/_authenticated/contabilidade/fechamento")
   component: Fechamento,
 });
 
-type FechamentoRow = {
-  id: string;
-  exercicio: number;
-  data_corte: string;
-  status: "fechado" | "reaberto";
-  resultado_apurado: number | null;
-  fechado_por: string | null;
-  fechado_em: string;
-  reaberto_por: string | null;
-  reaberto_em: string | null;
-  motivo_reabertura: string | null;
-  observacoes: string | null;
-};
-
-type Evento = {
-  id: string;
-  fechamento_id: string;
-  acao: "fechamento" | "reabertura";
-  realizado_por: string | null;
-  realizado_em: string;
-  motivo: string | null;
-};
-
 function Fechamento() {
   const can = useCan();
   const qc = useQueryClient();
 
   const { data: fechamentos = [] } = useQuery({
     queryKey: ["fechamentos_exercicio"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("fechamentos_exercicio").select("*").order("exercicio", { ascending: false });
-      if (error) throw error;
-      return data as FechamentoRow[];
-    },
+    queryFn: () => listarFechamentos(),
   });
 
   const { data: eventos = [] } = useQuery({
     queryKey: ["fechamentos_exercicio_eventos"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fechamentos_exercicio_eventos")
-        .select("*")
-        .order("realizado_em", { ascending: false });
-      if (error) throw error;
-      return data as Evento[];
-    },
+    queryFn: () => listarEventosFechamento(),
   });
 
-  const { data: profiles = [] } = useQuery({
-    queryKey: ["profiles_nomes"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id,full_name");
-      if (error) throw error;
-      return data as { id: string; full_name: string | null }[];
-    },
+  const { data: usuarios = [] } = useQuery({
+    queryKey: ["usuarios_nomes"],
+    queryFn: () => listarNomesUsuarios(),
   });
 
   const nomePorId = useMemo(() => {
     const m = new Map<string, string>();
-    for (const p of profiles) m.set(p.id, p.full_name ?? "—");
+    for (const u of usuarios) m.set(u.id, u.nome_completo ?? "—");
     return m;
-  }, [profiles]);
+  }, [usuarios]);
 
   const exercicioPorFechamentoId = useMemo(() => {
     const m = new Map<string, number>();
@@ -101,10 +70,8 @@ function Fechamento() {
   const proximoExercicio = ultimoFechado ? ultimoFechado.exercicio + 1 : new Date().getFullYear();
 
   const reabrirMutation = useMutation({
-    mutationFn: async ({ exercicio, motivo }: { exercicio: number; motivo: string }) => {
-      const { error } = await supabase.rpc("reabrir_exercicio", { _exercicio: exercicio, _motivo: motivo });
-      if (error) throw error;
-    },
+    mutationFn: ({ exercicio, motivo }: { exercicio: number; motivo: string }) =>
+      reabrirExercicio({ data: { exercicio, motivo } }),
     onSuccess: () => {
       toast.success("Exercício reaberto");
       qc.invalidateQueries({ queryKey: ["fechamentos_exercicio"] });
@@ -232,32 +199,14 @@ function NovoFechamentoDialog({ exercicioSugerido }: { exercicioSugerido: number
     queryKey: ["fechamento_preview", dataCorte],
     enabled: open,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("lancamentos_contabeis_itens")
-        .select("tipo,valor,plano_contas!inner(tipo),lancamentos_contabeis!inner(data)")
-        .in("plano_contas.tipo", ["receita", "despesa"])
-        .lte("lancamentos_contabeis.data", dataCorte);
-      if (error) throw error;
-      let receita = 0;
-      let despesa = 0;
-      for (const it of data ?? []) {
-        const pc = (it as any).plano_contas;
-        if (pc.tipo === "receita") receita += it.tipo === "credito" ? Number(it.valor) : -Number(it.valor);
-        else despesa += it.tipo === "debito" ? Number(it.valor) : -Number(it.valor);
-      }
-      return { receita, despesa, resultado: receita - despesa };
+      const r = await previewResultadoFechamento({ data: { dataCorte } });
+      return { receita: r.total_receita, despesa: r.total_despesa, resultado: r.resultado };
     },
   });
 
   const fecharMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("fechar_exercicio", {
-        _exercicio: Number(exercicio),
-        _data_corte: dataCorte,
-        _observacoes: observacoes || undefined,
-      });
-      if (error) throw error;
-    },
+    mutationFn: () =>
+      fecharExercicio({ data: { exercicio: Number(exercicio), dataCorte, observacoes: observacoes || null } }),
     onSuccess: () => {
       toast.success(`Exercício ${exercicio} fechado`);
       setOpen(false);
