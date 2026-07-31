@@ -1,0 +1,323 @@
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  listarUsuarios,
+  listarIrmaosSemAcesso,
+  criarAcessoIrmao,
+  criarAcessosEmLote,
+  atualizarPapeisUsuario,
+  redefinirSenhaUsuario,
+  TODOS_PAPEIS,
+  type UsuarioAdmin,
+} from "@/lib/backend/usuarios";
+import type { Papel } from "@/lib/backend/auth";
+import { PageHeader } from "@/components/app/AppShell";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { ROLE_LABEL } from "@/lib/format";
+import { ShieldAlert, KeyRound, UserPlus, ShieldCheck } from "lucide-react";
+
+export const Route = createFileRoute("/_authenticated/usuarios/")({
+  beforeLoad: ({ context }) => {
+    if (!context.usuario?.papeis.includes("admin")) {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
+  head: () => ({ meta: [{ title: "Usuários — Gestão Maçônica" }] }),
+  component: UsuariosPage,
+});
+
+function UsuariosPage() {
+  const qc = useQueryClient();
+
+  const usuarios = useQuery({ queryKey: ["usuarios"], queryFn: () => listarUsuarios() });
+  const semAcesso = useQuery({ queryKey: ["irmaos_sem_acesso"], queryFn: () => listarIrmaosSemAcesso() });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["usuarios"] });
+    qc.invalidateQueries({ queryKey: ["irmaos_sem_acesso"] });
+  };
+
+  const criarUm = async (irmaoId: string) => {
+    try {
+      await criarAcessoIrmao({ data: { irmaoId } });
+      toast.success("Acesso criado com a senha padrão.");
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar acesso.");
+    }
+  };
+
+  const criarTodos = async () => {
+    try {
+      const relatorio = await criarAcessosEmLote();
+      if (relatorio.criados.length > 0) toast.success(`${relatorio.criados.length} acesso(s) criado(s).`);
+      if (relatorio.semEmail.length > 0)
+        toast.warning(`${relatorio.semEmail.length} irmão(s) sem e-mail cadastrado — não foi possível criar acesso.`);
+      if (relatorio.falhas.length > 0)
+        toast.error(`${relatorio.falhas.length} falha(s): ${relatorio.falhas.map((f) => f.nome).join(", ")}`);
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar acessos.");
+    }
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Usuários"
+        description="Gerencie logins, papéis e senhas sem precisar acessar o banco de dados diretamente."
+      />
+
+      <Alert className="mb-6">
+        <ShieldAlert className="h-4 w-4" />
+        <AlertTitle>Senha padrão</AlertTitle>
+        <AlertDescription>
+          Acessos criados por aqui (individualmente ou em lote) usam a senha padrão <strong>{"“123”"}</strong>.
+          Ela fica igual para todo mundo até o admin redefinir — oriente os irmãos a trocarem se possível.
+        </AlertDescription>
+      </Alert>
+
+      {(semAcesso.data ?? []).length > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle className="text-base">Irmãos sem acesso ({semAcesso.data?.length})</CardTitle>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm">
+                  <UserPlus className="mr-1.5 h-4 w-4" /> Criar acesso para todos
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Criar acesso para {semAcesso.data?.length} irmão(s)?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Vai criar um login para cada irmão que tiver e-mail cadastrado, com a senha padrão {"“123”"}.
+                    Quem não tiver e-mail cadastrado não será afetado.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={criarTodos}>Criar acessos</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(semAcesso.data ?? []).map((i) => (
+                  <TableRow key={i.id}>
+                    <TableCell className="font-medium">{i.nome_civil}</TableCell>
+                    <TableCell className="text-muted-foreground">{i.email ?? "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="outline" disabled={!i.email} onClick={() => criarUm(i.id)}>
+                        {i.email ? "Criar acesso" : "Sem e-mail"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Usuários cadastrados ({usuarios.data?.length ?? 0})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Papéis</TableHead>
+                <TableHead>Irmão vinculado</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(usuarios.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                    Nenhum usuário encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
+              {(usuarios.data ?? []).map((u) => (
+                <UsuarioRow key={u.id} usuario={u} onChanged={invalidate} />
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: () => void }) {
+  const [papeisOpen, setPapeisOpen] = useState(false);
+  const [senhaOpen, setSenhaOpen] = useState(false);
+  const [papeisSelecionados, setPapeisSelecionados] = useState<Papel[]>(usuario.papeis);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const abrirPapeis = () => {
+    setPapeisSelecionados(usuario.papeis);
+    setPapeisOpen(true);
+  };
+
+  const togglePapel = (papel: Papel) => {
+    setPapeisSelecionados((prev) => (prev.includes(papel) ? prev.filter((p) => p !== papel) : [...prev, papel]));
+  };
+
+  const salvarPapeis = async () => {
+    setSalvando(true);
+    try {
+      await atualizarPapeisUsuario({ data: { usuarioId: usuario.id, papeis: papeisSelecionados } });
+      toast.success("Papéis atualizados.");
+      setPapeisOpen(false);
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar papéis.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const salvarSenha = async (senha: string) => {
+    if (!senha) return toast.error("Informe uma senha.");
+    setSalvando(true);
+    try {
+      await redefinirSenhaUsuario({ data: { usuarioId: usuario.id, novaSenha: senha } });
+      toast.success("Senha redefinida.");
+      setSenhaOpen(false);
+      setNovaSenha("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao redefinir senha.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">{usuario.email}</TableCell>
+      <TableCell>{usuario.nome_completo ?? "—"}</TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {usuario.papeis.map((p) => (
+            <Badge key={p} variant="outline">
+              {ROLE_LABEL[p]}
+            </Badge>
+          ))}
+        </div>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{usuario.irmao?.nome_civil ?? "—"}</TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={abrirPapeis} title="Editar papéis">
+            <ShieldCheck className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSenhaOpen(true)} title="Redefinir senha">
+            <KeyRound className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <Dialog open={papeisOpen} onOpenChange={setPapeisOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Papéis de {usuario.email}</DialogTitle>
+              <DialogDescription>Define o que essa pessoa pode ver e fazer no sistema.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              {TODOS_PAPEIS.map((papel) => (
+                <label key={papel} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={papeisSelecionados.includes(papel)}
+                    onCheckedChange={() => togglePapel(papel)}
+                  />
+                  {ROLE_LABEL[papel]}
+                </label>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPapeisOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={salvarPapeis} disabled={salvando || papeisSelecionados.length === 0}>
+                Salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={senhaOpen}
+          onOpenChange={(v) => {
+            setSenhaOpen(v);
+            if (!v) setNovaSenha("");
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Redefinir senha de {usuario.email}</DialogTitle>
+              <DialogDescription>A pessoa vai precisar da nova senha para o próximo login.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label>Nova senha</Label>
+              <Input value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} placeholder="123" />
+              <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setNovaSenha("123")}>
+                Usar senha padrão (123)
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSenhaOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={() => salvarSenha(novaSenha)} disabled={salvando}>
+                Redefinir
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </TableCell>
+    </TableRow>
+  );
+}

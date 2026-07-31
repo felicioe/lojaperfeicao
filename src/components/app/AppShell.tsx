@@ -43,6 +43,7 @@ import {
   ChevronDown,
   Menu,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
@@ -226,6 +227,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
         { to: "/relatorios/inadimplentes", label: "Inadimplentes", icon: FileBarChart, show: can.canManageFinancas },
       ],
+    },
+    {
+      id: "administracao",
+      label: "Administração",
+      icon: ShieldCheck,
+      items: [{ to: "/usuarios", label: "Usuários", icon: UsersRound, show: can.isAdmin }],
     },
   ];
 
