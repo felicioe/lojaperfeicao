@@ -18,8 +18,11 @@ export type UsuarioSessao = {
   consentimentoLgpdEm: string | null;
 };
 
+// Aceita e-mail (contas antigas/admin) ou login gerado como nome.sobrenome
+// (contas de irmão criadas via painel de usuários) — não força formato de
+// e-mail aqui, quem valida isso é o cadastro (signup), não o login.
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(1),
   senha: z.string().min(1),
 });
 

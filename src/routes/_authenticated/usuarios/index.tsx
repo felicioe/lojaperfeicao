@@ -67,8 +67,8 @@ function UsuariosPage() {
 
   const criarUm = async (irmaoId: string) => {
     try {
-      await criarAcessoIrmao({ data: { irmaoId } });
-      toast.success("Acesso criado com a senha padrão.");
+      const { login } = await criarAcessoIrmao({ data: { irmaoId } });
+      toast.success(`Acesso criado — login: ${login}`);
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar acesso.");
@@ -79,8 +79,6 @@ function UsuariosPage() {
     try {
       const relatorio = await criarAcessosEmLote();
       if (relatorio.criados.length > 0) toast.success(`${relatorio.criados.length} acesso(s) criado(s).`);
-      if (relatorio.semEmail.length > 0)
-        toast.warning(`${relatorio.semEmail.length} irmão(s) sem e-mail cadastrado — não foi possível criar acesso.`);
       if (relatorio.falhas.length > 0)
         toast.error(`${relatorio.falhas.length} falha(s): ${relatorio.falhas.map((f) => f.nome).join(", ")}`);
       invalidate();
@@ -98,10 +96,11 @@ function UsuariosPage() {
 
       <Alert className="mb-6">
         <ShieldAlert className="h-4 w-4" />
-        <AlertTitle>Senha padrão</AlertTitle>
+        <AlertTitle>Login e senha padrão (fase de testes)</AlertTitle>
         <AlertDescription>
-          Acessos criados por aqui (individualmente ou em lote) usam a senha padrão <strong>{"“123”"}</strong>.
-          Ela fica igual para todo mundo até o admin redefinir — oriente os irmãos a trocarem se possível.
+          Acessos criados por aqui usam <strong>nome.sobrenome</strong> como login (gerado a partir do nome civil,
+          sem precisar de e-mail) e a senha padrão <strong>{"“123”"}</strong> para todo mundo até o admin
+          redefinir. Trocar para um esquema mais seguro depois que passar da fase de testes.
         </AlertDescription>
       </Alert>
 
@@ -119,8 +118,8 @@ function UsuariosPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Criar acesso para {semAcesso.data?.length} irmão(s)?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Vai criar um login para cada irmão que tiver e-mail cadastrado, com a senha padrão {"“123”"}.
-                    Quem não tiver e-mail cadastrado não será afetado.
+                    Vai criar um login (nome.sobrenome) para cada irmão da lista abaixo, com a senha padrão{" "}
+                    {"“123”"}.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -135,7 +134,7 @@ function UsuariosPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
+                  <TableHead>Login sugerido</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -143,10 +142,10 @@ function UsuariosPage() {
                 {(semAcesso.data ?? []).map((i) => (
                   <TableRow key={i.id}>
                     <TableCell className="font-medium">{i.nome_civil}</TableCell>
-                    <TableCell className="text-muted-foreground">{i.email ?? "—"}</TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">{i.loginSugerido}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="outline" disabled={!i.email} onClick={() => criarUm(i.id)}>
-                        {i.email ? "Criar acesso" : "Sem e-mail"}
+                      <Button size="sm" variant="outline" onClick={() => criarUm(i.id)}>
+                        Criar acesso
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -165,7 +164,7 @@ function UsuariosPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>E-mail</TableHead>
+                <TableHead>Usuário</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Papéis</TableHead>
                 <TableHead>Irmão vinculado</TableHead>

@@ -1,11 +1,44 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import type { Papel } from "./auth";
 
 const SENHA_PADRAO = "123";
+
+// Login = nome.sobrenome (decisão explícita do cliente, fase de testes —
+// trocar para algo mais rígido depois). Gerado a partir de nome_civil, sem
+// depender de e-mail cadastrado.
+function normalizarParteNome(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function gerarLoginBase(nomeCivil: string): string {
+  const partes = nomeCivil.trim().split(/\s+/).filter(Boolean);
+  const primeiro = normalizarParteNome(partes[0] ?? "");
+  const ultimo = partes.length > 1 ? normalizarParteNome(partes[partes.length - 1]) : "";
+  return (ultimo ? `${primeiro}.${ultimo}` : primeiro) || "irmao";
+}
+
+async function gerarLoginUnico(conn: PoolConnection, nomeCivil: string): Promise<string> {
+  const base = gerarLoginBase(nomeCivil);
+  let candidato = base;
+  let sufixo = 2;
+  while (true) {
+    const [[existe]] = await conn.query<RowDataPacket[]>("SELECT 1 AS x FROM usuarios WHERE email = ? LIMIT 1", [
+      candidato,
+    ]);
+    if (!existe) return candidato;
+    candidato = `${base}${sufixo}`;
+    sufixo++;
+  }
+}
 
 export type UsuarioAdmin = {
   id: string;
@@ -38,49 +71,59 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(async ()
   });
 });
 
-export type IrmaoSemAcesso = { id: string; nome_civil: string; email: string | null };
+export type IrmaoSemAcesso = { id: string; nome_civil: string; loginSugerido: string };
 
+// loginSugerido é só uma prévia (não reserva nada) — a geração definitiva
+// acontece de novo no momento de criar, pra evitar corrida entre dois
+// irmãos com o mesmo nome sendo criados ao mesmo tempo.
 export const listarIrmaosSemAcesso = createServerFn({ method: "GET" }).handler(
   async (): Promise<IrmaoSemAcesso[]> => {
     return comPapel(["admin"], async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome_civil, email FROM irmaos WHERE usuario_id IS NULL ORDER BY nome_civil",
+        "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL ORDER BY nome_civil",
       );
-      return rows as IrmaoSemAcesso[];
+      const comLogin = await Promise.all(
+        rows.map(async (r) => ({
+          id: r.id as string,
+          nome_civil: r.nome_civil as string,
+          loginSugerido: await gerarLoginUnico(conn, r.nome_civil),
+        })),
+      );
+      return comLogin;
     });
   },
 );
 
-// Cria login para um irmão específico usando o e-mail já cadastrado e a
-// senha padrão (decisão explícita do cliente — ver histórico da conversa:
-// manter "123" fixo em vez de forçar troca no primeiro login).
+// Cria login para um irmão específico a partir do nome civil (nome.sobrenome)
+// e a senha padrão (decisão explícita do cliente — ver histórico da
+// conversa: login por nome em vez de e-mail, "123" fixo por enquanto,
+// fase de testes — trocar para algo mais rígido depois).
 export const criarAcessoIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ irmaoId: z.string().uuid() }).parse(d))
-  .handler(async ({ data }): Promise<{ usuarioId: string }> => {
+  .handler(async ({ data }): Promise<{ usuarioId: string; login: string }> => {
     return comPapel(["admin"], async (conn) => {
       const [[irmao]] = await conn.query<RowDataPacket[]>(
-        "SELECT nome_civil, email, usuario_id FROM irmaos WHERE id = ?",
+        "SELECT nome_civil, usuario_id FROM irmaos WHERE id = ?",
         [data.irmaoId],
       );
       if (!irmao) throw new Error("Irmão não encontrado.");
       if (irmao.usuario_id) throw new Error("Este irmão já tem um usuário vinculado.");
-      if (!irmao.email) throw new Error("Este irmão não tem e-mail cadastrado — cadastre um e-mail antes de criar o acesso.");
 
+      const login = await gerarLoginUnico(conn, irmao.nome_civil);
       const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
       try {
-        await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [irmao.email, senhaHash, irmao.nome_civil]);
+        await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [login, senhaHash, irmao.nome_civil]);
       } catch (err: any) {
         throw new Error(err.sqlMessage || err.message);
       }
       const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
       await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, data.irmaoId]);
-      return { usuarioId: novo_id as string };
+      return { usuarioId: novo_id as string, login };
     });
   });
 
 export type RelatorioAcessosLote = {
-  criados: string[];
-  semEmail: string[];
+  criados: { nome: string; login: string }[];
   falhas: { nome: string; motivo: string }[];
 };
 
@@ -90,28 +133,24 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" }).handler(
   async (): Promise<RelatorioAcessosLote> => {
     return comPapel(["admin"], async (conn) => {
       const [irmaos] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome_civil, email FROM irmaos WHERE usuario_id IS NULL ORDER BY nome_civil",
+        "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL ORDER BY nome_civil",
       );
       const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-      const criados: string[] = [];
-      const semEmail: string[] = [];
+      const criados: { nome: string; login: string }[] = [];
       const falhas: { nome: string; motivo: string }[] = [];
 
       for (const irmao of irmaos) {
-        if (!irmao.email) {
-          semEmail.push(irmao.nome_civil);
-          continue;
-        }
         try {
-          await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [irmao.email, senhaHash, irmao.nome_civil]);
+          const login = await gerarLoginUnico(conn, irmao.nome_civil);
+          await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [login, senhaHash, irmao.nome_civil]);
           const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
           await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, irmao.id]);
-          criados.push(irmao.nome_civil);
+          criados.push({ nome: irmao.nome_civil, login });
         } catch (err: any) {
           falhas.push({ nome: irmao.nome_civil, motivo: err.sqlMessage || err.message });
         }
       }
-      return { criados, semEmail, falhas };
+      return { criados, falhas };
     });
   },
 );

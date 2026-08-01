@@ -137,8 +137,16 @@ function LoginForm({ email, setEmail, password, setPassword, loading, handleLogi
   return (
     <form onSubmit={handleLogin} className="space-y-3">
       <div>
-        <Label>E-mail</Label>
-        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <Label>Usuário</Label>
+        <Input
+          type="text"
+          autoCapitalize="none"
+          autoCorrect="off"
+          placeholder="nome.sobrenome"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
       </div>
       <div>
         <Label>Senha</Label>
