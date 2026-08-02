@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMeuIrmao } from "@/lib/use-meu-irmao";
-import { EmptyState } from "@/components/app/AppShell";
-import { Card, CardContent } from "@/components/ui/card";
-import { brl } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
-import { listarLancamentosIrmao } from "@/lib/backend/irmaos";
+import { useMeuIrmao } from "@/lib/use-meu-irmao";
+import { useIsDesktop } from "@/lib/use-media-query";
+import { listarLancamentosIrmao, listarFrequenciaIrmao } from "@/lib/backend/irmaos";
+import { EmptyState, PageHeader } from "@/components/app/AppShell";
+import { Card, CardContent } from "@/components/ui/card";
+import { brl, SITUACAO_LABEL, GRAU_LABEL } from "@/lib/format";
 import { UserRound, Wallet, CalendarCheck2, CalendarDays, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/")({
@@ -19,6 +20,7 @@ const TILES = [
 ] as const;
 
 function PainelInicio() {
+  const isDesktop = useIsDesktop();
   const meuIrmao = useMeuIrmao();
   const irmaoId = meuIrmao.data?.id ?? null;
 
@@ -28,10 +30,16 @@ function PainelInicio() {
     enabled: !!irmaoId,
   });
 
+  const frequencia = useQuery({
+    queryKey: ["painel", "frequencia", irmaoId],
+    queryFn: () => listarFrequenciaIrmao({ data: { irmaoId: irmaoId! } }),
+    enabled: !!irmaoId && isDesktop,
+  });
+
   if (meuIrmao.isLoading) return null;
 
   if (!meuIrmao.data) {
-    return (
+    const vazio = (
       <Card>
         <CardContent className="pt-6">
           <EmptyState
@@ -42,11 +50,54 @@ function PainelInicio() {
         </CardContent>
       </Card>
     );
+    return isDesktop ? (
+      <>
+        <PageHeader title="Meu Painel" />
+        {vazio}
+      </>
+    ) : (
+      vazio
+    );
   }
 
   const irmao = meuIrmao.data;
   const emAberto = (lancamentos.data ?? []).filter((l) => !l.pago);
   const totalEmAberto = emAberto.reduce((a, l) => a + Number(l.valor), 0);
+
+  if (isDesktop) {
+    const presencas = (frequencia.data ?? []).filter((f) => f.presente).length;
+    const totalSessoesFreq = frequencia.data?.length ?? 0;
+    const percentualFrequencia = totalSessoesFreq > 0 ? Math.round((presencas / totalSessoesFreq) * 100) : 0;
+
+    return (
+      <>
+        <PageHeader title="Meu Painel" description={`Bem-vindo(a), ${irmao.nome_civil}.`} />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <MetricCard
+            icon={UserRound}
+            label="Situação"
+            value={SITUACAO_LABEL[irmao.situacao] ?? irmao.situacao}
+            hint={GRAU_LABEL[irmao.grau] ?? irmao.grau}
+            tone={irmao.situacao === "ativo" || irmao.situacao === "quite" ? "success" : "danger"}
+          />
+          <MetricCard
+            icon={Wallet}
+            label="Mensalidades em aberto"
+            value={brl(totalEmAberto)}
+            hint={`${emAberto.length} lançamento(s)`}
+            tone={emAberto.length > 0 ? "warning" : "success"}
+          />
+          <MetricCard
+            icon={CalendarCheck2}
+            label="Minha frequência"
+            value={`${percentualFrequencia}%`}
+            hint={`${presencas} de ${totalSessoesFreq} sessão(ões)`}
+            tone={percentualFrequencia >= 75 ? "success" : "warning"}
+          />
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -91,5 +142,42 @@ function PainelInicio() {
         ))}
       </div>
     </div>
+  );
+}
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  hint?: string;
+  tone: "primary" | "success" | "warning" | "danger";
+}) {
+  const toneClass = {
+    primary: "text-primary bg-primary/10",
+    success: "text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30",
+    warning: "text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30",
+    danger: "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30",
+  }[tone];
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="text-2xl font-semibold mt-1">{value}</p>
+            {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
+          </div>
+          <div className={`p-2 rounded-md ${toneClass}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMeuIrmao } from "@/lib/use-meu-irmao";
+import { useIsDesktop } from "@/lib/use-media-query";
 import { listarLancamentosIrmao } from "@/lib/backend/irmaos";
-import { EmptyState } from "@/components/app/AppShell";
+import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { brl, fmtDate } from "@/lib/format";
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/painel/financeiro")({
 });
 
 function PainelFinanceiro() {
+  const isDesktop = useIsDesktop();
   const meuIrmao = useMeuIrmao();
   const irmaoId = meuIrmao.data?.id ?? null;
 
@@ -39,6 +41,7 @@ function PainelFinanceiro() {
 
   return (
     <div className="space-y-4">
+      {isDesktop && <PageHeader title="Financeiro" />}
       <Card>
         <CardContent className="flex items-center justify-between pt-6">
           <div>

@@ -43,11 +43,14 @@ import {
   ChevronDown,
   Menu,
   UsersRound,
+  UserRound,
+  CalendarCheck2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { ROLE_LABEL } from "@/lib/format";
+import { useIsDesktop } from "@/lib/use-media-query";
 
 type NavItem = { to: string; label: string; icon: any; show: boolean };
 type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
@@ -164,11 +167,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const loc = useLocation();
   const queryClient = useQueryClient();
+  const isDesktop = useIsDesktop();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const dashboard: NavItem = { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true };
+  // Quem só tem o papel "irmao": no desktop usa esta mesma barra lateral
+  // (reduzida a "Meu Painel"), no celular/tablet usa o shell de app
+  // (PainelShell) — ver o passthrough mais abaixo e _authenticated/painel/route.tsx.
+  const dashboard: NavItem = can.isMemberOnly
+    ? { to: "/painel", label: "Início", icon: UserRound, show: true }
+    : { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true };
 
-  const groups: NavGroup[] = [
+  const groupsMemberOnly: NavGroup[] = [
+    {
+      id: "meu-painel",
+      label: "Meu Painel",
+      icon: UserRound,
+      items: [
+        { to: "/painel/dados", label: "Meus Dados", icon: UserRound, show: true },
+        { to: "/painel/financeiro", label: "Financeiro", icon: Wallet, show: true },
+        { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2, show: true },
+        { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays, show: true },
+      ],
+    },
+  ];
+
+  const groupsAdmin: NavGroup[] = [
     {
       id: "cadastros",
       label: "Cadastros",
@@ -233,8 +256,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     },
   ];
 
+  const groups = can.isMemberOnly ? groupsMemberOnly : groupsAdmin;
+
   const isActive = (to: string) =>
-    loc.pathname === to || (to !== "/dashboard" && to !== "/tesouraria" && loc.pathname.startsWith(to + "/"));
+    loc.pathname === to ||
+    (to !== "/dashboard" && to !== "/tesouraria" && to !== "/painel" && loc.pathname.startsWith(to + "/"));
 
   const visibleGroups = groups
     .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
@@ -263,11 +289,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const primaryRole = can.roles[0] ?? "irmao";
 
-  // Quem só tem o papel "irmao" usa o shell próprio de app (PainelShell,
-  // dentro de _authenticated/painel/route.tsx) — aqui é só passthrough.
-  // Fica depois de todos os hooks acima para não violar as Rules of Hooks
-  // (o número/ordem de hooks precisa ser igual em todo render).
-  if (can.isMemberOnly) {
+  // Quem só tem o papel "irmao" no celular/tablet usa o shell próprio de
+  // app (PainelShell, dentro de _authenticated/painel/route.tsx) — aqui é
+  // só passthrough. No desktop, cai para a sidebar normal abaixo (reduzida
+  // a "Meu Painel"). Fica depois de todos os hooks acima para não violar
+  // as Rules of Hooks (o número/ordem de hooks precisa ser igual em todo
+  // render).
+  if (can.isMemberOnly && !isDesktop) {
     return (
       <>
         {children}

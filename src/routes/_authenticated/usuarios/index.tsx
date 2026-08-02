@@ -79,8 +79,16 @@ function UsuariosPage() {
     try {
       const relatorio = await criarAcessosEmLote();
       if (relatorio.criados.length > 0) toast.success(`${relatorio.criados.length} acesso(s) criado(s).`);
-      if (relatorio.falhas.length > 0)
-        toast.error(`${relatorio.falhas.length} falha(s): ${relatorio.falhas.map((f) => f.nome).join(", ")}`);
+      if (relatorio.falhas.length > 0) {
+        // mesmo motivo pra todo mundo (ex.: procedure ausente) é o caso comum
+        // — mostra só uma vez em vez de repetir a mesma frase 27 vezes.
+        const motivos = [...new Set(relatorio.falhas.map((f) => f.motivo))];
+        const nomes = relatorio.falhas.map((f) => f.nome).join(", ");
+        toast.error(`${relatorio.falhas.length} falha(s) — ${motivos.join("; ")}`, {
+          description: nomes,
+          duration: 15000,
+        });
+      }
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar acessos.");

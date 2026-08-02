@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMeuIrmao } from "@/lib/use-meu-irmao";
-import { EmptyState } from "@/components/app/AppShell";
+import { useIsDesktop } from "@/lib/use-media-query";
+import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { brl, fmtDate, GRAU_LABEL, SITUACAO_LABEL } from "@/lib/format";
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/_authenticated/painel/dados")({
 });
 
 function PainelDados() {
+  const isDesktop = useIsDesktop();
   const meuIrmao = useMeuIrmao();
   if (meuIrmao.isLoading) return null;
 
@@ -28,6 +30,7 @@ function PainelDados() {
 
   return (
     <div className="space-y-4">
+      {isDesktop && <PageHeader title="Meus Dados" />}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
