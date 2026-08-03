@@ -120,31 +120,6 @@ const faturaAvulsaSchema = z.object({
   rateio: rateioSchema,
 });
 
-// Equivalente ao menu do sistema legado que zerava as faturas. Escopo
-// total: todas as faturas (mensalidade), abertas ou já pagas/recebidas —
-// junto com a provisão contábil de cada uma e, para as pagas, o recibo
-// emitido e o lançamento contábil da baixa. Nada além disso é tocado.
-export const contarFaturas = createServerFn({ method: "GET" }).handler(
-  async (): Promise<{ total: number }> => {
-    return comPapel(PAPEIS, async (conn) => {
-      const [[row]] = await conn.query<RowDataPacket[]>(
-        "SELECT COUNT(*) AS total FROM lancamentos WHERE tipo = 'entrada' AND is_mensalidade = TRUE",
-      );
-      return { total: row.total };
-    });
-  },
-);
-
-export const zerarFaturas = createServerFn({ method: "POST" }).handler(
-  async (): Promise<{ total: number }> => {
-    return comPapel(PAPEIS, async (conn) => {
-      await conn.query("CALL zerar_faturas(@total)");
-      const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT @total AS total");
-      return { total };
-    });
-  },
-);
-
 export const criarFaturaAvulsa = createServerFn({ method: "POST" })
   .validator((d: unknown) => faturaAvulsaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {

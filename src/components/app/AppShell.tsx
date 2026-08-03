@@ -434,10 +434,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       items: [
         { to: "/usuarios", label: "Usuários", icon: UsersRound, show: can.isAdmin },
         {
-          to: "/administracao/zerar-faturas",
-          label: "Zerar Faturas",
+          to: "/administracao/resetar-financeiro",
+          label: "Resetar Financeiro",
           icon: Trash2,
-          show: can.canManageFinancas,
+          show: can.isAdmin,
         },
       ],
     },

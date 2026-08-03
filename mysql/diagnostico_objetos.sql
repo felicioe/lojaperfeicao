@@ -43,7 +43,7 @@ FROM (
   UNION ALL SELECT 'gerar_mensalidades' UNION ALL SELECT 'reabrir_exercicio'
   UNION ALL SELECT 'reabrir_orcamento' UNION ALL SELECT 'registrar_lancamento_contabil'
   UNION ALL SELECT 'registrar_recebimento_avulso' UNION ALL SELECT 'salvar_conta'
-  UNION ALL SELECT 'zerar_faturas'
+  UNION ALL SELECT 'resetar_financeiro'
 ) esperado
 LEFT JOIN INFORMATION_SCHEMA.ROUTINES r
   ON r.ROUTINE_SCHEMA = DATABASE() AND r.ROUTINE_NAME = esperado.nome AND r.ROUTINE_TYPE = 'PROCEDURE'
