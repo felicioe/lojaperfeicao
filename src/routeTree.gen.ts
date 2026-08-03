@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
+import { Route as AuthenticatedAdministracaoZerarFaturasRouteImport } from './routes/_authenticated/administracao/zerar-faturas'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
 import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
@@ -89,6 +90,12 @@ const AuthenticatedPainelRouteRoute =
   AuthenticatedPainelRouteRouteImport.update({
     id: '/painel',
     path: '/painel',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdministracaoZerarFaturasRoute =
+  AuthenticatedAdministracaoZerarFaturasRouteImport.update({
+    id: '/administracao/zerar-faturas',
+    path: '/administracao/zerar-faturas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeAuditoriaRoute =
@@ -329,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/privacidade': typeof PrivacidadeRoute
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/administracao/zerar-faturas': typeof AuthenticatedAdministracaoZerarFaturasRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -375,6 +383,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/administracao/zerar-faturas': typeof AuthenticatedAdministracaoZerarFaturasRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -424,6 +433,7 @@ export interface FileRoutesById {
   '/privacidade': typeof PrivacidadeRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/administracao/zerar-faturas': typeof AuthenticatedAdministracaoZerarFaturasRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/_authenticated/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/painel'
     | '/dashboard'
+    | '/administracao/zerar-faturas'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
     | '/contabilidade/diario'
@@ -519,6 +530,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/privacidade'
     | '/dashboard'
+    | '/administracao/zerar-faturas'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
     | '/contabilidade/diario'
@@ -567,6 +579,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
+    | '/_authenticated/administracao/zerar-faturas'
     | '/_authenticated/contabilidade/auditoria'
     | '/_authenticated/contabilidade/balancete'
     | '/_authenticated/contabilidade/diario'
@@ -665,6 +678,13 @@ declare module '@tanstack/react-router' {
       path: '/painel'
       fullPath: '/painel'
       preLoaderRoute: typeof AuthenticatedPainelRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/administracao/zerar-faturas': {
+      id: '/_authenticated/administracao/zerar-faturas'
+      path: '/administracao/zerar-faturas'
+      fullPath: '/administracao/zerar-faturas'
+      preLoaderRoute: typeof AuthenticatedAdministracaoZerarFaturasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contabilidade/auditoria': {
@@ -968,6 +988,7 @@ const AuthenticatedPainelRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedPainelRouteRoute: typeof AuthenticatedPainelRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedAdministracaoZerarFaturasRoute: typeof AuthenticatedAdministracaoZerarFaturasRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
   AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
   AuthenticatedContabilidadeDiarioRoute: typeof AuthenticatedContabilidadeDiarioRoute
@@ -1007,6 +1028,8 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPainelRouteRoute: AuthenticatedPainelRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedAdministracaoZerarFaturasRoute:
+    AuthenticatedAdministracaoZerarFaturasRoute,
   AuthenticatedContabilidadeAuditoriaRoute:
     AuthenticatedContabilidadeAuditoriaRoute,
   AuthenticatedContabilidadeBalanceteRoute:

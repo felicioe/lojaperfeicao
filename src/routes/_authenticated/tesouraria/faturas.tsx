@@ -8,7 +8,6 @@ import {
   baixarFaturas,
   listarPreviewLoteMensalidades,
   criarFaturaAvulsa,
-  zerarFaturasAbertas,
 } from "@/lib/backend/tesouraria-faturas";
 import { gerarMensalidades } from "@/lib/backend/tesouraria-lancamentos";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
@@ -42,17 +41,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -193,11 +181,6 @@ function Faturas() {
         </TabsContent>
 
         <TabsContent value="abertas">
-          {podeEditar && abertas.length > 0 && (
-            <div className="mb-4 flex justify-end">
-              <ZerarFaturasButton total={abertas.length} onDone={invalidate} />
-            </div>
-          )}
           {podeEditar && selecionadas.length > 0 && (
             <Card className="mb-4 p-4 flex items-center justify-between">
               <div className="text-sm">
@@ -440,50 +423,6 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
         </Button>
       </DialogFooter>
     </DialogContent>
-  );
-}
-
-function ZerarFaturasButton({ total, onDone }: { total: number; onDone: () => void }) {
-  const [zerando, setZerando] = useState(false);
-
-  const confirmar = async () => {
-    setZerando(true);
-    try {
-      const { total: apagadas } = await zerarFaturasAbertas();
-      toast.success(`${apagadas} fatura(s) em aberto apagada(s).`);
-      onDone();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao zerar faturas.");
-    } finally {
-      setZerando(false);
-    }
-  };
-
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="sm">
-          <Trash2 className="h-4 w-4 mr-1" /> Zerar faturas em aberto
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Zerar {total} fatura(s) em aberto?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Apaga todas as faturas em aberto listadas nesta aba (e a provisão contábil
-            correspondente de cada uma), para você relançar do zero. Faturas já baixadas (pagas),
-            contas, plano de contas e demais cadastros não são afetados. Essa ação não pode ser
-            desfeita.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmar} disabled={zerando}>
-            {zerando ? "Zerando…" : "Zerar faturas"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
 

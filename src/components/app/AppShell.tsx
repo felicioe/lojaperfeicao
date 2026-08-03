@@ -42,6 +42,7 @@ import {
   Menu,
   Moon,
   Sun,
+  Trash2,
   UsersRound,
   UserRound,
   CalendarCheck2,
@@ -430,7 +431,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       id: "administracao",
       label: "Administração",
       icon: ShieldCheck,
-      items: [{ to: "/usuarios", label: "Usuários", icon: UsersRound, show: can.isAdmin }],
+      items: [
+        { to: "/usuarios", label: "Usuários", icon: UsersRound, show: can.isAdmin },
+        {
+          to: "/administracao/zerar-faturas",
+          label: "Zerar Faturas",
+          icon: Trash2,
+          show: can.canManageFinancas,
+        },
+      ],
     },
   ];
 
