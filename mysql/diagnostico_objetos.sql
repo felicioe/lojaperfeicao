@@ -48,4 +48,25 @@ FROM (
 LEFT JOIN INFORMATION_SCHEMA.ROUTINES r
   ON r.ROUTINE_SCHEMA = DATABASE() AND r.ROUTINE_NAME = esperado.nome AND r.ROUTINE_TYPE = 'PROCEDURE'
 
+UNION ALL
+
+SELECT 'FUNCTION' AS tipo, esperado.nome,
+       IF(r.ROUTINE_NAME IS NULL, 'FALTANDO', 'ok') AS status
+FROM (
+  SELECT 'has_role' AS nome UNION ALL SELECT 'is_admin_or' UNION ALL SELECT 'mes_competencia'
+) esperado
+LEFT JOIN INFORMATION_SCHEMA.ROUTINES r
+  ON r.ROUTINE_SCHEMA = DATABASE() AND r.ROUTINE_NAME = esperado.nome AND r.ROUTINE_TYPE = 'FUNCTION'
+
+UNION ALL
+
+SELECT 'VIEW' AS tipo, esperado.nome,
+       IF(v.TABLE_NAME IS NULL, 'FALTANDO', 'ok') AS status
+FROM (
+  SELECT 'v_auditoria_contabil_desbalanceados' AS nome
+  UNION ALL SELECT 'v_saldo_contas' UNION ALL SELECT 'v_saldo_plano_contas'
+) esperado
+LEFT JOIN INFORMATION_SCHEMA.VIEWS v
+  ON v.TABLE_SCHEMA = DATABASE() AND v.TABLE_NAME = esperado.nome
+
 ORDER BY (status = 'ok'), tipo, nome;
