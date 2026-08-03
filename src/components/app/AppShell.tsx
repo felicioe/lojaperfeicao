@@ -37,7 +37,11 @@ import {
   BookMarked,
   FolderKanban,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   Menu,
+  Moon,
+  Sun,
   UsersRound,
   UserRound,
   CalendarCheck2,
@@ -47,6 +51,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { ROLE_LABEL } from "@/lib/format";
 import { useIsDesktop } from "@/lib/use-media-query";
+import { useTheme } from "@/lib/use-theme";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type NavItem = { to: string; label: string; icon: any; show: boolean };
 type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
@@ -65,6 +71,43 @@ function Brand() {
   );
 }
 
+function SidebarIcon({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+  to,
+}: {
+  icon: any;
+  label: string;
+  active: boolean;
+  onClick?: () => void;
+  to?: string;
+}) {
+  const className = cn(
+    "flex h-10 w-10 items-center justify-center rounded-md transition-colors",
+    active
+      ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+      : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+  );
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {to ? (
+          <Link to={to} className={className} aria-label={label}>
+            <Icon className="h-4 w-4" />
+          </Link>
+        ) : (
+          <button type="button" onClick={onClick} className={className} aria-label={label}>
+            <Icon className="h-4 w-4" />
+          </button>
+        )}
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function NavTree({
   dashboard,
   groups,
@@ -73,6 +116,8 @@ function NavTree({
   setOpen,
   onNavigate,
   size = "desktop",
+  collapsed = false,
+  onExpandGroup,
 }: {
   dashboard: NavItem;
   groups: NavGroup[];
@@ -81,8 +126,34 @@ function NavTree({
   setOpen: (fn: (prev: string[]) => string[]) => void;
   onNavigate?: () => void;
   size?: "desktop" | "mobile";
+  collapsed?: boolean;
+  onExpandGroup?: (groupId: string) => void;
 }) {
   const itemPad = size === "mobile" ? "px-3 py-2.5 text-sm" : "px-2.5 py-1.5 text-[13px]";
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <SidebarIcon
+          to={dashboard.to}
+          icon={dashboard.icon}
+          label={dashboard.label}
+          active={isActive(dashboard.to)}
+        />
+        <div className="my-1 h-px w-8 bg-sidebar-border" />
+        {groups.map((g) => (
+          <SidebarIcon
+            key={g.id}
+            icon={g.icon}
+            label={g.label}
+            active={g.items.some((i) => isActive(i.to))}
+            onClick={() => onExpandGroup?.(g.id)}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <>
       <Link
@@ -172,6 +243,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const isDesktop = useIsDesktop();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("sidebarCollapsed") === "1",
+  );
+  const { dark, toggle: toggleDark } = useTheme();
 
   // Quem só tem o papel "irmao": no desktop usa esta mesma barra lateral
   // (reduzida a "Meu Painel"), no celular/tablet usa o shell de app
@@ -387,6 +462,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }, [loc.pathname]);
 
+  useEffect(() => {
+    localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
+
+  // Clicar num grupo com a barra recolhida expande a barra e já abre o grupo,
+  // em vez de tentar mostrar um flyout.
+  const expandGroup = (groupId: string) => {
+    setCollapsed(false);
+    setOpen((prev) => (prev.includes(groupId) ? prev : [...prev, groupId]));
+  };
+
   const signOut = async () => {
     await logout();
     queryClient.setQueryData(SESSAO_QUERY_KEY, null);
@@ -413,38 +499,97 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen w-full bg-muted/30">
       {/* ===== Sidebar fixa — apenas desktop (lg+) ===== */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground lg:flex">
-        <div className="border-b border-sidebar-border p-5">
-          <Brand />
-        </div>
-
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          <NavTree
-            dashboard={dashboard}
-            groups={visibleGroups}
-            isActive={isActive}
-            open={open}
-            setOpen={setOpen}
-          />
-        </nav>
-
-        <div className="border-t border-sidebar-border p-3">
-          <div className="mb-2 text-xs">
-            <div className="truncate font-medium">{user?.email}</div>
-            <div className="text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
-          </div>
-          <Button variant="outline" size="sm" className="w-full" onClick={signOut}>
-            <LogOut className="mr-1 h-3 w-3" /> Sair
-          </Button>
-          <Link
-            to="/privacidade"
-            target="_blank"
-            className="mt-2 block text-center text-[11px] text-muted-foreground underline"
+      <TooltipProvider delayDuration={200}>
+        <aside
+          className={cn(
+            "hidden shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex",
+            collapsed ? "w-[68px]" : "w-64",
+          )}
+        >
+          <div
+            className={cn(
+              "border-b border-sidebar-border",
+              collapsed
+                ? "flex flex-col items-center gap-2 p-3"
+                : "flex items-center justify-between p-5",
+            )}
           >
-            Política de Privacidade
-          </Link>
-        </div>
-      </aside>
+            {collapsed ? (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-sidebar-primary-foreground shadow-sm">
+                ⚜
+              </div>
+            ) : (
+              <Brand />
+            )}
+            <button
+              type="button"
+              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+              onClick={() => setCollapsed((v) => !v)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            >
+              {collapsed ? (
+                <ChevronsRight className="h-4 w-4" />
+              ) : (
+                <ChevronsLeft className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+
+          <nav className={cn("flex-1 overflow-y-auto", collapsed ? "px-2 py-3" : "space-y-1 p-3")}>
+            <NavTree
+              dashboard={dashboard}
+              groups={visibleGroups}
+              isActive={isActive}
+              open={open}
+              setOpen={setOpen}
+              collapsed={collapsed}
+              onExpandGroup={expandGroup}
+            />
+          </nav>
+
+          <div
+            className={cn(
+              "border-t border-sidebar-border",
+              collapsed ? "flex flex-col items-center gap-2 p-2" : "p-3",
+            )}
+          >
+            {!collapsed && (
+              <div className="mb-2 text-xs">
+                <div className="truncate font-medium">{user?.email}</div>
+                <div className="text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
+              </div>
+            )}
+            {collapsed ? (
+              <>
+                <SidebarIcon
+                  icon={dark ? Sun : Moon}
+                  label={dark ? "Modo claro" : "Modo escuro"}
+                  active={false}
+                  onClick={toggleDark}
+                />
+                <SidebarIcon icon={LogOut} label="Sair" active={false} onClick={signOut} />
+              </>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" className="w-full" onClick={toggleDark}>
+                  {dark ? <Sun className="mr-1 h-3 w-3" /> : <Moon className="mr-1 h-3 w-3" />}
+                  {dark ? "Modo claro" : "Modo escuro"}
+                </Button>
+                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={signOut}>
+                  <LogOut className="mr-1 h-3 w-3" /> Sair
+                </Button>
+                <Link
+                  to="/privacidade"
+                  target="_blank"
+                  className="mt-2 block text-center text-[11px] text-muted-foreground underline"
+                >
+                  Política de Privacidade
+                </Link>
+              </>
+            )}
+          </div>
+        </aside>
+      </TooltipProvider>
 
       {/* ===== Layout mobile/tablet (< lg) ===== */}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -491,7 +636,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="truncate font-medium">{user?.email}</div>
                 <div className="text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
               </div>
-              <Button variant="outline" className="h-10 w-full" onClick={signOut}>
+              <Button variant="outline" className="h-10 w-full" onClick={toggleDark}>
+                {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}
+                {dark ? "Modo claro" : "Modo escuro"}
+              </Button>
+              <Button variant="outline" className="mt-2 h-10 w-full" onClick={signOut}>
                 <LogOut className="mr-1.5 h-4 w-4" /> Sair
               </Button>
               <Link

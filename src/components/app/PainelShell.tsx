@@ -15,8 +15,11 @@ import {
   Menu,
   LogOut,
   ShieldCheck,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Toaster } from "sonner";
+import { useTheme } from "@/lib/use-theme";
 
 const TITULOS: Record<string, string> = {
   "/painel": "Início",
@@ -45,6 +48,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
   const loc = useLocation();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { dark, toggle: toggleDark } = useTheme();
 
   const titulo = TITULOS[loc.pathname] ?? "Meu Painel";
 
@@ -124,6 +128,18 @@ export function PainelShell({ children }: { children: ReactNode }) {
               >
                 Política de Privacidade
               </a>
+              <button
+                type="button"
+                onClick={toggleDark}
+                className="mt-1 flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-sm hover:bg-muted"
+              >
+                {dark ? (
+                  <Sun className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Moon className="h-4 w-4 text-muted-foreground" />
+                )}
+                {dark ? "Modo claro" : "Modo escuro"}
+              </button>
             </div>
             <div className="border-t p-3">
               <Button variant="outline" className="w-full" onClick={sair}>
