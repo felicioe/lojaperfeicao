@@ -58,7 +58,9 @@ function AuthPage() {
     if (!aceiteLgpd) return toast.error("É preciso aceitar a Política de Privacidade.");
     setLoading(true);
     try {
-      const usuario = await signup({ data: { email, senha: password, nomeCompleto: nome, aceiteLgpd } });
+      const usuario = await signup({
+        data: { email, senha: password, nomeCompleto: nome, aceiteLgpd },
+      });
       queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
       toast.success("Conta criada!");
       navigate({ to: "/dashboard" });
@@ -94,11 +96,22 @@ function AuthPage() {
                   </div>
                   <div>
                     <Label>E-mail</Label>
-                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
                   </div>
                   <div>
                     <Label>Senha</Label>
-                    <Input type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <Input
+                      type="password"
+                      minLength={6}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
                   </div>
                   <label className="flex items-start gap-2 text-xs text-muted-foreground">
                     <Checkbox
@@ -150,7 +163,12 @@ function LoginForm({ email, setEmail, password, setPassword, loading, handleLogi
       </div>
       <div>
         <Label>Senha</Label>
-        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <Input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Entrando…" : "Entrar"}

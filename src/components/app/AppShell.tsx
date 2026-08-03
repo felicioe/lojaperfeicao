@@ -3,11 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logout } from "@/lib/backend/auth";
 import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   LayoutDashboard,
@@ -120,13 +116,18 @@ function NavTree({
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors hover:bg-sidebar-accent/40",
                   size === "mobile" ? "py-2.5" : "py-2",
-                  hasActive ? "text-sidebar-foreground" : "text-muted-foreground hover:text-sidebar-foreground",
+                  hasActive
+                    ? "text-sidebar-foreground"
+                    : "text-muted-foreground hover:text-sidebar-foreground",
                 )}
               >
                 <g.icon className="h-3.5 w-3.5 shrink-0" />
                 <span className="flex-1 truncate text-left">{g.label}</span>
                 <ChevronDown
-                  className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", isOpen && "rotate-180")}
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+                    isOpen && "rotate-180",
+                  )}
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
@@ -146,7 +147,9 @@ function NavTree({
                             : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                         )}
                       >
-                        <i.icon className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")} />
+                        <i.icon
+                          className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")}
+                        />
                         <span className="truncate">{i.label}</span>
                       </Link>
                     );
@@ -200,7 +203,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/irmaos", label: "Irmãos", icon: Users, show: true },
         { to: "/orgs", label: "Corpos Maçônicos", icon: Building2, show: true },
         { to: "/gestoes", label: "Gestões", icon: Award, show: true },
-        { to: "/terceiros", label: "Fornecedores/Clientes", icon: Truck, show: can.canManageFinancas },
+        {
+          to: "/terceiros",
+          label: "Fornecedores/Clientes",
+          icon: Truck,
+          show: can.canManageFinancas,
+        },
         { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
       ],
     },
@@ -209,17 +217,62 @@ export function AppShell({ children }: { children: ReactNode }) {
       label: "Tesouraria",
       icon: Wallet,
       items: [
-        { to: "/tesouraria", label: "Visão Geral", icon: Wallet, show: can.canManageFinancas || can.isSecretario },
+        {
+          to: "/tesouraria",
+          label: "Visão Geral",
+          icon: Wallet,
+          show: can.canManageFinancas || can.isSecretario,
+        },
         { to: "/tesouraria/contas", label: "Contas", icon: Landmark, show: can.canManageFinancas },
-        { to: "/tesouraria/movimentos", label: "Movimento Financeiro", icon: ArrowLeftRight, show: can.canManageFinancas },
-        { to: "/tesouraria/tronco", label: "Tronco de Beneficência", icon: HeartHandshake, show: can.canManageFinancas },
-        { to: "/tesouraria/conciliacao", label: "Conciliação Bancária", icon: FileSpreadsheet, show: can.canManageFinancas },
-        { to: "/tesouraria/faturas", label: "Faturas", icon: FileStack, show: can.canManageFinancas },
+        {
+          to: "/tesouraria/movimentos",
+          label: "Movimento Financeiro",
+          icon: ArrowLeftRight,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/tronco",
+          label: "Tronco de Beneficência",
+          icon: HeartHandshake,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/conciliacao",
+          label: "Conciliação Bancária",
+          icon: FileSpreadsheet,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/faturas",
+          label: "Faturas",
+          icon: FileStack,
+          show: can.canManageFinancas,
+        },
         { to: "/tesouraria/recibos", label: "Recibos", icon: Receipt, show: can.canManageFinancas },
-        { to: "/tesouraria/parcelamentos", label: "Parcelamentos", icon: SplitSquareHorizontal, show: can.canManageFinancas },
-        { to: "/tesouraria/contas-pagar", label: "Contas a Pagar", icon: ReceiptText, show: can.canManageFinancas },
-        { to: "/tesouraria/recorrentes", label: "Despesas Recorrentes", icon: RefreshCw, show: can.canManageFinancas },
-        { to: "/tesouraria/parametros", label: "Parâmetros Financeiros", icon: Settings2, show: can.canManageFinancas },
+        {
+          to: "/tesouraria/parcelamentos",
+          label: "Parcelamentos",
+          icon: SplitSquareHorizontal,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/contas-pagar",
+          label: "Contas a Pagar",
+          icon: ReceiptText,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/recorrentes",
+          label: "Despesas Recorrentes",
+          icon: RefreshCw,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/parametros",
+          label: "Parâmetros Financeiros",
+          icon: Settings2,
+          show: can.canManageFinancas,
+        },
       ],
     },
     {
@@ -227,16 +280,61 @@ export function AppShell({ children }: { children: ReactNode }) {
       label: "Contabilidade",
       icon: BookMarked,
       items: [
-        { to: "/tesouraria/plano-contas", label: "Plano de Contas", icon: FileBarChart, show: can.canManageFinancas },
-        { to: "/contabilidade/razao", label: "Razão Contábil", icon: BookOpen, show: can.canManageFinancas },
-        { to: "/contabilidade/diario", label: "Diário Contábil", icon: CalendarClock, show: can.canManageFinancas },
+        {
+          to: "/tesouraria/plano-contas",
+          label: "Plano de Contas",
+          icon: FileBarChart,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/razao",
+          label: "Razão Contábil",
+          icon: BookOpen,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/diario",
+          label: "Diário Contábil",
+          icon: CalendarClock,
+          show: can.canManageFinancas,
+        },
         { to: "/contabilidade/dre", label: "DRE", icon: TrendingUp, show: can.canManageFinancas },
-        { to: "/contabilidade/balancete", label: "Balancete", icon: Scale, show: can.canManageFinancas },
-        { to: "/contabilidade/orcamento", label: "Orçamento Anual", icon: Calculator, show: can.canManageFinancas },
-        { to: "/contabilidade/dre-orcado", label: "DRE Orçado", icon: LineChart, show: can.canManageFinancas },
-        { to: "/contabilidade/fluxo-caixa", label: "Fluxo de Caixa", icon: Waves, show: can.canManageFinancas },
-        { to: "/contabilidade/fechamento", label: "Fechamento de Exercício", icon: Archive, show: can.canManageFinancas },
-        { to: "/contabilidade/auditoria", label: "Auditoria Contábil", icon: ShieldCheck, show: can.canManageFinancas },
+        {
+          to: "/contabilidade/balancete",
+          label: "Balancete",
+          icon: Scale,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/orcamento",
+          label: "Orçamento Anual",
+          icon: Calculator,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/dre-orcado",
+          label: "DRE Orçado",
+          icon: LineChart,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/fluxo-caixa",
+          label: "Fluxo de Caixa",
+          icon: Waves,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/fechamento",
+          label: "Fechamento de Exercício",
+          icon: Archive,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/auditoria",
+          label: "Auditoria Contábil",
+          icon: ShieldCheck,
+          show: can.canManageFinancas,
+        },
       ],
     },
     {
@@ -245,7 +343,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       icon: FileBarChart,
       items: [
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
-        { to: "/relatorios/inadimplentes", label: "Inadimplentes", icon: FileBarChart, show: can.canManageFinancas },
+        {
+          to: "/relatorios/inadimplentes",
+          label: "Inadimplentes",
+          icon: FileBarChart,
+          show: can.canManageFinancas,
+        },
       ],
     },
     {
@@ -260,7 +363,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isActive = (to: string) =>
     loc.pathname === to ||
-    (to !== "/dashboard" && to !== "/tesouraria" && to !== "/painel" && loc.pathname.startsWith(to + "/"));
+    (to !== "/dashboard" &&
+      to !== "/tesouraria" &&
+      to !== "/painel" &&
+      loc.pathname.startsWith(to + "/"));
 
   const visibleGroups = groups
     .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
@@ -330,7 +436,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Button variant="outline" size="sm" className="w-full" onClick={signOut}>
             <LogOut className="mr-1 h-3 w-3" /> Sair
           </Button>
-          <Link to="/privacidade" target="_blank" className="mt-2 block text-center text-[11px] text-muted-foreground underline">
+          <Link
+            to="/privacidade"
+            target="_blank"
+            className="mt-2 block text-center text-[11px] text-muted-foreground underline"
+          >
             Política de Privacidade
           </Link>
         </div>
@@ -384,7 +494,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Button variant="outline" className="h-10 w-full" onClick={signOut}>
                 <LogOut className="mr-1.5 h-4 w-4" /> Sair
               </Button>
-              <Link to="/privacidade" target="_blank" className="mt-2 block text-center text-xs text-muted-foreground underline">
+              <Link
+                to="/privacidade"
+                target="_blank"
+                className="mt-2 block text-center text-xs text-muted-foreground underline"
+              >
                 Política de Privacidade
               </Link>
             </div>
@@ -401,7 +515,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
   return (
     <div className="mb-6 flex flex-col gap-3 border-b pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:pb-5">
       <div className="min-w-0">
@@ -442,9 +564,10 @@ export function EmptyState({
         </div>
       )}
       <div className="text-sm font-medium">{title}</div>
-      {description && <p className="max-w-sm text-xs text-muted-foreground sm:text-sm">{description}</p>}
+      {description && (
+        <p className="max-w-sm text-xs text-muted-foreground sm:text-sm">{description}</p>
+      )}
       {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }
-

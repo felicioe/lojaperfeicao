@@ -10,7 +10,10 @@ const PAPEIS_PRIVILEGIADOS = ["admin", "tesoureiro", "secretario"];
 
 async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
-  const [[row]] = await conn.query<RowDataPacket[]>(`SELECT (${condicoes}) AS ok`, PAPEIS_PRIVILEGIADOS);
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    `SELECT (${condicoes}) AS ok`,
+    PAPEIS_PRIVILEGIADOS,
+  );
   return !!row.ok;
 }
 
@@ -27,7 +30,12 @@ export const listarContasAPagarProximas = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ContaAPagarProxima[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      const condicoes = ["tipo = 'saida'", "pago = FALSE", "data_vencimento >= ?", "data_vencimento <= ?"];
+      const condicoes = [
+        "tipo = 'saida'",
+        "pago = FALSE",
+        "data_vencimento >= ?",
+        "data_vencimento <= ?",
+      ];
       const valores: unknown[] = [data.de, data.ate];
       if (!privilegiado) {
         condicoes.push("irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");

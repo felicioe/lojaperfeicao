@@ -1,12 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listarOrcamentos, listarOrcamentoItens, listarContasOrcamento } from "@/lib/backend/contabilidade-orcamento";
+import {
+  listarOrcamentos,
+  listarOrcamentoItens,
+  listarContasOrcamento,
+} from "@/lib/backend/contabilidade-orcamento";
 import { listarItensContabeisPeriodo } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
 import { brl } from "@/lib/format";
@@ -16,7 +33,14 @@ export const Route = createFileRoute("/_authenticated/contabilidade/dre-orcado")
   component: DreOrcado,
 });
 
-type Linha = { id: string; codigo: string; nome: string; tipo: "receita" | "despesa"; orcado: number; realizado: number };
+type Linha = {
+  id: string;
+  codigo: string;
+  nome: string;
+  tipo: "receita" | "despesa";
+  orcado: number;
+  realizado: number;
+};
 
 function DreOrcado() {
   const [orcamentoId, setOrcamentoId] = useState<string>("");
@@ -43,7 +67,9 @@ function DreOrcado() {
     queryKey: ["dre_orcado_realizado", selecionado?.ano],
     enabled: !!selecionado,
     queryFn: () =>
-      listarItensContabeisPeriodo({ data: { de: `${selecionado!.ano}-01-01`, ate: `${selecionado!.ano}-12-31` } }),
+      listarItensContabeisPeriodo({
+        data: { de: `${selecionado!.ano}-01-01`, ate: `${selecionado!.ano}-12-31` },
+      }),
   });
 
   const linhas = useMemo(() => {
@@ -52,14 +78,35 @@ function DreOrcado() {
     for (const it of itens) {
       const conta = contaPorId.get(it.conta_id);
       if (!conta) continue;
-      const atual = porConta.get(conta.id) ?? { id: conta.id, codigo: conta.codigo, nome: conta.nome, tipo: conta.tipo, orcado: 0, realizado: 0 };
+      const atual = porConta.get(conta.id) ?? {
+        id: conta.id,
+        codigo: conta.codigo,
+        nome: conta.nome,
+        tipo: conta.tipo,
+        orcado: 0,
+        realizado: 0,
+      };
       atual.orcado += Number(it.valor);
       porConta.set(conta.id, atual);
     }
     for (const it of realizado) {
       if (it.conta_tipo !== "receita" && it.conta_tipo !== "despesa") continue;
-      const atual = porConta.get(it.conta_id) ?? { id: it.conta_id, codigo: it.codigo, nome: it.nome, tipo: it.conta_tipo, orcado: 0, realizado: 0 };
-      const sinal = it.conta_tipo === "receita" ? (it.tipo === "credito" ? 1 : -1) : it.tipo === "debito" ? 1 : -1;
+      const atual = porConta.get(it.conta_id) ?? {
+        id: it.conta_id,
+        codigo: it.codigo,
+        nome: it.nome,
+        tipo: it.conta_tipo,
+        orcado: 0,
+        realizado: 0,
+      };
+      const sinal =
+        it.conta_tipo === "receita"
+          ? it.tipo === "credito"
+            ? 1
+            : -1
+          : it.tipo === "debito"
+            ? 1
+            : -1;
       atual.realizado += sinal * Number(it.valor);
       porConta.set(it.conta_id, atual);
     }
@@ -107,7 +154,11 @@ function DreOrcado() {
         )}
       </Card>
 
-      {!selecionado && <Card className="p-8 text-center text-muted-foreground">Nenhum orçamento cadastrado ainda.</Card>}
+      {!selecionado && (
+        <Card className="p-8 text-center text-muted-foreground">
+          Nenhum orçamento cadastrado ainda.
+        </Card>
+      )}
 
       {selecionado && (
         <>
@@ -137,7 +188,9 @@ function DreOrcado() {
                     </TableCell>
                     <TableCell className="text-right">{brl(l.orcado)}</TableCell>
                     <TableCell className="text-right">{brl(l.realizado)}</TableCell>
-                    <TableCell className={`text-right ${l.realizado >= l.orcado ? "text-emerald-600" : "text-destructive"}`}>
+                    <TableCell
+                      className={`text-right ${l.realizado >= l.orcado ? "text-emerald-600" : "text-destructive"}`}
+                    >
                       {brl(l.realizado - l.orcado)}
                     </TableCell>
                   </TableRow>
@@ -146,7 +199,9 @@ function DreOrcado() {
                   <TableCell>Total de Receitas</TableCell>
                   <TableCell className="text-right">{brl(totalReceitaOrcado)}</TableCell>
                   <TableCell className="text-right">{brl(totalReceitaReal)}</TableCell>
-                  <TableCell className={`text-right ${totalReceitaReal >= totalReceitaOrcado ? "text-emerald-600" : "text-destructive"}`}>
+                  <TableCell
+                    className={`text-right ${totalReceitaReal >= totalReceitaOrcado ? "text-emerald-600" : "text-destructive"}`}
+                  >
                     {brl(totalReceitaReal - totalReceitaOrcado)}
                   </TableCell>
                 </TableRow>
@@ -180,7 +235,9 @@ function DreOrcado() {
                     </TableCell>
                     <TableCell className="text-right">{brl(l.orcado)}</TableCell>
                     <TableCell className="text-right">{brl(l.realizado)}</TableCell>
-                    <TableCell className={`text-right ${l.realizado <= l.orcado ? "text-emerald-600" : "text-destructive"}`}>
+                    <TableCell
+                      className={`text-right ${l.realizado <= l.orcado ? "text-emerald-600" : "text-destructive"}`}
+                    >
                       {brl(l.realizado - l.orcado)}
                     </TableCell>
                   </TableRow>
@@ -189,7 +246,9 @@ function DreOrcado() {
                   <TableCell>Total de Despesas</TableCell>
                   <TableCell className="text-right">{brl(totalDespesaOrcado)}</TableCell>
                   <TableCell className="text-right">{brl(totalDespesaReal)}</TableCell>
-                  <TableCell className={`text-right ${totalDespesaReal <= totalDespesaOrcado ? "text-emerald-600" : "text-destructive"}`}>
+                  <TableCell
+                    className={`text-right ${totalDespesaReal <= totalDespesaOrcado ? "text-emerald-600" : "text-destructive"}`}
+                  >
                     {brl(totalDespesaReal - totalDespesaOrcado)}
                   </TableCell>
                 </TableRow>
@@ -200,13 +259,17 @@ function DreOrcado() {
           <Card className="p-4 grid grid-cols-2 gap-4">
             <div>
               <div className="text-sm text-muted-foreground">Resultado orçado</div>
-              <div className={`text-2xl font-bold ${resultadoOrcado >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+              <div
+                className={`text-2xl font-bold ${resultadoOrcado >= 0 ? "text-emerald-600" : "text-destructive"}`}
+              >
                 {brl(resultadoOrcado)}
               </div>
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Resultado realizado</div>
-              <div className={`text-2xl font-bold ${resultadoReal >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+              <div
+                className={`text-2xl font-bold ${resultadoReal >= 0 ? "text-emerald-600" : "text-destructive"}`}
+              >
                 {brl(resultadoReal)}
               </div>
             </div>

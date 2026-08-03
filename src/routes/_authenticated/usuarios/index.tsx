@@ -15,7 +15,14 @@ import {
 import type { Papel } from "@/lib/backend/auth";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +65,10 @@ function UsuariosPage() {
   const qc = useQueryClient();
 
   const usuarios = useQuery({ queryKey: ["usuarios"], queryFn: () => listarUsuarios() });
-  const semAcesso = useQuery({ queryKey: ["irmaos_sem_acesso"], queryFn: () => listarIrmaosSemAcesso() });
+  const semAcesso = useQuery({
+    queryKey: ["irmaos_sem_acesso"],
+    queryFn: () => listarIrmaosSemAcesso(),
+  });
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["usuarios"] });
@@ -78,7 +88,8 @@ function UsuariosPage() {
   const criarTodos = async () => {
     try {
       const relatorio = await criarAcessosEmLote();
-      if (relatorio.criados.length > 0) toast.success(`${relatorio.criados.length} acesso(s) criado(s).`);
+      if (relatorio.criados.length > 0)
+        toast.success(`${relatorio.criados.length} acesso(s) criado(s).`);
       if (relatorio.falhas.length > 0) {
         // mesmo motivo pra todo mundo (ex.: procedure ausente) é o caso comum
         // — mostra só uma vez em vez de repetir a mesma frase 27 vezes.
@@ -106,16 +117,19 @@ function UsuariosPage() {
         <ShieldAlert className="h-4 w-4" />
         <AlertTitle>Login e senha padrão (fase de testes)</AlertTitle>
         <AlertDescription>
-          Acessos criados por aqui usam <strong>nome.sobrenome</strong> como login (gerado a partir do nome civil,
-          sem precisar de e-mail) e a senha padrão <strong>{"“123”"}</strong> para todo mundo até o admin
-          redefinir. Trocar para um esquema mais seguro depois que passar da fase de testes.
+          Acessos criados por aqui usam <strong>nome.sobrenome</strong> como login (gerado a partir
+          do nome civil, sem precisar de e-mail) e a senha padrão <strong>{"“123”"}</strong> para
+          todo mundo até o admin redefinir. Trocar para um esquema mais seguro depois que passar da
+          fase de testes.
         </AlertDescription>
       </Alert>
 
       {(semAcesso.data ?? []).length > 0 && (
         <Card className="mb-6">
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="text-base">Irmãos sem acesso ({semAcesso.data?.length})</CardTitle>
+            <CardTitle className="text-base">
+              Irmãos sem acesso ({semAcesso.data?.length})
+            </CardTitle>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button size="sm">
@@ -124,10 +138,12 @@ function UsuariosPage() {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Criar acesso para {semAcesso.data?.length} irmão(s)?</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    Criar acesso para {semAcesso.data?.length} irmão(s)?
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
-                    Vai criar um login (nome.sobrenome) para cada irmão da lista abaixo, com a senha padrão{" "}
-                    {"“123”"}.
+                    Vai criar um login (nome.sobrenome) para cada irmão da lista abaixo, com a senha
+                    padrão {"“123”"}.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -150,7 +166,9 @@ function UsuariosPage() {
                 {(semAcesso.data ?? []).map((i) => (
                   <TableRow key={i.id}>
                     <TableCell className="font-medium">{i.nome_civil}</TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">{i.loginSugerido}</TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground">
+                      {i.loginSugerido}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="outline" onClick={() => criarUm(i.id)}>
                         Criar acesso
@@ -166,7 +184,9 @@ function UsuariosPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Usuários cadastrados ({usuarios.data?.length ?? 0})</CardTitle>
+          <CardTitle className="text-base">
+            Usuários cadastrados ({usuarios.data?.length ?? 0})
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -211,7 +231,9 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
   };
 
   const togglePapel = (papel: Papel) => {
-    setPapeisSelecionados((prev) => (prev.includes(papel) ? prev.filter((p) => p !== papel) : [...prev, papel]));
+    setPapeisSelecionados((prev) =>
+      prev.includes(papel) ? prev.filter((p) => p !== papel) : [...prev, papel],
+    );
   };
 
   const salvarPapeis = async () => {
@@ -262,7 +284,12 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
           <Button size="sm" variant="ghost" onClick={abrirPapeis} title="Editar papéis">
             <ShieldCheck className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSenhaOpen(true)} title="Redefinir senha">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSenhaOpen(true)}
+            title="Redefinir senha"
+          >
             <KeyRound className="h-4 w-4" />
           </Button>
         </div>
@@ -271,7 +298,9 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Papéis de {usuario.email}</DialogTitle>
-              <DialogDescription>Define o que essa pessoa pode ver e fazer no sistema.</DialogDescription>
+              <DialogDescription>
+                Define o que essa pessoa pode ver e fazer no sistema.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               {TODOS_PAPEIS.map((papel) => (
@@ -305,12 +334,23 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Redefinir senha de {usuario.email}</DialogTitle>
-              <DialogDescription>A pessoa vai precisar da nova senha para o próximo login.</DialogDescription>
+              <DialogDescription>
+                A pessoa vai precisar da nova senha para o próximo login.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
               <Label>Nova senha</Label>
-              <Input value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} placeholder="123" />
-              <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setNovaSenha("123")}>
+              <Input
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                placeholder="123"
+              />
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-xs"
+                onClick={() => setNovaSenha("123")}
+              >
                 Usar senha padrão (123)
               </Button>
             </div>

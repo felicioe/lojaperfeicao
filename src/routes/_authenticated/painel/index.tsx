@@ -14,9 +14,24 @@ export const Route = createFileRoute("/_authenticated/painel/")({
 
 const TILES = [
   { to: "/painel/dados", label: "Meus Dados", icon: UserRound, cor: "from-blue-400 to-indigo-600" },
-  { to: "/painel/financeiro", label: "Financeiro", icon: Wallet, cor: "from-emerald-400 to-teal-600" },
-  { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2, cor: "from-amber-400 to-orange-600" },
-  { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays, cor: "from-violet-400 to-purple-600" },
+  {
+    to: "/painel/financeiro",
+    label: "Financeiro",
+    icon: Wallet,
+    cor: "from-emerald-400 to-teal-600",
+  },
+  {
+    to: "/painel/frequencia",
+    label: "Frequência",
+    icon: CalendarCheck2,
+    cor: "from-amber-400 to-orange-600",
+  },
+  {
+    to: "/painel/sessoes",
+    label: "Sessões",
+    icon: CalendarDays,
+    cor: "from-violet-400 to-purple-600",
+  },
 ] as const;
 
 function PainelInicio() {
@@ -67,7 +82,8 @@ function PainelInicio() {
   if (isDesktop) {
     const presencas = (frequencia.data ?? []).filter((f) => f.presente).length;
     const totalSessoesFreq = frequencia.data?.length ?? 0;
-    const percentualFrequencia = totalSessoesFreq > 0 ? Math.round((presencas / totalSessoesFreq) * 100) : 0;
+    const percentualFrequencia =
+      totalSessoesFreq > 0 ? Math.round((presencas / totalSessoesFreq) * 100) : 0;
 
     return (
       <>
@@ -124,7 +140,8 @@ function PainelInicio() {
         >
           <AlertCircle className="h-5 w-5 shrink-0" />
           <span>
-            Você tem {emAberto.length} mensalidade(s) em aberto — <strong>{brl(totalEmAberto)}</strong>
+            Você tem {emAberto.length} mensalidade(s) em aberto —{" "}
+            <strong>{brl(totalEmAberto)}</strong>
           </span>
         </Link>
       )}

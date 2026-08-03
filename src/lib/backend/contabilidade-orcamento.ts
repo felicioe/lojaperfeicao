@@ -9,7 +9,12 @@ import { comPapel, comSessao } from "./authz";
 const PAPEIS = ["admin", "tesoureiro"];
 
 // plano_contas tem leitura pública para autenticados no RLS original.
-export type ContaOrcamento = { id: string; codigo: string; nome: string; tipo: "receita" | "despesa" };
+export type ContaOrcamento = {
+  id: string;
+  codigo: string;
+  nome: string;
+  tipo: "receita" | "despesa";
+};
 
 export const listarContasOrcamento = createServerFn({ method: "GET" }).handler(
   async (): Promise<ContaOrcamento[]> => {
@@ -22,14 +27,23 @@ export const listarContasOrcamento = createServerFn({ method: "GET" }).handler(
   },
 );
 
-export type Orcamento = { id: string; ano: number; status: "rascunho" | "aprovado"; observacoes: string | null };
+export type Orcamento = {
+  id: string;
+  ano: number;
+  status: "rascunho" | "aprovado";
+  observacoes: string | null;
+};
 
-export const listarOrcamentos = createServerFn({ method: "GET" }).handler(async (): Promise<Orcamento[]> => {
-  return comPapel(PAPEIS, async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT id, ano, status, observacoes FROM orcamentos ORDER BY ano DESC");
-    return rows as Orcamento[];
-  });
-});
+export const listarOrcamentos = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Orcamento[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT id, ano, status, observacoes FROM orcamentos ORDER BY ano DESC",
+      );
+      return rows as Orcamento[];
+    });
+  },
+);
 
 export type OrcamentoItem = { conta_id: string; mes: number; valor: number };
 
@@ -46,22 +60,38 @@ export const listarOrcamentoItens = createServerFn({ method: "GET" })
   });
 
 export const criarOrcamento = createServerFn({ method: "POST" })
-  .validator((d: unknown) => z.object({ ano: z.number().int(), observacoes: z.string().nullable() }).parse(d))
+  .validator((d: unknown) =>
+    z.object({ ano: z.number().int(), observacoes: z.string().nullable() }).parse(d),
+  )
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn) => {
       await conn.query("CALL criar_orcamento(?, ?, @orcamento_id)", [data.ano, data.observacoes]);
-      const [[{ orcamento_id }]] = await conn.query<RowDataPacket[]>("SELECT @orcamento_id AS orcamento_id");
+      const [[{ orcamento_id }]] = await conn.query<RowDataPacket[]>(
+        "SELECT @orcamento_id AS orcamento_id",
+      );
       return { id: orcamento_id };
     });
   });
 
 export const definirValorOrcamento = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ orcamentoId: z.string().uuid(), contaId: z.string().uuid(), mes: z.number().int().min(1).max(12), valor: z.number() }).parse(d),
+    z
+      .object({
+        orcamentoId: z.string().uuid(),
+        contaId: z.string().uuid(),
+        mes: z.number().int().min(1).max(12),
+        valor: z.number(),
+      })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
-      await conn.query("CALL definir_valor_orcamento(?, ?, ?, ?)", [data.orcamentoId, data.contaId, data.mes, data.valor]);
+      await conn.query("CALL definir_valor_orcamento(?, ?, ?, ?)", [
+        data.orcamentoId,
+        data.contaId,
+        data.mes,
+        data.valor,
+      ]);
     });
   });
 
@@ -82,7 +112,12 @@ export const reabrirOrcamento = createServerFn({ method: "POST" })
   });
 
 // ---------- Acompanhamento mensal (aba "Acompanhamento" do orçamento) ----------
-export type ItemRealizadoAnual = { tipo: "debito" | "credito"; valor: number; conta_tipo: "receita" | "despesa"; data: string };
+export type ItemRealizadoAnual = {
+  tipo: "debito" | "credito";
+  valor: number;
+  conta_tipo: "receita" | "despesa";
+  data: string;
+};
 
 export const listarRealizadoAnual = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ ano: z.number().int() }).parse(d))

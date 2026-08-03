@@ -11,7 +11,10 @@ const PAPEIS_ESCRITA = ["admin", "tesoureiro"];
 
 async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
-  const [[row]] = await conn.query<RowDataPacket[]>(`SELECT (${condicoes}) AS ok`, PAPEIS_PRIVILEGIADOS);
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    `SELECT (${condicoes}) AS ok`,
+    PAPEIS_PRIVILEGIADOS,
+  );
   return !!row.ok;
 }
 
@@ -60,7 +63,12 @@ export const listarParcelamentos = createServerFn({ method: "GET" }).handler(
   },
 );
 
-export type FaturaAbertaIrmao = { id: string; descricao: string; valor: number; data_vencimento: string };
+export type FaturaAbertaIrmao = {
+  id: string;
+  descricao: string;
+  valor: number;
+  data_vencimento: string;
+};
 
 export const listarFaturasAbertasPorIrmao = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ irmaoId: z.string().uuid() }).parse(d))

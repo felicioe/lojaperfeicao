@@ -13,11 +13,31 @@ import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { useState } from "react";
@@ -83,12 +103,31 @@ function Tesouraria() {
                 <Repeat className="h-4 w-4 mr-1" /> Gerar mensalidades do mês
               </Button>
               <Dialog open={openTransf} onOpenChange={setOpenTransf}>
-                <DialogTrigger asChild><Button variant="outline">Transferência</Button></DialogTrigger>
-                <TransferenciaDialog contas={contas.data ?? []} onDone={() => { setOpenTransf(false); qc.invalidateQueries({ queryKey: ["lancamentos"] }); }} />
+                <DialogTrigger asChild>
+                  <Button variant="outline">Transferência</Button>
+                </DialogTrigger>
+                <TransferenciaDialog
+                  contas={contas.data ?? []}
+                  onDone={() => {
+                    setOpenTransf(false);
+                    qc.invalidateQueries({ queryKey: ["lancamentos"] });
+                  }}
+                />
               </Dialog>
               <Dialog open={openLanc} onOpenChange={setOpenLanc}>
-                <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Novo lançamento</Button></DialogTrigger>
-                <LancamentoDialog contas={contas.data ?? []} planos={planos.data ?? []} onDone={() => { setOpenLanc(false); qc.invalidateQueries({ queryKey: ["lancamentos"] }); }} />
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-1" /> Novo lançamento
+                  </Button>
+                </DialogTrigger>
+                <LancamentoDialog
+                  contas={contas.data ?? []}
+                  planos={planos.data ?? []}
+                  onDone={() => {
+                    setOpenLanc(false);
+                    qc.invalidateQueries({ queryKey: ["lancamentos"] });
+                  }}
+                />
               </Dialog>
             </div>
           )
@@ -96,7 +135,9 @@ function Tesouraria() {
       />
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Últimos lançamentos</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Últimos lançamentos</CardTitle>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -113,7 +154,11 @@ function Tesouraria() {
             </TableHeader>
             <TableBody>
               {(lancamentos.data ?? []).length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Nenhum lançamento.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                    Nenhum lançamento.
+                  </TableCell>
+                </TableRow>
               )}
               {(lancamentos.data ?? []).map((l: any) => (
                 <TableRow key={l.id}>
@@ -121,17 +166,31 @@ function Tesouraria() {
                   <TableCell>{l.descricao}</TableCell>
                   <TableCell>
                     {l.contas_financeiras?.nome ?? "—"}
-                    {l.destino?.nome && <span className="text-muted-foreground"> → {l.destino.nome}</span>}
+                    {l.destino?.nome && (
+                      <span className="text-muted-foreground"> → {l.destino.nome}</span>
+                    )}
                   </TableCell>
                   <TableCell>{l.plano_contas?.nome ?? "—"}</TableCell>
                   <TableCell>
-                    <Badge variant={l.tipo === "entrada" ? "default" : l.tipo === "saida" ? "destructive" : "secondary"}>
+                    <Badge
+                      variant={
+                        l.tipo === "entrada"
+                          ? "default"
+                          : l.tipo === "saida"
+                            ? "destructive"
+                            : "secondary"
+                      }
+                    >
                       {l.tipo}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
                   <TableCell>
-                    {l.pago ? <Badge variant="secondary">Pago</Badge> : <Badge variant="outline">Aberto</Badge>}
+                    {l.pago ? (
+                      <Badge variant="secondary">Pago</Badge>
+                    ) : (
+                      <Badge variant="outline">Aberto</Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {!l.pago && can.canManageFinancas && (
@@ -190,12 +249,16 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
   };
   return (
     <DialogContent className="max-w-lg">
-      <DialogHeader><DialogTitle>Novo lançamento</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Novo lançamento</DialogTitle>
+      </DialogHeader>
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <Label>Tipo</Label>
           <Select value={d.tipo} onValueChange={(v) => setD({ ...d, tipo: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="entrada">Entrada</SelectItem>
               <SelectItem value="saida">Saída</SelectItem>
@@ -204,7 +267,13 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
         </div>
         <div>
           <Label>Valor</Label>
-          <Input type="number" step="0.01" min="0" value={d.valor} onChange={(e) => setD({ ...d, valor: Number(e.target.value) })} />
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={d.valor}
+            onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
+          />
         </div>
         <div className="md:col-span-2">
           <Label>Descrição</Label>
@@ -212,37 +281,73 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
         </div>
         <div>
           <Label>Data</Label>
-          <Input type="date" value={d.data} onChange={(e) => setD({ ...d, data: e.target.value })} />
+          <Input
+            type="date"
+            value={d.data}
+            onChange={(e) => setD({ ...d, data: e.target.value })}
+          />
         </div>
         <div>
           <Label>Vencimento</Label>
-          <Input type="date" value={d.data_vencimento} onChange={(e) => setD({ ...d, data_vencimento: e.target.value })} />
+          <Input
+            type="date"
+            value={d.data_vencimento}
+            onChange={(e) => setD({ ...d, data_vencimento: e.target.value })}
+          />
         </div>
         <div>
           <Label>Conta</Label>
           <Select value={d.conta_id} onValueChange={(v) => setD({ ...d, conta_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Selecionar" /></SelectTrigger>
-            <SelectContent>{contas.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecionar" />
+            </SelectTrigger>
+            <SelectContent>
+              {contas.map((c: any) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         <div>
           <Label>Categoria (plano de contas)</Label>
           <Select value={d.plano_conta_id} onValueChange={(v) => setD({ ...d, plano_conta_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
-            <SelectContent>{planos.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.codigo} — {p.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Opcional" />
+            </SelectTrigger>
+            <SelectContent>
+              {planos.map((p: any) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.codigo} — {p.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         <div className="md:col-span-2 flex items-center gap-2">
-          <input id="pago" type="checkbox" checked={d.pago} onChange={(e) => setD({ ...d, pago: e.target.checked })} />
-          <Label htmlFor="pago" className="cursor-pointer">Já pago/recebido</Label>
+          <input
+            id="pago"
+            type="checkbox"
+            checked={d.pago}
+            onChange={(e) => setD({ ...d, pago: e.target.checked })}
+          />
+          <Label htmlFor="pago" className="cursor-pointer">
+            Já pago/recebido
+          </Label>
         </div>
         <div className="md:col-span-2">
           <Label>Observações</Label>
-          <Textarea value={d.observacoes} onChange={(e) => setD({ ...d, observacoes: e.target.value })} />
+          <Textarea
+            value={d.observacoes}
+            onChange={(e) => setD({ ...d, observacoes: e.target.value })}
+          />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={save} disabled={saving || !d.descricao || !d.conta_id}>Salvar</Button>
+        <Button onClick={save} disabled={saving || !d.descricao || !d.conta_id}>
+          Salvar
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
@@ -280,29 +385,59 @@ function TransferenciaDialog({ contas, onDone }: any) {
   };
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>Transferência entre contas</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Transferência entre contas</DialogTitle>
+      </DialogHeader>
       <div className="grid gap-3">
         <div>
           <Label>Conta de origem</Label>
           <Select value={d.conta_id} onValueChange={(v) => setD({ ...d, conta_id: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{contas.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {contas.map((c: any) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         <div>
           <Label>Conta de destino</Label>
-          <Select value={d.conta_destino_id} onValueChange={(v) => setD({ ...d, conta_destino_id: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{contas.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
+          <Select
+            value={d.conta_destino_id}
+            onValueChange={(v) => setD({ ...d, conta_destino_id: v })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {contas.map((c: any) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         <div>
           <Label>Valor</Label>
-          <Input type="number" step="0.01" value={d.valor} onChange={(e) => setD({ ...d, valor: Number(e.target.value) })} />
+          <Input
+            type="number"
+            step="0.01"
+            value={d.valor}
+            onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
+          />
         </div>
         <div>
           <Label>Data</Label>
-          <Input type="date" value={d.data} onChange={(e) => setD({ ...d, data: e.target.value })} />
+          <Input
+            type="date"
+            value={d.data}
+            onChange={(e) => setD({ ...d, data: e.target.value })}
+          />
         </div>
         <div>
           <Label>Descrição</Label>
@@ -310,7 +445,9 @@ function TransferenciaDialog({ contas, onDone }: any) {
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={save} disabled={saving || !d.valor}>Transferir</Button>
+        <Button onClick={save} disabled={saving || !d.valor}>
+          Transferir
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

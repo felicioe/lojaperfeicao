@@ -6,8 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { brl } from "@/lib/format";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -19,7 +32,12 @@ export const Route = createFileRoute("/_authenticated/tesouraria/contas")({
 
 function Contas() {
   const qc = useQueryClient();
-  const [nova, setNova] = useState<{ nome: string; tipo: "caixa" | "banco" | "outro"; saldo_inicial: number; banco: string }>({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "" });
+  const [nova, setNova] = useState<{
+    nome: string;
+    tipo: "caixa" | "banco" | "outro";
+    saldo_inicial: number;
+    banco: string;
+  }>({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "" });
 
   const saldos = useQuery({
     queryKey: ["saldos"],
@@ -41,13 +59,23 @@ function Contas() {
     <>
       <PageHeader title="Contas financeiras" description="Caixa, contas bancárias e saldos." />
       <Card className="mb-4">
-        <CardHeader><CardTitle className="text-base">Nova conta</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Nova conta</CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-5">
-          <div><Label>Nome</Label><Input value={nova.nome} onChange={(e) => setNova({ ...nova, nome: e.target.value })} /></div>
+          <div>
+            <Label>Nome</Label>
+            <Input value={nova.nome} onChange={(e) => setNova({ ...nova, nome: e.target.value })} />
+          </div>
           <div>
             <Label>Tipo</Label>
-            <Select value={nova.tipo} onValueChange={(v) => setNova({ ...nova, tipo: v as typeof nova.tipo })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={nova.tipo}
+              onValueChange={(v) => setNova({ ...nova, tipo: v as typeof nova.tipo })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="caixa">Caixa</SelectItem>
                 <SelectItem value="banco">Banco</SelectItem>
@@ -55,9 +83,27 @@ function Contas() {
               </SelectContent>
             </Select>
           </div>
-          <div><Label>Banco</Label><Input value={nova.banco} onChange={(e) => setNova({ ...nova, banco: e.target.value })} /></div>
-          <div><Label>Saldo inicial</Label><Input type="number" step="0.01" value={nova.saldo_inicial} onChange={(e) => setNova({ ...nova, saldo_inicial: Number(e.target.value) })} /></div>
-          <div className="flex items-end"><Button onClick={criar} disabled={!nova.nome}>Adicionar</Button></div>
+          <div>
+            <Label>Banco</Label>
+            <Input
+              value={nova.banco}
+              onChange={(e) => setNova({ ...nova, banco: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Saldo inicial</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={nova.saldo_inicial}
+              onChange={(e) => setNova({ ...nova, saldo_inicial: Number(e.target.value) })}
+            />
+          </div>
+          <div className="flex items-end">
+            <Button onClick={criar} disabled={!nova.nome}>
+              Adicionar
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

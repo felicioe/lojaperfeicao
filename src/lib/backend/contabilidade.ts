@@ -32,7 +32,10 @@ export const obterSaldoAnteriorConta = createServerFn({ method: "GET" })
          WHERE i.conta_id = ? AND lc.data < ?`,
         [data.contaId, data.antesDe],
       );
-      return rows.reduce((s, i) => s + (i.tipo === "debito" ? Number(i.valor) : -Number(i.valor)), 0);
+      return rows.reduce(
+        (s, i) => s + (i.tipo === "debito" ? Number(i.valor) : -Number(i.valor)),
+        0,
+      );
     });
   });
 
@@ -45,7 +48,9 @@ export type ItemRazao = {
 };
 
 export const listarItensRazao = createServerFn({ method: "GET" })
-  .validator((d: unknown) => z.object({ contaId: z.string().uuid(), de: z.string(), ate: z.string() }).parse(d))
+  .validator((d: unknown) =>
+    z.object({ contaId: z.string().uuid(), de: z.string(), ate: z.string() }).parse(d),
+  )
   .handler(async ({ data }): Promise<ItemRazao[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
@@ -61,7 +66,11 @@ export const listarItensRazao = createServerFn({ method: "GET" })
         tipo: r.tipo,
         valor: r.valor,
         descricao: r.descricao,
-        lancamentos_contabeis: { data: r.data, descricao: r.lc_descricao, origem_tipo: r.origem_tipo },
+        lancamentos_contabeis: {
+          data: r.data,
+          descricao: r.lc_descricao,
+          origem_tipo: r.origem_tipo,
+        },
       }));
     });
   });
@@ -167,7 +176,9 @@ export type SaldoPlanoContas = {
 export const listarSaldoPlanoContas = createServerFn({ method: "GET" }).handler(
   async (): Promise<SaldoPlanoContas[]> => {
     return comPapel(PAPEIS, async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM v_saldo_plano_contas ORDER BY codigo");
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM v_saldo_plano_contas ORDER BY codigo",
+      );
       return rows as SaldoPlanoContas[];
     });
   },
@@ -187,7 +198,9 @@ export type AuditoriaDesbalanceado = {
 export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" }).handler(
   async (): Promise<AuditoriaDesbalanceado[]> => {
     return comPapel(PAPEIS, async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM v_auditoria_contabil_desbalanceados");
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM v_auditoria_contabil_desbalanceados",
+      );
       return rows as AuditoriaDesbalanceado[];
     });
   },

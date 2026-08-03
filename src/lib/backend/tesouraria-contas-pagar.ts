@@ -21,7 +21,11 @@ export type ContaPagar = {
   contas_financeiras: { nome: string } | null;
 };
 
-async function buscarContasPagar(conn: PoolConnection, pago: boolean, limite?: number): Promise<ContaPagar[]> {
+async function buscarContasPagar(
+  conn: PoolConnection,
+  pago: boolean,
+  limite?: number,
+): Promise<ContaPagar[]> {
   const ordenacao = pago ? "l.data_pagamento DESC" : "l.data_vencimento";
   const [rows] = await conn.query<RowDataPacket[]>(
     `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.pago, l.forma_pagamento,

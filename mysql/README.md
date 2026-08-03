@@ -29,7 +29,7 @@ recursos é substituído.
   errado de forma permanente** (mojibake, ex.: "Já existe" vira "JÃ¡ existe" quando lido
   de volta) e só se percebe rodando a aplicação de verdade. Descoberto durante a
   validação da issue #49 (`criar_usuario`, veja seção 11). Banco criado (`CREATE
-  DATABASE`) e usuário de aplicação também devem usar `utf8mb4`
+DATABASE`) e usuário de aplicação também devem usar `utf8mb4`
   (`CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`).
   Não existe (ainda) uma ferramenta de migração automatizada tipo Supabase CLI — isso
   é left para quando o cliente MySQL do app (issue #53) estiver pronto; por ora, é
@@ -38,20 +38,23 @@ recursos é substituído.
 ## Decisões de arquitetura (equivalentes ao que o Postgres/Supabase dava de graça)
 
 ### 1. UUIDs
+
 Postgres: `gen_random_uuid()`. MySQL/MariaDB (10.10+, testado em 10.11 — a mesma
 versão majoritariamente usada em hospedagem compartilhada, inclusive Hostinger):
-`UUID()` funciona como *default expression* em coluna `CHAR(36)`:
+`UUID()` funciona como _default expression_ em coluna `CHAR(36)`:
 
 ```sql
 id CHAR(36) NOT NULL DEFAULT (UUID()) PRIMARY KEY
 ```
 
 ### 2. Enums
+
 Postgres: `CREATE TYPE ... AS ENUM (...)`, reutilizável entre tabelas. MySQL: `ENUM(...)`
 é declarado por coluna, não é um tipo nomeado reutilizável — repetimos a lista de
 valores em cada coluna que precisa (pequena duplicação, sem solução melhor no MySQL).
 
 ### 3. Autenticação e "quem está logado" (substituindo `auth.uid()`)
+
 Não existe Supabase Auth nem JWT verificado pelo PostgREST. A trilha escolhida:
 
 - Tabela `usuarios` + `usuarios_papeis` (equivalentes a `auth.users`+`profiles` e
@@ -82,6 +85,7 @@ Não existe Supabase Auth nem JWT verificado pelo PostgREST. A trilha escolhida:
   `@current_usuario_id` primeiro. Isso é responsabilidade da camada de API (issue #53).
 
 ### 4. RLS (Row Level Security) → sem tabela com policy de SELECT direta
+
 Sem RLS, nenhuma tabela pode ser exposta para leitura direta do MySQL a partir do
 browser (nunca existiu essa possibilidade aqui de qualquer forma, já que não há
 PostgREST/equivalente — toda leitura já teria que passar por uma rota do servidor
@@ -92,6 +96,7 @@ nas migrations do Postgres (issues #50, #51, #52 devem documentar, tabela a tabe
 qual era a policy original e onde a checagem equivalente foi implementada).
 
 ### 5. RPCs `SECURITY DEFINER` → stored procedures
+
 Uma stored procedure MySQL com `DEFINER = <usuário de aplicação>` roda com os
 privilégios desse usuário, análogo ao `SECURITY DEFINER` do Postgres. Nenhuma tabela
 sensível recebe `GRANT INSERT/UPDATE/DELETE` para o usuário de aplicação — só
@@ -99,10 +104,11 @@ sensível recebe `GRANT INSERT/UPDATE/DELETE` para o usuário de aplicação —
 policy de escrita para `authenticated`, só a RPC escrevia).
 
 ### 6. Constraint adiável (balanceamento débito=crédito) → validação antes do INSERT
+
 O Postgres usa uma `CONSTRAINT TRIGGER ... DEFERRABLE INITIALLY DEFERRED` que checa,
 no fim da transação, se soma de débito = soma de crédito por lançamento. MariaDB não
 tem constraints adiáveis. Solução adotada (mais simples, e na prática mais segura:
-falha *antes* de qualquer INSERT em vez de depois): a própria stored procedure
+falha _antes_ de qualquer INSERT em vez de depois): a própria stored procedure
 `registrar_lancamento_contabil` soma os valores de débito e crédito do array JSON
 recebido **antes de inserir qualquer linha**, e recusa a operação inteira se as somas
 não baterem. Validado localmente que uma stored procedure MariaDB consegue iterar um
@@ -112,6 +118,7 @@ Mantemos, ainda assim, uma view `v_auditoria_contabil_desbalanceados` equivalent
 do Postgres, como rede de segurança administrativa (issue #51).
 
 ### 7. Índice único parcial (`WHERE ... IS NOT NULL`) → coluna mantida explicitamente
+
 MySQL/MariaDB não suporta índice único com predicado `WHERE`. A ideia inicial era usar
 uma **coluna gerada** (`GENERATED ALWAYS AS (...) STORED`) que retorna `NULL`
 exatamente nos casos em que o Postgres não aplicaria a restrição — só que, testado
@@ -132,6 +139,7 @@ como duplicata em um índice único, então a garantia final é idêntica — s�
 manter a coluna atualizada que muda.
 
 ### 8. `updated_at` automático
+
 Postgres precisou de uma função + trigger (`set_updated_at`) porque não tem suporte
 nativo a "atualizar automaticamente no UPDATE". MySQL tem isso embutido na própria
 coluna — simplificação, sem necessidade de trigger:
@@ -141,12 +149,14 @@ atualizado_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIM
 ```
 
 ### 9. Edge Functions (Deno) → rotas Node.js
+
 `consulta-cnpj` e `importar-ofx` deixam de ser Supabase Edge Functions e passam a
 ser rotas do próprio servidor Node.js já publicado na Hostinger (issue #54). A lógica
 de parsing (OFX/SGML, detecção de encoding) é JS puro e portável quase 1:1; só muda
 o runtime (Deno → Node) e o cliente de banco (Postgres → MySQL).
 
 ### 10. Chamar uma procedure com parâmetro JSON a partir do driver (`mysql2`)
+
 Validado com o driver real (`mysql2`) contra um MariaDB 10.11 local: **`CAST(... AS
 JSON)` não é sintaxe válida no MariaDB** — `JSON` ali é só um alias de `LONGTEXT` com
 uma constraint de validação, não um tipo de destino reconhecido por `CAST`
@@ -165,6 +175,7 @@ Também confirmado ponta a ponta com o driver real: o padrão de `SET
 `has_role()` reconhecendo a variável de sessão setada pelo driver.
 
 ### 12. `mysql2` não devolve BOOLEAN/DATE no formato que o app espera — achado na revisão da issue #53
+
 Bug real, confirmado contra MariaDB local (não hipotético): por padrão, o driver
 `mysql2` devolve toda coluna `BOOLEAN`/`TINYINT(1)` como **number** (`0`/`1`), não
 como `boolean` do JS (`SELECT ativo FROM potencias` devolvia `{ativo: 1}`,
@@ -196,6 +207,7 @@ pool, vale para toda query feita a partir de agora — não precisa (e não deve
 `!!coluna` manualmente em cada função nova.
 
 ### 13. Preset do Nitro (build) — RESOLVIDO
+
 `vite.config.ts` não definia `nitro.preset` explicitamente, e o preset padrão do
 `@lovable.dev/vite-tanstack-config` quando nenhum é informado é `cloudflare-module`
 (edge/Workers) — visto no próprio pacote (`defaultPreset: "cloudflare-module"`).
@@ -224,6 +236,7 @@ anterior era corrigido). Resolvido renomeando `src/lib/server/` para
 `src/lib/backend/` e ajustando os ~40 imports afetados em todo o projeto.
 
 ### 14. Checklist de corte de produção (issue #55)
+
 Confirmado com o usuário: o projeto ainda não tem dado real de uso em produção
 no Supabase, então **não há etapa de migração de dados** (exportar Postgres →
 importar MySQL) — o corte é só de configuração e troca de fonte de verdade.
@@ -262,6 +275,7 @@ importar MySQL) — o corte é só de configuração e troca de fonte de verdade
    desativar/arquivar o projeto Supabase.
 
 ### 11. Autenticação e sessão (issue #49) — implementado
+
 `src/lib/backend/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
 explícito — ver seção acima sobre o gotcha do charset) e `withUserConnection()`,
 que encapsula exatamente o padrão validado na seção 10 (checkout do pool + `SET
@@ -289,11 +303,13 @@ login certo/errado, e-mail inexistente, e-mail duplicado — todos os casos
 retornam o resultado esperado.
 
 ## Variáveis de ambiente
+
 Implementado — ver `.env.example` na raiz do repositório para a lista completa
 e comentada, e a seção 14 acima para o checklist de configuração em produção.
 Nunca commitar valores reais (`.env` está no `.gitignore`).
 
 ## O que NÃO muda
+
 - O desenho de domínio (quais tabelas existem, quais campos, as regras de negócio
   de cada RPC) é preservado — é uma migração de infraestrutura, não um redesenho de
   produto. Cada issue de schema (#50, #51, #52) faz a tradução tabela a tabela,

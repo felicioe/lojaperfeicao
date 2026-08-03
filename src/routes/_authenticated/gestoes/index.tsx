@@ -17,8 +17,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -72,7 +85,8 @@ function Gestoes() {
     }
   };
 
-  const nomeOrg = (id: string) => orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? "—";
+  const nomeOrg = (id: string) =>
+    orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? "—";
 
   return (
     <>
@@ -88,24 +102,57 @@ function Gestoes() {
 
       {can.canManageIrmaos && (
         <Card className="mb-4">
-          <CardHeader><CardTitle className="text-base">Nova gestão</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Nova gestão</CardTitle>
+          </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-5">
             <div>
               <Label>Corpo</Label>
               <Select value={form.org_id} onValueChange={(v) => setForm({ ...form, org_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
                 <SelectContent>
                   {orgs.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.sigla ?? o.nome}</SelectItem>
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.sigla ?? o.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="2026-2028" /></div>
-            <div><Label>Início</Label><Input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} /></div>
-            <div><Label>Fim</Label><Input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} /></div>
+            <div>
+              <Label>Nome</Label>
+              <Input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                placeholder="2026-2028"
+              />
+            </div>
+            <div>
+              <Label>Início</Label>
+              <Input
+                type="date"
+                value={form.data_inicio}
+                onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Fim</Label>
+              <Input
+                type="date"
+                value={form.data_fim}
+                onChange={(e) => setForm({ ...form, data_fim: e.target.value })}
+              />
+            </div>
             <div className="flex items-end">
-              <Button onClick={salvar} disabled={!form.org_id || !form.nome || !form.data_inicio || !form.data_fim} className="w-full">Adicionar</Button>
+              <Button
+                onClick={salvar}
+                disabled={!form.org_id || !form.nome || !form.data_inicio || !form.data_fim}
+                className="w-full"
+              >
+                Adicionar
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -124,20 +171,36 @@ function Gestoes() {
           </TableHeader>
           <TableBody>
             {gestoes.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Nenhuma gestão cadastrada.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  Nenhuma gestão cadastrada.
+                </TableCell>
+              </TableRow>
             )}
             {gestoes.map((g) => (
               <Fragment key={g.id}>
                 <TableRow>
                   <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => setExpandida(expandida === g.id ? null : g.id)}>
-                      {expandida === g.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExpandida(expandida === g.id ? null : g.id)}
+                    >
+                      {expandida === g.id ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
                     </Button>
                   </TableCell>
                   <TableCell>{nomeOrg(g.org_id)}</TableCell>
                   <TableCell className="font-medium">{g.nome}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{fmtDate(g.data_inicio)} – {fmtDate(g.data_fim)}</TableCell>
-                  <TableCell>{g.ativo ? <Badge>Atual</Badge> : <Badge variant="outline">Encerrada</Badge>}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {fmtDate(g.data_inicio)} – {fmtDate(g.data_fim)}
+                  </TableCell>
+                  <TableCell>
+                    {g.ativo ? <Badge>Atual</Badge> : <Badge variant="outline">Encerrada</Badge>}
+                  </TableCell>
                 </TableRow>
                 {expandida === g.id && (
                   <TableRow>
@@ -179,7 +242,9 @@ function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: 
   const adicionar = async () => {
     if (!novo.cargo_id || !novo.irmao_id) return;
     try {
-      await criarGestaoCargo({ data: { gestaoId: gestao.id, cargoId: novo.cargo_id, irmaoId: novo.irmao_id } });
+      await criarGestaoCargo({
+        data: { gestaoId: gestao.id, cargoId: novo.cargo_id, irmaoId: novo.irmao_id },
+      });
       setNovo({ cargo_id: "", irmao_id: "" });
       invalidate();
     } catch (err) {
@@ -201,18 +266,30 @@ function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: 
       <div className="text-sm font-medium">Organograma — {gestao.nome}</div>
       <Table>
         <TableHeader>
-          <TableRow><TableHead>Cargo</TableHead><TableHead>Irmão</TableHead>{podeEditar && <TableHead className="w-10"></TableHead>}</TableRow>
+          <TableRow>
+            <TableHead>Cargo</TableHead>
+            <TableHead>Irmão</TableHead>
+            {podeEditar && <TableHead className="w-10"></TableHead>}
+          </TableRow>
         </TableHeader>
         <TableBody>
           {ocupantes.length === 0 && (
-            <TableRow><TableCell colSpan={3} className="text-muted-foreground text-sm">Nenhum cargo ocupado ainda.</TableCell></TableRow>
+            <TableRow>
+              <TableCell colSpan={3} className="text-muted-foreground text-sm">
+                Nenhum cargo ocupado ainda.
+              </TableCell>
+            </TableRow>
           )}
           {ocupantes.map((o) => (
             <TableRow key={o.id}>
               <TableCell>{o.cargos?.nome}</TableCell>
               <TableCell>{o.irmaos?.nome_civil}</TableCell>
               {podeEditar && (
-                <TableCell><Button variant="ghost" size="sm" onClick={() => remover(o.id)}><Trash2 className="h-4 w-4" /></Button></TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="sm" onClick={() => remover(o.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               )}
             </TableRow>
           ))}
@@ -223,22 +300,36 @@ function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: 
           <div className="flex-1">
             <Label className="text-xs">Cargo</Label>
             <Select value={novo.cargo_id} onValueChange={(v) => setNovo({ ...novo, cargo_id: v })}>
-              <SelectTrigger className="h-8"><SelectValue placeholder="Selecione…" /></SelectTrigger>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
               <SelectContent>
-                {cargos.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                {cargos.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex-1">
             <Label className="text-xs">Irmão</Label>
             <Select value={novo.irmao_id} onValueChange={(v) => setNovo({ ...novo, irmao_id: v })}>
-              <SelectTrigger className="h-8"><SelectValue placeholder="Selecione…" /></SelectTrigger>
+              <SelectTrigger className="h-8">
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
               <SelectContent>
-                {irmaos.map((i) => <SelectItem key={i.id} value={i.id}>{i.nome_civil}</SelectItem>)}
+                {irmaos.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>
+                    {i.nome_civil}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <Button size="sm" onClick={adicionar}><Plus className="h-4 w-4" /></Button>
+          <Button size="sm" onClick={adicionar}>
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
       )}
     </div>

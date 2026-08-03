@@ -15,20 +15,30 @@ export type Sessao = {
   observacoes: string | null;
 };
 
-export type Presenca = { id: string; sessao_id: string; irmao_id: string; presente: boolean; justificado: boolean };
+export type Presenca = {
+  id: string;
+  sessao_id: string;
+  irmao_id: string;
+  presente: boolean;
+  justificado: boolean;
+};
 
-export const listarSessoes = createServerFn({ method: "GET" }).handler(async (): Promise<Sessao[]> => {
-  return comSessao(async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM sessoes ORDER BY data DESC");
-    return rows as Sessao[];
-  });
-});
+export const listarSessoes = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Sessao[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM sessoes ORDER BY data DESC");
+      return rows as Sessao[];
+    });
+  },
+);
 
 export const obterSessao = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<Sessao | null> => {
     return comSessao(async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM sessoes WHERE id = ?", [data.id]);
+      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM sessoes WHERE id = ?", [
+        data.id,
+      ]);
       return (rows[0] as Sessao) ?? null;
     });
   });
@@ -55,16 +65,19 @@ export const listarPresencas = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ sessaoId: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<Presenca[]> => {
     return comSessao(async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM presencas WHERE sessao_id = ?", [
-        data.sessaoId,
-      ]);
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM presencas WHERE sessao_id = ?",
+        [data.sessaoId],
+      );
       return rows as Presenca[];
     });
   });
 
 export const togglePresenca = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ sessaoId: z.string().uuid(), irmaoId: z.string().uuid(), presente: z.boolean() }).parse(d),
+    z
+      .object({ sessaoId: z.string().uuid(), irmaoId: z.string().uuid(), presente: z.boolean() })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {

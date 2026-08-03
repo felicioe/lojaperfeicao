@@ -33,7 +33,9 @@ function getPool(): mysql.Pool {
       // MySQL concorrentes — configurável via env var em vez de fixo, para
       // poder ajustar ao plano real sem novo deploy. Ver mysql/README.md,
       // seção 14. Default conservador (5) se a env var não for setada.
-      connectionLimit: process.env.MYSQL_CONNECTION_LIMIT ? Number(process.env.MYSQL_CONNECTION_LIMIT) : 5,
+      connectionLimit: process.env.MYSQL_CONNECTION_LIMIT
+        ? Number(process.env.MYSQL_CONNECTION_LIMIT)
+        : 5,
       decimalNumbers: true,
       charset: "utf8mb4",
       // DATE/DATETIME/TIMESTAMP como string 'YYYY-MM-DD'/'YYYY-MM-DD HH:MM:SS'

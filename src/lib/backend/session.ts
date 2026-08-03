@@ -1,4 +1,9 @@
-import { getSession, updateSession, clearSession, type SessionConfig } from "@tanstack/react-start/server";
+import {
+  getSession,
+  updateSession,
+  clearSession,
+  type SessionConfig,
+} from "@tanstack/react-start/server";
 
 type SessaoData = { usuarioId: string };
 
@@ -13,7 +18,12 @@ function sessionConfig(): SessionConfig {
     password,
     name: "loja_sessao",
     maxAge: 60 * 60 * 24 * 30, // 30 dias
-    cookie: { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" },
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    },
   };
 }
 

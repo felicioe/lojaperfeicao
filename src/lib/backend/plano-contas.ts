@@ -20,16 +20,24 @@ export type Conta = {
   parent_id: string | null;
 };
 
-export const listarPlanoContas = createServerFn({ method: "GET" }).handler(async (): Promise<Conta[]> => {
-  return comSessao(async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM plano_contas ORDER BY codigo");
-    return rows as Conta[];
-  });
-});
+export const listarPlanoContas = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Conta[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM plano_contas ORDER BY codigo",
+      );
+      return rows as Conta[];
+    });
+  },
+);
 
 /** Contas analíticas e ativas de um tipo — usado nos seletores de categoria contábil. */
 export const listarPlanoContasPorTipo = createServerFn({ method: "GET" })
-  .validator((d: unknown) => z.object({ tipo: z.enum(["ativo", "passivo", "patrimonio_liquido", "receita", "despesa"]) }).parse(d))
+  .validator((d: unknown) =>
+    z
+      .object({ tipo: z.enum(["ativo", "passivo", "patrimonio_liquido", "receita", "despesa"]) })
+      .parse(d),
+  )
   .handler(async ({ data }): Promise<{ id: string; codigo: string; nome: string }[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(

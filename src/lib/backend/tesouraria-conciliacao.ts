@@ -8,7 +8,13 @@ import { comPapel } from "./authz";
 // pelas stored procedures (conciliar_ofx_existente/criar_lancamento_de_ofx).
 const PAPEIS = ["admin", "tesoureiro"];
 
-export type LancamentoConciliacao = { id: string; data: string; descricao: string; valor: number; tipo: string };
+export type LancamentoConciliacao = {
+  id: string;
+  data: string;
+  descricao: string;
+  valor: number;
+  tipo: string;
+};
 
 export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
@@ -45,7 +51,9 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
   });
 
 export const conciliarOfxExistente = createServerFn({ method: "POST" })
-  .validator((d: unknown) => z.object({ ofxId: z.string().uuid(), lancamentoId: z.string().uuid() }).parse(d))
+  .validator((d: unknown) =>
+    z.object({ ofxId: z.string().uuid(), lancamentoId: z.string().uuid() }).parse(d),
+  )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
       await conn.query("CALL conciliar_ofx_existente(?, ?)", [data.ofxId, data.lancamentoId]);
@@ -109,12 +117,7 @@ function normalizarData(ofxDate: string): string | null {
 }
 
 function normalizarTexto(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
 }
 
 const importarOfxSchema = z.object({
@@ -122,7 +125,12 @@ const importarOfxSchema = z.object({
   arquivoBase64: z.string().min(1),
 });
 
-export type ResultadoImportacaoOfx = { total: number; novos: number; jaImportados: number; erros: string[] };
+export type ResultadoImportacaoOfx = {
+  total: number;
+  novos: number;
+  jaImportados: number;
+  erros: string[];
+};
 
 export const importarOfx = createServerFn({ method: "POST" })
   .validator((d: unknown) => importarOfxSchema.parse(d))
@@ -136,7 +144,8 @@ export const importarOfx = createServerFn({ method: "POST" })
       }
 
       const conteudo = decodificarMelhorEsforco(bytes);
-      const blocos = conteudo.match(/<STMTTRN>[\s\S]*?(?=<STMTTRN>|<\/BANKTRANLIST>|<\/STMTTRN>)/gi) ?? [];
+      const blocos =
+        conteudo.match(/<STMTTRN>[\s\S]*?(?=<STMTTRN>|<\/BANKTRANLIST>|<\/STMTTRN>)/gi) ?? [];
 
       let novos = 0;
       let jaImportados = 0;
@@ -158,14 +167,29 @@ export const importarOfx = createServerFn({ method: "POST" })
           continue;
         }
 
-        const chaveDedupe = [fitid || "", dataOfx, valor.toFixed(2), trntype, normalizarTexto(descricao)].join("|");
+        const chaveDedupe = [
+          fitid || "",
+          dataOfx,
+          valor.toFixed(2),
+          trntype,
+          normalizarTexto(descricao),
+        ].join("|");
 
         try {
           const [result] = await conn.query<ResultSetHeader>(
             `INSERT IGNORE INTO ofx_lancamentos
                (conta_financeira_id, fitid, data, valor, tipo_ofx, descricao, chave_dedupe, importado_por)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [data.contaFinanceiraId, fitid || null, dataOfx, valor, trntype || null, descricao, chaveDedupe, usuarioId],
+            [
+              data.contaFinanceiraId,
+              fitid || null,
+              dataOfx,
+              valor,
+              trntype || null,
+              descricao,
+              chaveDedupe,
+              usuarioId,
+            ],
           );
           if (result.affectedRows > 0) novos++;
           else jaImportados++;

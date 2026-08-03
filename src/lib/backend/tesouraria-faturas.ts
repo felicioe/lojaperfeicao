@@ -89,23 +89,27 @@ export const baixarFaturas = createServerFn({ method: "POST" })
 
 export const listarPreviewLoteMensalidades = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ competencia: z.string() }).parse(d))
-  .handler(async ({ data }): Promise<{ id: string; nome_civil: string; valor_mensalidade: number }[]> => {
-    return comPapel(PAPEIS, async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT i.id, i.nome_civil, i.valor_mensalidade
+  .handler(
+    async ({ data }): Promise<{ id: string; nome_civil: string; valor_mensalidade: number }[]> => {
+      return comPapel(PAPEIS, async (conn) => {
+        const [rows] = await conn.query<RowDataPacket[]>(
+          `SELECT i.id, i.nome_civil, i.valor_mensalidade
          FROM irmaos i
          WHERE i.situacao IN ('ativo', 'quite', 'irregular') AND i.valor_mensalidade > 0
            AND NOT EXISTS (
              SELECT 1 FROM lancamentos l WHERE l.irmao_id = i.id AND l.is_mensalidade = TRUE AND l.competencia_mes = ?
            )
          ORDER BY i.nome_civil`,
-        [data.competencia],
-      );
-      return rows as { id: string; nome_civil: string; valor_mensalidade: number }[];
-    });
-  });
+          [data.competencia],
+        );
+        return rows as { id: string; nome_civil: string; valor_mensalidade: number }[];
+      });
+    },
+  );
 
-const rateioSchema = z.array(z.object({ conta_id: z.string().uuid(), percentual: z.number() })).nullable();
+const rateioSchema = z
+  .array(z.object({ conta_id: z.string().uuid(), percentual: z.number() }))
+  .nullable();
 
 const faturaAvulsaSchema = z.object({
   irmaoId: z.string().uuid(),

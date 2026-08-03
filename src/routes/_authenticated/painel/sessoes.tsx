@@ -45,7 +45,9 @@ function PainelSessoes() {
                   {TIPO_SESSAO_LABEL[s.tipo] ?? s.tipo} · {GRAU_LABEL[s.grau] ?? s.grau}
                 </p>
               </div>
-              <Badge variant={futura ? "secondary" : "outline"}>{futura ? "A realizar" : "Realizada"}</Badge>
+              <Badge variant={futura ? "secondary" : "outline"}>
+                {futura ? "A realizar" : "Realizada"}
+              </Badge>
             </CardContent>
           </Card>
         );

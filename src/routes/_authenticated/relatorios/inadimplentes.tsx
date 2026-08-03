@@ -3,7 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { relatorioInadimplentes, type ItemInadimplente } from "@/lib/backend/relatorios";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { brl, fmtDate } from "@/lib/format";
 
@@ -19,11 +26,22 @@ function Inadimplentes() {
       const hoje = new Date().toISOString().slice(0, 10);
       const pend = await relatorioInadimplentes({ data: { hoje } });
 
-      const grupos = new Map<string, { irmao: { nome_civil: string; nome_simbolico: string | null }; itens: ItemInadimplente[]; total: number }>();
+      const grupos = new Map<
+        string,
+        {
+          irmao: { nome_civil: string; nome_simbolico: string | null };
+          itens: ItemInadimplente[];
+          total: number;
+        }
+      >();
       pend.forEach((l) => {
         const key = l.irmao_id;
         if (!key) return;
-        const cur = grupos.get(key) ?? { irmao: { nome_civil: l.nome_civil, nome_simbolico: l.nome_simbolico }, itens: [], total: 0 };
+        const cur = grupos.get(key) ?? {
+          irmao: { nome_civil: l.nome_civil, nome_simbolico: l.nome_simbolico },
+          itens: [],
+          total: 0,
+        };
         cur.itens.push(l);
         cur.total += Number(l.valor);
         grupos.set(key, cur);
@@ -50,12 +68,21 @@ function Inadimplentes() {
           </TableHeader>
           <TableBody>
             {(data ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Nenhum inadimplente.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                  Nenhum inadimplente.
+                </TableCell>
+              </TableRow>
             )}
             {(data ?? []).map((g: any) => (
               <TableRow key={g.irmao?.nome_civil}>
-                <TableCell>{g.irmao?.nome_civil}{g.irmao?.nome_simbolico ? ` (${g.irmao.nome_simbolico})` : ""}</TableCell>
-                <TableCell className="text-right"><Badge variant="destructive">{g.itens.length}</Badge></TableCell>
+                <TableCell>
+                  {g.irmao?.nome_civil}
+                  {g.irmao?.nome_simbolico ? ` (${g.irmao.nome_simbolico})` : ""}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Badge variant="destructive">{g.itens.length}</Badge>
+                </TableCell>
                 <TableCell className="text-right font-medium">{brl(g.total)}</TableCell>
                 <TableCell>{fmtDate(g.itens[0].data_vencimento)}</TableCell>
               </TableRow>

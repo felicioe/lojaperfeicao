@@ -1,11 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { listarLancamentos, registrarRecebimentoAvulso } from "@/lib/backend/tesouraria-lancamentos";
+import {
+  listarLancamentos,
+  registrarRecebimentoAvulso,
+} from "@/lib/backend/tesouraria-lancamentos";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -41,10 +50,30 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
       }),
   });
 
-  return { movimentos, de, setDe, ate, setAte, contaId, setContaId, tipo, setTipo, categoria, setCategoria };
+  return {
+    movimentos,
+    de,
+    setDe,
+    ate,
+    setAte,
+    contaId,
+    setContaId,
+    tipo,
+    setTipo,
+    categoria,
+    setCategoria,
+  };
 }
 
-export function RecebimentoAvulsoDialog({ contas, onDone, categoriaInicial = "doacao" }: { contas: { id: string; nome: string }[]; onDone: () => void; categoriaInicial?: string }) {
+export function RecebimentoAvulsoDialog({
+  contas,
+  onDone,
+  categoriaInicial = "doacao",
+}: {
+  contas: { id: string; nome: string }[];
+  onDone: () => void;
+  categoriaInicial?: string;
+}) {
   const [categoria, setCategoria] = useState(categoriaInicial);
   const [planoContaId, setPlanoContaId] = useState("");
   const [contaFinanceiraId, setContaFinanceiraId] = useState("");
@@ -61,7 +90,8 @@ export function RecebimentoAvulsoDialog({ contas, onDone, categoriaInicial = "do
   });
 
   const salvar = async () => {
-    if (!valor || !planoContaId || !contaFinanceiraId) return toast.error("Preencha valor, categoria contábil e conta.");
+    if (!valor || !planoContaId || !contaFinanceiraId)
+      return toast.error("Preencha valor, categoria contábil e conta.");
     setSaving(true);
     try {
       await registrarRecebimentoAvulso({
@@ -87,37 +117,85 @@ export function RecebimentoAvulsoDialog({ contas, onDone, categoriaInicial = "do
 
   return (
     <DialogContent className="max-w-lg">
-      <DialogHeader><DialogTitle>Registrar recebimento avulso</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Registrar recebimento avulso</DialogTitle>
+      </DialogHeader>
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <Label>Categoria</Label>
           <Select value={categoria} onValueChange={setCategoria}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{Object.entries(CATEGORIA_LABEL).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CATEGORIA_LABEL).map(([v, l]) => (
+                <SelectItem key={v} value={v}>
+                  {l}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
-        <div><Label>Valor</Label><Input type="number" step="0.01" value={valor} onChange={(e) => setValor(Number(e.target.value))} /></div>
+        <div>
+          <Label>Valor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={valor}
+            onChange={(e) => setValor(Number(e.target.value))}
+          />
+        </div>
         <div>
           <Label>Conta de receita</Label>
           <Select value={planoContaId} onValueChange={setPlanoContaId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>{receitas.map((p) => <SelectItem key={p.id} value={p.id}>{p.codigo} — {p.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
+            <SelectContent>
+              {receitas.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.codigo} — {p.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         <div>
           <Label>Conta que recebeu</Label>
           <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>{contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
+            <SelectContent>
+              {contas.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
-        <div><Label>Data</Label><Input type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>
-        <div><Label>Forma de pagamento</Label><Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} /></div>
-        <div className="md:col-span-2"><Label>Descrição (opcional)</Label><Input value={descricao} onChange={(e) => setDescricao(e.target.value)} /></div>
-        <div className="md:col-span-2"><Label>Observações</Label><Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} /></div>
+        <div>
+          <Label>Data</Label>
+          <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+        </div>
+        <div>
+          <Label>Forma de pagamento</Label>
+          <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} />
+        </div>
+        <div className="md:col-span-2">
+          <Label>Descrição (opcional)</Label>
+          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+        </div>
+        <div className="md:col-span-2">
+          <Label>Observações</Label>
+          <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+        </div>
       </div>
       <DialogFooter>
-        <Button onClick={salvar} disabled={saving || !valor || !planoContaId || !contaFinanceiraId}>Registrar</Button>
+        <Button onClick={salvar} disabled={saving || !valor || !planoContaId || !contaFinanceiraId}>
+          Registrar
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

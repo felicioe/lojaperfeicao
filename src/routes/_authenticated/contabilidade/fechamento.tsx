@@ -14,7 +14,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -90,7 +97,8 @@ function Fechamento() {
 
       {!can.isAdmin && (
         <Card className="mb-4 p-4 flex items-center gap-2 text-sm text-muted-foreground">
-          <AlertTriangle className="h-4 w-4" /> Apenas administradores podem fechar ou reabrir exercícios.
+          <AlertTriangle className="h-4 w-4" /> Apenas administradores podem fechar ou reabrir
+          exercícios.
         </Card>
       )}
 
@@ -140,7 +148,14 @@ function Fechamento() {
                   {nomePorId.get(f.fechado_por ?? "") ?? "—"}
                 </TableCell>
                 <TableCell>
-                  {can.isAdmin && f.status === "fechado" && <ReabrirDialog exercicio={f.exercicio} onConfirm={(motivo) => reabrirMutation.mutate({ exercicio: f.exercicio, motivo })} />}
+                  {can.isAdmin && f.status === "fechado" && (
+                    <ReabrirDialog
+                      exercicio={f.exercicio}
+                      onConfirm={(motivo) =>
+                        reabrirMutation.mutate({ exercicio: f.exercicio, motivo })
+                      }
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -177,7 +192,9 @@ function Fechamento() {
                     {e.acao === "fechamento" ? "Fechamento" : "Reabertura"}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{nomePorId.get(e.realizado_por ?? "") ?? "—"}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {nomePorId.get(e.realizado_por ?? "") ?? "—"}
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{e.motivo ?? "—"}</TableCell>
               </TableRow>
             ))}
@@ -206,7 +223,9 @@ function NovoFechamentoDialog({ exercicioSugerido }: { exercicioSugerido: number
 
   const fecharMutation = useMutation({
     mutationFn: () =>
-      fecharExercicio({ data: { exercicio: Number(exercicio), dataCorte, observacoes: observacoes || null } }),
+      fecharExercicio({
+        data: { exercicio: Number(exercicio), dataCorte, observacoes: observacoes || null },
+      }),
     onSuccess: () => {
       toast.success(`Exercício ${exercicio} fechado`);
       setOpen(false);
@@ -244,16 +263,22 @@ function NovoFechamentoDialog({ exercicioSugerido }: { exercicioSugerido: number
           {preview && (
             <Card className="p-3 text-sm space-y-1">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Receitas acumuladas até a data de corte</span>
+                <span className="text-muted-foreground">
+                  Receitas acumuladas até a data de corte
+                </span>
                 <span>{brl(preview.receita)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Despesas acumuladas até a data de corte</span>
+                <span className="text-muted-foreground">
+                  Despesas acumuladas até a data de corte
+                </span>
                 <span>{brl(preview.despesa)}</span>
               </div>
               <div className="flex justify-between font-semibold">
                 <span>Resultado a apurar e transportar</span>
-                <span className={preview.resultado >= 0 ? "text-emerald-600" : "text-destructive"}>{brl(preview.resultado)}</span>
+                <span className={preview.resultado >= 0 ? "text-emerald-600" : "text-destructive"}>
+                  {brl(preview.resultado)}
+                </span>
               </div>
             </Card>
           )}
@@ -268,7 +293,13 @@ function NovoFechamentoDialog({ exercicioSugerido }: { exercicioSugerido: number
   );
 }
 
-function ReabrirDialog({ exercicio, onConfirm }: { exercicio: number; onConfirm: (motivo: string) => void }) {
+function ReabrirDialog({
+  exercicio,
+  onConfirm,
+}: {
+  exercicio: number;
+  onConfirm: (motivo: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [motivo, setMotivo] = useState("");
 
@@ -285,8 +316,8 @@ function ReabrirDialog({ exercicio, onConfirm }: { exercicio: number; onConfirm:
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Isso estorna o lançamento de fechamento (com auditoria completa) e volta a permitir lançamentos com data
-            dentro deste exercício. Informe o motivo.
+            Isso estorna o lançamento de fechamento (com auditoria completa) e volta a permitir
+            lançamentos com data dentro deste exercício. Informe o motivo.
           </p>
           <div>
             <Label>Motivo da reabertura</Label>

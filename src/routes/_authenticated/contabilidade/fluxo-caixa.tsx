@@ -12,9 +12,22 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
@@ -97,9 +110,17 @@ function FluxoRealizado() {
     let acumulado = saldoAnterior;
     const linhasCsv = linhas.map((l) => {
       acumulado += l.entradas - l.saidas;
-      return [l.mes, l.entradas.toFixed(2), l.saidas.toFixed(2), (l.entradas - l.saidas).toFixed(2), acumulado.toFixed(2)];
+      return [
+        l.mes,
+        l.entradas.toFixed(2),
+        l.saidas.toFixed(2),
+        (l.entradas - l.saidas).toFixed(2),
+        acumulado.toFixed(2),
+      ];
     });
-    const csv = [cabecalho, ...linhasCsv].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const csv = [cabecalho, ...linhasCsv]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
+      .join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -170,7 +191,9 @@ function FluxoRealizado() {
                   <TableCell>{l.mes}</TableCell>
                   <TableCell className="text-right">{brl(l.entradas)}</TableCell>
                   <TableCell className="text-right">{brl(l.saidas)}</TableCell>
-                  <TableCell className="text-right font-medium">{brl(l.entradas - l.saidas)}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {brl(l.entradas - l.saidas)}
+                  </TableCell>
                   <TableCell className="text-right font-medium">{brl(acumulado)}</TableCell>
                 </TableRow>
               );
@@ -223,8 +246,12 @@ function FluxoProjetado() {
       .sort((a, b) => a.data.localeCompare(b.data));
   }, [pendentes]);
 
-  const totalEntradas = pendentes.filter((p) => p.tipo === "entrada").reduce((s, p) => s + Number(p.valor), 0);
-  const totalSaidas = pendentes.filter((p) => p.tipo === "saida").reduce((s, p) => s + Number(p.valor), 0);
+  const totalEntradas = pendentes
+    .filter((p) => p.tipo === "entrada")
+    .reduce((s, p) => s + Number(p.valor), 0);
+  const totalSaidas = pendentes
+    .filter((p) => p.tipo === "saida")
+    .reduce((s, p) => s + Number(p.valor), 0);
   const saldoProjetado = saldoAtual + totalEntradas - totalSaidas;
 
   let acumulado = saldoAtual;
@@ -262,7 +289,9 @@ function FluxoProjetado() {
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Saldo projetado</div>
-          <div className={`text-xl font-semibold ${saldoProjetado >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+          <div
+            className={`text-xl font-semibold ${saldoProjetado >= 0 ? "text-emerald-600" : "text-destructive"}`}
+          >
             {brl(saldoProjetado)}
           </div>
         </Card>
@@ -294,7 +323,9 @@ function FluxoProjetado() {
                   <TableCell>{fmtDate(d.data)}</TableCell>
                   <TableCell className="text-right">{brl(d.entradas)}</TableCell>
                   <TableCell className="text-right">{brl(d.saidas)}</TableCell>
-                  <TableCell className="text-right font-medium">{brl(d.entradas - d.saidas)}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {brl(d.entradas - d.saidas)}
+                  </TableCell>
                   <TableCell className="text-right font-medium">{brl(acumulado)}</TableCell>
                 </TableRow>
               );

@@ -15,9 +15,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Link2, Loader2, Plus, Upload } from "lucide-react";
@@ -74,8 +87,12 @@ function Conciliacao() {
     try {
       const buffer = await file.arrayBuffer();
       const base64 = btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ""));
-      const resultado = await importarOfx({ data: { contaFinanceiraId: contaId, arquivoBase64: base64 } });
-      toast.success(`${resultado.novos} nova(s) linha(s), ${resultado.jaImportados} já importada(s) anteriormente.`);
+      const resultado = await importarOfx({
+        data: { contaFinanceiraId: contaId, arquivoBase64: base64 },
+      });
+      toast.success(
+        `${resultado.novos} nova(s) linha(s), ${resultado.jaImportados} já importada(s) anteriormente.`,
+      );
       if (fileRef.current) fileRef.current.value = "";
       invalidate();
     } catch (err) {
@@ -96,28 +113,51 @@ function Conciliacao() {
     }
   };
 
-  const sistemaFiltrado = sistema.filter((s) => !buscaSistema || s.descricao.toLowerCase().includes(buscaSistema.toLowerCase()));
-  const ofxFiltrado = ofx.filter((o) => !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase()));
+  const sistemaFiltrado = sistema.filter(
+    (s) => !buscaSistema || s.descricao.toLowerCase().includes(buscaSistema.toLowerCase()),
+  );
+  const ofxFiltrado = ofx.filter(
+    (o) => !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase()),
+  );
   const ofxSelecionado = ofx.find((o) => o.id === selOfx);
 
   return (
     <>
-      <PageHeader title="Conciliação Bancária" description="Importação de extrato OFX e conciliação com os lançamentos do sistema." />
+      <PageHeader
+        title="Conciliação Bancária"
+        description="Importação de extrato OFX e conciliação com os lançamentos do sistema."
+      />
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3 items-end">
         <div>
           <Label>Conta bancária</Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>{contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
+            <SelectContent>
+              {contas.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         {podeEditar && (
           <>
-            <div><Label>Arquivo OFX</Label><Input ref={fileRef} type="file" accept=".ofx,.qfx" /></div>
+            <div>
+              <Label>Arquivo OFX</Label>
+              <Input ref={fileRef} type="file" accept=".ofx,.qfx" />
+            </div>
             <div>
               <Button onClick={importar} disabled={importando || !contaId}>
-                {importando ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />} Importar extrato
+                {importando ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4 mr-1" />
+                )}{" "}
+                Importar extrato
               </Button>
             </div>
           </>
@@ -127,19 +167,34 @@ function Conciliacao() {
       {contaId && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
-            <CardHeader><CardTitle className="text-base">Sistema — em aberto</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">Sistema — em aberto</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-2">
-              <Input placeholder="Buscar…" value={buscaSistema} onChange={(e) => setBuscaSistema(e.target.value)} />
+              <Input
+                placeholder="Buscar…"
+                value={buscaSistema}
+                onChange={(e) => setBuscaSistema(e.target.value)}
+              />
               <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
-                {sistemaFiltrado.length === 0 && <div className="p-3 text-sm text-muted-foreground">Nenhum lançamento em aberto.</div>}
+                {sistemaFiltrado.length === 0 && (
+                  <div className="p-3 text-sm text-muted-foreground">
+                    Nenhum lançamento em aberto.
+                  </div>
+                )}
                 {sistemaFiltrado.map((s: any) => (
                   <button
                     key={s.id}
                     onClick={() => setSelSistema(selSistema === s.id ? null : s.id)}
                     className={`w-full text-left p-2 text-sm hover:bg-muted/50 ${selSistema === s.id ? "bg-muted" : ""}`}
                   >
-                    <div className="flex justify-between"><span>{s.descricao}</span><span className="font-medium">{brl(s.valor)}</span></div>
-                    <div className="text-xs text-muted-foreground">{fmtDate(s.data)} · {s.tipo}</div>
+                    <div className="flex justify-between">
+                      <span>{s.descricao}</span>
+                      <span className="font-medium">{brl(s.valor)}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {fmtDate(s.data)} · {s.tipo}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -147,19 +202,34 @@ function Conciliacao() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Extrato OFX — não conciliado</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">Extrato OFX — não conciliado</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-2">
-              <Input placeholder="Buscar…" value={buscaOfx} onChange={(e) => setBuscaOfx(e.target.value)} />
+              <Input
+                placeholder="Buscar…"
+                value={buscaOfx}
+                onChange={(e) => setBuscaOfx(e.target.value)}
+              />
               <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
-                {ofxFiltrado.length === 0 && <div className="p-3 text-sm text-muted-foreground">Nenhuma linha pendente. Importe um extrato acima.</div>}
+                {ofxFiltrado.length === 0 && (
+                  <div className="p-3 text-sm text-muted-foreground">
+                    Nenhuma linha pendente. Importe um extrato acima.
+                  </div>
+                )}
                 {ofxFiltrado.map((o: any) => (
                   <button
                     key={o.id}
                     onClick={() => setSelOfx(selOfx === o.id ? null : o.id)}
                     className={`w-full text-left p-2 text-sm hover:bg-muted/50 ${selOfx === o.id ? "bg-muted" : ""}`}
                   >
-                    <div className="flex justify-between"><span>{o.descricao}</span><span className="font-medium">{brl(o.valor)}</span></div>
-                    <div className="text-xs text-muted-foreground">{fmtDate(o.data)} · {o.tipo_ofx}</div>
+                    <div className="flex justify-between">
+                      <span>{o.descricao}</span>
+                      <span className="font-medium">{brl(o.valor)}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {fmtDate(o.data)} · {o.tipo_ofx}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -171,14 +241,34 @@ function Conciliacao() {
       {podeEditar && (selSistema || selOfx) && (
         <Card className="mt-4 p-4 flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            {selSistema && selOfx ? "Sistema e OFX selecionados — prontos para vincular." : selOfx ? "Linha OFX selecionada — vincule a um lançamento do sistema ou crie um novo." : "Lançamento do sistema selecionado."}
+            {selSistema && selOfx
+              ? "Sistema e OFX selecionados — prontos para vincular."
+              : selOfx
+                ? "Linha OFX selecionada — vincule a um lançamento do sistema ou crie um novo."
+                : "Lançamento do sistema selecionado."}
           </div>
           <div className="flex gap-2">
-            {selSistema && selOfx && <Button onClick={vincular}><Link2 className="h-4 w-4 mr-1" /> Vincular</Button>}
+            {selSistema && selOfx && (
+              <Button onClick={vincular}>
+                <Link2 className="h-4 w-4 mr-1" /> Vincular
+              </Button>
+            )}
             {selOfx && !selSistema && (
               <Dialog open={openCriar} onOpenChange={setOpenCriar}>
-                <DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-1" /> Criar lançamento</Button></DialogTrigger>
-                {ofxSelecionado && <CriarLancamentoDialog ofxLinha={ofxSelecionado} onDone={() => { setOpenCriar(false); invalidate(); }} />}
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Plus className="h-4 w-4 mr-1" /> Criar lançamento
+                  </Button>
+                </DialogTrigger>
+                {ofxSelecionado && (
+                  <CriarLancamentoDialog
+                    ofxLinha={ofxSelecionado}
+                    onDone={() => {
+                      setOpenCriar(false);
+                      invalidate();
+                    }}
+                  />
+                )}
               </Dialog>
             )}
           </div>
@@ -188,7 +278,13 @@ function Conciliacao() {
   );
 }
 
-function CriarLancamentoDialog({ ofxLinha, onDone }: { ofxLinha: OfxLancamento; onDone: () => void }) {
+function CriarLancamentoDialog({
+  ofxLinha,
+  onDone,
+}: {
+  ofxLinha: OfxLancamento;
+  onDone: () => void;
+}) {
   const isEntrada = Number(ofxLinha.valor) >= 0;
   const [categoria, setCategoria] = useState("outros");
   const [planoContaId, setPlanoContaId] = useState("");
@@ -208,7 +304,9 @@ function CriarLancamentoDialog({ ofxLinha, onDone }: { ofxLinha: OfxLancamento; 
         data: {
           ofxId: ofxLinha.id,
           planoContaId,
-          categoria: isEntrada ? (categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros") : null,
+          categoria: isEntrada
+            ? (categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros")
+            : null,
           descricao: descricao || null,
         },
       });
@@ -223,29 +321,54 @@ function CriarLancamentoDialog({ ofxLinha, onDone }: { ofxLinha: OfxLancamento; 
 
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>Criar lançamento a partir do extrato</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Criar lançamento a partir do extrato</DialogTitle>
+      </DialogHeader>
       <div className="grid gap-3">
-        <div className="text-sm text-muted-foreground">{brl(ofxLinha.valor)} — {fmtDate(ofxLinha.data)}</div>
+        <div className="text-sm text-muted-foreground">
+          {brl(ofxLinha.valor)} — {fmtDate(ofxLinha.data)}
+        </div>
         {isEntrada && (
           <div>
             <Label>Categoria</Label>
             <Select value={categoria} onValueChange={setCategoria}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{Object.entries(CATEGORIA_LABEL).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(CATEGORIA_LABEL).map(([v, l]) => (
+                  <SelectItem key={v} value={v}>
+                    {l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         )}
         <div>
           <Label>Categoria contábil ({isEntrada ? "receita" : "despesa"})</Label>
           <Select value={planoContaId} onValueChange={setPlanoContaId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>{planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.codigo} — {p.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
+            <SelectContent>
+              {planos.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.codigo} — {p.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
-        <div><Label>Descrição</Label><Input value={descricao} onChange={(e) => setDescricao(e.target.value)} /></div>
+        <div>
+          <Label>Descrição</Label>
+          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+        </div>
       </div>
       <DialogFooter>
-        <Button onClick={salvar} disabled={saving || !planoContaId}>Criar</Button>
+        <Button onClick={salvar} disabled={saving || !planoContaId}>
+          Criar
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

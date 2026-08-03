@@ -82,7 +82,9 @@ function PainelFrequencia() {
                 <CardContent className="flex items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{fmtDate(f.data)}</p>
-                    <p className="text-xs text-muted-foreground">{TIPO_SESSAO_LABEL[f.tipo] ?? f.tipo}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {TIPO_SESSAO_LABEL[f.tipo] ?? f.tipo}
+                    </p>
                   </div>
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </CardContent>

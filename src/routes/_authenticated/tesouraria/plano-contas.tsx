@@ -1,13 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listarPlanoContas, salvarConta, alternarAtivoConta, type Conta, type TipoConta } from "@/lib/backend/plano-contas";
+import {
+  listarPlanoContas,
+  salvarConta,
+  alternarAtivoConta,
+  type Conta,
+  type TipoConta,
+} from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useMemo, useState } from "react";
@@ -131,44 +150,78 @@ function PlanoContas() {
 
   return (
     <>
-      <PageHeader title="Plano de Contas" description="Árvore hierárquica de contas patrimoniais, de receita e de despesa." />
+      <PageHeader
+        title="Plano de Contas"
+        description="Árvore hierárquica de contas patrimoniais, de receita e de despesa."
+      />
 
       <Card className="mb-4">
         <CardHeader>
           <CardTitle className="text-base">{form.id ? "Editar conta" : "Nova conta"}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-5">
-          <div><Label>Código</Label><Input value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value })} placeholder="5.1.06" /></div>
-          <div className="md:col-span-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
+          <div>
+            <Label>Código</Label>
+            <Input
+              value={form.codigo}
+              onChange={(e) => setForm({ ...form, codigo: e.target.value })}
+              placeholder="5.1.06"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Nome</Label>
+            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+          </div>
           <div>
             <Label>Tipo</Label>
-            <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as TipoConta })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={form.tipo}
+              onValueChange={(v) => setForm({ ...form, tipo: v as TipoConta })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {(Object.keys(TIPO_LABEL) as TipoConta[]).map((t) => (
-                  <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>
+                  <SelectItem key={t} value={t}>
+                    {TIPO_LABEL[t]}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>Conta pai</Label>
-            <Select value={form.parent_id} onValueChange={(v) => setForm({ ...form, parent_id: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={form.parent_id}
+              onValueChange={(v) => setForm({ ...form, parent_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">— nenhuma (conta de topo) —</SelectItem>
-                {data.filter((c) => c.id !== form.id).map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>
-                ))}
+                {data
+                  .filter((c) => c.id !== form.id)
+                  .map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.codigo} — {c.nome}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2 md:col-span-2">
-            <Switch checked={form.analitica} onCheckedChange={(v) => setForm({ ...form, analitica: v })} />
+            <Switch
+              checked={form.analitica}
+              onCheckedChange={(v) => setForm({ ...form, analitica: v })}
+            />
             <Label className="!m-0">Analítica (recebe lançamento)</Label>
           </div>
           <div className="md:col-span-5 flex gap-2">
-            <Button onClick={salvar} disabled={!form.codigo || !form.nome}>{form.id ? "Salvar alterações" : "Adicionar"}</Button>
+            <Button onClick={salvar} disabled={!form.codigo || !form.nome}>
+              {form.id ? "Salvar alterações" : "Adicionar"}
+            </Button>
             {form.id && (
               <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>
                 <X className="h-4 w-4 mr-1" /> Cancelar
@@ -179,13 +232,22 @@ function PlanoContas() {
       </Card>
 
       <Card className="mb-4 p-4 flex flex-wrap items-center gap-3">
-        <Input placeholder="Buscar por código ou nome…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+        <Input
+          placeholder="Buscar por código ou nome…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="max-w-xs"
+        />
         <Select value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoConta | "todos")}>
-          <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-52">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os tipos</SelectItem>
             {(Object.keys(TIPO_LABEL) as TipoConta[]).map((t) => (
-              <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>
+              <SelectItem key={t} value={t}>
+                {TIPO_LABEL[t]}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -209,14 +271,33 @@ function PlanoContas() {
           </TableHeader>
           <TableBody>
             {filtrada.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Nenhuma conta encontrada.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  Nenhuma conta encontrada.
+                </TableCell>
+              </TableRow>
             )}
             {filtrada.map((c) => (
               <TableRow key={c.id} className={!c.ativo ? "opacity-50" : undefined}>
-                <TableCell className="font-mono" style={{ paddingLeft: `${1 + c.profundidade * 1.5}rem` }}>{c.codigo}</TableCell>
-                <TableCell className={c.analitica ? undefined : "font-semibold"}>{c.nome}</TableCell>
-                <TableCell><Badge variant={TIPO_VARIANT[c.tipo]}>{TIPO_LABEL[c.tipo]}</Badge></TableCell>
-                <TableCell>{c.analitica ? <Badge variant="outline">Sim</Badge> : <span className="text-muted-foreground text-sm">Sintética</span>}</TableCell>
+                <TableCell
+                  className="font-mono"
+                  style={{ paddingLeft: `${1 + c.profundidade * 1.5}rem` }}
+                >
+                  {c.codigo}
+                </TableCell>
+                <TableCell className={c.analitica ? undefined : "font-semibold"}>
+                  {c.nome}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={TIPO_VARIANT[c.tipo]}>{TIPO_LABEL[c.tipo]}</Badge>
+                </TableCell>
+                <TableCell>
+                  {c.analitica ? (
+                    <Badge variant="outline">Sim</Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Sintética</span>
+                  )}
+                </TableCell>
                 <TableCell>
                   <Switch checked={c.ativo} onCheckedChange={() => alternarAtivo(c)} />
                 </TableCell>

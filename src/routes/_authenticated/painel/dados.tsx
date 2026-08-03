@@ -35,11 +35,19 @@ function PainelDados() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">{irmao.nome_civil}</CardTitle>
-            <Badge variant={irmao.situacao === "ativo" || irmao.situacao === "quite" ? "secondary" : "destructive"}>
+            <Badge
+              variant={
+                irmao.situacao === "ativo" || irmao.situacao === "quite"
+                  ? "secondary"
+                  : "destructive"
+              }
+            >
               {SITUACAO_LABEL[irmao.situacao] ?? irmao.situacao}
             </Badge>
           </div>
-          {irmao.nome_simbolico && <p className="text-sm text-muted-foreground">{irmao.nome_simbolico}</p>}
+          {irmao.nome_simbolico && (
+            <p className="text-sm text-muted-foreground">{irmao.nome_simbolico}</p>
+          )}
         </CardHeader>
         <CardContent className="grid gap-3">
           <InfoRow label="CIM" value={irmao.cim} />

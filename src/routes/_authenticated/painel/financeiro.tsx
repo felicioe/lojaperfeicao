@@ -72,7 +72,9 @@ function PainelFinanceiro() {
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <span className="text-sm font-semibold">{brl(l.valor)}</span>
-                  <Badge variant={l.pago ? "secondary" : "destructive"}>{l.pago ? "Pago" : "Em aberto"}</Badge>
+                  <Badge variant={l.pago ? "secondary" : "destructive"}>
+                    {l.pago ? "Pago" : "Em aberto"}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>

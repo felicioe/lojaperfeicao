@@ -8,10 +8,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 const floatingUiReactDomEsm = fileURLToPath(
-  new URL(
-    "./node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs",
-    import.meta.url,
-  ),
+  new URL("./node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs", import.meta.url),
 );
 
 export default defineConfig({

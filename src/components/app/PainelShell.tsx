@@ -7,7 +7,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Home, Wallet, CalendarCheck2, CalendarDays, Menu, LogOut, ShieldCheck } from "lucide-react";
+import {
+  Home,
+  Wallet,
+  CalendarCheck2,
+  CalendarDays,
+  Menu,
+  LogOut,
+  ShieldCheck,
+} from "lucide-react";
 import { Toaster } from "sonner";
 
 const TITULOS: Record<string, string> = {
@@ -95,7 +103,9 @@ export function PainelShell({ children }: { children: ReactNode }) {
           <SheetContent side="left" className="flex w-72 flex-col gap-0 p-0">
             <SheetTitle className="sr-only">Menu</SheetTitle>
             <div className="border-b p-4">
-              <div className="truncate text-sm font-semibold">{user?.nomeCompleto ?? user?.email}</div>
+              <div className="truncate text-sm font-semibold">
+                {user?.nomeCompleto ?? user?.email}
+              </div>
               <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
             </div>
             <div className="flex-1 p-3">

@@ -16,9 +16,22 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -106,7 +119,8 @@ function Orcamento() {
   }, [itens, contas]);
 
   const criarMutation = useMutation({
-    mutationFn: () => criarOrcamento({ data: { ano: Number(novoAno), observacoes: novoObs || null } }),
+    mutationFn: () =>
+      criarOrcamento({ data: { ano: Number(novoAno), observacoes: novoObs || null } }),
     onSuccess: () => {
       toast.success("Orçamento criado");
       setNovoOpen(false);
@@ -165,7 +179,11 @@ function Orcamento() {
                 <div className="space-y-3">
                   <div>
                     <Label>Ano</Label>
-                    <Input type="number" value={novoAno} onChange={(e) => setNovoAno(e.target.value)} />
+                    <Input
+                      type="number"
+                      value={novoAno}
+                      onChange={(e) => setNovoAno(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label>Observações</Label>
@@ -209,12 +227,22 @@ function Orcamento() {
               <Badge variant="outline">Rascunho</Badge>
             )}
             {can.isAdmin && selecionado.status === "rascunho" && (
-              <Button size="sm" variant="outline" onClick={() => aprovarMutation.mutate()} disabled={aprovarMutation.isPending}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => aprovarMutation.mutate()}
+                disabled={aprovarMutation.isPending}
+              >
                 <Lock className="h-3.5 w-3.5 mr-1" /> Aprovar
               </Button>
             )}
             {can.isAdmin && selecionado.status === "aprovado" && (
-              <Button size="sm" variant="outline" onClick={() => reabrirMutation.mutate()} disabled={reabrirMutation.isPending}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => reabrirMutation.mutate()}
+                disabled={reabrirMutation.isPending}
+              >
                 <Unlock className="h-3.5 w-3.5 mr-1" /> Reabrir
               </Button>
             )}
@@ -223,7 +251,9 @@ function Orcamento() {
       </Card>
 
       {!selecionado && (
-        <Card className="p-8 text-center text-muted-foreground">Nenhum orçamento cadastrado ainda.</Card>
+        <Card className="p-8 text-center text-muted-foreground">
+          Nenhum orçamento cadastrado ainda.
+        </Card>
       )}
 
       {selecionado && (
@@ -238,7 +268,9 @@ function Orcamento() {
               const lista = tipo === "receita" ? contasReceita : contasDespesa;
               return (
                 <Card key={tipo} className="overflow-x-auto">
-                  <div className="p-3 border-b font-medium">{tipo === "receita" ? "Receitas" : "Despesas"}</div>
+                  <div className="p-3 border-b font-medium">
+                    {tipo === "receita" ? "Receitas" : "Despesas"}
+                  </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -253,10 +285,10 @@ function Orcamento() {
                     </TableHeader>
                     <TableBody>
                       {lista.map((c) => {
-                        const totalConta = Array.from({ length: 12 }, (_, i) => valorMap.get(`${c.id}:${i + 1}`) ?? 0).reduce(
-                          (s, v) => s + v,
-                          0,
-                        );
+                        const totalConta = Array.from(
+                          { length: 12 },
+                          (_, i) => valorMap.get(`${c.id}:${i + 1}`) ?? 0,
+                        ).reduce((s, v) => s + v, 0);
                         return (
                           <TableRow key={c.id}>
                             <TableCell className="sticky left-0 bg-background font-mono text-xs">
@@ -267,16 +299,27 @@ function Orcamento() {
                                 key={i}
                                 valor={valorMap.get(`${c.id}:${i + 1}`) ?? 0}
                                 editavel={!!editavel && !!can.canManageFinancas}
-                                onSave={(v) => salvarValorMutation.mutate({ contaId: c.id, mes: i + 1, valor: v })}
+                                onSave={(v) =>
+                                  salvarValorMutation.mutate({
+                                    contaId: c.id,
+                                    mes: i + 1,
+                                    valor: v,
+                                  })
+                                }
                               />
                             ))}
-                            <TableCell className="text-right font-medium">{brl(totalConta)}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {brl(totalConta)}
+                            </TableCell>
                           </TableRow>
                         );
                       })}
                       {lista.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={14} className="text-center py-4 text-muted-foreground">
+                          <TableCell
+                            colSpan={14}
+                            className="text-center py-4 text-muted-foreground"
+                          >
                             Nenhuma conta analítica de {tipo} cadastrada.
                           </TableCell>
                         </TableRow>
@@ -307,9 +350,13 @@ function Orcamento() {
                     <TableRow key={m}>
                       <TableCell>{m}</TableCell>
                       <TableCell className="text-right">{brl(orcadoPorMes.receita[i])}</TableCell>
-                      <TableCell className="text-right">{brl(realizadoPorMes.receita[i])}</TableCell>
+                      <TableCell className="text-right">
+                        {brl(realizadoPorMes.receita[i])}
+                      </TableCell>
                       <TableCell className="text-right">{brl(orcadoPorMes.despesa[i])}</TableCell>
-                      <TableCell className="text-right">{brl(realizadoPorMes.despesa[i])}</TableCell>
+                      <TableCell className="text-right">
+                        {brl(realizadoPorMes.despesa[i])}
+                      </TableCell>
                       <TableCell className="text-right font-medium">
                         {brl(orcadoPorMes.receita[i] - orcadoPorMes.despesa[i])}
                       </TableCell>
@@ -320,16 +367,28 @@ function Orcamento() {
                   ))}
                   <TableRow className="font-semibold bg-muted/30">
                     <TableCell>Total do ano</TableCell>
-                    <TableCell className="text-right">{brl(orcadoPorMes.receita.reduce((s, v) => s + v, 0))}</TableCell>
-                    <TableCell className="text-right">{brl(realizadoPorMes.receita.reduce((s, v) => s + v, 0))}</TableCell>
-                    <TableCell className="text-right">{brl(orcadoPorMes.despesa.reduce((s, v) => s + v, 0))}</TableCell>
-                    <TableCell className="text-right">{brl(realizadoPorMes.despesa.reduce((s, v) => s + v, 0))}</TableCell>
                     <TableCell className="text-right">
-                      {brl(orcadoPorMes.receita.reduce((s, v) => s + v, 0) - orcadoPorMes.despesa.reduce((s, v) => s + v, 0))}
+                      {brl(orcadoPorMes.receita.reduce((s, v) => s + v, 0))}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {brl(realizadoPorMes.receita.reduce((s, v) => s + v, 0))}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {brl(orcadoPorMes.despesa.reduce((s, v) => s + v, 0))}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {brl(realizadoPorMes.despesa.reduce((s, v) => s + v, 0))}
                     </TableCell>
                     <TableCell className="text-right">
                       {brl(
-                        realizadoPorMes.receita.reduce((s, v) => s + v, 0) - realizadoPorMes.despesa.reduce((s, v) => s + v, 0),
+                        orcadoPorMes.receita.reduce((s, v) => s + v, 0) -
+                          orcadoPorMes.despesa.reduce((s, v) => s + v, 0),
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {brl(
+                        realizadoPorMes.receita.reduce((s, v) => s + v, 0) -
+                          realizadoPorMes.despesa.reduce((s, v) => s + v, 0),
                       )}
                     </TableCell>
                   </TableRow>
@@ -343,7 +402,15 @@ function Orcamento() {
   );
 }
 
-function ValorCell({ valor, editavel, onSave }: { valor: number; editavel: boolean; onSave: (v: number) => void }) {
+function ValorCell({
+  valor,
+  editavel,
+  onSave,
+}: {
+  valor: number;
+  editavel: boolean;
+  onSave: (v: number) => void;
+}) {
   const [local, setLocal] = useState(valor > 0 ? String(valor) : "");
 
   useEffect(() => {

@@ -113,7 +113,9 @@ export const listarLancamentos = createServerFn({ method: "GET" })
   });
 
 export const marcarLancamentoPago = createServerFn({ method: "POST" })
-  .validator((d: unknown) => z.object({ id: z.string().uuid(), dataPagamento: z.string() }).parse(d))
+  .validator((d: unknown) =>
+    z.object({ id: z.string().uuid(), dataPagamento: z.string() }).parse(d),
+  )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query("UPDATE lancamentos SET pago = TRUE, data_pagamento = ? WHERE id = ?", [
@@ -218,12 +220,18 @@ export const criarTransferencia = createServerFn({ method: "POST" })
     });
   });
 
-const rateioSchema = z.array(z.object({ conta_id: z.string().uuid(), percentual: z.number() })).nullable();
+const rateioSchema = z
+  .array(z.object({ conta_id: z.string().uuid(), percentual: z.number() }))
+  .nullable();
 
 export const gerarMensalidades = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z
-      .object({ competencia: z.string(), dataVencimento: z.string().nullable().optional(), rateio: rateioSchema.optional() })
+      .object({
+        competencia: z.string(),
+        dataVencimento: z.string().nullable().optional(),
+        rateio: rateioSchema.optional(),
+      })
       .parse(d),
   )
   .handler(async ({ data }): Promise<number> => {

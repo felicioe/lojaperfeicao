@@ -37,14 +37,16 @@ export type Org = {
 
 export type OrgGrau = { id: string; org_id: string; grau: number; nome: string };
 
-export const listarPotencias = createServerFn({ method: "GET" }).handler(async (): Promise<Potencia[]> => {
-  return comSessao(async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>(
-      "SELECT id, nome, sigla, jurisdicao, site, ativo FROM potencias ORDER BY nome",
-    );
-    return rows as Potencia[];
-  });
-});
+export const listarPotencias = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Potencia[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT id, nome, sigla, jurisdicao, site, ativo FROM potencias ORDER BY nome",
+      );
+      return rows as Potencia[];
+    });
+  },
+);
 
 const potenciaSchema = z.object({
   id: z.string().uuid().nullable(),
@@ -67,12 +69,10 @@ export const salvarPotencia = createServerFn({ method: "POST" })
           data.id,
         ]);
       } else {
-        await conn.query("INSERT INTO potencias (nome, sigla, jurisdicao, site) VALUES (?, ?, ?, ?)", [
-          data.nome,
-          data.sigla,
-          data.jurisdicao,
-          data.site,
-        ]);
+        await conn.query(
+          "INSERT INTO potencias (nome, sigla, jurisdicao, site) VALUES (?, ?, ?, ?)",
+          [data.nome, data.sigla, data.jurisdicao, data.site],
+        );
       }
     });
   });
@@ -174,7 +174,13 @@ export const gerarGrausPadraoOrg = createServerFn({ method: "POST" })
 
 export const criarOrgGrau = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ orgId: z.string().uuid(), grau: z.number().int().positive(), nome: z.string().min(1) }).parse(d),
+    z
+      .object({
+        orgId: z.string().uuid(),
+        grau: z.number().int().positive(),
+        nome: z.string().min(1),
+      })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {

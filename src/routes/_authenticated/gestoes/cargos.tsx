@@ -7,8 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -67,33 +80,62 @@ function Cargos() {
     }
   };
 
-  const nomeOrg = (id: string | null) => orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? null;
+  const nomeOrg = (id: string | null) =>
+    orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? null;
 
   return (
     <>
-      <PageHeader title="Cargos" description="Catálogo de cargos administrativos (Venerável, Secretário, Tesoureiro etc.)." />
+      <PageHeader
+        title="Cargos"
+        description="Catálogo de cargos administrativos (Venerável, Secretário, Tesoureiro etc.)."
+      />
 
       {can.canManageIrmaos && (
         <Card className="mb-4">
-          <CardHeader><CardTitle className="text-base">{form.id ? "Editar cargo" : "Novo cargo"}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">{form.id ? "Editar cargo" : "Novo cargo"}</CardTitle>
+          </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
-            <div className="md:col-span-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
+            <div className="md:col-span-2">
+              <Label>Nome</Label>
+              <Input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              />
+            </div>
             <div>
               <Label>Corpo (opcional)</Label>
               <Select value={form.org_id} onValueChange={(v) => setForm({ ...form, org_id: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— genérico (qualquer corpo) —</SelectItem>
                   {orgs.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.sigla ?? o.nome}</SelectItem>
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.sigla ?? o.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Ordem</Label><Input type="number" value={form.ordem} onChange={(e) => setForm({ ...form, ordem: Number(e.target.value) })} /></div>
+            <div>
+              <Label>Ordem</Label>
+              <Input
+                type="number"
+                value={form.ordem}
+                onChange={(e) => setForm({ ...form, ordem: Number(e.target.value) })}
+              />
+            </div>
             <div className="md:col-span-4 flex gap-2">
-              <Button onClick={salvar} disabled={!form.nome}>{form.id ? "Salvar alterações" : "Adicionar"}</Button>
-              {form.id && <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}><X className="h-4 w-4 mr-1" /> Cancelar</Button>}
+              <Button onClick={salvar} disabled={!form.nome}>
+                {form.id ? "Salvar alterações" : "Adicionar"}
+              </Button>
+              {form.id && (
+                <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>
+                  <X className="h-4 w-4 mr-1" /> Cancelar
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -112,17 +154,40 @@ function Cargos() {
           </TableHeader>
           <TableBody>
             {cargos.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Nenhum cargo cadastrado.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  Nenhum cargo cadastrado.
+                </TableCell>
+              </TableRow>
             )}
             {cargos.map((c) => (
               <TableRow key={c.id} className={!c.ativo ? "opacity-50" : undefined}>
                 <TableCell className="font-mono">{c.ordem}</TableCell>
                 <TableCell className="font-medium">{c.nome}</TableCell>
-                <TableCell className="text-muted-foreground">{nomeOrg(c.org_id) ?? "Genérico"}</TableCell>
-                <TableCell><Switch checked={c.ativo} onCheckedChange={() => alternarAtivo(c)} disabled={!can.canManageIrmaos} /></TableCell>
+                <TableCell className="text-muted-foreground">
+                  {nomeOrg(c.org_id) ?? "Genérico"}
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={c.ativo}
+                    onCheckedChange={() => alternarAtivo(c)}
+                    disabled={!can.canManageIrmaos}
+                  />
+                </TableCell>
                 {can.canManageIrmaos && (
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => setForm({ id: c.id, nome: c.nome, org_id: c.org_id ?? "none", ordem: c.ordem })}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setForm({
+                          id: c.id,
+                          nome: c.nome,
+                          org_id: c.org_id ?? "none",
+                          ordem: c.ordem,
+                        })
+                      }
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </TableCell>

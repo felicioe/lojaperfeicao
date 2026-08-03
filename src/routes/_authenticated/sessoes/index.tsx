@@ -6,8 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { GRAU_LABEL, TIPO_SESSAO_LABEL, fmtDate, toISODate } from "@/lib/format";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,7 +34,11 @@ export const Route = createFileRoute("/_authenticated/sessoes/")({
 function SessoesList() {
   const qc = useQueryClient();
   const can = useCan();
-  const [nova, setNova] = useState<{ data: string; tipo: "ordinaria" | "magna" | "branca" | "administrativa"; grau: "aprendiz" | "companheiro" | "mestre" }>({ data: toISODate(new Date()), tipo: "ordinaria", grau: "aprendiz" });
+  const [nova, setNova] = useState<{
+    data: string;
+    tipo: "ordinaria" | "magna" | "branca" | "administrativa";
+    grau: "aprendiz" | "companheiro" | "mestre";
+  }>({ data: toISODate(new Date()), tipo: "ordinaria", grau: "aprendiz" });
 
   const { data = [] } = useQuery({
     queryKey: ["sessoes"],
@@ -43,28 +60,59 @@ function SessoesList() {
       <PageHeader title="Sessões" description="Registro de sessões e frequência." />
       {can.isSecretario && (
         <Card className="mb-4">
-          <CardHeader><CardTitle className="text-base">Nova sessão</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Nova sessão</CardTitle>
+          </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
-            <div><Label>Data</Label><Input type="date" value={nova.data} onChange={(e) => setNova({ ...nova, data: e.target.value })} /></div>
+            <div>
+              <Label>Data</Label>
+              <Input
+                type="date"
+                value={nova.data}
+                onChange={(e) => setNova({ ...nova, data: e.target.value })}
+              />
+            </div>
             <div>
               <Label>Tipo</Label>
-              <Select value={nova.tipo} onValueChange={(v) => setNova({ ...nova, tipo: v as typeof nova.tipo })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={nova.tipo}
+                onValueChange={(v) => setNova({ ...nova, tipo: v as typeof nova.tipo })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(TIPO_SESSAO_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  {Object.entries(TIPO_SESSAO_LABEL).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>
+                      {v}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label>Grau</Label>
-              <Select value={nova.grau} onValueChange={(v) => setNova({ ...nova, grau: v as typeof nova.grau })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={nova.grau}
+                onValueChange={(v) => setNova({ ...nova, grau: v as typeof nova.grau })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(GRAU_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  {Object.entries(GRAU_LABEL).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>
+                      {v}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end"><Button onClick={criar} className="w-full">Criar</Button></div>
+            <div className="flex items-end">
+              <Button onClick={criar} className="w-full">
+                Criar
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -81,7 +129,11 @@ function SessoesList() {
           </TableHeader>
           <TableBody>
             {data.length === 0 && (
-              <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Nenhuma sessão registrada.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                  Nenhuma sessão registrada.
+                </TableCell>
+              </TableRow>
             )}
             {data.map((s: any) => (
               <TableRow key={s.id}>
@@ -90,7 +142,9 @@ function SessoesList() {
                 <TableCell>{GRAU_LABEL[s.grau]}</TableCell>
                 <TableCell className="text-right">
                   <Link to="/sessoes/$id" params={{ id: s.id }}>
-                    <Button variant="ghost" size="sm">Presença</Button>
+                    <Button variant="ghost" size="sm">
+                      Presença
+                    </Button>
                   </Link>
                 </TableCell>
               </TableRow>

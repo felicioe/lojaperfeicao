@@ -16,11 +16,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Plus } from "lucide-react";
@@ -64,8 +84,17 @@ function ContasPagar() {
         actions={
           podeEditar && (
             <Dialog open={openNova} onOpenChange={setOpenNova}>
-              <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Nova conta a pagar</Button></DialogTrigger>
-              <NovaContaPagarDialog onDone={() => { setOpenNova(false); invalidate(); }} />
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-1" /> Nova conta a pagar
+                </Button>
+              </DialogTrigger>
+              <NovaContaPagarDialog
+                onDone={() => {
+                  setOpenNova(false);
+                  invalidate();
+                }}
+              />
             </Dialog>
           )
         }
@@ -98,7 +127,11 @@ function ContasPagar() {
               </TableHeader>
               <TableBody>
                 {!isLoading && abertas.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nenhuma conta em aberto.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                      Nenhuma conta em aberto.
+                    </TableCell>
+                  </TableRow>
                 )}
                 {abertas.map((l) => {
                   const vencida = l.data_vencimento && l.data_vencimento < hoje;
@@ -106,15 +139,27 @@ function ContasPagar() {
                     <TableRow key={l.id}>
                       <TableCell>{fmtDate(l.data_vencimento)}</TableCell>
                       <TableCell>{l.descricao}</TableCell>
-                      <TableCell className="text-muted-foreground">{l.plano_contas?.nome ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{l.terceiros?.nome ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {l.plano_contas?.nome ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {l.terceiros?.nome ?? "—"}
+                      </TableCell>
                       <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
-                      <TableCell>{vencida ? <Badge variant="destructive">Vencida</Badge> : <Badge variant="outline">Aberta</Badge>}</TableCell>
+                      <TableCell>
+                        {vencida ? (
+                          <Badge variant="destructive">Vencida</Badge>
+                        ) : (
+                          <Badge variant="outline">Aberta</Badge>
+                        )}
+                      </TableCell>
                       {podeEditar && (
                         <TableCell className="text-right">
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="ghost"><CheckCircle2 className="h-4 w-4 mr-1" /> Baixar</Button>
+                              <Button size="sm" variant="ghost">
+                                <CheckCircle2 className="h-4 w-4 mr-1" /> Baixar
+                              </Button>
                             </DialogTrigger>
                             <BaixarContaPagarDialog lancamento={l} onDone={invalidate} />
                           </Dialog>
@@ -143,15 +188,25 @@ function ContasPagar() {
               </TableHeader>
               <TableBody>
                 {pagas.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Nenhuma conta paga ainda.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                      Nenhuma conta paga ainda.
+                    </TableCell>
+                  </TableRow>
                 )}
                 {pagas.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>{fmtDate(l.data_pagamento)}</TableCell>
                     <TableCell>{l.descricao}</TableCell>
-                    <TableCell className="text-muted-foreground">{l.plano_contas?.nome ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{l.contas_financeiras?.nome ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{l.forma_pagamento ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.plano_contas?.nome ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.contas_financeiras?.nome ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.forma_pagamento ?? "—"}
+                    </TableCell>
                     <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
                   </TableRow>
                 ))}
@@ -166,8 +221,13 @@ function ContasPagar() {
 
 function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
   const [d, setD] = useState({
-    descricao: "", valor: 0, plano_conta_id: "", terceiro_id: "none",
-    data: toISODate(new Date()), data_vencimento: toISODate(new Date()), observacoes: "",
+    descricao: "",
+    valor: 0,
+    plano_conta_id: "",
+    terceiro_id: "none",
+    data: toISODate(new Date()),
+    data_vencimento: toISODate(new Date()),
+    observacoes: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -207,39 +267,95 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
 
   return (
     <DialogContent className="max-w-lg">
-      <DialogHeader><DialogTitle>Nova conta a pagar</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Nova conta a pagar</DialogTitle>
+      </DialogHeader>
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="md:col-span-2"><Label>Descrição</Label><Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} /></div>
-        <div><Label>Valor</Label><Input type="number" step="0.01" min="0" value={d.valor} onChange={(e) => setD({ ...d, valor: Number(e.target.value) })} /></div>
+        <div className="md:col-span-2">
+          <Label>Descrição</Label>
+          <Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} />
+        </div>
+        <div>
+          <Label>Valor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={d.valor}
+            onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
+          />
+        </div>
         <div>
           <Label>Categoria</Label>
           <Select value={d.plano_conta_id} onValueChange={(v) => setD({ ...d, plano_conta_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>{planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.codigo} — {p.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
+            <SelectContent>
+              {planos.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.codigo} — {p.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         <div>
           <Label>Fornecedor (opcional)</Label>
           <Select value={d.terceiro_id} onValueChange={(v) => setD({ ...d, terceiro_id: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">— nenhum —</SelectItem>
-              {terceiros.map((t) => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
+              {terceiros.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.nome}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-        <div><Label>Emissão</Label><Input type="date" value={d.data} onChange={(e) => setD({ ...d, data: e.target.value })} /></div>
-        <div><Label>Vencimento</Label><Input type="date" value={d.data_vencimento} onChange={(e) => setD({ ...d, data_vencimento: e.target.value })} /></div>
-        <div className="md:col-span-2"><Label>Observações</Label><Textarea value={d.observacoes} onChange={(e) => setD({ ...d, observacoes: e.target.value })} /></div>
+        <div>
+          <Label>Emissão</Label>
+          <Input
+            type="date"
+            value={d.data}
+            onChange={(e) => setD({ ...d, data: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label>Vencimento</Label>
+          <Input
+            type="date"
+            value={d.data_vencimento}
+            onChange={(e) => setD({ ...d, data_vencimento: e.target.value })}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <Label>Observações</Label>
+          <Textarea
+            value={d.observacoes}
+            onChange={(e) => setD({ ...d, observacoes: e.target.value })}
+          />
+        </div>
       </div>
       <DialogFooter>
-        <Button onClick={salvar} disabled={saving || !d.descricao || !d.valor || !d.plano_conta_id}>Registrar</Button>
+        <Button onClick={salvar} disabled={saving || !d.descricao || !d.valor || !d.plano_conta_id}>
+          Registrar
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
 }
 
-function BaixarContaPagarDialog({ lancamento, onDone }: { lancamento: ContaPagar; onDone: () => void }) {
+function BaixarContaPagarDialog({
+  lancamento,
+  onDone,
+}: {
+  lancamento: ContaPagar;
+  onDone: () => void;
+}) {
   const [contaFinanceiraId, setContaFinanceiraId] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("");
   const [dataPagamento, setDataPagamento] = useState(toISODate(new Date()));
@@ -255,7 +371,12 @@ function BaixarContaPagarDialog({ lancamento, onDone }: { lancamento: ContaPagar
     setSaving(true);
     try {
       await baixarContaPagar({
-        data: { lancamentoId: lancamento.id, contaFinanceiraId, formaPagamento: formaPagamento || null, dataPagamento },
+        data: {
+          lancamentoId: lancamento.id,
+          contaFinanceiraId,
+          formaPagamento: formaPagamento || null,
+          dataPagamento,
+        },
       });
       toast.success("Baixa registrada e lançamento contábil postado.");
       onDone();
@@ -268,17 +389,24 @@ function BaixarContaPagarDialog({ lancamento, onDone }: { lancamento: ContaPagar
 
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>Baixar: {lancamento.descricao}</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Baixar: {lancamento.descricao}</DialogTitle>
+      </DialogHeader>
       <div className="grid gap-3">
-        <div className="text-sm text-muted-foreground">Valor: <span className="font-medium text-foreground">{brl(lancamento.valor)}</span></div>
+        <div className="text-sm text-muted-foreground">
+          Valor: <span className="font-medium text-foreground">{brl(lancamento.valor)}</span>
+        </div>
         <div>
           <Label>Conta que pagou</Label>
           <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
             <SelectContent>
               {contas.map((c) => (
                 <SelectItem key={c.id} value={c.id} disabled={!c.plano_conta_id}>
-                  {c.nome}{!c.plano_conta_id ? " (sem categoria contábil vinculada)" : ""}
+                  {c.nome}
+                  {!c.plano_conta_id ? " (sem categoria contábil vinculada)" : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -286,15 +414,25 @@ function BaixarContaPagarDialog({ lancamento, onDone }: { lancamento: ContaPagar
         </div>
         <div>
           <Label>Forma de pagamento</Label>
-          <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} placeholder="PIX, boleto, débito…" />
+          <Input
+            value={formaPagamento}
+            onChange={(e) => setFormaPagamento(e.target.value)}
+            placeholder="PIX, boleto, débito…"
+          />
         </div>
         <div>
           <Label>Data do pagamento</Label>
-          <Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} />
+          <Input
+            type="date"
+            value={dataPagamento}
+            onChange={(e) => setDataPagamento(e.target.value)}
+          />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={baixar} disabled={saving || !contaFinanceiraId}>Confirmar baixa</Button>
+        <Button onClick={baixar} disabled={saving || !contaFinanceiraId}>
+          Confirmar baixa
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

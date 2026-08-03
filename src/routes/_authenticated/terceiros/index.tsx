@@ -1,13 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listarTerceiros, salvarTerceiro, alternarAtivoTerceiro, consultarCnpj, type Terceiro } from "@/lib/backend/terceiros";
+import {
+  listarTerceiros,
+  salvarTerceiro,
+  alternarAtivoTerceiro,
+  consultarCnpj,
+  type Terceiro,
+} from "@/lib/backend/terceiros";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
@@ -22,7 +41,11 @@ export const Route = createFileRoute("/_authenticated/terceiros/")({
 
 type Tipo = "fornecedor" | "cliente" | "ambos";
 
-const TIPO_LABEL: Record<Tipo, string> = { fornecedor: "Fornecedor", cliente: "Cliente", ambos: "Fornecedor e Cliente" };
+const TIPO_LABEL: Record<Tipo, string> = {
+  fornecedor: "Fornecedor",
+  cliente: "Cliente",
+  ambos: "Fornecedor e Cliente",
+};
 
 const FORM_VAZIO = {
   id: null as string | null,
@@ -59,7 +82,11 @@ function Terceiros() {
 
   const filtrados = data.filter((t) => {
     if (tipoFiltro !== "todos" && t.tipo !== tipoFiltro) return false;
-    if (q && !`${t.nome} ${t.nome_fantasia ?? ""} ${t.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
+    if (
+      q &&
+      !`${t.nome} ${t.nome_fantasia ?? ""} ${t.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase())
+    )
+      return false;
     return true;
   });
 
@@ -125,10 +152,22 @@ function Terceiros() {
 
   const editar = (t: Terceiro) =>
     setForm({
-      id: t.id, tipo: t.tipo, nome: t.nome, nome_fantasia: t.nome_fantasia ?? "", cnpj: t.cnpj ?? "",
-      cpf: t.cpf ?? "", contato: t.contato ?? "", email: t.email ?? "", categoria: t.categoria ?? "",
-      cep: t.cep ?? "", logradouro: t.logradouro ?? "", numero: t.numero ?? "", bairro: t.bairro ?? "",
-      municipio: t.municipio ?? "", uf: t.uf ?? "", observacoes: t.observacoes ?? "",
+      id: t.id,
+      tipo: t.tipo,
+      nome: t.nome,
+      nome_fantasia: t.nome_fantasia ?? "",
+      cnpj: t.cnpj ?? "",
+      cpf: t.cpf ?? "",
+      contato: t.contato ?? "",
+      email: t.email ?? "",
+      categoria: t.categoria ?? "",
+      cep: t.cep ?? "",
+      logradouro: t.logradouro ?? "",
+      numero: t.numero ?? "",
+      bairro: t.bairro ?? "",
+      municipio: t.municipio ?? "",
+      uf: t.uf ?? "",
+      observacoes: t.observacoes ?? "",
     });
 
   const alternarAtivo = async (t: Terceiro) => {
@@ -142,63 +181,172 @@ function Terceiros() {
 
   return (
     <>
-      <PageHeader title="Fornecedores e Clientes" description="Cadastro de terceiros usados em contas a pagar e recebimentos avulsos." />
+      <PageHeader
+        title="Fornecedores e Clientes"
+        description="Cadastro de terceiros usados em contas a pagar e recebimentos avulsos."
+      />
 
       {podeEditar && (
         <Card className="mb-4">
-          <CardHeader><CardTitle className="text-base">{form.id ? "Editar" : "Novo cadastro"}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">{form.id ? "Editar" : "Novo cadastro"}</CardTitle>
+          </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
             <div>
               <Label>Tipo</Label>
-              <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as Tipo })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.tipo}
+                onValueChange={(v) => setForm({ ...form, tipo: v as Tipo })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(TIPO_LABEL) as Tipo[]).map((t) => <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>)}
+                  {(Object.keys(TIPO_LABEL) as Tipo[]).map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {TIPO_LABEL[t]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="md:col-span-2">
               <Label>CNPJ</Label>
               <div className="flex gap-2">
-                <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+                <Input
+                  value={form.cnpj}
+                  onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+                  placeholder="00.000.000/0000-00"
+                />
                 <Button type="button" variant="outline" onClick={buscarCnpj} disabled={consultando}>
-                  {consultando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {consultando ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
-            <div><Label>CPF (se pessoa física)</Label><Input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} /></div>
+            <div>
+              <Label>CPF (se pessoa física)</Label>
+              <Input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
+            </div>
 
-            <div className="md:col-span-2"><Label>Razão social / Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
-            <div className="md:col-span-2"><Label>Nome fantasia</Label><Input value={form.nome_fantasia} onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })} /></div>
+            <div className="md:col-span-2">
+              <Label>Razão social / Nome</Label>
+              <Input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Nome fantasia</Label>
+              <Input
+                value={form.nome_fantasia}
+                onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })}
+              />
+            </div>
 
-            <div><Label>Contato</Label><Input value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} /></div>
-            <div><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className="md:col-span-2"><Label>Categoria</Label><Input value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} /></div>
+            <div>
+              <Label>Contato</Label>
+              <Input
+                value={form.contato}
+                onChange={(e) => setForm({ ...form, contato: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Categoria</Label>
+              <Input
+                value={form.categoria}
+                onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+              />
+            </div>
 
-            <div><Label>CEP</Label><Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} /></div>
-            <div className="md:col-span-2"><Label>Logradouro</Label><Input value={form.logradouro} onChange={(e) => setForm({ ...form, logradouro: e.target.value })} /></div>
-            <div><Label>Número</Label><Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} /></div>
-            <div><Label>Bairro</Label><Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} /></div>
-            <div><Label>Município</Label><Input value={form.municipio} onChange={(e) => setForm({ ...form, municipio: e.target.value })} /></div>
-            <div><Label>UF</Label><Input value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} /></div>
+            <div>
+              <Label>CEP</Label>
+              <Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Logradouro</Label>
+              <Input
+                value={form.logradouro}
+                onChange={(e) => setForm({ ...form, logradouro: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Número</Label>
+              <Input
+                value={form.numero}
+                onChange={(e) => setForm({ ...form, numero: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Bairro</Label>
+              <Input
+                value={form.bairro}
+                onChange={(e) => setForm({ ...form, bairro: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Município</Label>
+              <Input
+                value={form.municipio}
+                onChange={(e) => setForm({ ...form, municipio: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>UF</Label>
+              <Input value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} />
+            </div>
 
-            <div className="md:col-span-4"><Label>Observações</Label><Input value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
+            <div className="md:col-span-4">
+              <Label>Observações</Label>
+              <Input
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              />
+            </div>
 
             <div className="md:col-span-4 flex gap-2">
-              <Button onClick={salvar} disabled={!form.nome}>{form.id ? "Salvar alterações" : "Adicionar"}</Button>
-              {form.id && <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}><X className="h-4 w-4 mr-1" /> Cancelar</Button>}
+              <Button onClick={salvar} disabled={!form.nome}>
+                {form.id ? "Salvar alterações" : "Adicionar"}
+              </Button>
+              {form.id && (
+                <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>
+                  <X className="h-4 w-4 mr-1" /> Cancelar
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
 
       <Card className="mb-4 p-4 flex flex-wrap items-center gap-3">
-        <Input placeholder="Buscar por nome ou CNPJ…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+        <Input
+          placeholder="Buscar por nome ou CNPJ…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="max-w-xs"
+        />
         <Select value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as Tipo | "todos")}>
-          <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-52">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os tipos</SelectItem>
-            {(Object.keys(TIPO_LABEL) as Tipo[]).map((t) => <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>)}
+            {(Object.keys(TIPO_LABEL) as Tipo[]).map((t) => (
+              <SelectItem key={t} value={t}>
+                {TIPO_LABEL[t]}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </Card>
@@ -217,18 +365,35 @@ function Terceiros() {
           </TableHeader>
           <TableBody>
             {filtrados.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Nenhum cadastro encontrado.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  Nenhum cadastro encontrado.
+                </TableCell>
+              </TableRow>
             )}
             {filtrados.map((t) => (
               <TableRow key={t.id} className={!t.ativo ? "opacity-50" : undefined}>
-                <TableCell className="font-medium">{t.nome}{t.nome_fantasia ? ` (${t.nome_fantasia})` : ""}</TableCell>
-                <TableCell><Badge variant="outline">{TIPO_LABEL[t.tipo]}</Badge></TableCell>
+                <TableCell className="font-medium">
+                  {t.nome}
+                  {t.nome_fantasia ? ` (${t.nome_fantasia})` : ""}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{TIPO_LABEL[t.tipo]}</Badge>
+                </TableCell>
                 <TableCell className="font-mono text-sm">{t.cnpj ?? t.cpf ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{t.categoria ?? "—"}</TableCell>
-                <TableCell><Switch checked={t.ativo} onCheckedChange={() => alternarAtivo(t)} disabled={!podeEditar} /></TableCell>
+                <TableCell>
+                  <Switch
+                    checked={t.ativo}
+                    onCheckedChange={() => alternarAtivo(t)}
+                    disabled={!podeEditar}
+                  />
+                </TableCell>
                 {podeEditar && (
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => editar(t)}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => editar(t)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 )}
               </TableRow>

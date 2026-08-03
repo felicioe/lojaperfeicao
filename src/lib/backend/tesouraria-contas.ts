@@ -31,12 +31,16 @@ export const listarContasFinanceiras = createServerFn({ method: "GET" }).handler
   },
 );
 
-export const listarSaldoContas = createServerFn({ method: "GET" }).handler(async (): Promise<SaldoConta[]> => {
-  return comSessao(async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM v_saldo_contas ORDER BY nome");
-    return rows as SaldoConta[];
-  });
-});
+export const listarSaldoContas = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SaldoConta[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM v_saldo_contas ORDER BY nome",
+      );
+      return rows as SaldoConta[];
+    });
+  },
+);
 
 const novaContaSchema = z.object({
   nome: z.string().min(1),
@@ -49,11 +53,9 @@ export const criarContaFinanceira = createServerFn({ method: "POST" })
   .validator((d: unknown) => novaContaSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("INSERT INTO contas_financeiras (nome, tipo, saldo_inicial, banco) VALUES (?, ?, ?, ?)", [
-        data.nome,
-        data.tipo,
-        data.saldo_inicial,
-        data.banco,
-      ]);
+      await conn.query(
+        "INSERT INTO contas_financeiras (nome, tipo, saldo_inicial, banco) VALUES (?, ?, ?, ?)",
+        [data.nome, data.tipo, data.saldo_inicial, data.banco],
+      );
     });
   });

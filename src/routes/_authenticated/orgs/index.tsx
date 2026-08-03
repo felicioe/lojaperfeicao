@@ -18,8 +18,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
@@ -145,47 +158,137 @@ function Orgs() {
 
       {can.canManageIrmaos && (
         <Card className="mb-4">
-          <CardHeader><CardTitle className="text-base">{form.id ? "Editar corpo" : "Novo corpo"}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">{form.id ? "Editar corpo" : "Novo corpo"}</CardTitle>
+          </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
-            <div className="md:col-span-2"><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
-            <div><Label>Sigla</Label><Input value={form.sigla} onChange={(e) => setForm({ ...form, sigla: e.target.value })} /></div>
-            <div><Label>Número</Label><Input value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} /></div>
+            <div className="md:col-span-2">
+              <Label>Nome</Label>
+              <Input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Sigla</Label>
+              <Input
+                value={form.sigla}
+                onChange={(e) => setForm({ ...form, sigla: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Número</Label>
+              <Input
+                value={form.numero}
+                onChange={(e) => setForm({ ...form, numero: e.target.value })}
+              />
+            </div>
 
             <div>
               <Label>Natureza</Label>
-              <Select value={form.natureza} onValueChange={(v) => setForm({ ...form, natureza: v as Natureza })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.natureza}
+                onValueChange={(v) => setForm({ ...form, natureza: v as Natureza })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {(Object.keys(NATUREZA_LABEL) as Natureza[]).map((n) => (
-                    <SelectItem key={n} value={n}>{NATUREZA_LABEL[n]}</SelectItem>
+                    <SelectItem key={n} value={n}>
+                      {NATUREZA_LABEL[n]}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Rito</Label><Input value={form.rito} onChange={(e) => setForm({ ...form, rito: e.target.value })} placeholder="REAA" /></div>
-            <div><Label>Grau mínimo</Label><Input type="number" min={1} value={form.grau_min} onChange={(e) => setForm({ ...form, grau_min: Number(e.target.value) })} /></div>
-            <div><Label>Grau máximo</Label><Input type="number" min={1} value={form.grau_max} onChange={(e) => setForm({ ...form, grau_max: Number(e.target.value) })} /></div>
+            <div>
+              <Label>Rito</Label>
+              <Input
+                value={form.rito}
+                onChange={(e) => setForm({ ...form, rito: e.target.value })}
+                placeholder="REAA"
+              />
+            </div>
+            <div>
+              <Label>Grau mínimo</Label>
+              <Input
+                type="number"
+                min={1}
+                value={form.grau_min}
+                onChange={(e) => setForm({ ...form, grau_min: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label>Grau máximo</Label>
+              <Input
+                type="number"
+                min={1}
+                value={form.grau_max}
+                onChange={(e) => setForm({ ...form, grau_max: Number(e.target.value) })}
+              />
+            </div>
 
             <div>
               <Label>Potência</Label>
-              <Select value={form.potencia_id} onValueChange={(v) => setForm({ ...form, potencia_id: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.potencia_id}
+                onValueChange={(v) => setForm({ ...form, potencia_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— nenhuma —</SelectItem>
                   {potencias.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.sigla ?? p.nome}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.sigla ?? p.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Mensalidade padrão</Label><Input type="number" step="0.01" value={form.mensalidade_padrao} onChange={(e) => setForm({ ...form, mensalidade_padrao: Number(e.target.value) })} /></div>
-            <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} /></div>
-            <div><Label>Fundação</Label><Input type="date" value={form.fundacao} onChange={(e) => setForm({ ...form, fundacao: e.target.value })} /></div>
-            <div className="md:col-span-4"><Label>Endereço</Label><Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} /></div>
+            <div>
+              <Label>Mensalidade padrão</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.mensalidade_padrao}
+                onChange={(e) => setForm({ ...form, mensalidade_padrao: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label>CNPJ</Label>
+              <Input
+                value={form.cnpj}
+                onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Fundação</Label>
+              <Input
+                type="date"
+                value={form.fundacao}
+                onChange={(e) => setForm({ ...form, fundacao: e.target.value })}
+              />
+            </div>
+            <div className="md:col-span-4">
+              <Label>Endereço</Label>
+              <Input
+                value={form.endereco}
+                onChange={(e) => setForm({ ...form, endereco: e.target.value })}
+              />
+            </div>
 
             <div className="md:col-span-4 flex gap-2">
-              <Button onClick={salvar} disabled={!form.nome}>{form.id ? "Salvar alterações" : "Adicionar"}</Button>
-              {form.id && <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}><X className="h-4 w-4 mr-1" /> Cancelar</Button>}
+              <Button onClick={salvar} disabled={!form.nome}>
+                {form.id ? "Salvar alterações" : "Adicionar"}
+              </Button>
+              {form.id && (
+                <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>
+                  <X className="h-4 w-4 mr-1" /> Cancelar
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -206,24 +309,53 @@ function Orgs() {
           </TableHeader>
           <TableBody>
             {orgs.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nenhum corpo cadastrado.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                  Nenhum corpo cadastrado.
+                </TableCell>
+              </TableRow>
             )}
             {orgs.map((o) => (
               <Fragment key={o.id}>
                 <TableRow className={!o.ativo ? "opacity-50" : undefined}>
                   <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => setExpandido(expandido === o.id ? null : o.id)}>
-                      {expandido === o.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExpandido(expandido === o.id ? null : o.id)}
+                    >
+                      {expandido === o.id ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
                     </Button>
                   </TableCell>
-                  <TableCell className="font-medium">{o.nome}{o.sigla ? ` (${o.sigla})` : ""}</TableCell>
-                  <TableCell><Badge variant="outline">{NATUREZA_LABEL[o.natureza]}</Badge></TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{o.grau_min}–{o.grau_max}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{potencias.find((p) => p.id === o.potencia_id)?.sigla ?? "—"}</TableCell>
-                  <TableCell><Switch checked={o.ativo} onCheckedChange={() => alternarAtivo(o)} disabled={!can.canManageIrmaos} /></TableCell>
+                  <TableCell className="font-medium">
+                    {o.nome}
+                    {o.sigla ? ` (${o.sigla})` : ""}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{NATUREZA_LABEL[o.natureza]}</Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {o.grau_min}–{o.grau_max}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {potencias.find((p) => p.id === o.potencia_id)?.sigla ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={o.ativo}
+                      onCheckedChange={() => alternarAtivo(o)}
+                      disabled={!can.canManageIrmaos}
+                    />
+                  </TableCell>
                   {can.canManageIrmaos && (
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => editar(o)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => editar(o)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   )}
                 </TableRow>
@@ -306,23 +438,39 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
       </div>
       <Table>
         <TableHeader>
-          <TableRow><TableHead className="w-20">Grau</TableHead><TableHead>Nome</TableHead>{podeEditar && <TableHead className="w-10"></TableHead>}</TableRow>
+          <TableRow>
+            <TableHead className="w-20">Grau</TableHead>
+            <TableHead>Nome</TableHead>
+            {podeEditar && <TableHead className="w-10"></TableHead>}
+          </TableRow>
         </TableHeader>
         <TableBody>
           {graus.length === 0 && (
-            <TableRow><TableCell colSpan={3} className="text-muted-foreground text-sm">Nenhum grau cadastrado ainda.</TableCell></TableRow>
+            <TableRow>
+              <TableCell colSpan={3} className="text-muted-foreground text-sm">
+                Nenhum grau cadastrado ainda.
+              </TableCell>
+            </TableRow>
           )}
           {graus.map((g) => (
             <TableRow key={g.id}>
               <TableCell className="font-mono">{g.grau}</TableCell>
               <TableCell>
                 {podeEditar ? (
-                  <Input defaultValue={g.nome} onBlur={(e) => e.target.value !== g.nome && renomear(g.id, e.target.value)} className="h-8" />
-                ) : g.nome}
+                  <Input
+                    defaultValue={g.nome}
+                    onBlur={(e) => e.target.value !== g.nome && renomear(g.id, e.target.value)}
+                    className="h-8"
+                  />
+                ) : (
+                  g.nome
+                )}
               </TableCell>
               {podeEditar && (
                 <TableCell>
-                  <Button variant="ghost" size="sm" onClick={() => remover(g.id)}><Trash2 className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => remover(g.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               )}
             </TableRow>
@@ -331,9 +479,26 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
       </Table>
       {podeEditar && (
         <div className="flex items-end gap-2">
-          <div><Label className="text-xs">Grau</Label><Input type="number" className="h-8 w-20" value={novoGrau.grau} onChange={(e) => setNovoGrau({ ...novoGrau, grau: e.target.value })} /></div>
-          <div className="flex-1"><Label className="text-xs">Nome</Label><Input className="h-8" value={novoGrau.nome} onChange={(e) => setNovoGrau({ ...novoGrau, nome: e.target.value })} /></div>
-          <Button size="sm" onClick={adicionar}><Plus className="h-4 w-4" /></Button>
+          <div>
+            <Label className="text-xs">Grau</Label>
+            <Input
+              type="number"
+              className="h-8 w-20"
+              value={novoGrau.grau}
+              onChange={(e) => setNovoGrau({ ...novoGrau, grau: e.target.value })}
+            />
+          </div>
+          <div className="flex-1">
+            <Label className="text-xs">Nome</Label>
+            <Input
+              className="h-8"
+              value={novoGrau.nome}
+              onChange={(e) => setNovoGrau({ ...novoGrau, nome: e.target.value })}
+            />
+          </div>
+          <Button size="sm" onClick={adicionar}>
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
       )}
     </div>

@@ -31,9 +31,10 @@ async function gerarLoginUnico(conn: PoolConnection, nomeCivil: string): Promise
   let candidato = base;
   let sufixo = 2;
   while (true) {
-    const [[existe]] = await conn.query<RowDataPacket[]>("SELECT 1 AS x FROM usuarios WHERE email = ? LIMIT 1", [
-      candidato,
-    ]);
+    const [[existe]] = await conn.query<RowDataPacket[]>(
+      "SELECT 1 AS x FROM usuarios WHERE email = ? LIMIT 1",
+      [candidato],
+    );
     if (!existe) return candidato;
     candidato = `${base}${sufixo}`;
     sufixo++;
@@ -49,10 +50,11 @@ export type UsuarioAdmin = {
 };
 
 // Só admin — tela de gestão de usuários (evita precisar mexer direto no banco).
-export const listarUsuarios = createServerFn({ method: "GET" }).handler(async (): Promise<UsuarioAdmin[]> => {
-  return comPapel(["admin"], async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>(
-      `SELECT u.id, u.email, u.nome_completo,
+export const listarUsuarios = createServerFn({ method: "GET" }).handler(
+  async (): Promise<UsuarioAdmin[]> => {
+    return comPapel(["admin"], async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT u.id, u.email, u.nome_completo,
               GROUP_CONCAT(DISTINCT up.papel) AS papeis,
               i.id AS irmao_id, i.nome_civil AS irmao_nome
        FROM usuarios u
@@ -60,16 +62,17 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(async ()
        LEFT JOIN irmaos i ON i.usuario_id = u.id
        GROUP BY u.id, u.email, u.nome_completo, i.id, i.nome_civil
        ORDER BY u.email`,
-    );
-    return rows.map((r) => ({
-      id: r.id,
-      email: r.email,
-      nome_completo: r.nome_completo,
-      papeis: (r.papeis ? String(r.papeis).split(",") : []) as Papel[],
-      irmao: r.irmao_id ? { id: r.irmao_id, nome_civil: r.irmao_nome } : null,
-    }));
-  });
-});
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        email: r.email,
+        nome_completo: r.nome_completo,
+        papeis: (r.papeis ? String(r.papeis).split(",") : []) as Papel[],
+        irmao: r.irmao_id ? { id: r.irmao_id, nome_civil: r.irmao_nome } : null,
+      }));
+    });
+  },
+);
 
 export type IrmaoSemAcesso = { id: string; nome_civil: string; loginSugerido: string };
 
@@ -112,7 +115,11 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
       const login = await gerarLoginUnico(conn, irmao.nome_civil);
       const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
       try {
-        await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [login, senhaHash, irmao.nome_civil]);
+        await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [
+          login,
+          senhaHash,
+          irmao.nome_civil,
+        ]);
       } catch (err: any) {
         throw new Error(err.sqlMessage || err.message);
       }
@@ -142,7 +149,11 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" }).handler(
       for (const irmao of irmaos) {
         try {
           const login = await gerarLoginUnico(conn, irmao.nome_civil);
-          await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [login, senhaHash, irmao.nome_civil]);
+          await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [
+            login,
+            senhaHash,
+            irmao.nome_civil,
+          ]);
           const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
           await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, irmao.id]);
           criados.push({ nome: irmao.nome_civil, login });
@@ -181,7 +192,10 @@ export const atualizarPapeisUsuario = createServerFn({ method: "POST" })
 
 export { TODOS_PAPEIS };
 
-const redefinirSenhaSchema = z.object({ usuarioId: z.string().uuid(), novaSenha: z.string().min(3) });
+const redefinirSenhaSchema = z.object({
+  usuarioId: z.string().uuid(),
+  novaSenha: z.string().min(3),
+});
 
 export const redefinirSenhaUsuario = createServerFn({ method: "POST" })
   .validator((d: unknown) => redefinirSenhaSchema.parse(d))

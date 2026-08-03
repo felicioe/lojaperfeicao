@@ -78,13 +78,23 @@ export const previewResultadoFechamento = createServerFn({ method: "GET" })
         if (r.tipo === "receita") totalReceita += Number(r.credito) - Number(r.debito);
         else totalDespesa += Number(r.debito) - Number(r.credito);
       }
-      return { total_receita: totalReceita, total_despesa: totalDespesa, resultado: totalReceita - totalDespesa };
+      return {
+        total_receita: totalReceita,
+        total_despesa: totalDespesa,
+        resultado: totalReceita - totalDespesa,
+      };
     });
   });
 
 export const fecharExercicio = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ exercicio: z.number().int(), dataCorte: z.string(), observacoes: z.string().nullable() }).parse(d),
+    z
+      .object({
+        exercicio: z.number().int(),
+        dataCorte: z.string(),
+        observacoes: z.string().nullable(),
+      })
+      .parse(d),
   )
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn) => {
@@ -93,13 +103,17 @@ export const fecharExercicio = createServerFn({ method: "POST" })
         data.dataCorte,
         data.observacoes,
       ]);
-      const [[{ fechamento_id }]] = await conn.query<RowDataPacket[]>("SELECT @fechamento_id AS fechamento_id");
+      const [[{ fechamento_id }]] = await conn.query<RowDataPacket[]>(
+        "SELECT @fechamento_id AS fechamento_id",
+      );
       return { id: fechamento_id };
     });
   });
 
 export const reabrirExercicio = createServerFn({ method: "POST" })
-  .validator((d: unknown) => z.object({ exercicio: z.number().int(), motivo: z.string().min(1) }).parse(d))
+  .validator((d: unknown) =>
+    z.object({ exercicio: z.number().int(), motivo: z.string().min(1) }).parse(d),
+  )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
       await conn.query("CALL reabrir_exercicio(?, ?)", [data.exercicio, data.motivo]);

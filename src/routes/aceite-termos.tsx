@@ -4,7 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getSessao, registrarConsentimentoLgpd } from "@/lib/backend/auth";
 import { logout } from "@/lib/backend/auth";
 import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PoliticaPrivacidadeConteudo } from "@/components/app/PoliticaPrivacidade";
@@ -64,7 +71,11 @@ function AceiteTermos() {
             <PoliticaPrivacidadeConteudo />
           </div>
           <label className="mt-4 flex items-start gap-2 text-sm">
-            <Checkbox checked={aceito} onCheckedChange={(v) => setAceito(v === true)} className="mt-0.5" />
+            <Checkbox
+              checked={aceito}
+              onCheckedChange={(v) => setAceito(v === true)}
+              className="mt-0.5"
+            />
             Li e aceito a Política de Privacidade acima.
           </label>
         </CardContent>

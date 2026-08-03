@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { brl, toISODate } from "@/lib/format";
@@ -21,7 +28,13 @@ function primeiroDiaDoAno() {
   return toISODate(new Date(d.getFullYear(), 0, 1));
 }
 
-type Linha = { id: string; codigo: string; nome: string; tipo: "receita" | "despesa"; valor: number };
+type Linha = {
+  id: string;
+  codigo: string;
+  nome: string;
+  tipo: "receita" | "despesa";
+  valor: number;
+};
 
 function Dre() {
   const [de, setDe] = useState(primeiroDiaDoAno());
@@ -34,8 +47,21 @@ function Dre() {
       const porConta = new Map<string, Linha>();
       for (const it of itens) {
         if (it.conta_tipo !== "receita" && it.conta_tipo !== "despesa") continue;
-        const atual = porConta.get(it.conta_id) ?? { id: it.conta_id, codigo: it.codigo, nome: it.nome, tipo: it.conta_tipo, valor: 0 };
-        const sinal = it.conta_tipo === "receita" ? (it.tipo === "credito" ? 1 : -1) : (it.tipo === "debito" ? 1 : -1);
+        const atual = porConta.get(it.conta_id) ?? {
+          id: it.conta_id,
+          codigo: it.codigo,
+          nome: it.nome,
+          tipo: it.conta_tipo,
+          valor: 0,
+        };
+        const sinal =
+          it.conta_tipo === "receita"
+            ? it.tipo === "credito"
+              ? 1
+              : -1
+            : it.tipo === "debito"
+              ? 1
+              : -1;
         atual.valor += sinal * Number(it.valor);
         porConta.set(it.conta_id, atual);
       }
@@ -56,7 +82,9 @@ function Dre() {
     for (const l of despesas) linhasCsv.push(["Despesa", l.codigo, l.nome, String(l.valor)]);
     linhasCsv.push(["Total Despesas", "", "", String(totalDespesas)]);
     linhasCsv.push(["Resultado do período", "", "", String(resultado)]);
-    const csv = linhasCsv.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(";")).join("\n");
+    const csv = linhasCsv
+      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(";"))
+      .join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -79,19 +107,38 @@ function Dre() {
       />
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
-        <div><Label>De</Label><Input type="date" value={de} onChange={(e) => setDe(e.target.value)} /></div>
-        <div><Label>Até</Label><Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} /></div>
+        <div>
+          <Label>De</Label>
+          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+        </div>
+        <div>
+          <Label>Até</Label>
+          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+        </div>
       </Card>
 
       <Card className="mb-4">
         <div className="p-3 border-b font-medium">Receitas</div>
         <Table>
           <TableBody>
-            {receitas.length === 0 && <TableRow><TableCell className="text-center py-4 text-muted-foreground">Nenhuma receita no período.</TableCell></TableRow>}
+            {receitas.length === 0 && (
+              <TableRow>
+                <TableCell className="text-center py-4 text-muted-foreground">
+                  Nenhuma receita no período.
+                </TableCell>
+              </TableRow>
+            )}
             {receitas.map((l) => (
-              <TableRow key={l.id}><TableCell className="font-mono w-24">{l.codigo}</TableCell><TableCell>{l.nome}</TableCell><TableCell className="text-right">{brl(l.valor)}</TableCell></TableRow>
+              <TableRow key={l.id}>
+                <TableCell className="font-mono w-24">{l.codigo}</TableCell>
+                <TableCell>{l.nome}</TableCell>
+                <TableCell className="text-right">{brl(l.valor)}</TableCell>
+              </TableRow>
             ))}
-            <TableRow className="font-semibold bg-muted/30"><TableCell colSpan={2}>Total de Receitas</TableCell><TableCell className="text-right">{brl(totalReceitas)}</TableCell></TableRow>
+            <TableRow className="font-semibold bg-muted/30">
+              <TableCell colSpan={2}>Total de Receitas</TableCell>
+              <TableCell className="text-right">{brl(totalReceitas)}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
       </Card>
@@ -100,18 +147,35 @@ function Dre() {
         <div className="p-3 border-b font-medium">Despesas</div>
         <Table>
           <TableBody>
-            {despesas.length === 0 && <TableRow><TableCell className="text-center py-4 text-muted-foreground">Nenhuma despesa no período.</TableCell></TableRow>}
+            {despesas.length === 0 && (
+              <TableRow>
+                <TableCell className="text-center py-4 text-muted-foreground">
+                  Nenhuma despesa no período.
+                </TableCell>
+              </TableRow>
+            )}
             {despesas.map((l) => (
-              <TableRow key={l.id}><TableCell className="font-mono w-24">{l.codigo}</TableCell><TableCell>{l.nome}</TableCell><TableCell className="text-right">{brl(l.valor)}</TableCell></TableRow>
+              <TableRow key={l.id}>
+                <TableCell className="font-mono w-24">{l.codigo}</TableCell>
+                <TableCell>{l.nome}</TableCell>
+                <TableCell className="text-right">{brl(l.valor)}</TableCell>
+              </TableRow>
             ))}
-            <TableRow className="font-semibold bg-muted/30"><TableCell colSpan={2}>Total de Despesas</TableCell><TableCell className="text-right">{brl(totalDespesas)}</TableCell></TableRow>
+            <TableRow className="font-semibold bg-muted/30">
+              <TableCell colSpan={2}>Total de Despesas</TableCell>
+              <TableCell className="text-right">{brl(totalDespesas)}</TableCell>
+            </TableRow>
           </TableBody>
         </Table>
       </Card>
 
       <Card className="p-4 flex items-center justify-between">
         <div className="text-lg font-semibold">Resultado do período</div>
-        <div className={`text-2xl font-bold ${resultado >= 0 ? "text-emerald-600" : "text-destructive"}`}>{brl(resultado)}</div>
+        <div
+          className={`text-2xl font-bold ${resultado >= 0 ? "text-emerald-600" : "text-destructive"}`}
+        >
+          {brl(resultado)}
+        </div>
       </Card>
     </>
   );

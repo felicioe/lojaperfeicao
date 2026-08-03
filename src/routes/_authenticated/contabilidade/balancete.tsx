@@ -7,7 +7,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useState } from "react";
 import { CheckCircle2, AlertTriangle, Download } from "lucide-react";
 import { brl, toISODate } from "@/lib/format";
@@ -34,10 +41,21 @@ function Balancete() {
     queryKey: ["balancete", dataCorte],
     queryFn: async () => {
       const itens = await listarItensContabeisPeriodo({ data: { de: null, ate: dataCorte } });
-      const porConta = new Map<string, { id: string; codigo: string; nome: string; tipo: string; debito: number; credito: number }>();
+      const porConta = new Map<
+        string,
+        { id: string; codigo: string; nome: string; tipo: string; debito: number; credito: number }
+      >();
       for (const it of itens) {
-        const atual = porConta.get(it.conta_id) ?? { id: it.conta_id, codigo: it.codigo, nome: it.nome, tipo: it.conta_tipo, debito: 0, credito: 0 };
-        if (it.tipo === "debito") atual.debito += Number(it.valor); else atual.credito += Number(it.valor);
+        const atual = porConta.get(it.conta_id) ?? {
+          id: it.conta_id,
+          codigo: it.codigo,
+          nome: it.nome,
+          tipo: it.conta_tipo,
+          debito: 0,
+          credito: 0,
+        };
+        if (it.tipo === "debito") atual.debito += Number(it.valor);
+        else atual.credito += Number(it.valor);
         porConta.set(it.conta_id, atual);
       }
       return Array.from(porConta.values()).sort((a, b) => a.codigo.localeCompare(b.codigo));
@@ -51,9 +69,25 @@ function Balancete() {
 
   const exportarCSV = () => {
     const cabecalho = ["Classe", "Código", "Conta", "Débito", "Crédito", "Saldo"];
-    const linhasCsv = linhas.map((l) => [CLASSE_LABEL[l.tipo] ?? l.tipo, l.codigo, l.nome, l.debito.toFixed(2), l.credito.toFixed(2), (l.debito - l.credito).toFixed(2)]);
-    linhasCsv.push(["Total", "", "", totalDebito.toFixed(2), totalCredito.toFixed(2), diferenca.toFixed(2)]);
-    const csv = [cabecalho, ...linhasCsv].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const linhasCsv = linhas.map((l) => [
+      CLASSE_LABEL[l.tipo] ?? l.tipo,
+      l.codigo,
+      l.nome,
+      l.debito.toFixed(2),
+      l.credito.toFixed(2),
+      (l.debito - l.credito).toFixed(2),
+    ]);
+    linhasCsv.push([
+      "Total",
+      "",
+      "",
+      totalDebito.toFixed(2),
+      totalCredito.toFixed(2),
+      diferenca.toFixed(2),
+    ]);
+    const csv = [cabecalho, ...linhasCsv]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
+      .join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -76,12 +110,20 @@ function Balancete() {
       />
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4 items-end">
-        <div><Label>Data de corte</Label><Input type="date" value={dataCorte} onChange={(e) => setDataCorte(e.target.value)} /></div>
+        <div>
+          <Label>Data de corte</Label>
+          <Input type="date" value={dataCorte} onChange={(e) => setDataCorte(e.target.value)} />
+        </div>
         <div className="md:col-span-3 flex items-center gap-2">
           {fechado ? (
-            <Badge className="gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Balancete fechado — débitos = créditos</Badge>
+            <Badge className="gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Balancete fechado — débitos = créditos
+            </Badge>
           ) : (
-            <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Diferença de {brl(diferenca)} — verifique a Auditoria Contábil</Badge>
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3.5 w-3.5" /> Diferença de {brl(diferenca)} — verifique a
+              Auditoria Contábil
+            </Badge>
           )}
         </div>
       </Card>
@@ -96,7 +138,13 @@ function Balancete() {
             <div className="p-3 border-b font-medium">{CLASSE_LABEL[classe]}</div>
             <Table>
               <TableHeader>
-                <TableRow><TableHead>Código</TableHead><TableHead>Conta</TableHead><TableHead className="text-right">Débito</TableHead><TableHead className="text-right">Crédito</TableHead><TableHead className="text-right">Saldo</TableHead></TableRow>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Conta</TableHead>
+                  <TableHead className="text-right">Débito</TableHead>
+                  <TableHead className="text-right">Crédito</TableHead>
+                  <TableHead className="text-right">Saldo</TableHead>
+                </TableRow>
               </TableHeader>
               <TableBody>
                 {doGrupo.map((l) => (
@@ -105,7 +153,9 @@ function Balancete() {
                     <TableCell>{l.nome}</TableCell>
                     <TableCell className="text-right">{brl(l.debito)}</TableCell>
                     <TableCell className="text-right">{brl(l.credito)}</TableCell>
-                    <TableCell className="text-right font-medium">{brl(l.debito - l.credito)}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {brl(l.debito - l.credito)}
+                    </TableCell>
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted/30">
@@ -122,7 +172,9 @@ function Balancete() {
 
       <Card className="p-4 flex justify-between font-semibold text-lg">
         <span>Totais gerais</span>
-        <span>{brl(totalDebito)} / {brl(totalCredito)}</span>
+        <span>
+          {brl(totalDebito)} / {brl(totalCredito)}
+        </span>
       </Card>
     </>
   );

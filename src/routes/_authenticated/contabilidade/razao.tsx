@@ -1,13 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listarContasAnaliticas, obterSaldoAnteriorConta, listarItensRazao } from "@/lib/backend/contabilidade";
+import {
+  listarContasAnaliticas,
+  obterSaldoAnteriorConta,
+  listarItensRazao,
+} from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
@@ -52,16 +69,26 @@ function Razao() {
     });
   }, [itens, saldoAnterior]);
 
-  const totalDebito = itens.filter((i) => i.tipo === "debito").reduce((s, i) => s + Number(i.valor), 0);
-  const totalCredito = itens.filter((i) => i.tipo === "credito").reduce((s, i) => s + Number(i.valor), 0);
+  const totalDebito = itens
+    .filter((i) => i.tipo === "debito")
+    .reduce((s, i) => s + Number(i.valor), 0);
+  const totalCredito = itens
+    .filter((i) => i.tipo === "credito")
+    .reduce((s, i) => s + Number(i.valor), 0);
 
   const exportarCSV = () => {
     const cabecalho = ["Data", "Descrição", "Origem", "Débito", "Crédito", "Saldo"];
     const linhasCsv = linhas.map((l) => [
-      fmtDate(l.lancamentos_contabeis.data), l.descricao ?? l.lancamentos_contabeis.descricao,
-      l.lancamentos_contabeis.origem_tipo ?? "", l.tipo === "debito" ? l.valor : "", l.tipo === "credito" ? l.valor : "", l.saldo.toFixed(2),
+      fmtDate(l.lancamentos_contabeis.data),
+      l.descricao ?? l.lancamentos_contabeis.descricao,
+      l.lancamentos_contabeis.origem_tipo ?? "",
+      l.tipo === "debito" ? l.valor : "",
+      l.tipo === "credito" ? l.valor : "",
+      l.saldo.toFixed(2),
     ]);
-    const csv = [cabecalho, ...linhasCsv].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const csv = [cabecalho, ...linhasCsv]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
+      .join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -77,7 +104,11 @@ function Razao() {
         title="Razão Contábil"
         description="Movimentação de uma conta analítica ao longo do tempo, com saldo acumulado."
         actions={
-          <Button variant="outline" onClick={exportarCSV} disabled={!contaId || linhas.length === 0}>
+          <Button
+            variant="outline"
+            onClick={exportarCSV}
+            disabled={!contaId || linhas.length === 0}
+          >
             <Download className="h-4 w-4 mr-1" /> Exportar CSV
           </Button>
         }
@@ -87,20 +118,43 @@ function Razao() {
         <div className="md:col-span-2">
           <Label>Conta</Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>{contas.map((c) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
+            <SelectContent>
+              {contas.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.codigo} — {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
-        <div><Label>De</Label><Input type="date" value={de} onChange={(e) => setDe(e.target.value)} /></div>
-        <div><Label>Até</Label><Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} /></div>
+        <div>
+          <Label>De</Label>
+          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+        </div>
+        <div>
+          <Label>Até</Label>
+          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+        </div>
       </Card>
 
       {contaId && (
         <>
           <div className="grid gap-4 md:grid-cols-3 mb-4">
-            <Card className="p-4"><div className="text-sm text-muted-foreground">Saldo anterior</div><div className="text-xl font-semibold">{brl(saldoAnterior)}</div></Card>
-            <Card className="p-4"><div className="text-sm text-muted-foreground">Débitos do período</div><div className="text-xl font-semibold">{brl(totalDebito)}</div></Card>
-            <Card className="p-4"><div className="text-sm text-muted-foreground">Créditos do período</div><div className="text-xl font-semibold">{brl(totalCredito)}</div></Card>
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Saldo anterior</div>
+              <div className="text-xl font-semibold">{brl(saldoAnterior)}</div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Débitos do período</div>
+              <div className="text-xl font-semibold">{brl(totalDebito)}</div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm text-muted-foreground">Créditos do período</div>
+              <div className="text-xl font-semibold">{brl(totalCredito)}</div>
+            </Card>
           </div>
 
           <Card>
@@ -117,15 +171,25 @@ function Razao() {
               </TableHeader>
               <TableBody>
                 {linhas.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Nenhum lançamento no período.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                      Nenhum lançamento no período.
+                    </TableCell>
+                  </TableRow>
                 )}
                 {linhas.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>{fmtDate(l.lancamentos_contabeis.data)}</TableCell>
                     <TableCell>{l.descricao ?? l.lancamentos_contabeis.descricao}</TableCell>
-                    <TableCell className="text-muted-foreground">{l.lancamentos_contabeis.origem_tipo ?? "—"}</TableCell>
-                    <TableCell className="text-right">{l.tipo === "debito" ? brl(l.valor) : ""}</TableCell>
-                    <TableCell className="text-right">{l.tipo === "credito" ? brl(l.valor) : ""}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {l.lancamentos_contabeis.origem_tipo ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {l.tipo === "debito" ? brl(l.valor) : ""}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {l.tipo === "credito" ? brl(l.valor) : ""}
+                    </TableCell>
                     <TableCell className="text-right font-medium">{brl(l.saldo)}</TableCell>
                   </TableRow>
                 ))}

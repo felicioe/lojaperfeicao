@@ -16,8 +16,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
@@ -63,8 +76,14 @@ function statusCompetencia(r: Recorrente, efetivadasEsteMes: Set<string>): Statu
 
 const FORM_VAZIO = {
   id: null as string | null,
-  descricao: "", valor: 0, dia_vencimento: 10, plano_conta_id: "", terceiro_id: "none",
-  data_inicio: toISODate(new Date()), data_fim: "", observacoes: "",
+  descricao: "",
+  valor: 0,
+  dia_vencimento: 10,
+  plano_conta_id: "",
+  terceiro_id: "none",
+  data_inicio: toISODate(new Date()),
+  data_fim: "",
+  observacoes: "",
 };
 
 function Recorrentes() {
@@ -127,9 +146,15 @@ function Recorrentes() {
 
   const editar = (r: Recorrente) =>
     setForm({
-      id: r.id, descricao: r.descricao, valor: r.valor, dia_vencimento: r.dia_vencimento,
-      plano_conta_id: r.plano_conta_id, terceiro_id: r.terceiro_id ?? "none",
-      data_inicio: r.data_inicio, data_fim: r.data_fim ?? "", observacoes: r.observacoes ?? "",
+      id: r.id,
+      descricao: r.descricao,
+      valor: r.valor,
+      dia_vencimento: r.dia_vencimento,
+      plano_conta_id: r.plano_conta_id,
+      terceiro_id: r.terceiro_id ?? "none",
+      data_inicio: r.data_inicio,
+      data_fim: r.data_fim ?? "",
+      observacoes: r.observacoes ?? "",
     });
 
   const alternarAtivo = async (r: Recorrente) => {
@@ -162,7 +187,8 @@ function Recorrentes() {
         actions={
           podeEditar && (
             <Button variant="outline" onClick={efetivarAgora} disabled={efetivando}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${efetivando ? "animate-spin" : ""}`} /> Efetivar recorrências vencidas
+              <RefreshCw className={`h-4 w-4 mr-1 ${efetivando ? "animate-spin" : ""}`} /> Efetivar
+              recorrências vencidas
             </Button>
           )
         }
@@ -170,34 +196,111 @@ function Recorrentes() {
 
       {podeEditar && (
         <Card className="mb-4">
-          <CardHeader><CardTitle className="text-base">{form.id ? "Editar recorrência" : "Nova recorrência"}</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {form.id ? "Editar recorrência" : "Nova recorrência"}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
-            <div className="md:col-span-2"><Label>Descrição</Label><Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} /></div>
-            <div><Label>Valor</Label><Input type="number" step="0.01" min="0" value={form.valor} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} /></div>
-            <div><Label>Dia do vencimento</Label><Input type="number" min={1} max={28} value={form.dia_vencimento} onChange={(e) => setForm({ ...form, dia_vencimento: Number(e.target.value) })} /></div>
+            <div className="md:col-span-2">
+              <Label>Descrição</Label>
+              <Input
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Valor</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.valor}
+                onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label>Dia do vencimento</Label>
+              <Input
+                type="number"
+                min={1}
+                max={28}
+                value={form.dia_vencimento}
+                onChange={(e) => setForm({ ...form, dia_vencimento: Number(e.target.value) })}
+              />
+            </div>
             <div>
               <Label>Categoria</Label>
-              <Select value={form.plano_conta_id} onValueChange={(v) => setForm({ ...form, plano_conta_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                <SelectContent>{planos.map((p) => <SelectItem key={p.id} value={p.id}>{p.codigo} — {p.nome}</SelectItem>)}</SelectContent>
+              <Select
+                value={form.plano_conta_id}
+                onValueChange={(v) => setForm({ ...form, plano_conta_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planos.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.codigo} — {p.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div>
               <Label>Fornecedor (opcional)</Label>
-              <Select value={form.terceiro_id} onValueChange={(v) => setForm({ ...form, terceiro_id: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.terceiro_id}
+                onValueChange={(v) => setForm({ ...form, terceiro_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— nenhum —</SelectItem>
-                  {terceiros.map((t) => <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>)}
+                  {terceiros.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.nome}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Início</Label><Input type="date" value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} /></div>
-            <div><Label>Fim (opcional)</Label><Input type="date" value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} /></div>
-            <div className="md:col-span-4"><Label>Observações</Label><Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} /></div>
+            <div>
+              <Label>Início</Label>
+              <Input
+                type="date"
+                value={form.data_inicio}
+                onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Fim (opcional)</Label>
+              <Input
+                type="date"
+                value={form.data_fim}
+                onChange={(e) => setForm({ ...form, data_fim: e.target.value })}
+              />
+            </div>
+            <div className="md:col-span-4">
+              <Label>Observações</Label>
+              <Textarea
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              />
+            </div>
             <div className="md:col-span-4 flex gap-2">
-              <Button onClick={salvar} disabled={!form.descricao || !form.valor || !form.plano_conta_id}>{form.id ? "Salvar alterações" : "Adicionar"}</Button>
-              {form.id && <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}><X className="h-4 w-4 mr-1" /> Cancelar</Button>}
+              <Button
+                onClick={salvar}
+                disabled={!form.descricao || !form.valor || !form.plano_conta_id}
+              >
+                {form.id ? "Salvar alterações" : "Adicionar"}
+              </Button>
+              {form.id && (
+                <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>
+                  <X className="h-4 w-4 mr-1" /> Cancelar
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -219,22 +322,40 @@ function Recorrentes() {
           </TableHeader>
           <TableBody>
             {recorrentes.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center py-6 text-muted-foreground">Nenhuma recorrência cadastrada.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                  Nenhuma recorrência cadastrada.
+                </TableCell>
+              </TableRow>
             )}
             {recorrentes.map((r) => {
               const status = statusCompetencia(r, efetivadasSet);
               return (
                 <TableRow key={r.id} className={!r.ativo ? "opacity-50" : undefined}>
                   <TableCell className="font-medium">{r.descricao}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.plano_contas?.nome ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {r.plano_contas?.nome ?? "—"}
+                  </TableCell>
                   <TableCell className="font-mono">{r.dia_vencimento}</TableCell>
                   <TableCell className="text-right">{brl(r.valor)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{fmtDate(r.data_inicio)} – {r.data_fim ? fmtDate(r.data_fim) : "indeterminado"}</TableCell>
-                  <TableCell><Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge></TableCell>
-                  <TableCell><Switch checked={r.ativo} onCheckedChange={() => alternarAtivo(r)} disabled={!podeEditar} /></TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {fmtDate(r.data_inicio)} – {r.data_fim ? fmtDate(r.data_fim) : "indeterminado"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={r.ativo}
+                      onCheckedChange={() => alternarAtivo(r)}
+                      disabled={!podeEditar}
+                    />
+                  </TableCell>
                   {podeEditar && (
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => editar(r)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => editar(r)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   )}
                 </TableRow>

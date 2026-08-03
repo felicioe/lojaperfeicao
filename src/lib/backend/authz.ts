@@ -16,7 +16,9 @@ export class SemPermissaoError extends Error {
 }
 
 /** Equivalente a `TO authenticated USING (true)`: só exige sessão válida. */
-export async function comSessao<T>(fn: (conn: PoolConnection, usuarioId: string) => Promise<T>): Promise<T> {
+export async function comSessao<T>(
+  fn: (conn: PoolConnection, usuarioId: string) => Promise<T>,
+): Promise<T> {
   const usuarioId = await usuarioIdDaSessao();
   if (!usuarioId) throw new SemPermissaoError("Não autenticado.");
   return withUserConnection(usuarioId, (conn) => fn(conn, usuarioId));

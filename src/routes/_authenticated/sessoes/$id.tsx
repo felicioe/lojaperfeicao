@@ -1,11 +1,22 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { obterSessao, listarPresencas, togglePresenca as togglePresencaFn } from "@/lib/backend/sessoes";
+import {
+  obterSessao,
+  listarPresencas,
+  togglePresenca as togglePresencaFn,
+} from "@/lib/backend/sessoes";
 import { listarIrmaos } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { GRAU_LABEL, TIPO_SESSAO_LABEL, fmtDate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { toast } from "sonner";
@@ -60,7 +71,9 @@ function SessaoDetail() {
         description={s ? `${TIPO_SESSAO_LABEL[s.tipo]} — Grau: ${GRAU_LABEL[s.grau]}` : ""}
       />
       <Card>
-        <CardHeader><CardTitle className="text-base">Lista de presença</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Lista de presença</CardTitle>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>

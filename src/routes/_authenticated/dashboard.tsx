@@ -6,7 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/AppShell";
 import { brl, fmtDate } from "@/lib/format";
 import { CalendarClock, Wallet, TrendingUp } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -14,7 +21,9 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   // painel reduzido, não o dashboard administrativo.
   beforeLoad: ({ context }) => {
     const papeis = context.usuario?.papeis ?? [];
-    const privilegiado = papeis.some((p) => p === "admin" || p === "tesoureiro" || p === "secretario");
+    const privilegiado = papeis.some(
+      (p) => p === "admin" || p === "tesoureiro" || p === "secretario",
+    );
     if (papeis.includes("irmao") && !privilegiado) {
       throw redirect({ to: "/painel" });
     }

@@ -97,7 +97,9 @@ export const signup = createServerFn({ method: "POST" })
       // aceite explícito do checkbox no formulário — só quem passa por aqui
       // já nasce com consentimento registrado; contas criadas pelo admin
       // (painel de usuários) ficam pendentes até o primeiro login.
-      await conn.query("UPDATE usuarios SET consentimento_lgpd_em = NOW() WHERE id = ?", [novo_usuario_id]);
+      await conn.query("UPDATE usuarios SET consentimento_lgpd_em = NOW() WHERE id = ?", [
+        novo_usuario_id,
+      ]);
       return novo_usuario_id as string;
     });
 
@@ -125,9 +127,13 @@ export const registrarConsentimentoLgpd = createServerFn({ method: "POST" }).han
   });
 });
 
-export const contarUsuarios = createServerFn({ method: "GET" }).handler(async (): Promise<number> => {
-  return withUserConnection(null, async (conn) => {
-    const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT COUNT(*) AS total FROM usuarios");
-    return Number(total);
-  });
-});
+export const contarUsuarios = createServerFn({ method: "GET" }).handler(
+  async (): Promise<number> => {
+    return withUserConnection(null, async (conn) => {
+      const [[{ total }]] = await conn.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM usuarios",
+      );
+      return Number(total);
+    });
+  },
+);

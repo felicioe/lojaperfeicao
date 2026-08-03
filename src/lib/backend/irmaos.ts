@@ -16,11 +16,18 @@ const PAPEIS_ESCRITA = ["admin", "secretario"];
 
 async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
-  const [[row]] = await conn.query<RowDataPacket[]>(`SELECT (${condicoes}) AS ok`, PAPEIS_PRIVILEGIADOS);
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    `SELECT (${condicoes}) AS ok`,
+    PAPEIS_PRIVILEGIADOS,
+  );
   return !!row.ok;
 }
 
-async function podeVerIrmao(conn: PoolConnection, usuarioId: string, irmaoId: string): Promise<boolean> {
+async function podeVerIrmao(
+  conn: PoolConnection,
+  usuarioId: string,
+  irmaoId: string,
+): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
   const [[row]] = await conn.query<RowDataPacket[]>(
     `SELECT (${condicoes} OR EXISTS(SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ?)) AS ok`,
@@ -77,17 +84,20 @@ export type Irmao = {
   atualizado_em: string;
 };
 
-export const listarIrmaos = createServerFn({ method: "GET" }).handler(async (): Promise<Irmao[]> => {
-  return comSessao(async (conn, usuarioId) => {
-    const privilegiado = await ehPrivilegiado(conn);
-    const [rows] = privilegiado
-      ? await conn.query<RowDataPacket[]>("SELECT * FROM irmaos ORDER BY nome_civil")
-      : await conn.query<RowDataPacket[]>("SELECT * FROM irmaos WHERE usuario_id = ? ORDER BY nome_civil", [
-          usuarioId,
-        ]);
-    return rows as Irmao[];
-  });
-});
+export const listarIrmaos = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Irmao[]> => {
+    return comSessao(async (conn, usuarioId) => {
+      const privilegiado = await ehPrivilegiado(conn);
+      const [rows] = privilegiado
+        ? await conn.query<RowDataPacket[]>("SELECT * FROM irmaos ORDER BY nome_civil")
+        : await conn.query<RowDataPacket[]>(
+            "SELECT * FROM irmaos WHERE usuario_id = ? ORDER BY nome_civil",
+            [usuarioId],
+          );
+      return rows as Irmao[];
+    });
+  },
+);
 
 /** Lista mínima id+nome_civil, usada em seletores (ex.: organograma de gestões). */
 export const listarIrmaosNomes = createServerFn({ method: "GET" }).handler(
@@ -110,7 +120,9 @@ export const obterIrmao = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<Irmao | null> => {
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeVerIrmao(conn, usuarioId, data.id))) throw new SemPermissaoError();
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM irmaos WHERE id = ?", [data.id]);
+      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM irmaos WHERE id = ?", [
+        data.id,
+      ]);
       return (rows[0] as Irmao) ?? null;
     });
   });
@@ -153,13 +165,47 @@ export const criarIrmao = createServerFn({ method: "POST" })
 // Mesma lista de campos editáveis da tela de perfil (CAMPOS_PERFIL no
 // frontend original) — tudo exceto usuario_id/criado_em/atualizado_em.
 const CAMPOS_PERFIL = [
-  "nome_civil", "nome_simbolico", "cim", "numero_matricula", "estado_civil", "cpf", "rg",
-  "data_nascimento", "naturalidade", "nacionalidade", "religiao", "observacoes", "foto_url",
-  "grau", "situacao", "data_iniciacao", "data_elevacao", "data_exaltacao", "loja_origem",
-  "numero_grande_oriente", "fundador", "benemerito", "honorario", "licenciado", "potencia",
-  "profissao", "empresa", "cargo_profissional", "area_atuacao", "valor_mensalidade",
-  "email", "telefone", "celular", "endereco", "cep", "logradouro", "numero_endereco",
-  "complemento", "bairro", "cidade", "estado",
+  "nome_civil",
+  "nome_simbolico",
+  "cim",
+  "numero_matricula",
+  "estado_civil",
+  "cpf",
+  "rg",
+  "data_nascimento",
+  "naturalidade",
+  "nacionalidade",
+  "religiao",
+  "observacoes",
+  "foto_url",
+  "grau",
+  "situacao",
+  "data_iniciacao",
+  "data_elevacao",
+  "data_exaltacao",
+  "loja_origem",
+  "numero_grande_oriente",
+  "fundador",
+  "benemerito",
+  "honorario",
+  "licenciado",
+  "potencia",
+  "profissao",
+  "empresa",
+  "cargo_profissional",
+  "area_atuacao",
+  "valor_mensalidade",
+  "email",
+  "telefone",
+  "celular",
+  "endereco",
+  "cep",
+  "logradouro",
+  "numero_endereco",
+  "complemento",
+  "bairro",
+  "cidade",
+  "estado",
 ] as const;
 
 const perfilSchema = z.object({
@@ -256,12 +302,10 @@ export const criarIrmaoOrg = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("INSERT INTO irmao_orgs (irmao_id, org_id, principal, grau_atual) VALUES (?, ?, ?, ?)", [
-        data.irmaoId,
-        data.orgId,
-        data.principal,
-        data.grauAtual,
-      ]);
+      await conn.query(
+        "INSERT INTO irmao_orgs (irmao_id, org_id, principal, grau_atual) VALUES (?, ?, ?, ?)",
+        [data.irmaoId, data.orgId, data.principal, data.grauAtual],
+      );
     });
   });
 
@@ -291,7 +335,13 @@ export const listarIrmaoElevacoes = createServerFn({ method: "GET" })
 
 export const criarIrmaoElevacao = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ irmaoId: z.string().uuid(), grau: z.number().int().positive(), data: z.string().nullable() }).parse(d),
+    z
+      .object({
+        irmaoId: z.string().uuid(),
+        grau: z.number().int().positive(),
+        data: z.string().nullable(),
+      })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
@@ -380,15 +430,20 @@ export const listarIrmaoFilhos = createServerFn({ method: "GET" })
 
 export const criarIrmaoFilho = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ irmaoId: z.string().uuid(), nome: z.string().min(1), dataNascimento: z.string().nullable() }).parse(d),
+    z
+      .object({
+        irmaoId: z.string().uuid(),
+        nome: z.string().min(1),
+        dataNascimento: z.string().nullable(),
+      })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("INSERT INTO irmao_filhos (irmao_id, nome, data_nascimento) VALUES (?, ?, ?)", [
-        data.irmaoId,
-        data.nome,
-        data.dataNascimento,
-      ]);
+      await conn.query(
+        "INSERT INTO irmao_filhos (irmao_id, nome, data_nascimento) VALUES (?, ?, ?)",
+        [data.irmaoId, data.nome, data.dataNascimento],
+      );
     });
   });
 
@@ -413,7 +468,12 @@ export type IrmaoParente = {
 
 export const listarIrmaoParentes = createServerFn({ method: "GET" })
   .validator((d: unknown) =>
-    z.object({ irmaoId: z.string().uuid(), tipo: z.enum(["pai", "mae", "conjuge", "contato_emergencia", "outro"]) }).parse(d),
+    z
+      .object({
+        irmaoId: z.string().uuid(),
+        tipo: z.enum(["pai", "mae", "conjuge", "contato_emergencia", "outro"]),
+      })
+      .parse(d),
   )
   .handler(async ({ data }): Promise<IrmaoParente[]> => {
     return comSessao(async (conn, usuarioId) => {
@@ -446,7 +506,15 @@ export const criarIrmaoParente = createServerFn({ method: "POST" })
       await conn.query(
         `INSERT INTO irmao_parentes (irmao_id, tipo, nome, data_nascimento, telefone, profissao, data_casamento)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [data.irmaoId, data.tipo, data.nome, data.dataNascimento, data.telefone, data.profissao, data.dataCasamento],
+        [
+          data.irmaoId,
+          data.tipo,
+          data.nome,
+          data.dataNascimento,
+          data.telefone,
+          data.profissao,
+          data.dataCasamento,
+        ],
       );
     });
   });
@@ -462,14 +530,17 @@ export const removerIrmaoParente = createServerFn({ method: "POST" })
 // Resolve o cadastro de irmão vinculado ao usuário logado (painel do
 // próprio irmão) — retorna null se o login ainda não foi vinculado a um
 // cadastro (admin precisa vincular via irmaos.usuario_id).
-export const obterMeuIrmao = createServerFn({ method: "GET" }).handler(async (): Promise<Irmao | null> => {
-  return comSessao(async (conn, usuarioId) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM irmaos WHERE usuario_id = ? LIMIT 1", [
-      usuarioId,
-    ]);
-    return (rows[0] as Irmao) ?? null;
-  });
-});
+export const obterMeuIrmao = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Irmao | null> => {
+    return comSessao(async (conn, usuarioId) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM irmaos WHERE usuario_id = ? LIMIT 1",
+        [usuarioId],
+      );
+      return (rows[0] as Irmao) ?? null;
+    });
+  },
+);
 
 // ---------- Painéis somente-leitura (financeiro / cargos histórico) ----------
 export type LancamentoIrmao = {
@@ -536,7 +607,12 @@ export const listarFrequenciaIrmao = createServerFn({ method: "GET" })
 export type CargoHistorico = {
   id: string;
   cargos: { nome: string } | null;
-  gestoes: { nome: string; ativo: boolean; org_id: string; orgs: { nome: string; sigla: string | null } | null } | null;
+  gestoes: {
+    nome: string;
+    ativo: boolean;
+    org_id: string;
+    orgs: { nome: string; sigla: string | null } | null;
+  } | null;
 };
 
 export const listarCargosHistoricoIrmao = createServerFn({ method: "GET" })

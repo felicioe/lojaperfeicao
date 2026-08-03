@@ -7,7 +7,13 @@ import { comSessao, comPapel } from "./authz";
 // autenticados; escrita (cargos/gestoes/gestao_cargos) admin OU secretario.
 const PAPEIS_ESCRITA = ["admin", "secretario"];
 
-export type Cargo = { id: string; org_id: string | null; nome: string; ordem: number; ativo: boolean };
+export type Cargo = {
+  id: string;
+  org_id: string | null;
+  nome: string;
+  ordem: number;
+  ativo: boolean;
+};
 export type Gestao = {
   id: string;
   org_id: string;
@@ -24,12 +30,14 @@ export type CargoOcupado = {
   irmaos: { nome_civil: string } | null;
 };
 
-export const listarCargos = createServerFn({ method: "GET" }).handler(async (): Promise<Cargo[]> => {
-  return comSessao(async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM cargos ORDER BY ordem");
-    return rows as Cargo[];
-  });
-});
+export const listarCargos = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Cargo[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM cargos ORDER BY ordem");
+      return rows as Cargo[];
+    });
+  },
+);
 
 const cargoSchema = z.object({
   id: z.string().uuid().nullable(),
@@ -80,12 +88,16 @@ export const listarCargosDisponiveis = createServerFn({ method: "GET" })
     });
   });
 
-export const listarGestoes = createServerFn({ method: "GET" }).handler(async (): Promise<Gestao[]> => {
-  return comSessao(async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM gestoes ORDER BY data_inicio DESC");
-    return rows as Gestao[];
-  });
-});
+export const listarGestoes = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Gestao[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM gestoes ORDER BY data_inicio DESC",
+      );
+      return rows as Gestao[];
+    });
+  },
+);
 
 const criarGestaoSchema = z.object({
   org_id: z.string().uuid(),
@@ -103,13 +115,10 @@ export const criarGestao = createServerFn({ method: "POST" })
       // mysql/migrations/0002_cadastros.sql); se já houver gestão ativa
       // para o corpo, a constraint única barra o INSERT com erro de
       // duplicidade — mesmo comportamento do índice único parcial original.
-      await conn.query("INSERT INTO gestoes (org_id, nome, data_inicio, data_fim, ativo) VALUES (?, ?, ?, ?, ?)", [
-        data.org_id,
-        data.nome,
-        data.data_inicio,
-        data.data_fim,
-        data.ativo,
-      ]);
+      await conn.query(
+        "INSERT INTO gestoes (org_id, nome, data_inicio, data_fim, ativo) VALUES (?, ?, ?, ?, ?)",
+        [data.org_id, data.nome, data.data_inicio, data.data_fim, data.ativo],
+      );
     });
   });
 
@@ -145,15 +154,20 @@ export const listarGestaoCargos = createServerFn({ method: "GET" })
 
 export const criarGestaoCargo = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ gestaoId: z.string().uuid(), cargoId: z.string().uuid(), irmaoId: z.string().uuid() }).parse(d),
+    z
+      .object({
+        gestaoId: z.string().uuid(),
+        cargoId: z.string().uuid(),
+        irmaoId: z.string().uuid(),
+      })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("INSERT INTO gestao_cargos (gestao_id, cargo_id, irmao_id) VALUES (?, ?, ?)", [
-        data.gestaoId,
-        data.cargoId,
-        data.irmaoId,
-      ]);
+      await conn.query(
+        "INSERT INTO gestao_cargos (gestao_id, cargo_id, irmao_id) VALUES (?, ?, ?)",
+        [data.gestaoId, data.cargoId, data.irmaoId],
+      );
     });
   });
 

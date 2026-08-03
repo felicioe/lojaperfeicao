@@ -5,7 +5,12 @@ import type { RowDataPacket } from "mysql2";
 import { comSessao } from "./authz";
 import { listarIrmaos } from "./irmaos";
 
-export type FrequenciaIrmao = { id: string; nome_civil: string; nome_simbolico: string | null; presencas: number };
+export type FrequenciaIrmao = {
+  id: string;
+  nome_civil: string;
+  nome_simbolico: string | null;
+  presencas: number;
+};
 export type RelatorioFrequencia = { totalSessoes: number; irmaos: FrequenciaIrmao[] };
 
 // irmaos segue a mesma visibilidade de listarIrmaos (admin/secretario/
@@ -15,7 +20,9 @@ export const relatorioFrequencia = createServerFn({ method: "GET" }).handler(
   async (): Promise<RelatorioFrequencia> => {
     const irmaosVisiveis = await listarIrmaos();
     return comSessao(async (conn) => {
-      const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT COUNT(*) AS total FROM sessoes");
+      const [[{ total }]] = await conn.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM sessoes",
+      );
       const [presencas] = await conn.query<RowDataPacket[]>(
         "SELECT irmao_id, COUNT(*) AS presencas FROM presencas WHERE presente = TRUE GROUP BY irmao_id",
       );
@@ -40,7 +47,10 @@ const PAPEIS_PRIVILEGIADOS = ["admin", "tesoureiro", "secretario"];
 
 async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
-  const [[row]] = await conn.query<RowDataPacket[]>(`SELECT (${condicoes}) AS ok`, PAPEIS_PRIVILEGIADOS);
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    `SELECT (${condicoes}) AS ok`,
+    PAPEIS_PRIVILEGIADOS,
+  );
   return !!row.ok;
 }
 

@@ -3,7 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { listarAuditoriaDesbalanceados, listarSaldoPlanoContas } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { brl, fmtDate } from "@/lib/format";
@@ -37,15 +44,21 @@ function AuditoriaContabil() {
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total debitado</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Total debitado</CardTitle>
+          </CardHeader>
           <CardContent className="text-2xl font-semibold">{brl(totalDebito)}</CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total creditado</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Total creditado</CardTitle>
+          </CardHeader>
           <CardContent className="text-2xl font-semibold">{brl(totalCredito)}</CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Consistência</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Consistência</CardTitle>
+          </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-semibold">
             {consistente ? (
               <>
@@ -53,7 +66,8 @@ function AuditoriaContabil() {
               </>
             ) : (
               <>
-                <AlertTriangle className="h-5 w-5 text-destructive" /> {desbalanceados.length} lançamento(s)
+                <AlertTriangle className="h-5 w-5 text-destructive" /> {desbalanceados.length}{" "}
+                lançamento(s)
               </>
             )}
           </CardContent>
@@ -62,7 +76,9 @@ function AuditoriaContabil() {
 
       {!consistente && (
         <Card className="mb-6 border-destructive">
-          <CardHeader><CardTitle className="text-base">Lançamentos desbalanceados</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Lançamentos desbalanceados</CardTitle>
+          </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
@@ -83,7 +99,9 @@ function AuditoriaContabil() {
                     <TableCell className="text-muted-foreground">{d.origem_tipo ?? "—"}</TableCell>
                     <TableCell className="text-right">{brl(d.total_debito)}</TableCell>
                     <TableCell className="text-right">{brl(d.total_credito)}</TableCell>
-                    <TableCell className="text-right text-destructive font-medium">{brl(d.diferenca)}</TableCell>
+                    <TableCell className="text-right text-destructive font-medium">
+                      {brl(d.diferenca)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -93,7 +111,9 @@ function AuditoriaContabil() {
       )}
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Saldo por conta analítica</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Saldo por conta analítica</CardTitle>
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -111,7 +131,9 @@ function AuditoriaContabil() {
                 <TableRow key={c.id}>
                   <TableCell className="font-mono">{c.codigo}</TableCell>
                   <TableCell>{c.nome}</TableCell>
-                  <TableCell><Badge variant="outline">{c.tipo}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{c.tipo}</Badge>
+                  </TableCell>
                   <TableCell className="text-right">{brl(c.total_debito)}</TableCell>
                   <TableCell className="text-right">{brl(c.total_credito)}</TableCell>
                   <TableCell className="text-right">{brl(c.saldo_devedor)}</TableCell>

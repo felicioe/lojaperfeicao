@@ -78,13 +78,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Fraternity Ledger" },
-      { name: "description", content: "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting." },
+      {
+        name: "description",
+        content:
+          "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting.",
+      },
       { property: "og:title", content: "Fraternity Ledger" },
-      { property: "og:description", content: "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting." },
+      {
+        property: "og:description",
+        content:
+          "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Fraternity Ledger" },
-      { name: "twitter:description", content: "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting." },
+      {
+        name: "twitter:description",
+        content:
+          "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting.",
+      },
     ],
     links: [
       {

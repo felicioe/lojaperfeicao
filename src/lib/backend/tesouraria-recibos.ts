@@ -10,7 +10,10 @@ const PAPEIS_PRIVILEGIADOS = ["admin", "tesoureiro", "secretario"];
 
 async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
-  const [[row]] = await conn.query<RowDataPacket[]>(`SELECT (${condicoes}) AS ok`, PAPEIS_PRIVILEGIADOS);
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    `SELECT (${condicoes}) AS ok`,
+    PAPEIS_PRIVILEGIADOS,
+  );
   return !!row.ok;
 }
 
@@ -27,13 +30,14 @@ export type Recibo = {
   contas_financeiras: { nome: string } | null;
 };
 
-export const listarRecibos = createServerFn({ method: "GET" }).handler(async (): Promise<Recibo[]> => {
-  return comSessao(async (conn, usuarioId) => {
-    const privilegiado = await ehPrivilegiado(conn);
-    const where = privilegiado ? "" : "WHERE i.usuario_id = ?";
-    const valores = privilegiado ? [] : [usuarioId];
-    const [rows] = await conn.query<RowDataPacket[]>(
-      `SELECT r.id, r.data, r.valor_original, r.valor_multa, r.valor_juros, r.desconto, r.valor_total, r.forma_pagamento,
+export const listarRecibos = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Recibo[]> => {
+    return comSessao(async (conn, usuarioId) => {
+      const privilegiado = await ehPrivilegiado(conn);
+      const where = privilegiado ? "" : "WHERE i.usuario_id = ?";
+      const valores = privilegiado ? [] : [usuarioId];
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT r.id, r.data, r.valor_original, r.valor_multa, r.valor_juros, r.desconto, r.valor_total, r.forma_pagamento,
               i.nome_civil, cf.nome AS conta_nome
        FROM recibos r
        JOIN irmaos i ON i.id = r.irmao_id
@@ -41,22 +45,23 @@ export const listarRecibos = createServerFn({ method: "GET" }).handler(async ():
        ${where}
        ORDER BY r.data DESC
        LIMIT 200`,
-      valores,
-    );
-    return rows.map((r) => ({
-      id: r.id,
-      data: r.data,
-      valor_original: r.valor_original,
-      valor_multa: r.valor_multa,
-      valor_juros: r.valor_juros,
-      desconto: r.desconto,
-      valor_total: r.valor_total,
-      forma_pagamento: r.forma_pagamento,
-      irmaos: { nome_civil: r.nome_civil },
-      contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
-    }));
-  });
-});
+        valores,
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        data: r.data,
+        valor_original: r.valor_original,
+        valor_multa: r.valor_multa,
+        valor_juros: r.valor_juros,
+        desconto: r.desconto,
+        valor_total: r.valor_total,
+        forma_pagamento: r.forma_pagamento,
+        irmaos: { nome_civil: r.nome_civil },
+        contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
+      }));
+    });
+  },
+);
 
 export type ReciboItem = {
   id: string;

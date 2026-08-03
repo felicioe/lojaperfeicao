@@ -28,12 +28,14 @@ export type Terceiro = {
   ativo: boolean;
 };
 
-export const listarTerceiros = createServerFn({ method: "GET" }).handler(async (): Promise<Terceiro[]> => {
-  return comPapel(PAPEIS_LEITURA, async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM terceiros ORDER BY nome");
-    return rows as Terceiro[];
-  });
-});
+export const listarTerceiros = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Terceiro[]> => {
+    return comPapel(PAPEIS_LEITURA, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM terceiros ORDER BY nome");
+      return rows as Terceiro[];
+    });
+  },
+);
 
 /** Fornecedores ativos ("fornecedor" ou "ambos") — usado no seletor de contas a pagar/recorrentes. */
 export const listarFornecedores = createServerFn({ method: "GET" }).handler(
@@ -130,7 +132,10 @@ type DadosCnpj = {
 };
 
 async function consultarProvedor(cnpj: string): Promise<{ dados: DadosCnpj } | { erro: string }> {
-  const urls = [`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, `https://www.receitaws.com.br/v1/cnpj/${cnpj}`];
+  const urls = [
+    `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`,
+    `https://www.receitaws.com.br/v1/cnpj/${cnpj}`,
+  ];
   let ultimoErro = "";
   for (const url of urls) {
     try {
@@ -187,16 +192,20 @@ export const consultarCnpj = createServerFn({ method: "POST" })
           if (limite.tentativas >= RATE_LIMIT_MAX) {
             throw new Error("Muitas consultas. Aguarde alguns minutos e tente novamente.");
           }
-          await conn.query("UPDATE cnpj_rate_limit SET tentativas = tentativas + 1 WHERE usuario_id = ?", [
-            usuarioId,
-          ]);
+          await conn.query(
+            "UPDATE cnpj_rate_limit SET tentativas = tentativas + 1 WHERE usuario_id = ?",
+            [usuarioId],
+          );
         } else {
-          await conn.query("UPDATE cnpj_rate_limit SET tentativas = 1, janela_inicio = NOW() WHERE usuario_id = ?", [
-            usuarioId,
-          ]);
+          await conn.query(
+            "UPDATE cnpj_rate_limit SET tentativas = 1, janela_inicio = NOW() WHERE usuario_id = ?",
+            [usuarioId],
+          );
         }
       } else {
-        await conn.query("INSERT INTO cnpj_rate_limit (usuario_id, tentativas) VALUES (?, 1)", [usuarioId]);
+        await conn.query("INSERT INTO cnpj_rate_limit (usuario_id, tentativas) VALUES (?, 1)", [
+          usuarioId,
+        ]);
       }
 
       // Cache.
@@ -206,7 +215,8 @@ export const consultarCnpj = createServerFn({ method: "POST" })
       );
       const cacheado = cacheados[0];
       if (cacheado && agora - new Date(cacheado.consultado_em).getTime() < CACHE_TTL_MS) {
-        const dados = typeof cacheado.dados === "string" ? JSON.parse(cacheado.dados) : cacheado.dados;
+        const dados =
+          typeof cacheado.dados === "string" ? JSON.parse(cacheado.dados) : cacheado.dados;
         return { dados, cache: true };
       }
 

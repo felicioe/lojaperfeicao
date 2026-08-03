@@ -16,11 +16,31 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -35,30 +55,60 @@ export const Route = createFileRoute("/_authenticated/tesouraria/faturas")({
 
 type Rateio = { conta_id: string; percentual: number };
 
-function RateioBuilder({ rateio, setRateio, receitas }: { rateio: Rateio[]; setRateio: (r: Rateio[]) => void; receitas: { id: string; codigo: string; nome: string }[] }) {
+function RateioBuilder({
+  rateio,
+  setRateio,
+  receitas,
+}: {
+  rateio: Rateio[];
+  setRateio: (r: Rateio[]) => void;
+  receitas: { id: string; codigo: string; nome: string }[];
+}) {
   const total = rateio.reduce((s, r) => s + Number(r.percentual || 0), 0);
   const add = () => setRateio([...rateio, { conta_id: "", percentual: 0 }]);
-  const update = (i: number, patch: Partial<Rateio>) => setRateio(rateio.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const update = (i: number, patch: Partial<Rateio>) =>
+    setRateio(rateio.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const remove = (i: number) => setRateio(rateio.filter((_, idx) => idx !== i));
 
   return (
     <div className="space-y-2 md:col-span-4">
       <div className="flex items-center justify-between">
         <Label>Rateio entre contas de receita (opcional — vazio usa 100% Mensalidades)</Label>
-        <Button type="button" variant="outline" size="sm" onClick={add}><Plus className="h-3 w-3 mr-1" /> Linha</Button>
+        <Button type="button" variant="outline" size="sm" onClick={add}>
+          <Plus className="h-3 w-3 mr-1" /> Linha
+        </Button>
       </div>
       {rateio.map((r, i) => (
         <div key={i} className="flex items-center gap-2">
           <Select value={r.conta_id} onValueChange={(v) => update(i, { conta_id: v })}>
-            <SelectTrigger className="h-8 flex-1"><SelectValue placeholder="Conta de receita…" /></SelectTrigger>
-            <SelectContent>{receitas.map((c) => <SelectItem key={c.id} value={c.id}>{c.codigo} — {c.nome}</SelectItem>)}</SelectContent>
+            <SelectTrigger className="h-8 flex-1">
+              <SelectValue placeholder="Conta de receita…" />
+            </SelectTrigger>
+            <SelectContent>
+              {receitas.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.codigo} — {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
-          <Input type="number" step="0.01" className="h-8 w-24" value={r.percentual} onChange={(e) => update(i, { percentual: Number(e.target.value) })} placeholder="%" />
-          <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)}><Trash2 className="h-4 w-4" /></Button>
+          <Input
+            type="number"
+            step="0.01"
+            className="h-8 w-24"
+            value={r.percentual}
+            onChange={(e) => update(i, { percentual: Number(e.target.value) })}
+            placeholder="%"
+          />
+          <Button type="button" variant="ghost" size="sm" onClick={() => remove(i)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       ))}
       {rateio.length > 0 && (
-        <div className={`text-xs ${Math.abs(total - 100) > 0.01 ? "text-destructive" : "text-muted-foreground"}`}>
+        <div
+          className={`text-xs ${Math.abs(total - 100) > 0.01 ? "text-destructive" : "text-muted-foreground"}`}
+        >
           Soma: {total.toFixed(2)}% {Math.abs(total - 100) > 0.01 && "— precisa somar 100%"}
         </div>
       )}
@@ -106,7 +156,10 @@ function Faturas() {
 
   return (
     <>
-      <PageHeader title="Faturas" description="Emissão de mensalidades individual e em lote, com rateio contábil." />
+      <PageHeader
+        title="Faturas"
+        description="Emissão de mensalidades individual e em lote, com rateio contábil."
+      />
 
       <Tabs defaultValue="lote">
         <TabsList className="mb-4">
@@ -120,16 +173,33 @@ function Faturas() {
         </TabsContent>
 
         <TabsContent value="individual">
-          {podeEditar ? <IndividualForm receitas={receitas} onDone={invalidate} /> : <SemPermissao />}
+          {podeEditar ? (
+            <IndividualForm receitas={receitas} onDone={invalidate} />
+          ) : (
+            <SemPermissao />
+          )}
         </TabsContent>
 
         <TabsContent value="abertas">
           {podeEditar && selecionadas.length > 0 && (
             <Card className="mb-4 p-4 flex items-center justify-between">
-              <div className="text-sm">{selecionadas.length} fatura(s) selecionada(s) — total {brl(faturasSelecionadas.reduce((s, f) => s + Number(f.valor), 0))}</div>
+              <div className="text-sm">
+                {selecionadas.length} fatura(s) selecionada(s) — total{" "}
+                {brl(faturasSelecionadas.reduce((s, f) => s + Number(f.valor), 0))}
+              </div>
               <Dialog open={openBaixa} onOpenChange={setOpenBaixa}>
-                <DialogTrigger asChild><Button><CheckCircle2 className="h-4 w-4 mr-1" /> Baixar selecionadas</Button></DialogTrigger>
-                <BaixaDialog faturas={faturasSelecionadas} onDone={() => { setOpenBaixa(false); invalidate(); }} />
+                <DialogTrigger asChild>
+                  <Button>
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Baixar selecionadas
+                  </Button>
+                </DialogTrigger>
+                <BaixaDialog
+                  faturas={faturasSelecionadas}
+                  onDone={() => {
+                    setOpenBaixa(false);
+                    invalidate();
+                  }}
+                />
               </Dialog>
             </Card>
           )}
@@ -148,7 +218,11 @@ function Faturas() {
               </TableHeader>
               <TableBody>
                 {abertas.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Nenhuma fatura em aberto.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                      Nenhuma fatura em aberto.
+                    </TableCell>
+                  </TableRow>
                 )}
                 {abertas.map((f) => {
                   const fone = (f.irmaos?.celular || f.irmaos?.telefone || "").replace(/\D/g, "");
@@ -157,18 +231,29 @@ function Faturas() {
                     <TableRow key={f.id}>
                       {podeEditar && (
                         <TableCell>
-                          <Checkbox checked={selecionadas.includes(f.id)} onCheckedChange={() => toggleSelecionada(f)} />
+                          <Checkbox
+                            checked={selecionadas.includes(f.id)}
+                            onCheckedChange={() => toggleSelecionada(f)}
+                          />
                         </TableCell>
                       )}
                       <TableCell>{f.irmaos?.nome_civil ?? "—"}</TableCell>
                       <TableCell>{f.descricao}</TableCell>
-                      <TableCell className="text-muted-foreground">{fmtDate(f.competencia_mes)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {fmtDate(f.competencia_mes)}
+                      </TableCell>
                       <TableCell>{fmtDate(f.data_vencimento)}</TableCell>
                       <TableCell className="text-right font-medium">{brl(f.valor)}</TableCell>
                       <TableCell className="text-right">
                         {fone && (
-                          <a href={`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer">
-                            <Button size="sm" variant="ghost"><MessageCircle className="h-4 w-4" /></Button>
+                          <a
+                            href={`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Button size="sm" variant="ghost">
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
                           </a>
                         )}
                       </TableCell>
@@ -190,7 +275,9 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
   const [dataPagamento, setDataPagamento] = useState(toISODate(new Date()));
   const [desconto, setDesconto] = useState(0);
   const [observacoes, setObservacoes] = useState("");
-  const [calculos, setCalculos] = useState<Record<string, { multa: number; juros: number; dias_atraso: number; total: number }>>({});
+  const [calculos, setCalculos] = useState<
+    Record<string, { multa: number; juros: number; dias_atraso: number; total: number }>
+  >({});
   const [salvando, setSalvando] = useState(false);
 
   const { data: contas = [] } = useQuery({
@@ -200,16 +287,22 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
 
   useEffect(() => {
     (async () => {
-      const entries = await Promise.all(faturas.map(async (f) => {
-        try {
-          const calculo = await calcularMultaJuros({
-            data: { valor: f.valor, vencimento: f.data_vencimento, dataReferencia: dataPagamento },
-          });
-          return [f.id, calculo] as const;
-        } catch {
-          return [f.id, { multa: 0, juros: 0, dias_atraso: 0, total: f.valor }] as const;
-        }
-      }));
+      const entries = await Promise.all(
+        faturas.map(async (f) => {
+          try {
+            const calculo = await calcularMultaJuros({
+              data: {
+                valor: f.valor,
+                vencimento: f.data_vencimento,
+                dataReferencia: dataPagamento,
+              },
+            });
+            return [f.id, calculo] as const;
+          } catch {
+            return [f.id, { multa: 0, juros: 0, dias_atraso: 0, total: f.valor }] as const;
+          }
+        }),
+      );
       setCalculos(Object.fromEntries(entries));
     })();
   }, [faturas, dataPagamento]);
@@ -244,15 +337,25 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
 
   return (
     <DialogContent className="max-w-lg">
-      <DialogHeader><DialogTitle>Baixar {faturas.length} fatura(s)</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Baixar {faturas.length} fatura(s)</DialogTitle>
+      </DialogHeader>
       <div className="grid gap-3">
         <div className="border rounded-md divide-y">
           {faturas.map((f) => {
             const c = calculos[f.id];
             return (
               <div key={f.id} className="p-2 text-sm flex justify-between">
-                <span>{f.descricao} {c?.dias_atraso > 0 && <span className="text-destructive">({c.dias_atraso}d atraso)</span>}</span>
-                <span>{brl(f.valor)}{c && (c.multa > 0 || c.juros > 0) ? ` + ${brl(c.multa + c.juros)}` : ""}</span>
+                <span>
+                  {f.descricao}{" "}
+                  {c?.dias_atraso > 0 && (
+                    <span className="text-destructive">({c.dias_atraso}d atraso)</span>
+                  )}
+                </span>
+                <span>
+                  {brl(f.valor)}
+                  {c && (c.multa > 0 || c.juros > 0) ? ` + ${brl(c.multa + c.juros)}` : ""}
+                </span>
               </div>
             );
           })}
@@ -264,38 +367,80 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
         <div>
           <Label>Conta que recebeu</Label>
           <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
             <SelectContent>
               {contas.map((c) => (
                 <SelectItem key={c.id} value={c.id} disabled={!c.plano_conta_id}>
-                  {c.nome}{!c.plano_conta_id ? " (sem categoria contábil vinculada)" : ""}
+                  {c.nome}
+                  {!c.plano_conta_id ? " (sem categoria contábil vinculada)" : ""}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>Forma de pagamento</Label><Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} placeholder="PIX, dinheiro…" /></div>
-          <div><Label>Data do pagamento</Label><Input type="date" value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} /></div>
+          <div>
+            <Label>Forma de pagamento</Label>
+            <Input
+              value={formaPagamento}
+              onChange={(e) => setFormaPagamento(e.target.value)}
+              placeholder="PIX, dinheiro…"
+            />
+          </div>
+          <div>
+            <Label>Data do pagamento</Label>
+            <Input
+              type="date"
+              value={dataPagamento}
+              onChange={(e) => setDataPagamento(e.target.value)}
+            />
+          </div>
         </div>
-        <div><Label>Desconto (opcional)</Label><Input type="number" step="0.01" min="0" value={desconto} onChange={(e) => setDesconto(Number(e.target.value))} /></div>
-        <div><Label>Observações</Label><Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} /></div>
+        <div>
+          <Label>Desconto (opcional)</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={desconto}
+            onChange={(e) => setDesconto(Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <Label>Observações</Label>
+          <Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+        </div>
         <div className="text-lg font-semibold flex justify-between border-t pt-3">
-          <span>Total líquido</span><span>{brl(totalLiquido)}</span>
+          <span>Total líquido</span>
+          <span>{brl(totalLiquido)}</span>
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={confirmar} disabled={salvando || !contaFinanceiraId || totalLiquido < 0}>Confirmar baixa</Button>
+        <Button onClick={confirmar} disabled={salvando || !contaFinanceiraId || totalLiquido < 0}>
+          Confirmar baixa
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
 }
 
 function SemPermissao() {
-  return <Card className="p-6 text-center text-muted-foreground">Apenas administradores e tesoureiros podem emitir faturas.</Card>;
+  return (
+    <Card className="p-6 text-center text-muted-foreground">
+      Apenas administradores e tesoureiros podem emitir faturas.
+    </Card>
+  );
 }
 
-function LoteForm({ receitas, onDone }: { receitas: { id: string; codigo: string; nome: string }[]; onDone: () => void }) {
+function LoteForm({
+  receitas,
+  onDone,
+}: {
+  receitas: { id: string; codigo: string; nome: string }[];
+  onDone: () => void;
+}) {
   const [competencia, setCompetencia] = useState(toISODate(new Date()).slice(0, 7) + "-01");
   const [vencimento, setVencimento] = useState("");
   const [rateio, setRateio] = useState<Rateio[]>([]);
@@ -307,13 +452,20 @@ function LoteForm({ receitas, onDone }: { receitas: { id: string; codigo: string
   });
 
   const gerar = async () => {
-    if (rateio.length > 0 && Math.abs(rateio.reduce((s, r) => s + Number(r.percentual || 0), 0) - 100) > 0.01) {
+    if (
+      rateio.length > 0 &&
+      Math.abs(rateio.reduce((s, r) => s + Number(r.percentual || 0), 0) - 100) > 0.01
+    ) {
       return toast.error("O rateio precisa somar 100%.");
     }
     setGerando(true);
     try {
       const total = await gerarMensalidades({
-        data: { competencia, dataVencimento: vencimento || null, rateio: rateio.length > 0 ? rateio : null },
+        data: {
+          competencia,
+          dataVencimento: vencimento || null,
+          rateio: rateio.length > 0 ? rateio : null,
+        },
       });
       toast.success(`${total} fatura(s) gerada(s).`);
       onDone();
@@ -326,21 +478,37 @@ function LoteForm({ receitas, onDone }: { receitas: { id: string; codigo: string
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">Gerar mensalidades do mês</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-base">Gerar mensalidades do mês</CardTitle>
+      </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
-        <div><Label>Competência</Label><Input type="month" value={competencia.slice(0, 7)} onChange={(e) => setCompetencia(e.target.value + "-01")} /></div>
-        <div><Label>Vencimento (opcional)</Label><Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} /></div>
+        <div>
+          <Label>Competência</Label>
+          <Input
+            type="month"
+            value={competencia.slice(0, 7)}
+            onChange={(e) => setCompetencia(e.target.value + "-01")}
+          />
+        </div>
+        <div>
+          <Label>Vencimento (opcional)</Label>
+          <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+        </div>
         <RateioBuilder rateio={rateio} setRateio={setRateio} receitas={receitas} />
 
         <div className="md:col-span-4 text-sm text-muted-foreground">
-          {preview.length} irmão(s) serão cobrados nesta emissão (situação ativa/quite/irregular, com mensalidade &gt; 0, ainda sem fatura para esta competência).
+          {preview.length} irmão(s) serão cobrados nesta emissão (situação ativa/quite/irregular,
+          com mensalidade &gt; 0, ainda sem fatura para esta competência).
         </div>
         {preview.length > 0 && (
           <div className="md:col-span-4 max-h-40 overflow-y-auto border rounded-md">
             <Table>
               <TableBody>
                 {preview.map((i: any) => (
-                  <TableRow key={i.id}><TableCell>{i.nome_civil}</TableCell><TableCell className="text-right">{brl(i.valor_mensalidade)}</TableCell></TableRow>
+                  <TableRow key={i.id}>
+                    <TableCell>{i.nome_civil}</TableCell>
+                    <TableCell className="text-right">{brl(i.valor_mensalidade)}</TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -348,14 +516,22 @@ function LoteForm({ receitas, onDone }: { receitas: { id: string; codigo: string
         )}
 
         <div className="md:col-span-4">
-          <Button onClick={gerar} disabled={gerando || preview.length === 0}>Gerar {preview.length > 0 ? `(${preview.length})` : ""}</Button>
+          <Button onClick={gerar} disabled={gerando || preview.length === 0}>
+            Gerar {preview.length > 0 ? `(${preview.length})` : ""}
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function IndividualForm({ receitas, onDone }: { receitas: { id: string; codigo: string; nome: string }[]; onDone: () => void }) {
+function IndividualForm({
+  receitas,
+  onDone,
+}: {
+  receitas: { id: string; codigo: string; nome: string }[];
+  onDone: () => void;
+}) {
   const [irmaoId, setIrmaoId] = useState("");
   const [valor, setValor] = useState(0);
   const [competencia, setCompetencia] = useState(toISODate(new Date()).slice(0, 7) + "-01");
@@ -371,7 +547,10 @@ function IndividualForm({ receitas, onDone }: { receitas: { id: string; codigo: 
 
   const salvar = async () => {
     if (!irmaoId || !valor) return;
-    if (rateio.length > 0 && Math.abs(rateio.reduce((s, r) => s + Number(r.percentual || 0), 0) - 100) > 0.01) {
+    if (
+      rateio.length > 0 &&
+      Math.abs(rateio.reduce((s, r) => s + Number(r.percentual || 0), 0) - 100) > 0.01
+    ) {
       return toast.error("O rateio precisa somar 100%.");
     }
     setSalvando(true);
@@ -400,22 +579,55 @@ function IndividualForm({ receitas, onDone }: { receitas: { id: string; codigo: 
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">Nova fatura avulsa</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-base">Nova fatura avulsa</CardTitle>
+      </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
         <div className="md:col-span-2">
           <Label>Irmão</Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>{irmaos.map((i) => <SelectItem key={i.id} value={i.id}>{i.nome_civil}</SelectItem>)}</SelectContent>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
+            <SelectContent>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
-        <div><Label>Valor</Label><Input type="number" step="0.01" value={valor} onChange={(e) => setValor(Number(e.target.value))} /></div>
-        <div><Label>Competência</Label><Input type="month" value={competencia.slice(0, 7)} onChange={(e) => setCompetencia(e.target.value + "-01")} /></div>
-        <div><Label>Vencimento</Label><Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} /></div>
-        <div className="md:col-span-3"><Label>Descrição (opcional)</Label><Input value={descricao} onChange={(e) => setDescricao(e.target.value)} /></div>
+        <div>
+          <Label>Valor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            value={valor}
+            onChange={(e) => setValor(Number(e.target.value))}
+          />
+        </div>
+        <div>
+          <Label>Competência</Label>
+          <Input
+            type="month"
+            value={competencia.slice(0, 7)}
+            onChange={(e) => setCompetencia(e.target.value + "-01")}
+          />
+        </div>
+        <div>
+          <Label>Vencimento</Label>
+          <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+        </div>
+        <div className="md:col-span-3">
+          <Label>Descrição (opcional)</Label>
+          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+        </div>
         <RateioBuilder rateio={rateio} setRateio={setRateio} receitas={receitas} />
         <div className="md:col-span-4">
-          <Button onClick={salvar} disabled={salvando || !irmaoId || !valor}>Criar fatura</Button>
+          <Button onClick={salvar} disabled={salvando || !irmaoId || !valor}>
+            Criar fatura
+          </Button>
         </div>
       </CardContent>
     </Card>

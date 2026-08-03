@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { obterParametrosFinanceiros, salvarParametrosFinanceiros } from "@/lib/backend/tesouraria-parametros";
+import {
+  obterParametrosFinanceiros,
+  salvarParametrosFinanceiros,
+} from "@/lib/backend/tesouraria-parametros";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +22,12 @@ export const Route = createFileRoute("/_authenticated/tesouraria/parametros")({
 function Parametros() {
   const can = useCan();
   const qc = useQueryClient();
-  const [form, setForm] = useState<{ multa_ativa: boolean; multa_percentual: number; juros_ativo: boolean; juros_diario_percentual: number } | null>(null);
+  const [form, setForm] = useState<{
+    multa_ativa: boolean;
+    multa_percentual: number;
+    juros_ativo: boolean;
+    juros_diario_percentual: number;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const { data } = useQuery({
@@ -28,7 +36,13 @@ function Parametros() {
   });
 
   useEffect(() => {
-    if (data && !form) setForm({ multa_ativa: data.multa_ativa, multa_percentual: data.multa_percentual, juros_ativo: data.juros_ativo, juros_diario_percentual: data.juros_diario_percentual });
+    if (data && !form)
+      setForm({
+        multa_ativa: data.multa_ativa,
+        multa_percentual: data.multa_percentual,
+        juros_ativo: data.juros_ativo,
+        juros_diario_percentual: data.juros_diario_percentual,
+      });
   }, [data, form]);
 
   if (!form) return <p className="text-muted-foreground">Carregando…</p>;
@@ -48,23 +62,58 @@ function Parametros() {
 
   return (
     <>
-      <PageHeader title="Parâmetros Financeiros" description="Regras de multa e juros aplicadas na baixa de faturas em atraso." />
+      <PageHeader
+        title="Parâmetros Financeiros"
+        description="Regras de multa e juros aplicadas na baixa de faturas em atraso."
+      />
       <Card>
-        <CardHeader><CardTitle className="text-base">Multa e juros por atraso</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Multa e juros por atraso</CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="flex items-center gap-2">
-            <Switch checked={form.multa_ativa} onCheckedChange={(v) => setForm({ ...form, multa_ativa: v })} disabled={!can.canManageFinancas} />
+            <Switch
+              checked={form.multa_ativa}
+              onCheckedChange={(v) => setForm({ ...form, multa_ativa: v })}
+              disabled={!can.canManageFinancas}
+            />
             <Label className="!m-0">Cobrar multa por atraso</Label>
           </div>
-          <div><Label>Multa (% fixo sobre o valor)</Label><Input type="number" step="0.01" value={form.multa_percentual} onChange={(e) => setForm({ ...form, multa_percentual: Number(e.target.value) })} disabled={!can.canManageFinancas} /></div>
+          <div>
+            <Label>Multa (% fixo sobre o valor)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={form.multa_percentual}
+              onChange={(e) => setForm({ ...form, multa_percentual: Number(e.target.value) })}
+              disabled={!can.canManageFinancas}
+            />
+          </div>
           <div className="flex items-center gap-2">
-            <Switch checked={form.juros_ativo} onCheckedChange={(v) => setForm({ ...form, juros_ativo: v })} disabled={!can.canManageFinancas} />
+            <Switch
+              checked={form.juros_ativo}
+              onCheckedChange={(v) => setForm({ ...form, juros_ativo: v })}
+              disabled={!can.canManageFinancas}
+            />
             <Label className="!m-0">Cobrar juros por dia de atraso</Label>
           </div>
-          <div><Label>Juros diário (% ao dia)</Label><Input type="number" step="0.0001" value={form.juros_diario_percentual} onChange={(e) => setForm({ ...form, juros_diario_percentual: Number(e.target.value) })} disabled={!can.canManageFinancas} /></div>
+          <div>
+            <Label>Juros diário (% ao dia)</Label>
+            <Input
+              type="number"
+              step="0.0001"
+              value={form.juros_diario_percentual}
+              onChange={(e) =>
+                setForm({ ...form, juros_diario_percentual: Number(e.target.value) })
+              }
+              disabled={!can.canManageFinancas}
+            />
+          </div>
           {can.canManageFinancas && (
             <div className="md:col-span-2">
-              <Button onClick={salvar} disabled={saving}>Salvar</Button>
+              <Button onClick={salvar} disabled={saving}>
+                Salvar
+              </Button>
             </div>
           )}
         </CardContent>

@@ -4,7 +4,14 @@ import { listarIrmaos } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { GRAU_LABEL, SITUACAO_LABEL } from "@/lib/format";
@@ -30,15 +37,23 @@ function IrmaosList() {
     queryFn: () => listarIrmaos(),
   });
 
-  const filtered = data.filter((i: any) =>
-    !q ||
-    i.nome_civil?.toLowerCase().includes(q.toLowerCase()) ||
-    i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
-    i.cim?.toLowerCase().includes(q.toLowerCase()),
+  const filtered = data.filter(
+    (i: any) =>
+      !q ||
+      i.nome_civil?.toLowerCase().includes(q.toLowerCase()) ||
+      i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
+      i.cim?.toLowerCase().includes(q.toLowerCase()),
   );
 
   const situacaoVariant = (s: string) =>
-    ({ ativo: "default", quite: "secondary", irregular: "destructive", adormecido: "outline" } as any)[s] ?? "outline";
+    (
+      ({
+        ativo: "default",
+        quite: "secondary",
+        irregular: "destructive",
+        adormecido: "outline",
+      }) as any
+    )[s] ?? "outline";
 
   return (
     <>
@@ -48,7 +63,9 @@ function IrmaosList() {
         actions={
           can.canManageIrmaos && (
             <Link to="/irmaos/novo">
-              <Button><Plus className="h-4 w-4 mr-1" /> Novo Irmão</Button>
+              <Button>
+                <Plus className="h-4 w-4 mr-1" /> Novo Irmão
+              </Button>
             </Link>
           )
         }
@@ -75,10 +92,18 @@ function IrmaosList() {
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Carregando…</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  Carregando…
+                </TableCell>
+              </TableRow>
             )}
             {!isLoading && filtered.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">Nenhum irmão cadastrado.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  Nenhum irmão cadastrado.
+                </TableCell>
+              </TableRow>
             )}
             {filtered.map((i: any) => (
               <TableRow key={i.id}>
@@ -86,10 +111,14 @@ function IrmaosList() {
                 <TableCell>{i.nome_simbolico ?? "—"}</TableCell>
                 <TableCell>{i.cim ?? "—"}</TableCell>
                 <TableCell>{GRAU_LABEL[i.grau]}</TableCell>
-                <TableCell><Badge variant={situacaoVariant(i.situacao)}>{SITUACAO_LABEL[i.situacao]}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant={situacaoVariant(i.situacao)}>{SITUACAO_LABEL[i.situacao]}</Badge>
+                </TableCell>
                 <TableCell className="text-right">
                   <Link to="/irmaos/$id" params={{ id: i.id }}>
-                    <Button variant="ghost" size="sm">Abrir</Button>
+                    <Button variant="ghost" size="sm">
+                      Abrir
+                    </Button>
                   </Link>
                 </TableCell>
               </TableRow>
