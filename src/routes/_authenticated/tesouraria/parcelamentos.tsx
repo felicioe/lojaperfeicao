@@ -7,6 +7,7 @@ import {
   criarParcelamento,
   listarLancamentosDoParcelamento,
   type Parcelamento,
+  type FaturaAbertaIrmao,
 } from "@/lib/backend/tesouraria-parcelamentos";
 import { calcularMultaJuros } from "@/lib/backend/tesouraria-faturas";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
@@ -37,6 +38,14 @@ export const Route = createFileRoute("/_authenticated/tesouraria/parcelamentos")
   head: () => ({ meta: [{ title: "Parcelamentos — Gestão Maçônica" }] }),
   component: Parcelamentos,
 });
+
+// Referência estável: o fallback "= []" do destructuring do useQuery cria um
+// array novo a cada render enquanto a query fica desabilitada (irmaoId
+// vazio), o que reacendia o useEffect abaixo (que depende de faturasIrmao)
+// a cada render — cada rodada chamava setCalculos com um objeto novo,
+// gerando um loop de re-render (tela "congelada") sempre que nenhum irmão
+// estava selecionado.
+const FATURAS_IRMAO_VAZIO: FaturaAbertaIrmao[] = [];
 
 function Parcelamentos() {
   const can = useCan();
@@ -86,7 +95,7 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
     queryFn: () => listarIrmaosNomes(),
   });
 
-  const { data: faturasIrmao = [] } = useQuery({
+  const { data: faturasIrmao = FATURAS_IRMAO_VAZIO } = useQuery({
     queryKey: ["faturas_irmao_parcelamento", irmaoId],
     enabled: !!irmaoId,
     queryFn: () => listarFaturasAbertasPorIrmao({ data: { irmaoId } }),
