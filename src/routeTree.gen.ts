@@ -9,61 +9,60 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PrivacidadeRouteImport } from './routes/privacidade'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AceiteTermosRouteImport } from './routes/aceite-termos'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AceiteTermosRouteImport } from './routes/aceite-termos'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
-import { Route as AuthenticatedUsuariosIndexRouteImport } from './routes/_authenticated/usuarios/index'
-import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
-import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authenticated/terceiros/index'
-import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
-import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel/index'
-import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
-import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
-import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
-import { Route as AuthenticatedTesourariaTroncoRouteImport } from './routes/_authenticated/tesouraria/tronco'
-import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes/_authenticated/tesouraria/recorrentes'
-import { Route as AuthenticatedTesourariaRecibosRouteImport } from './routes/_authenticated/tesouraria/recibos'
-import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
-import { Route as AuthenticatedTesourariaParcelamentosRouteImport } from './routes/_authenticated/tesouraria/parcelamentos'
-import { Route as AuthenticatedTesourariaParametrosRouteImport } from './routes/_authenticated/tesouraria/parametros'
-import { Route as AuthenticatedTesourariaMovimentosRouteImport } from './routes/_authenticated/tesouraria/movimentos'
-import { Route as AuthenticatedTesourariaFaturasRouteImport } from './routes/_authenticated/tesouraria/faturas'
-import { Route as AuthenticatedTesourariaContasPagarRouteImport } from './routes/_authenticated/tesouraria/contas-pagar'
-import { Route as AuthenticatedTesourariaContasRouteImport } from './routes/_authenticated/tesouraria/contas'
-import { Route as AuthenticatedTesourariaConciliacaoRouteImport } from './routes/_authenticated/tesouraria/conciliacao'
-import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
-import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
-import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
-import { Route as AuthenticatedPainelSessoesRouteImport } from './routes/_authenticated/painel/sessoes'
-import { Route as AuthenticatedPainelFrequenciaRouteImport } from './routes/_authenticated/painel/frequencia'
-import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_authenticated/painel/financeiro'
-import { Route as AuthenticatedPainelDadosRouteImport } from './routes/_authenticated/painel/dados'
-import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
-import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
-import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
-import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
-import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
-import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
-import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
-import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './routes/_authenticated/contabilidade/fechamento'
-import { Route as AuthenticatedContabilidadeDreOrcadoRouteImport } from './routes/_authenticated/contabilidade/dre-orcado'
-import { Route as AuthenticatedContabilidadeDreRouteImport } from './routes/_authenticated/contabilidade/dre'
-import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
-import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
+import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
+import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
+import { Route as AuthenticatedContabilidadeDreRouteImport } from './routes/_authenticated/contabilidade/dre'
+import { Route as AuthenticatedContabilidadeDreOrcadoRouteImport } from './routes/_authenticated/contabilidade/dre-orcado'
+import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './routes/_authenticated/contabilidade/fechamento'
+import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
+import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
+import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
+import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
+import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
+import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
+import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
+import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
+import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
+import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
+import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel/index'
+import { Route as AuthenticatedPainelDadosRouteImport } from './routes/_authenticated/painel/dados'
+import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_authenticated/painel/financeiro'
+import { Route as AuthenticatedPainelFrequenciaRouteImport } from './routes/_authenticated/painel/frequencia'
+import { Route as AuthenticatedPainelSessoesRouteImport } from './routes/_authenticated/painel/sessoes'
+import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
+import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
+import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
+import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
+import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authenticated/terceiros/index'
+import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
+import { Route as AuthenticatedTesourariaConciliacaoRouteImport } from './routes/_authenticated/tesouraria/conciliacao'
+import { Route as AuthenticatedTesourariaContasRouteImport } from './routes/_authenticated/tesouraria/contas'
+import { Route as AuthenticatedTesourariaContasPagarRouteImport } from './routes/_authenticated/tesouraria/contas-pagar'
+import { Route as AuthenticatedTesourariaFaturasRouteImport } from './routes/_authenticated/tesouraria/faturas'
+import { Route as AuthenticatedTesourariaMovimentosRouteImport } from './routes/_authenticated/tesouraria/movimentos'
+import { Route as AuthenticatedTesourariaParametrosRouteImport } from './routes/_authenticated/tesouraria/parametros'
+import { Route as AuthenticatedTesourariaParcelamentosRouteImport } from './routes/_authenticated/tesouraria/parcelamentos'
+import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
+import { Route as AuthenticatedTesourariaRecibosRouteImport } from './routes/_authenticated/tesouraria/recibos'
+import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes/_authenticated/tesouraria/recorrentes'
+import { Route as AuthenticatedTesourariaTroncoRouteImport } from './routes/_authenticated/tesouraria/tronco'
+import { Route as AuthenticatedUsuariosIndexRouteImport } from './routes/_authenticated/usuarios/index'
 
-const PrivacidadeRoute = PrivacidadeRouteImport.update({
-  id: '/privacidade',
-  path: '/privacidade',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AceiteTermosRoute = AceiteTermosRouteImport.update({
@@ -71,13 +70,14 @@ const AceiteTermosRoute = AceiteTermosRouteImport.update({
   path: '/aceite-termos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -91,222 +91,10 @@ const AuthenticatedPainelRouteRoute =
     path: '/painel',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedUsuariosIndexRoute =
-  AuthenticatedUsuariosIndexRouteImport.update({
-    id: '/usuarios/',
-    path: '/usuarios/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaIndexRoute =
-  AuthenticatedTesourariaIndexRouteImport.update({
-    id: '/tesouraria/',
-    path: '/tesouraria/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTerceirosIndexRoute =
-  AuthenticatedTerceirosIndexRouteImport.update({
-    id: '/terceiros/',
-    path: '/terceiros/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedSessoesIndexRoute =
-  AuthenticatedSessoesIndexRouteImport.update({
-    id: '/sessoes/',
-    path: '/sessoes/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedPainelIndexRoute =
-  AuthenticatedPainelIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedPainelRouteRoute,
-  } as any)
-const AuthenticatedOrgsIndexRoute = AuthenticatedOrgsIndexRouteImport.update({
-  id: '/orgs/',
-  path: '/orgs/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedIrmaosIndexRoute =
-  AuthenticatedIrmaosIndexRouteImport.update({
-    id: '/irmaos/',
-    path: '/irmaos/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedGestoesIndexRoute =
-  AuthenticatedGestoesIndexRouteImport.update({
-    id: '/gestoes/',
-    path: '/gestoes/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaTroncoRoute =
-  AuthenticatedTesourariaTroncoRouteImport.update({
-    id: '/tesouraria/tronco',
-    path: '/tesouraria/tronco',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaRecorrentesRoute =
-  AuthenticatedTesourariaRecorrentesRouteImport.update({
-    id: '/tesouraria/recorrentes',
-    path: '/tesouraria/recorrentes',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaRecibosRoute =
-  AuthenticatedTesourariaRecibosRouteImport.update({
-    id: '/tesouraria/recibos',
-    path: '/tesouraria/recibos',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaPlanoContasRoute =
-  AuthenticatedTesourariaPlanoContasRouteImport.update({
-    id: '/tesouraria/plano-contas',
-    path: '/tesouraria/plano-contas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaParcelamentosRoute =
-  AuthenticatedTesourariaParcelamentosRouteImport.update({
-    id: '/tesouraria/parcelamentos',
-    path: '/tesouraria/parcelamentos',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaParametrosRoute =
-  AuthenticatedTesourariaParametrosRouteImport.update({
-    id: '/tesouraria/parametros',
-    path: '/tesouraria/parametros',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaMovimentosRoute =
-  AuthenticatedTesourariaMovimentosRouteImport.update({
-    id: '/tesouraria/movimentos',
-    path: '/tesouraria/movimentos',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaFaturasRoute =
-  AuthenticatedTesourariaFaturasRouteImport.update({
-    id: '/tesouraria/faturas',
-    path: '/tesouraria/faturas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaContasPagarRoute =
-  AuthenticatedTesourariaContasPagarRouteImport.update({
-    id: '/tesouraria/contas-pagar',
-    path: '/tesouraria/contas-pagar',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaContasRoute =
-  AuthenticatedTesourariaContasRouteImport.update({
-    id: '/tesouraria/contas',
-    path: '/tesouraria/contas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedTesourariaConciliacaoRoute =
-  AuthenticatedTesourariaConciliacaoRouteImport.update({
-    id: '/tesouraria/conciliacao',
-    path: '/tesouraria/conciliacao',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedSessoesIdRoute = AuthenticatedSessoesIdRouteImport.update({
-  id: '/sessoes/$id',
-  path: '/sessoes/$id',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedRelatoriosInadimplentesRoute =
-  AuthenticatedRelatoriosInadimplentesRouteImport.update({
-    id: '/relatorios/inadimplentes',
-    path: '/relatorios/inadimplentes',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedRelatoriosFrequenciaRoute =
-  AuthenticatedRelatoriosFrequenciaRouteImport.update({
-    id: '/relatorios/frequencia',
-    path: '/relatorios/frequencia',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedPainelSessoesRoute =
-  AuthenticatedPainelSessoesRouteImport.update({
-    id: '/sessoes',
-    path: '/sessoes',
-    getParentRoute: () => AuthenticatedPainelRouteRoute,
-  } as any)
-const AuthenticatedPainelFrequenciaRoute =
-  AuthenticatedPainelFrequenciaRouteImport.update({
-    id: '/frequencia',
-    path: '/frequencia',
-    getParentRoute: () => AuthenticatedPainelRouteRoute,
-  } as any)
-const AuthenticatedPainelFinanceiroRoute =
-  AuthenticatedPainelFinanceiroRouteImport.update({
-    id: '/financeiro',
-    path: '/financeiro',
-    getParentRoute: () => AuthenticatedPainelRouteRoute,
-  } as any)
-const AuthenticatedPainelDadosRoute =
-  AuthenticatedPainelDadosRouteImport.update({
-    id: '/dados',
-    path: '/dados',
-    getParentRoute: () => AuthenticatedPainelRouteRoute,
-  } as any)
-const AuthenticatedOrgsPotenciasRoute =
-  AuthenticatedOrgsPotenciasRouteImport.update({
-    id: '/orgs/potencias',
-    path: '/orgs/potencias',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedIrmaosNovoRoute = AuthenticatedIrmaosNovoRouteImport.update({
-  id: '/irmaos/novo',
-  path: '/irmaos/novo',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedIrmaosIdRoute = AuthenticatedIrmaosIdRouteImport.update({
-  id: '/irmaos/$id',
-  path: '/irmaos/$id',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedGestoesCargosRoute =
-  AuthenticatedGestoesCargosRouteImport.update({
-    id: '/gestoes/cargos',
-    path: '/gestoes/cargos',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeRazaoRoute =
-  AuthenticatedContabilidadeRazaoRouteImport.update({
-    id: '/contabilidade/razao',
-    path: '/contabilidade/razao',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeOrcamentoRoute =
-  AuthenticatedContabilidadeOrcamentoRouteImport.update({
-    id: '/contabilidade/orcamento',
-    path: '/contabilidade/orcamento',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeFluxoCaixaRoute =
-  AuthenticatedContabilidadeFluxoCaixaRouteImport.update({
-    id: '/contabilidade/fluxo-caixa',
-    path: '/contabilidade/fluxo-caixa',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeFechamentoRoute =
-  AuthenticatedContabilidadeFechamentoRouteImport.update({
-    id: '/contabilidade/fechamento',
-    path: '/contabilidade/fechamento',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeDreOrcadoRoute =
-  AuthenticatedContabilidadeDreOrcadoRouteImport.update({
-    id: '/contabilidade/dre-orcado',
-    path: '/contabilidade/dre-orcado',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeDreRoute =
-  AuthenticatedContabilidadeDreRouteImport.update({
-    id: '/contabilidade/dre',
-    path: '/contabilidade/dre',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedContabilidadeDiarioRoute =
-  AuthenticatedContabilidadeDiarioRouteImport.update({
-    id: '/contabilidade/diario',
-    path: '/contabilidade/diario',
+const AuthenticatedContabilidadeAuditoriaRoute =
+  AuthenticatedContabilidadeAuditoriaRouteImport.update({
+    id: '/contabilidade/auditoria',
+    path: '/contabilidade/auditoria',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeBalanceteRoute =
@@ -315,10 +103,222 @@ const AuthenticatedContabilidadeBalanceteRoute =
     path: '/contabilidade/balancete',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedContabilidadeAuditoriaRoute =
-  AuthenticatedContabilidadeAuditoriaRouteImport.update({
-    id: '/contabilidade/auditoria',
-    path: '/contabilidade/auditoria',
+const AuthenticatedContabilidadeDiarioRoute =
+  AuthenticatedContabilidadeDiarioRouteImport.update({
+    id: '/contabilidade/diario',
+    path: '/contabilidade/diario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeDreRoute =
+  AuthenticatedContabilidadeDreRouteImport.update({
+    id: '/contabilidade/dre',
+    path: '/contabilidade/dre',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeDreOrcadoRoute =
+  AuthenticatedContabilidadeDreOrcadoRouteImport.update({
+    id: '/contabilidade/dre-orcado',
+    path: '/contabilidade/dre-orcado',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeFechamentoRoute =
+  AuthenticatedContabilidadeFechamentoRouteImport.update({
+    id: '/contabilidade/fechamento',
+    path: '/contabilidade/fechamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeFluxoCaixaRoute =
+  AuthenticatedContabilidadeFluxoCaixaRouteImport.update({
+    id: '/contabilidade/fluxo-caixa',
+    path: '/contabilidade/fluxo-caixa',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeOrcamentoRoute =
+  AuthenticatedContabilidadeOrcamentoRouteImport.update({
+    id: '/contabilidade/orcamento',
+    path: '/contabilidade/orcamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeRazaoRoute =
+  AuthenticatedContabilidadeRazaoRouteImport.update({
+    id: '/contabilidade/razao',
+    path: '/contabilidade/razao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedGestoesIndexRoute =
+  AuthenticatedGestoesIndexRouteImport.update({
+    id: '/gestoes/',
+    path: '/gestoes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedGestoesCargosRoute =
+  AuthenticatedGestoesCargosRouteImport.update({
+    id: '/gestoes/cargos',
+    path: '/gestoes/cargos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIrmaosIndexRoute =
+  AuthenticatedIrmaosIndexRouteImport.update({
+    id: '/irmaos/',
+    path: '/irmaos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIrmaosIdRoute = AuthenticatedIrmaosIdRouteImport.update({
+  id: '/irmaos/$id',
+  path: '/irmaos/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedIrmaosNovoRoute = AuthenticatedIrmaosNovoRouteImport.update({
+  id: '/irmaos/novo',
+  path: '/irmaos/novo',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOrgsIndexRoute = AuthenticatedOrgsIndexRouteImport.update({
+  id: '/orgs/',
+  path: '/orgs/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOrgsPotenciasRoute =
+  AuthenticatedOrgsPotenciasRouteImport.update({
+    id: '/orgs/potencias',
+    path: '/orgs/potencias',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPainelIndexRoute =
+  AuthenticatedPainelIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelDadosRoute =
+  AuthenticatedPainelDadosRouteImport.update({
+    id: '/dados',
+    path: '/dados',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelFinanceiroRoute =
+  AuthenticatedPainelFinanceiroRouteImport.update({
+    id: '/financeiro',
+    path: '/financeiro',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelFrequenciaRoute =
+  AuthenticatedPainelFrequenciaRouteImport.update({
+    id: '/frequencia',
+    path: '/frequencia',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelSessoesRoute =
+  AuthenticatedPainelSessoesRouteImport.update({
+    id: '/sessoes',
+    path: '/sessoes',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedRelatoriosFrequenciaRoute =
+  AuthenticatedRelatoriosFrequenciaRouteImport.update({
+    id: '/relatorios/frequencia',
+    path: '/relatorios/frequencia',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedRelatoriosInadimplentesRoute =
+  AuthenticatedRelatoriosInadimplentesRouteImport.update({
+    id: '/relatorios/inadimplentes',
+    path: '/relatorios/inadimplentes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSessoesIndexRoute =
+  AuthenticatedSessoesIndexRouteImport.update({
+    id: '/sessoes/',
+    path: '/sessoes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSessoesIdRoute = AuthenticatedSessoesIdRouteImport.update({
+  id: '/sessoes/$id',
+  path: '/sessoes/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTerceirosIndexRoute =
+  AuthenticatedTerceirosIndexRouteImport.update({
+    id: '/terceiros/',
+    path: '/terceiros/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaIndexRoute =
+  AuthenticatedTesourariaIndexRouteImport.update({
+    id: '/tesouraria/',
+    path: '/tesouraria/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaConciliacaoRoute =
+  AuthenticatedTesourariaConciliacaoRouteImport.update({
+    id: '/tesouraria/conciliacao',
+    path: '/tesouraria/conciliacao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaContasRoute =
+  AuthenticatedTesourariaContasRouteImport.update({
+    id: '/tesouraria/contas',
+    path: '/tesouraria/contas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaContasPagarRoute =
+  AuthenticatedTesourariaContasPagarRouteImport.update({
+    id: '/tesouraria/contas-pagar',
+    path: '/tesouraria/contas-pagar',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaFaturasRoute =
+  AuthenticatedTesourariaFaturasRouteImport.update({
+    id: '/tesouraria/faturas',
+    path: '/tesouraria/faturas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaMovimentosRoute =
+  AuthenticatedTesourariaMovimentosRouteImport.update({
+    id: '/tesouraria/movimentos',
+    path: '/tesouraria/movimentos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaParametrosRoute =
+  AuthenticatedTesourariaParametrosRouteImport.update({
+    id: '/tesouraria/parametros',
+    path: '/tesouraria/parametros',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaParcelamentosRoute =
+  AuthenticatedTesourariaParcelamentosRouteImport.update({
+    id: '/tesouraria/parcelamentos',
+    path: '/tesouraria/parcelamentos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaPlanoContasRoute =
+  AuthenticatedTesourariaPlanoContasRouteImport.update({
+    id: '/tesouraria/plano-contas',
+    path: '/tesouraria/plano-contas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaRecibosRoute =
+  AuthenticatedTesourariaRecibosRouteImport.update({
+    id: '/tesouraria/recibos',
+    path: '/tesouraria/recibos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaRecorrentesRoute =
+  AuthenticatedTesourariaRecorrentesRouteImport.update({
+    id: '/tesouraria/recorrentes',
+    path: '/tesouraria/recorrentes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTesourariaTroncoRoute =
+  AuthenticatedTesourariaTroncoRouteImport.update({
+    id: '/tesouraria/tronco',
+    path: '/tesouraria/tronco',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedUsuariosIndexRoute =
+  AuthenticatedUsuariosIndexRouteImport.update({
+    id: '/usuarios/',
+    path: '/usuarios/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -618,25 +618,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/privacidade': {
-      id: '/privacidade'
-      path: '/privacidade'
-      fullPath: '/privacidade'
-      preLoaderRoute: typeof PrivacidadeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/aceite-termos': {
-      id: '/aceite-termos'
-      path: '/aceite-termos'
-      fullPath: '/aceite-termos'
-      preLoaderRoute: typeof AceiteTermosRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -646,11 +632,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/aceite-termos': {
+      id: '/aceite-termos'
+      path: '/aceite-termos'
+      fullPath: '/aceite-termos'
+      preLoaderRoute: typeof AceiteTermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -667,263 +667,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/usuarios/': {
-      id: '/_authenticated/usuarios/'
-      path: '/usuarios'
-      fullPath: '/usuarios/'
-      preLoaderRoute: typeof AuthenticatedUsuariosIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/': {
-      id: '/_authenticated/tesouraria/'
-      path: '/tesouraria'
-      fullPath: '/tesouraria/'
-      preLoaderRoute: typeof AuthenticatedTesourariaIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/terceiros/': {
-      id: '/_authenticated/terceiros/'
-      path: '/terceiros'
-      fullPath: '/terceiros/'
-      preLoaderRoute: typeof AuthenticatedTerceirosIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/sessoes/': {
-      id: '/_authenticated/sessoes/'
-      path: '/sessoes'
-      fullPath: '/sessoes/'
-      preLoaderRoute: typeof AuthenticatedSessoesIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/painel/': {
-      id: '/_authenticated/painel/'
-      path: '/'
-      fullPath: '/painel/'
-      preLoaderRoute: typeof AuthenticatedPainelIndexRouteImport
-      parentRoute: typeof AuthenticatedPainelRouteRoute
-    }
-    '/_authenticated/orgs/': {
-      id: '/_authenticated/orgs/'
-      path: '/orgs'
-      fullPath: '/orgs/'
-      preLoaderRoute: typeof AuthenticatedOrgsIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/irmaos/': {
-      id: '/_authenticated/irmaos/'
-      path: '/irmaos'
-      fullPath: '/irmaos/'
-      preLoaderRoute: typeof AuthenticatedIrmaosIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/gestoes/': {
-      id: '/_authenticated/gestoes/'
-      path: '/gestoes'
-      fullPath: '/gestoes/'
-      preLoaderRoute: typeof AuthenticatedGestoesIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/tronco': {
-      id: '/_authenticated/tesouraria/tronco'
-      path: '/tesouraria/tronco'
-      fullPath: '/tesouraria/tronco'
-      preLoaderRoute: typeof AuthenticatedTesourariaTroncoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/recorrentes': {
-      id: '/_authenticated/tesouraria/recorrentes'
-      path: '/tesouraria/recorrentes'
-      fullPath: '/tesouraria/recorrentes'
-      preLoaderRoute: typeof AuthenticatedTesourariaRecorrentesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/recibos': {
-      id: '/_authenticated/tesouraria/recibos'
-      path: '/tesouraria/recibos'
-      fullPath: '/tesouraria/recibos'
-      preLoaderRoute: typeof AuthenticatedTesourariaRecibosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/plano-contas': {
-      id: '/_authenticated/tesouraria/plano-contas'
-      path: '/tesouraria/plano-contas'
-      fullPath: '/tesouraria/plano-contas'
-      preLoaderRoute: typeof AuthenticatedTesourariaPlanoContasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/parcelamentos': {
-      id: '/_authenticated/tesouraria/parcelamentos'
-      path: '/tesouraria/parcelamentos'
-      fullPath: '/tesouraria/parcelamentos'
-      preLoaderRoute: typeof AuthenticatedTesourariaParcelamentosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/parametros': {
-      id: '/_authenticated/tesouraria/parametros'
-      path: '/tesouraria/parametros'
-      fullPath: '/tesouraria/parametros'
-      preLoaderRoute: typeof AuthenticatedTesourariaParametrosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/movimentos': {
-      id: '/_authenticated/tesouraria/movimentos'
-      path: '/tesouraria/movimentos'
-      fullPath: '/tesouraria/movimentos'
-      preLoaderRoute: typeof AuthenticatedTesourariaMovimentosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/faturas': {
-      id: '/_authenticated/tesouraria/faturas'
-      path: '/tesouraria/faturas'
-      fullPath: '/tesouraria/faturas'
-      preLoaderRoute: typeof AuthenticatedTesourariaFaturasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/contas-pagar': {
-      id: '/_authenticated/tesouraria/contas-pagar'
-      path: '/tesouraria/contas-pagar'
-      fullPath: '/tesouraria/contas-pagar'
-      preLoaderRoute: typeof AuthenticatedTesourariaContasPagarRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/contas': {
-      id: '/_authenticated/tesouraria/contas'
-      path: '/tesouraria/contas'
-      fullPath: '/tesouraria/contas'
-      preLoaderRoute: typeof AuthenticatedTesourariaContasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/tesouraria/conciliacao': {
-      id: '/_authenticated/tesouraria/conciliacao'
-      path: '/tesouraria/conciliacao'
-      fullPath: '/tesouraria/conciliacao'
-      preLoaderRoute: typeof AuthenticatedTesourariaConciliacaoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/sessoes/$id': {
-      id: '/_authenticated/sessoes/$id'
-      path: '/sessoes/$id'
-      fullPath: '/sessoes/$id'
-      preLoaderRoute: typeof AuthenticatedSessoesIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/relatorios/inadimplentes': {
-      id: '/_authenticated/relatorios/inadimplentes'
-      path: '/relatorios/inadimplentes'
-      fullPath: '/relatorios/inadimplentes'
-      preLoaderRoute: typeof AuthenticatedRelatoriosInadimplentesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/relatorios/frequencia': {
-      id: '/_authenticated/relatorios/frequencia'
-      path: '/relatorios/frequencia'
-      fullPath: '/relatorios/frequencia'
-      preLoaderRoute: typeof AuthenticatedRelatoriosFrequenciaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/painel/sessoes': {
-      id: '/_authenticated/painel/sessoes'
-      path: '/sessoes'
-      fullPath: '/painel/sessoes'
-      preLoaderRoute: typeof AuthenticatedPainelSessoesRouteImport
-      parentRoute: typeof AuthenticatedPainelRouteRoute
-    }
-    '/_authenticated/painel/frequencia': {
-      id: '/_authenticated/painel/frequencia'
-      path: '/frequencia'
-      fullPath: '/painel/frequencia'
-      preLoaderRoute: typeof AuthenticatedPainelFrequenciaRouteImport
-      parentRoute: typeof AuthenticatedPainelRouteRoute
-    }
-    '/_authenticated/painel/financeiro': {
-      id: '/_authenticated/painel/financeiro'
-      path: '/financeiro'
-      fullPath: '/painel/financeiro'
-      preLoaderRoute: typeof AuthenticatedPainelFinanceiroRouteImport
-      parentRoute: typeof AuthenticatedPainelRouteRoute
-    }
-    '/_authenticated/painel/dados': {
-      id: '/_authenticated/painel/dados'
-      path: '/dados'
-      fullPath: '/painel/dados'
-      preLoaderRoute: typeof AuthenticatedPainelDadosRouteImport
-      parentRoute: typeof AuthenticatedPainelRouteRoute
-    }
-    '/_authenticated/orgs/potencias': {
-      id: '/_authenticated/orgs/potencias'
-      path: '/orgs/potencias'
-      fullPath: '/orgs/potencias'
-      preLoaderRoute: typeof AuthenticatedOrgsPotenciasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/irmaos/novo': {
-      id: '/_authenticated/irmaos/novo'
-      path: '/irmaos/novo'
-      fullPath: '/irmaos/novo'
-      preLoaderRoute: typeof AuthenticatedIrmaosNovoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/irmaos/$id': {
-      id: '/_authenticated/irmaos/$id'
-      path: '/irmaos/$id'
-      fullPath: '/irmaos/$id'
-      preLoaderRoute: typeof AuthenticatedIrmaosIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/gestoes/cargos': {
-      id: '/_authenticated/gestoes/cargos'
-      path: '/gestoes/cargos'
-      fullPath: '/gestoes/cargos'
-      preLoaderRoute: typeof AuthenticatedGestoesCargosRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/razao': {
-      id: '/_authenticated/contabilidade/razao'
-      path: '/contabilidade/razao'
-      fullPath: '/contabilidade/razao'
-      preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/orcamento': {
-      id: '/_authenticated/contabilidade/orcamento'
-      path: '/contabilidade/orcamento'
-      fullPath: '/contabilidade/orcamento'
-      preLoaderRoute: typeof AuthenticatedContabilidadeOrcamentoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/fluxo-caixa': {
-      id: '/_authenticated/contabilidade/fluxo-caixa'
-      path: '/contabilidade/fluxo-caixa'
-      fullPath: '/contabilidade/fluxo-caixa'
-      preLoaderRoute: typeof AuthenticatedContabilidadeFluxoCaixaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/fechamento': {
-      id: '/_authenticated/contabilidade/fechamento'
-      path: '/contabilidade/fechamento'
-      fullPath: '/contabilidade/fechamento'
-      preLoaderRoute: typeof AuthenticatedContabilidadeFechamentoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/dre-orcado': {
-      id: '/_authenticated/contabilidade/dre-orcado'
-      path: '/contabilidade/dre-orcado'
-      fullPath: '/contabilidade/dre-orcado'
-      preLoaderRoute: typeof AuthenticatedContabilidadeDreOrcadoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/dre': {
-      id: '/_authenticated/contabilidade/dre'
-      path: '/contabilidade/dre'
-      fullPath: '/contabilidade/dre'
-      preLoaderRoute: typeof AuthenticatedContabilidadeDreRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/contabilidade/diario': {
-      id: '/_authenticated/contabilidade/diario'
-      path: '/contabilidade/diario'
-      fullPath: '/contabilidade/diario'
-      preLoaderRoute: typeof AuthenticatedContabilidadeDiarioRouteImport
+    '/_authenticated/contabilidade/auditoria': {
+      id: '/_authenticated/contabilidade/auditoria'
+      path: '/contabilidade/auditoria'
+      fullPath: '/contabilidade/auditoria'
+      preLoaderRoute: typeof AuthenticatedContabilidadeAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contabilidade/balancete': {
@@ -933,11 +681,263 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContabilidadeBalanceteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/contabilidade/auditoria': {
-      id: '/_authenticated/contabilidade/auditoria'
-      path: '/contabilidade/auditoria'
-      fullPath: '/contabilidade/auditoria'
-      preLoaderRoute: typeof AuthenticatedContabilidadeAuditoriaRouteImport
+    '/_authenticated/contabilidade/diario': {
+      id: '/_authenticated/contabilidade/diario'
+      path: '/contabilidade/diario'
+      fullPath: '/contabilidade/diario'
+      preLoaderRoute: typeof AuthenticatedContabilidadeDiarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/dre': {
+      id: '/_authenticated/contabilidade/dre'
+      path: '/contabilidade/dre'
+      fullPath: '/contabilidade/dre'
+      preLoaderRoute: typeof AuthenticatedContabilidadeDreRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/dre-orcado': {
+      id: '/_authenticated/contabilidade/dre-orcado'
+      path: '/contabilidade/dre-orcado'
+      fullPath: '/contabilidade/dre-orcado'
+      preLoaderRoute: typeof AuthenticatedContabilidadeDreOrcadoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/fechamento': {
+      id: '/_authenticated/contabilidade/fechamento'
+      path: '/contabilidade/fechamento'
+      fullPath: '/contabilidade/fechamento'
+      preLoaderRoute: typeof AuthenticatedContabilidadeFechamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/fluxo-caixa': {
+      id: '/_authenticated/contabilidade/fluxo-caixa'
+      path: '/contabilidade/fluxo-caixa'
+      fullPath: '/contabilidade/fluxo-caixa'
+      preLoaderRoute: typeof AuthenticatedContabilidadeFluxoCaixaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/orcamento': {
+      id: '/_authenticated/contabilidade/orcamento'
+      path: '/contabilidade/orcamento'
+      fullPath: '/contabilidade/orcamento'
+      preLoaderRoute: typeof AuthenticatedContabilidadeOrcamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/razao': {
+      id: '/_authenticated/contabilidade/razao'
+      path: '/contabilidade/razao'
+      fullPath: '/contabilidade/razao'
+      preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/gestoes/': {
+      id: '/_authenticated/gestoes/'
+      path: '/gestoes'
+      fullPath: '/gestoes/'
+      preLoaderRoute: typeof AuthenticatedGestoesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/gestoes/cargos': {
+      id: '/_authenticated/gestoes/cargos'
+      path: '/gestoes/cargos'
+      fullPath: '/gestoes/cargos'
+      preLoaderRoute: typeof AuthenticatedGestoesCargosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/irmaos/': {
+      id: '/_authenticated/irmaos/'
+      path: '/irmaos'
+      fullPath: '/irmaos/'
+      preLoaderRoute: typeof AuthenticatedIrmaosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/irmaos/$id': {
+      id: '/_authenticated/irmaos/$id'
+      path: '/irmaos/$id'
+      fullPath: '/irmaos/$id'
+      preLoaderRoute: typeof AuthenticatedIrmaosIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/irmaos/novo': {
+      id: '/_authenticated/irmaos/novo'
+      path: '/irmaos/novo'
+      fullPath: '/irmaos/novo'
+      preLoaderRoute: typeof AuthenticatedIrmaosNovoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/orgs/': {
+      id: '/_authenticated/orgs/'
+      path: '/orgs'
+      fullPath: '/orgs/'
+      preLoaderRoute: typeof AuthenticatedOrgsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/orgs/potencias': {
+      id: '/_authenticated/orgs/potencias'
+      path: '/orgs/potencias'
+      fullPath: '/orgs/potencias'
+      preLoaderRoute: typeof AuthenticatedOrgsPotenciasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/painel/': {
+      id: '/_authenticated/painel/'
+      path: '/'
+      fullPath: '/painel/'
+      preLoaderRoute: typeof AuthenticatedPainelIndexRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/dados': {
+      id: '/_authenticated/painel/dados'
+      path: '/dados'
+      fullPath: '/painel/dados'
+      preLoaderRoute: typeof AuthenticatedPainelDadosRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/financeiro': {
+      id: '/_authenticated/painel/financeiro'
+      path: '/financeiro'
+      fullPath: '/painel/financeiro'
+      preLoaderRoute: typeof AuthenticatedPainelFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/frequencia': {
+      id: '/_authenticated/painel/frequencia'
+      path: '/frequencia'
+      fullPath: '/painel/frequencia'
+      preLoaderRoute: typeof AuthenticatedPainelFrequenciaRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/sessoes': {
+      id: '/_authenticated/painel/sessoes'
+      path: '/sessoes'
+      fullPath: '/painel/sessoes'
+      preLoaderRoute: typeof AuthenticatedPainelSessoesRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/relatorios/frequencia': {
+      id: '/_authenticated/relatorios/frequencia'
+      path: '/relatorios/frequencia'
+      fullPath: '/relatorios/frequencia'
+      preLoaderRoute: typeof AuthenticatedRelatoriosFrequenciaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/relatorios/inadimplentes': {
+      id: '/_authenticated/relatorios/inadimplentes'
+      path: '/relatorios/inadimplentes'
+      fullPath: '/relatorios/inadimplentes'
+      preLoaderRoute: typeof AuthenticatedRelatoriosInadimplentesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sessoes/': {
+      id: '/_authenticated/sessoes/'
+      path: '/sessoes'
+      fullPath: '/sessoes/'
+      preLoaderRoute: typeof AuthenticatedSessoesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sessoes/$id': {
+      id: '/_authenticated/sessoes/$id'
+      path: '/sessoes/$id'
+      fullPath: '/sessoes/$id'
+      preLoaderRoute: typeof AuthenticatedSessoesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/terceiros/': {
+      id: '/_authenticated/terceiros/'
+      path: '/terceiros'
+      fullPath: '/terceiros/'
+      preLoaderRoute: typeof AuthenticatedTerceirosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/': {
+      id: '/_authenticated/tesouraria/'
+      path: '/tesouraria'
+      fullPath: '/tesouraria/'
+      preLoaderRoute: typeof AuthenticatedTesourariaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/conciliacao': {
+      id: '/_authenticated/tesouraria/conciliacao'
+      path: '/tesouraria/conciliacao'
+      fullPath: '/tesouraria/conciliacao'
+      preLoaderRoute: typeof AuthenticatedTesourariaConciliacaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/contas': {
+      id: '/_authenticated/tesouraria/contas'
+      path: '/tesouraria/contas'
+      fullPath: '/tesouraria/contas'
+      preLoaderRoute: typeof AuthenticatedTesourariaContasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/contas-pagar': {
+      id: '/_authenticated/tesouraria/contas-pagar'
+      path: '/tesouraria/contas-pagar'
+      fullPath: '/tesouraria/contas-pagar'
+      preLoaderRoute: typeof AuthenticatedTesourariaContasPagarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/faturas': {
+      id: '/_authenticated/tesouraria/faturas'
+      path: '/tesouraria/faturas'
+      fullPath: '/tesouraria/faturas'
+      preLoaderRoute: typeof AuthenticatedTesourariaFaturasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/movimentos': {
+      id: '/_authenticated/tesouraria/movimentos'
+      path: '/tesouraria/movimentos'
+      fullPath: '/tesouraria/movimentos'
+      preLoaderRoute: typeof AuthenticatedTesourariaMovimentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/parametros': {
+      id: '/_authenticated/tesouraria/parametros'
+      path: '/tesouraria/parametros'
+      fullPath: '/tesouraria/parametros'
+      preLoaderRoute: typeof AuthenticatedTesourariaParametrosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/parcelamentos': {
+      id: '/_authenticated/tesouraria/parcelamentos'
+      path: '/tesouraria/parcelamentos'
+      fullPath: '/tesouraria/parcelamentos'
+      preLoaderRoute: typeof AuthenticatedTesourariaParcelamentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/plano-contas': {
+      id: '/_authenticated/tesouraria/plano-contas'
+      path: '/tesouraria/plano-contas'
+      fullPath: '/tesouraria/plano-contas'
+      preLoaderRoute: typeof AuthenticatedTesourariaPlanoContasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/recibos': {
+      id: '/_authenticated/tesouraria/recibos'
+      path: '/tesouraria/recibos'
+      fullPath: '/tesouraria/recibos'
+      preLoaderRoute: typeof AuthenticatedTesourariaRecibosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/recorrentes': {
+      id: '/_authenticated/tesouraria/recorrentes'
+      path: '/tesouraria/recorrentes'
+      fullPath: '/tesouraria/recorrentes'
+      preLoaderRoute: typeof AuthenticatedTesourariaRecorrentesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tesouraria/tronco': {
+      id: '/_authenticated/tesouraria/tronco'
+      path: '/tesouraria/tronco'
+      fullPath: '/tesouraria/tronco'
+      preLoaderRoute: typeof AuthenticatedTesourariaTroncoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/usuarios/': {
+      id: '/_authenticated/usuarios/'
+      path: '/usuarios'
+      fullPath: '/usuarios/'
+      preLoaderRoute: typeof AuthenticatedUsuariosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
