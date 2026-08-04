@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useTheme } from "../lib/use-theme";
+import { useServiceWorker } from "../lib/use-service-worker";
 
 function NotFoundComponent() {
   return (
@@ -78,6 +79,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#0f172a" },
       { title: "Fraternity Ledger" },
       {
         name: "description",
@@ -105,6 +107,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -130,6 +134,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useTheme();
+  useServiceWorker();
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -62,6 +62,7 @@ import { ROLE_LABEL } from "@/lib/format";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { useTheme } from "@/lib/use-theme";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { NotificationBell } from "@/components/app/NotificationBell";
 
 type NavItem = { to: string; label: string; icon: any; show: boolean };
 type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
@@ -580,18 +581,21 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : (
               <Brand />
             )}
-            <button
-              type="button"
-              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-              onClick={() => setCollapsed((v) => !v)}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-            >
-              {collapsed ? (
-                <ChevronsRight className="h-4 w-4" />
-              ) : (
-                <ChevronsLeft className="h-4 w-4" />
-              )}
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              {!can.isMemberOnly && <NotificationBell collapsed={collapsed} />}
+              <button
+                type="button"
+                aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+                onClick={() => setCollapsed((v) => !v)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              >
+                {collapsed ? (
+                  <ChevronsRight className="h-4 w-4" />
+                ) : (
+                  <ChevronsLeft className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           <nav className={cn("flex-1 overflow-y-auto", collapsed ? "px-2 py-3" : "space-y-1 p-3")}>
