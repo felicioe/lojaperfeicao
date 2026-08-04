@@ -38,6 +38,7 @@ import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedPainelDadosRouteImport } from './routes/_authenticated/painel/dados'
 import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_authenticated/painel/financeiro'
 import { Route as AuthenticatedPainelFrequenciaRouteImport } from './routes/_authenticated/painel/frequencia'
+import { Route as AuthenticatedPainelQuitacaoRouteImport } from './routes/_authenticated/painel/quitacao'
 import { Route as AuthenticatedPainelSessoesRouteImport } from './routes/_authenticated/painel/sessoes'
 import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
 import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
@@ -222,6 +223,12 @@ const AuthenticatedPainelFrequenciaRoute =
     path: '/frequencia',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
+const AuthenticatedPainelQuitacaoRoute =
+  AuthenticatedPainelQuitacaoRouteImport.update({
+    id: '/quitacao',
+    path: '/quitacao',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
 const AuthenticatedPainelSessoesRoute =
   AuthenticatedPainelSessoesRouteImport.update({
     id: '/sessoes',
@@ -361,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
+  '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
@@ -409,6 +417,7 @@ export interface FileRoutesByTo {
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
+  '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
@@ -460,6 +469,7 @@ export interface FileRoutesById {
   '/_authenticated/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/_authenticated/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/_authenticated/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
+  '/_authenticated/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/_authenticated/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
@@ -511,6 +521,7 @@ export interface FileRouteTypes {
     | '/painel/dados'
     | '/painel/financeiro'
     | '/painel/frequencia'
+    | '/painel/quitacao'
     | '/painel/sessoes'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
@@ -559,6 +570,7 @@ export interface FileRouteTypes {
     | '/painel/dados'
     | '/painel/financeiro'
     | '/painel/frequencia'
+    | '/painel/quitacao'
     | '/painel/sessoes'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
@@ -609,6 +621,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/dados'
     | '/_authenticated/painel/financeiro'
     | '/_authenticated/painel/frequencia'
+    | '/_authenticated/painel/quitacao'
     | '/_authenticated/painel/sessoes'
     | '/_authenticated/relatorios/frequencia'
     | '/_authenticated/relatorios/inadimplentes'
@@ -847,6 +860,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelFrequenciaRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
+    '/_authenticated/painel/quitacao': {
+      id: '/_authenticated/painel/quitacao'
+      path: '/quitacao'
+      fullPath: '/painel/quitacao'
+      preLoaderRoute: typeof AuthenticatedPainelQuitacaoRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
     '/_authenticated/painel/sessoes': {
       id: '/_authenticated/painel/sessoes'
       path: '/sessoes'
@@ -987,6 +1007,7 @@ interface AuthenticatedPainelRouteRouteChildren {
   AuthenticatedPainelDadosRoute: typeof AuthenticatedPainelDadosRoute
   AuthenticatedPainelFinanceiroRoute: typeof AuthenticatedPainelFinanceiroRoute
   AuthenticatedPainelFrequenciaRoute: typeof AuthenticatedPainelFrequenciaRoute
+  AuthenticatedPainelQuitacaoRoute: typeof AuthenticatedPainelQuitacaoRoute
   AuthenticatedPainelSessoesRoute: typeof AuthenticatedPainelSessoesRoute
   AuthenticatedPainelIndexRoute: typeof AuthenticatedPainelIndexRoute
 }
@@ -996,6 +1017,7 @@ const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildr
     AuthenticatedPainelDadosRoute: AuthenticatedPainelDadosRoute,
     AuthenticatedPainelFinanceiroRoute: AuthenticatedPainelFinanceiroRoute,
     AuthenticatedPainelFrequenciaRoute: AuthenticatedPainelFrequenciaRoute,
+    AuthenticatedPainelQuitacaoRoute: AuthenticatedPainelQuitacaoRoute,
     AuthenticatedPainelSessoesRoute: AuthenticatedPainelSessoesRoute,
     AuthenticatedPainelIndexRoute: AuthenticatedPainelIndexRoute,
   }
