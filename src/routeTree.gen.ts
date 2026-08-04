@@ -16,7 +16,10 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
+import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
+import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
+import { Route as AuthenticatedComunicacoesIndexRouteImport } from './routes/_authenticated/comunicacoes/index'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
 import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
@@ -26,6 +29,9 @@ import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './rout
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
+import { Route as AuthenticatedEnsinoImportarCalendarioRouteImport } from './routes/_authenticated/ensino/importar-calendario'
+import { Route as AuthenticatedEnsinoPlanosRouteImport } from './routes/_authenticated/ensino/planos'
+import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
 import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
 import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
@@ -34,14 +40,19 @@ import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authentic
 import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
 import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel/index'
+import { Route as AuthenticatedPainelComunicacoesRouteImport } from './routes/_authenticated/painel/comunicacoes'
 import { Route as AuthenticatedPainelDadosRouteImport } from './routes/_authenticated/painel/dados'
+import { Route as AuthenticatedPainelEventosRouteImport } from './routes/_authenticated/painel/eventos'
 import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_authenticated/painel/financeiro'
 import { Route as AuthenticatedPainelFrequenciaRouteImport } from './routes/_authenticated/painel/frequencia'
+import { Route as AuthenticatedPainelQuitacaoRouteImport } from './routes/_authenticated/painel/quitacao'
 import { Route as AuthenticatedPainelSessoesRouteImport } from './routes/_authenticated/painel/sessoes'
 import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
 import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
 import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
 import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
+import { Route as AuthenticatedSgcabCobrancasRouteImport } from './routes/_authenticated/sgcab/cobrancas'
+import { Route as AuthenticatedSgcabTaxasRouteImport } from './routes/_authenticated/sgcab/taxas'
 import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authenticated/terceiros/index'
 import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
 import { Route as AuthenticatedTesourariaConciliacaoRouteImport } from './routes/_authenticated/tesouraria/conciliacao'
@@ -92,10 +103,28 @@ const AuthenticatedPainelRouteRoute =
     path: '/painel',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdministracaoAuditoriaRoute =
+  AuthenticatedAdministracaoAuditoriaRouteImport.update({
+    id: '/administracao/auditoria',
+    path: '/administracao/auditoria',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdministracaoExportarDadosRoute =
+  AuthenticatedAdministracaoExportarDadosRouteImport.update({
+    id: '/administracao/exportar-dados',
+    path: '/administracao/exportar-dados',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdministracaoResetarFinanceiroRoute =
   AuthenticatedAdministracaoResetarFinanceiroRouteImport.update({
     id: '/administracao/resetar-financeiro',
     path: '/administracao/resetar-financeiro',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedComunicacoesIndexRoute =
+  AuthenticatedComunicacoesIndexRouteImport.update({
+    id: '/comunicacoes/',
+    path: '/comunicacoes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeAuditoriaRoute =
@@ -152,6 +181,24 @@ const AuthenticatedContabilidadeRazaoRoute =
     path: '/contabilidade/razao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEnsinoImportarCalendarioRoute =
+  AuthenticatedEnsinoImportarCalendarioRouteImport.update({
+    id: '/ensino/importar-calendario',
+    path: '/ensino/importar-calendario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEnsinoPlanosRoute =
+  AuthenticatedEnsinoPlanosRouteImport.update({
+    id: '/ensino/planos',
+    path: '/ensino/planos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEventosIndexRoute =
+  AuthenticatedEventosIndexRouteImport.update({
+    id: '/eventos/',
+    path: '/eventos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedGestoesIndexRoute =
   AuthenticatedGestoesIndexRouteImport.update({
     id: '/gestoes/',
@@ -197,10 +244,22 @@ const AuthenticatedPainelIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
+const AuthenticatedPainelComunicacoesRoute =
+  AuthenticatedPainelComunicacoesRouteImport.update({
+    id: '/comunicacoes',
+    path: '/comunicacoes',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
 const AuthenticatedPainelDadosRoute =
   AuthenticatedPainelDadosRouteImport.update({
     id: '/dados',
     path: '/dados',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelEventosRoute =
+  AuthenticatedPainelEventosRouteImport.update({
+    id: '/eventos',
+    path: '/eventos',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
 const AuthenticatedPainelFinanceiroRoute =
@@ -213,6 +272,12 @@ const AuthenticatedPainelFrequenciaRoute =
   AuthenticatedPainelFrequenciaRouteImport.update({
     id: '/frequencia',
     path: '/frequencia',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelQuitacaoRoute =
+  AuthenticatedPainelQuitacaoRouteImport.update({
+    id: '/quitacao',
+    path: '/quitacao',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
 const AuthenticatedPainelSessoesRoute =
@@ -242,6 +307,17 @@ const AuthenticatedSessoesIndexRoute =
 const AuthenticatedSessoesIdRoute = AuthenticatedSessoesIdRouteImport.update({
   id: '/sessoes/$id',
   path: '/sessoes/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSgcabCobrancasRoute =
+  AuthenticatedSgcabCobrancasRouteImport.update({
+    id: '/sgcab/cobrancas',
+    path: '/sgcab/cobrancas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSgcabTaxasRoute = AuthenticatedSgcabTaxasRouteImport.update({
+  id: '/sgcab/taxas',
+  path: '/sgcab/taxas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedTerceirosIndexRoute =
@@ -336,6 +412,8 @@ export interface FileRoutesByFullPath {
   '/privacidade': typeof PrivacidadeRoute
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -346,17 +424,24 @@ export interface FileRoutesByFullPath {
   '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
+  '/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
+  '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
+  '/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -368,6 +453,8 @@ export interface FileRoutesByFullPath {
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
+  '/eventos/': typeof AuthenticatedEventosIndexRoute
   '/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
@@ -383,6 +470,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -393,17 +482,24 @@ export interface FileRoutesByTo {
   '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
+  '/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
+  '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
+  '/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -415,6 +511,8 @@ export interface FileRoutesByTo {
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
+  '/eventos': typeof AuthenticatedEventosIndexRoute
   '/gestoes': typeof AuthenticatedGestoesIndexRoute
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
@@ -433,6 +531,8 @@ export interface FileRoutesById {
   '/privacidade': typeof PrivacidadeRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/_authenticated/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/_authenticated/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -443,17 +543,24 @@ export interface FileRoutesById {
   '/_authenticated/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/_authenticated/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/_authenticated/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/_authenticated/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/_authenticated/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/_authenticated/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/_authenticated/painel/dados': typeof AuthenticatedPainelDadosRoute
+  '/_authenticated/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/_authenticated/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/_authenticated/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
+  '/_authenticated/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/_authenticated/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/_authenticated/sessoes/$id': typeof AuthenticatedSessoesIdRoute
+  '/_authenticated/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
+  '/_authenticated/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/_authenticated/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/_authenticated/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/_authenticated/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -465,6 +572,8 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
+  '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
   '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
@@ -483,6 +592,8 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/painel'
     | '/dashboard'
+    | '/administracao/auditoria'
+    | '/administracao/exportar-dados'
     | '/administracao/resetar-financeiro'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
@@ -493,17 +604,24 @@ export interface FileRouteTypes {
     | '/contabilidade/fluxo-caixa'
     | '/contabilidade/orcamento'
     | '/contabilidade/razao'
+    | '/ensino/importar-calendario'
+    | '/ensino/planos'
     | '/gestoes/cargos'
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/orgs/potencias'
+    | '/painel/comunicacoes'
     | '/painel/dados'
+    | '/painel/eventos'
     | '/painel/financeiro'
     | '/painel/frequencia'
+    | '/painel/quitacao'
     | '/painel/sessoes'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
     | '/sessoes/$id'
+    | '/sgcab/cobrancas'
+    | '/sgcab/taxas'
     | '/tesouraria/conciliacao'
     | '/tesouraria/contas'
     | '/tesouraria/contas-pagar'
@@ -515,6 +633,8 @@ export interface FileRouteTypes {
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
     | '/tesouraria/tronco'
+    | '/comunicacoes/'
+    | '/eventos/'
     | '/gestoes/'
     | '/irmaos/'
     | '/orgs/'
@@ -530,6 +650,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/privacidade'
     | '/dashboard'
+    | '/administracao/auditoria'
+    | '/administracao/exportar-dados'
     | '/administracao/resetar-financeiro'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
@@ -540,17 +662,24 @@ export interface FileRouteTypes {
     | '/contabilidade/fluxo-caixa'
     | '/contabilidade/orcamento'
     | '/contabilidade/razao'
+    | '/ensino/importar-calendario'
+    | '/ensino/planos'
     | '/gestoes/cargos'
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/orgs/potencias'
+    | '/painel/comunicacoes'
     | '/painel/dados'
+    | '/painel/eventos'
     | '/painel/financeiro'
     | '/painel/frequencia'
+    | '/painel/quitacao'
     | '/painel/sessoes'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
     | '/sessoes/$id'
+    | '/sgcab/cobrancas'
+    | '/sgcab/taxas'
     | '/tesouraria/conciliacao'
     | '/tesouraria/contas'
     | '/tesouraria/contas-pagar'
@@ -562,6 +691,8 @@ export interface FileRouteTypes {
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
     | '/tesouraria/tronco'
+    | '/comunicacoes'
+    | '/eventos'
     | '/gestoes'
     | '/irmaos'
     | '/orgs'
@@ -579,6 +710,8 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
+    | '/_authenticated/administracao/auditoria'
+    | '/_authenticated/administracao/exportar-dados'
     | '/_authenticated/administracao/resetar-financeiro'
     | '/_authenticated/contabilidade/auditoria'
     | '/_authenticated/contabilidade/balancete'
@@ -589,17 +722,24 @@ export interface FileRouteTypes {
     | '/_authenticated/contabilidade/fluxo-caixa'
     | '/_authenticated/contabilidade/orcamento'
     | '/_authenticated/contabilidade/razao'
+    | '/_authenticated/ensino/importar-calendario'
+    | '/_authenticated/ensino/planos'
     | '/_authenticated/gestoes/cargos'
     | '/_authenticated/irmaos/$id'
     | '/_authenticated/irmaos/novo'
     | '/_authenticated/orgs/potencias'
+    | '/_authenticated/painel/comunicacoes'
     | '/_authenticated/painel/dados'
+    | '/_authenticated/painel/eventos'
     | '/_authenticated/painel/financeiro'
     | '/_authenticated/painel/frequencia'
+    | '/_authenticated/painel/quitacao'
     | '/_authenticated/painel/sessoes'
     | '/_authenticated/relatorios/frequencia'
     | '/_authenticated/relatorios/inadimplentes'
     | '/_authenticated/sessoes/$id'
+    | '/_authenticated/sgcab/cobrancas'
+    | '/_authenticated/sgcab/taxas'
     | '/_authenticated/tesouraria/conciliacao'
     | '/_authenticated/tesouraria/contas'
     | '/_authenticated/tesouraria/contas-pagar'
@@ -611,6 +751,8 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/recibos'
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/tronco'
+    | '/_authenticated/comunicacoes/'
+    | '/_authenticated/eventos/'
     | '/_authenticated/gestoes/'
     | '/_authenticated/irmaos/'
     | '/_authenticated/orgs/'
@@ -680,11 +822,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/administracao/auditoria': {
+      id: '/_authenticated/administracao/auditoria'
+      path: '/administracao/auditoria'
+      fullPath: '/administracao/auditoria'
+      preLoaderRoute: typeof AuthenticatedAdministracaoAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/administracao/exportar-dados': {
+      id: '/_authenticated/administracao/exportar-dados'
+      path: '/administracao/exportar-dados'
+      fullPath: '/administracao/exportar-dados'
+      preLoaderRoute: typeof AuthenticatedAdministracaoExportarDadosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/administracao/resetar-financeiro': {
       id: '/_authenticated/administracao/resetar-financeiro'
       path: '/administracao/resetar-financeiro'
       fullPath: '/administracao/resetar-financeiro'
       preLoaderRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/comunicacoes/': {
+      id: '/_authenticated/comunicacoes/'
+      path: '/comunicacoes'
+      fullPath: '/comunicacoes/'
+      preLoaderRoute: typeof AuthenticatedComunicacoesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contabilidade/auditoria': {
@@ -750,6 +913,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/ensino/importar-calendario': {
+      id: '/_authenticated/ensino/importar-calendario'
+      path: '/ensino/importar-calendario'
+      fullPath: '/ensino/importar-calendario'
+      preLoaderRoute: typeof AuthenticatedEnsinoImportarCalendarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ensino/planos': {
+      id: '/_authenticated/ensino/planos'
+      path: '/ensino/planos'
+      fullPath: '/ensino/planos'
+      preLoaderRoute: typeof AuthenticatedEnsinoPlanosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/eventos/': {
+      id: '/_authenticated/eventos/'
+      path: '/eventos'
+      fullPath: '/eventos/'
+      preLoaderRoute: typeof AuthenticatedEventosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/gestoes/': {
       id: '/_authenticated/gestoes/'
       path: '/gestoes'
@@ -806,11 +990,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelIndexRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
+    '/_authenticated/painel/comunicacoes': {
+      id: '/_authenticated/painel/comunicacoes'
+      path: '/comunicacoes'
+      fullPath: '/painel/comunicacoes'
+      preLoaderRoute: typeof AuthenticatedPainelComunicacoesRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
     '/_authenticated/painel/dados': {
       id: '/_authenticated/painel/dados'
       path: '/dados'
       fullPath: '/painel/dados'
       preLoaderRoute: typeof AuthenticatedPainelDadosRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/eventos': {
+      id: '/_authenticated/painel/eventos'
+      path: '/eventos'
+      fullPath: '/painel/eventos'
+      preLoaderRoute: typeof AuthenticatedPainelEventosRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
     '/_authenticated/painel/financeiro': {
@@ -825,6 +1023,13 @@ declare module '@tanstack/react-router' {
       path: '/frequencia'
       fullPath: '/painel/frequencia'
       preLoaderRoute: typeof AuthenticatedPainelFrequenciaRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/quitacao': {
+      id: '/_authenticated/painel/quitacao'
+      path: '/quitacao'
+      fullPath: '/painel/quitacao'
+      preLoaderRoute: typeof AuthenticatedPainelQuitacaoRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
     '/_authenticated/painel/sessoes': {
@@ -860,6 +1065,20 @@ declare module '@tanstack/react-router' {
       path: '/sessoes/$id'
       fullPath: '/sessoes/$id'
       preLoaderRoute: typeof AuthenticatedSessoesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sgcab/cobrancas': {
+      id: '/_authenticated/sgcab/cobrancas'
+      path: '/sgcab/cobrancas'
+      fullPath: '/sgcab/cobrancas'
+      preLoaderRoute: typeof AuthenticatedSgcabCobrancasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sgcab/taxas': {
+      id: '/_authenticated/sgcab/taxas'
+      path: '/sgcab/taxas'
+      fullPath: '/sgcab/taxas'
+      preLoaderRoute: typeof AuthenticatedSgcabTaxasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/terceiros/': {
@@ -964,18 +1183,24 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedPainelRouteRouteChildren {
+  AuthenticatedPainelComunicacoesRoute: typeof AuthenticatedPainelComunicacoesRoute
   AuthenticatedPainelDadosRoute: typeof AuthenticatedPainelDadosRoute
+  AuthenticatedPainelEventosRoute: typeof AuthenticatedPainelEventosRoute
   AuthenticatedPainelFinanceiroRoute: typeof AuthenticatedPainelFinanceiroRoute
   AuthenticatedPainelFrequenciaRoute: typeof AuthenticatedPainelFrequenciaRoute
+  AuthenticatedPainelQuitacaoRoute: typeof AuthenticatedPainelQuitacaoRoute
   AuthenticatedPainelSessoesRoute: typeof AuthenticatedPainelSessoesRoute
   AuthenticatedPainelIndexRoute: typeof AuthenticatedPainelIndexRoute
 }
 
 const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildren =
   {
+    AuthenticatedPainelComunicacoesRoute: AuthenticatedPainelComunicacoesRoute,
     AuthenticatedPainelDadosRoute: AuthenticatedPainelDadosRoute,
+    AuthenticatedPainelEventosRoute: AuthenticatedPainelEventosRoute,
     AuthenticatedPainelFinanceiroRoute: AuthenticatedPainelFinanceiroRoute,
     AuthenticatedPainelFrequenciaRoute: AuthenticatedPainelFrequenciaRoute,
+    AuthenticatedPainelQuitacaoRoute: AuthenticatedPainelQuitacaoRoute,
     AuthenticatedPainelSessoesRoute: AuthenticatedPainelSessoesRoute,
     AuthenticatedPainelIndexRoute: AuthenticatedPainelIndexRoute,
   }
@@ -988,6 +1213,8 @@ const AuthenticatedPainelRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedPainelRouteRoute: typeof AuthenticatedPainelRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedAdministracaoAuditoriaRoute: typeof AuthenticatedAdministracaoAuditoriaRoute
+  AuthenticatedAdministracaoExportarDadosRoute: typeof AuthenticatedAdministracaoExportarDadosRoute
   AuthenticatedAdministracaoResetarFinanceiroRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
   AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
@@ -998,6 +1225,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContabilidadeFluxoCaixaRoute: typeof AuthenticatedContabilidadeFluxoCaixaRoute
   AuthenticatedContabilidadeOrcamentoRoute: typeof AuthenticatedContabilidadeOrcamentoRoute
   AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
+  AuthenticatedEnsinoImportarCalendarioRoute: typeof AuthenticatedEnsinoImportarCalendarioRoute
+  AuthenticatedEnsinoPlanosRoute: typeof AuthenticatedEnsinoPlanosRoute
   AuthenticatedGestoesCargosRoute: typeof AuthenticatedGestoesCargosRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
   AuthenticatedIrmaosNovoRoute: typeof AuthenticatedIrmaosNovoRoute
@@ -1005,6 +1234,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
   AuthenticatedRelatoriosInadimplentesRoute: typeof AuthenticatedRelatoriosInadimplentesRoute
   AuthenticatedSessoesIdRoute: typeof AuthenticatedSessoesIdRoute
+  AuthenticatedSgcabCobrancasRoute: typeof AuthenticatedSgcabCobrancasRoute
+  AuthenticatedSgcabTaxasRoute: typeof AuthenticatedSgcabTaxasRoute
   AuthenticatedTesourariaConciliacaoRoute: typeof AuthenticatedTesourariaConciliacaoRoute
   AuthenticatedTesourariaContasRoute: typeof AuthenticatedTesourariaContasRoute
   AuthenticatedTesourariaContasPagarRoute: typeof AuthenticatedTesourariaContasPagarRoute
@@ -1016,6 +1247,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
+  AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
+  AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
   AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
@@ -1028,6 +1261,10 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPainelRouteRoute: AuthenticatedPainelRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedAdministracaoAuditoriaRoute:
+    AuthenticatedAdministracaoAuditoriaRoute,
+  AuthenticatedAdministracaoExportarDadosRoute:
+    AuthenticatedAdministracaoExportarDadosRoute,
   AuthenticatedAdministracaoResetarFinanceiroRoute:
     AuthenticatedAdministracaoResetarFinanceiroRoute,
   AuthenticatedContabilidadeAuditoriaRoute:
@@ -1045,6 +1282,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContabilidadeOrcamentoRoute:
     AuthenticatedContabilidadeOrcamentoRoute,
   AuthenticatedContabilidadeRazaoRoute: AuthenticatedContabilidadeRazaoRoute,
+  AuthenticatedEnsinoImportarCalendarioRoute:
+    AuthenticatedEnsinoImportarCalendarioRoute,
+  AuthenticatedEnsinoPlanosRoute: AuthenticatedEnsinoPlanosRoute,
   AuthenticatedGestoesCargosRoute: AuthenticatedGestoesCargosRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
   AuthenticatedIrmaosNovoRoute: AuthenticatedIrmaosNovoRoute,
@@ -1054,6 +1294,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRelatoriosInadimplentesRoute:
     AuthenticatedRelatoriosInadimplentesRoute,
   AuthenticatedSessoesIdRoute: AuthenticatedSessoesIdRoute,
+  AuthenticatedSgcabCobrancasRoute: AuthenticatedSgcabCobrancasRoute,
+  AuthenticatedSgcabTaxasRoute: AuthenticatedSgcabTaxasRoute,
   AuthenticatedTesourariaConciliacaoRoute:
     AuthenticatedTesourariaConciliacaoRoute,
   AuthenticatedTesourariaContasRoute: AuthenticatedTesourariaContasRoute,
@@ -1072,6 +1314,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaRecorrentesRoute:
     AuthenticatedTesourariaRecorrentesRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
+  AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
+  AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
   AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
   AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,

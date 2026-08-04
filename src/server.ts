@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { executarDisparoNotificacoes } from "./lib/push-dispatch";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -44,9 +45,41 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// Endpoint HTTP puro (fora do roteador do TanStack Start) para o cron job
+// da Hostinger disparar as notificações push periódicas — precisa ser algo
+// que um simples `curl`/`wget` agendado no hPanel consiga chamar, o que as
+// rotas RPC de createServerFn não oferecem (esperam o formato de serialização
+// interno do Start). Protegido por token — ver CRON_SECRET em .env.example.
+async function tratarCronNotificacoes(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/cron/notificacoes") return null;
+
+  const token = url.searchParams.get("token") ?? request.headers.get("x-cron-token");
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado || token !== esperado) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const resultado = await executarDisparoNotificacoes();
+    return new Response(JSON.stringify(resultado), {
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: (error as Error).message }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const cronResponse = await tratarCronNotificacoes(request);
+      if (cronResponse) return cronResponse;
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

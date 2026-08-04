@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 import { withUserConnection } from "./db";
 import { comSessao } from "./authz";
 import { criarSessao, encerrarSessao, usuarioIdDaSessao } from "./session";
+import { registrarAuditoria } from "./auditoria";
 
 export type Papel = "admin" | "tesoureiro" | "secretario" | "irmao";
 
@@ -36,11 +37,13 @@ const signupSchema = z.object({
 async function carregarUsuarioComPapeis(usuarioId: string): Promise<UsuarioSessao | null> {
   return withUserConnection(usuarioId, async (conn) => {
     const [usuarios] = await conn.query<RowDataPacket[]>(
-      "SELECT id, email, nome_completo, consentimento_lgpd_em FROM usuarios WHERE id = ?",
+      "SELECT id, email, nome_completo, consentimento_lgpd_em, ativo FROM usuarios WHERE id = ?",
       [usuarioId],
     );
     const usuario = usuarios[0];
-    if (!usuario) return null;
+    // usuário inativo é tratado como "sem sessão" — derruba qualquer
+    // sessão já aberta no próximo carregamento, não só bloqueia o login.
+    if (!usuario || !usuario.ativo) return null;
 
     const [papeis] = await conn.query<RowDataPacket[]>(
       "SELECT papel FROM usuarios_papeis WHERE usuario_id = ?",
@@ -64,7 +67,7 @@ export const login = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<UsuarioSessao> => {
     const usuario = await withUserConnection(null, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, senha_hash FROM usuarios WHERE email = ?",
+        "SELECT id, senha_hash, ativo FROM usuarios WHERE email = ?",
         [data.email],
       );
       return rows[0] ?? null;
@@ -73,10 +76,16 @@ export const login = createServerFn({ method: "POST" })
     if (!usuario || !(await bcrypt.compare(data.senha, usuario.senha_hash))) {
       throw new Error("E-mail ou senha inválidos.");
     }
+    if (!usuario.ativo) {
+      throw new Error("Usuário inativo. Contate o administrador.");
+    }
 
     await criarSessao(usuario.id);
     const sessao = await carregarUsuarioComPapeis(usuario.id);
     if (!sessao) throw new Error("E-mail ou senha inválidos.");
+    await withUserConnection(usuario.id, (conn) =>
+      registrarAuditoria(conn, usuario.id, "login", "usuario", usuario.id),
+    );
     return sessao;
   });
 
@@ -110,7 +119,13 @@ export const signup = createServerFn({ method: "POST" })
   });
 
 export const logout = createServerFn({ method: "POST" }).handler(async () => {
+  const usuarioId = await usuarioIdDaSessao();
   await encerrarSessao();
+  if (usuarioId) {
+    await withUserConnection(usuarioId, (conn) =>
+      registrarAuditoria(conn, usuarioId, "logout", "usuario", usuarioId),
+    );
+  }
 });
 
 export const getSessao = createServerFn({ method: "GET" }).handler(

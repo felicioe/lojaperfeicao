@@ -5,6 +5,7 @@ import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import type { Papel } from "./auth";
+import { registrarAuditoria } from "./auditoria";
 
 const SENHA_PADRAO = "123";
 
@@ -47,6 +48,7 @@ export type UsuarioAdmin = {
   nome_completo: string | null;
   papeis: Papel[];
   irmao: { id: string; nome_civil: string } | null;
+  ativo: boolean;
 };
 
 // Só admin — tela de gestão de usuários (evita precisar mexer direto no banco).
@@ -54,13 +56,13 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(
   async (): Promise<UsuarioAdmin[]> => {
     return comPapel(["admin"], async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT u.id, u.email, u.nome_completo,
+        `SELECT u.id, u.email, u.nome_completo, u.ativo,
               GROUP_CONCAT(DISTINCT up.papel) AS papeis,
               i.id AS irmao_id, i.nome_civil AS irmao_nome
        FROM usuarios u
        LEFT JOIN usuarios_papeis up ON up.usuario_id = u.id
        LEFT JOIN irmaos i ON i.usuario_id = u.id
-       GROUP BY u.id, u.email, u.nome_completo, i.id, i.nome_civil
+       GROUP BY u.id, u.email, u.nome_completo, u.ativo, i.id, i.nome_civil
        ORDER BY u.email`,
       );
       return rows.map((r) => ({
@@ -69,6 +71,7 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(
         nome_completo: r.nome_completo,
         papeis: (r.papeis ? String(r.papeis).split(",") : []) as Papel[],
         irmao: r.irmao_id ? { id: r.irmao_id, nome_civil: r.irmao_nome } : null,
+        ativo: !!r.ativo,
       }));
     });
   },
@@ -104,7 +107,7 @@ export const listarIrmaosSemAcesso = createServerFn({ method: "GET" }).handler(
 export const criarAcessoIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ irmaoId: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<{ usuarioId: string; login: string }> => {
-    return comPapel(["admin"], async (conn) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const [[irmao]] = await conn.query<RowDataPacket[]>(
         "SELECT nome_civil, usuario_id FROM irmaos WHERE id = ?",
         [data.irmaoId],
@@ -125,6 +128,10 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
       }
       const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
       await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, data.irmaoId]);
+      await registrarAuditoria(conn, usuarioIdAtual, "criar_acesso", "usuario", novo_id, null, {
+        login,
+        nome_civil: irmao.nome_civil,
+      });
       return { usuarioId: novo_id as string, login };
     });
   });
@@ -138,7 +145,7 @@ export type RelatorioAcessosLote = {
 // usuario_id — é a ação que substitui ter que rodar SQL manual no phpMyAdmin.
 export const criarAcessosEmLote = createServerFn({ method: "POST" }).handler(
   async (): Promise<RelatorioAcessosLote> => {
-    return comPapel(["admin"], async (conn) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const [irmaos] = await conn.query<RowDataPacket[]>(
         "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL ORDER BY nome_civil",
       );
@@ -156,6 +163,10 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" }).handler(
           ]);
           const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
           await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, irmao.id]);
+          await registrarAuditoria(conn, usuarioIdAtual, "criar_acesso", "usuario", novo_id, null, {
+            login,
+            nome_civil: irmao.nome_civil,
+          });
           criados.push({ nome: irmao.nome_civil, login });
         } catch (err: any) {
           falhas.push({ nome: irmao.nome_civil, motivo: err.sqlMessage || err.message });
@@ -180,6 +191,10 @@ export const atualizarPapeisUsuario = createServerFn({ method: "POST" })
       if (data.usuarioId === usuarioIdAtual && !data.papeis.includes("admin")) {
         throw new Error("Você não pode remover seu próprio papel de administrador.");
       }
+      const [antes] = await conn.query<RowDataPacket[]>(
+        "SELECT papel FROM usuarios_papeis WHERE usuario_id = ?",
+        [data.usuarioId],
+      );
       await conn.query("DELETE FROM usuarios_papeis WHERE usuario_id = ?", [data.usuarioId]);
       for (const papel of data.papeis) {
         await conn.query("INSERT INTO usuarios_papeis (usuario_id, papel) VALUES (?, ?)", [
@@ -187,6 +202,43 @@ export const atualizarPapeisUsuario = createServerFn({ method: "POST" })
           papel,
         ]);
       }
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "atualizar_papeis",
+        "usuario",
+        data.usuarioId,
+        { papeis: antes.map((p) => p.papel) },
+        { papeis: data.papeis },
+      );
+    });
+  });
+
+const alternarAtivoSchema = z.object({
+  usuarioId: z.string().uuid(),
+  ativo: z.boolean(),
+});
+
+// Desabilita/reabilita um login sem excluir o usuário (mantém vínculo com
+// irmão e o histórico de criado_por em lançamentos). O login.tsx bloqueia
+// na hora de autenticar, e getSessao() derruba qualquer sessão já aberta.
+export const alternarAtivoUsuario = createServerFn({ method: "POST" })
+  .validator((d: unknown) => alternarAtivoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
+      if (data.usuarioId === usuarioIdAtual && !data.ativo) {
+        throw new Error("Você não pode inativar seu próprio usuário.");
+      }
+      await conn.query("UPDATE usuarios SET ativo = ? WHERE id = ?", [data.ativo, data.usuarioId]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        data.ativo ? "reativar_usuario" : "inativar_usuario",
+        "usuario",
+        data.usuarioId,
+        { ativo: !data.ativo },
+        { ativo: data.ativo },
+      );
     });
   });
 
@@ -200,8 +252,10 @@ const redefinirSenhaSchema = z.object({
 export const redefinirSenhaUsuario = createServerFn({ method: "POST" })
   .validator((d: unknown) => redefinirSenhaSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(["admin"], async (conn) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const hash = await bcrypt.hash(data.novaSenha, 10);
       await conn.query("UPDATE usuarios SET senha_hash = ? WHERE id = ?", [hash, data.usuarioId]);
+      // nunca loga a senha em si, só o fato de ter sido redefinida.
+      await registrarAuditoria(conn, usuarioIdAtual, "redefinir_senha", "usuario", data.usuarioId);
     });
   });

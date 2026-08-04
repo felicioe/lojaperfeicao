@@ -21,6 +21,11 @@ import { GRAU_LABEL, TIPO_SESSAO_LABEL, fmtDate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { toast } from "sonner";
 
+// Mesma ordem maçônica aplicada no servidor (togglePresenca, em
+// src/lib/backend/sessoes.ts): quem tem grau maior pode assistir sessão
+// de grau menor, nunca o contrário.
+const GRAU_RANK: Record<string, number> = { aprendiz: 1, companheiro: 2, mestre: 3 };
+
 export const Route = createFileRoute("/_authenticated/sessoes/$id")({
   head: () => ({ meta: [{ title: "Frequência da Sessão — Gestão Maçônica" }] }),
   component: SessaoDetail,
@@ -64,6 +69,9 @@ function SessaoDetail() {
   };
 
   const s = sessao.data;
+  const elegiveis = (irmaos.data ?? []).filter(
+    (i: any) => !s || GRAU_RANK[i.grau] >= GRAU_RANK[s.grau],
+  );
   return (
     <>
       <PageHeader
@@ -85,7 +93,7 @@ function SessaoDetail() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(irmaos.data ?? []).map((i: any) => {
+              {elegiveis.map((i: any) => {
                 const p: any = map.get(i.id);
                 return (
                   <TableRow key={i.id}>

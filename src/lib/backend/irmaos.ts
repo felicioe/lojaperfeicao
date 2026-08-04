@@ -3,8 +3,9 @@ import { z } from "zod";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PoolConnection } from "mysql2/promise";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { comSessao, comPapel, SemPermissaoError } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original (mysql/migrations/0002_cadastros.sql):
 // - irmaos: SELECT admin/secretario/tesoureiro (tudo) OU o próprio (usuario_id = current);
@@ -228,8 +229,20 @@ export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
 export const excluirIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(["admin"], async (conn) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
+      const [[irmao]] = await conn.query<RowDataPacket[]>(
+        "SELECT nome_civil, cim FROM irmaos WHERE id = ?",
+        [data.id],
+      );
       await conn.query("DELETE FROM irmaos WHERE id = ?", [data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "excluir_irmao",
+        "irmao",
+        data.id,
+        irmao ?? null,
+      );
     });
   });
 
@@ -538,6 +551,69 @@ export const obterMeuIrmao = createServerFn({ method: "GET" }).handler(
         [usuarioId],
       );
       return (rows[0] as Irmao) ?? null;
+    });
+  },
+);
+
+// Campos que o próprio irmão pode editar no Meu Painel — só contato e dados
+// profissionais. Tudo que é maçônico/administrativo (grau, situação, datas,
+// valor da mensalidade, CIM, documentos) continua exclusivo de
+// admin/secretario via atualizarPerfilIrmao.
+const CAMPOS_MEU_PERFIL = [
+  "telefone",
+  "celular",
+  "email",
+  "cep",
+  "logradouro",
+  "numero_endereco",
+  "complemento",
+  "bairro",
+  "cidade",
+  "estado",
+  "profissao",
+  "empresa",
+  "cargo_profissional",
+  "area_atuacao",
+] as const;
+
+const meuPerfilSchema = z.object({
+  perfil: z.record(z.string(), z.union([z.string(), z.null()])),
+});
+
+export const atualizarMeuPerfil = createServerFn({ method: "POST" })
+  .validator((d: unknown) => meuPerfilSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comSessao(async (conn, usuarioId) => {
+      const campos = CAMPOS_MEU_PERFIL.filter((c) => c in data.perfil);
+      if (campos.length === 0) return;
+      const set = campos.map((c) => `${c} = ?`).join(", ");
+      const valores = campos.map((c) => data.perfil[c] ?? null);
+      const [resultado] = await conn.query<ResultSetHeader>(
+        `UPDATE irmaos SET ${set} WHERE usuario_id = ?`,
+        [...valores, usuarioId],
+      );
+      if (resultado.affectedRows === 0) {
+        throw new Error("Cadastro ainda não vinculado a este usuário.");
+      }
+    });
+  });
+
+export type StatusQuitacao = { quite: boolean; pendentes: number };
+
+// "Quite" aqui significa sem nenhuma mensalidade em aberto — mesmo
+// critério já usado no resumo financeiro do Meu Painel.
+export const obterStatusQuitacao = createServerFn({ method: "GET" }).handler(
+  async (): Promise<StatusQuitacao> => {
+    return comSessao(async (conn, usuarioId) => {
+      const [[row]] = await conn.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS pendentes
+         FROM lancamentos l
+         JOIN irmaos i ON i.id = l.irmao_id
+         WHERE i.usuario_id = ? AND l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE`,
+        [usuarioId],
+      );
+      const pendentes = Number(row.pendentes);
+      return { quite: pendentes === 0, pendentes };
     });
   },
 );

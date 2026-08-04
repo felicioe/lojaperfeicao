@@ -3,10 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useMeuIrmao } from "@/lib/use-meu-irmao";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { listarLancamentosIrmao, listarFrequenciaIrmao } from "@/lib/backend/irmaos";
+import { contarComunicadosNaoLidos } from "@/lib/backend/comunicacoes";
 import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { brl, SITUACAO_LABEL, GRAU_LABEL } from "@/lib/format";
-import { UserRound, Wallet, CalendarCheck2, CalendarDays, AlertCircle } from "lucide-react";
+import {
+  UserRound,
+  Wallet,
+  CalendarCheck2,
+  CalendarDays,
+  AlertCircle,
+  Megaphone,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/")({
   component: PainelInicio,
@@ -32,6 +40,12 @@ const TILES = [
     icon: CalendarDays,
     cor: "from-violet-400 to-purple-600",
   },
+  {
+    to: "/painel/comunicacoes",
+    label: "Comunicações",
+    icon: Megaphone,
+    cor: "from-rose-400 to-pink-600",
+  },
 ] as const;
 
 function PainelInicio() {
@@ -49,6 +63,12 @@ function PainelInicio() {
     queryKey: ["painel", "frequencia", irmaoId],
     queryFn: () => listarFrequenciaIrmao({ data: { irmaoId: irmaoId! } }),
     enabled: !!irmaoId && isDesktop,
+  });
+
+  const naoLidos = useQuery({
+    queryKey: ["painel", "comunicadosNaoLidos"],
+    queryFn: () => contarComunicadosNaoLidos(),
+    enabled: !!irmaoId,
   });
 
   if (meuIrmao.isLoading) return null;
@@ -110,6 +130,14 @@ function PainelInicio() {
             hint={`${presencas} de ${totalSessoesFreq} sessão(ões)`}
             tone={percentualFrequencia >= 75 ? "success" : "warning"}
           />
+          {(naoLidos.data ?? 0) > 0 && (
+            <MetricCard
+              icon={Megaphone}
+              label="Comunicações"
+              value={`${naoLidos.data} não lido(s)`}
+              tone="warning"
+            />
+          )}
         </div>
       </>
     );
@@ -142,6 +170,18 @@ function PainelInicio() {
           <span>
             Você tem {emAberto.length} mensalidade(s) em aberto —{" "}
             <strong>{brl(totalEmAberto)}</strong>
+          </span>
+        </Link>
+      )}
+
+      {(naoLidos.data ?? 0) > 0 && (
+        <Link
+          to="/painel/comunicacoes"
+          className="flex items-center gap-3 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200"
+        >
+          <Megaphone className="h-5 w-5 shrink-0" />
+          <span>
+            Você tem <strong>{naoLidos.data}</strong> comunicado(s) novo(s)
           </span>
         </Link>
       )}

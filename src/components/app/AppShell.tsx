@@ -43,9 +43,17 @@ import {
   Moon,
   Sun,
   Trash2,
+  ScrollText,
+  Download,
   UsersRound,
   UserRound,
   CalendarCheck2,
+  BadgeDollarSign,
+  Coins,
+  PartyPopper,
+  GraduationCap,
+  CalendarPlus,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
@@ -54,6 +62,7 @@ import { ROLE_LABEL } from "@/lib/format";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { useTheme } from "@/lib/use-theme";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { NotificationBell } from "@/components/app/NotificationBell";
 
 type NavItem = { to: string; label: string; icon: any; show: boolean };
 type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
@@ -266,6 +275,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/painel/financeiro", label: "Financeiro", icon: Wallet, show: true },
         { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2, show: true },
         { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays, show: true },
+        { to: "/painel/eventos", label: "Eventos", icon: PartyPopper, show: true },
+        { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
       ],
     },
   ];
@@ -286,6 +297,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageFinancas,
         },
         { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
+        { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
+        { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
+        {
+          to: "/ensino/importar-calendario",
+          label: "Importar Calendário",
+          icon: CalendarPlus,
+          show: can.canManageIrmaos,
+        },
+        { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
       ],
     },
     {
@@ -414,6 +434,25 @@ export function AppShell({ children }: { children: ReactNode }) {
       ],
     },
     {
+      id: "sgcab",
+      label: "SGCAB",
+      icon: BadgeDollarSign,
+      items: [
+        {
+          to: "/sgcab/taxas",
+          label: "Taxas por Grau",
+          icon: Coins,
+          show: can.isTesoureiro || can.isSecretario,
+        },
+        {
+          to: "/sgcab/cobrancas",
+          label: "Cobranças",
+          icon: ScrollText,
+          show: can.isTesoureiro || can.isSecretario,
+        },
+      ],
+    },
+    {
       id: "relatorios",
       label: "Relatórios",
       icon: FileBarChart,
@@ -437,6 +476,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/administracao/resetar-financeiro",
           label: "Resetar Financeiro",
           icon: Trash2,
+          show: can.isAdmin,
+        },
+        {
+          to: "/administracao/auditoria",
+          label: "Auditoria",
+          icon: ScrollText,
+          show: can.isAdmin,
+        },
+        {
+          to: "/administracao/exportar-dados",
+          label: "Exportar Dados",
+          icon: Download,
           show: can.isAdmin,
         },
       ],
@@ -530,18 +581,21 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : (
               <Brand />
             )}
-            <button
-              type="button"
-              aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-              onClick={() => setCollapsed((v) => !v)}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-            >
-              {collapsed ? (
-                <ChevronsRight className="h-4 w-4" />
-              ) : (
-                <ChevronsLeft className="h-4 w-4" />
-              )}
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              {!can.isMemberOnly && <NotificationBell collapsed={collapsed} />}
+              <button
+                type="button"
+                aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+                onClick={() => setCollapsed((v) => !v)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              >
+                {collapsed ? (
+                  <ChevronsRight className="h-4 w-4" />
+                ) : (
+                  <ChevronsLeft className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           <nav className={cn("flex-1 overflow-y-auto", collapsed ? "px-2 py-3" : "space-y-1 p-3")}>

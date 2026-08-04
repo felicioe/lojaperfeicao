@@ -73,6 +73,10 @@ export const listarPresencas = createServerFn({ method: "GET" })
     });
   });
 
+// Ordem maçônica: quem tem grau maior pode assistir sessão de grau menor,
+// nunca o contrário (um aprendiz não pode ser lançado como presente numa
+// sessão de mestre). Regra aplicada aqui — não só filtrada na tela — pra
+// não depender só do client.
 export const togglePresenca = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z
@@ -81,6 +85,17 @@ export const togglePresenca = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      const [[elegivel]] = await conn.query<RowDataPacket[]>(
+        `SELECT
+           (CASE i.grau WHEN 'aprendiz' THEN 1 WHEN 'companheiro' THEN 2 WHEN 'mestre' THEN 3 END) >=
+           (CASE s.grau WHEN 'aprendiz' THEN 1 WHEN 'companheiro' THEN 2 WHEN 'mestre' THEN 3 END) AS ok
+         FROM sessoes s, irmaos i
+         WHERE s.id = ? AND i.id = ?`,
+        [data.sessaoId, data.irmaoId],
+      );
+      if (!elegivel?.ok) {
+        throw new Error("Este irmão não tem grau suficiente para esta sessão.");
+      }
       await conn.query(
         `INSERT INTO presencas (sessao_id, irmao_id, presente) VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE presente = VALUES(presente)`,
