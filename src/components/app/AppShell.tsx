@@ -53,6 +53,7 @@ import {
   PartyPopper,
   GraduationCap,
   CalendarPlus,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
@@ -274,6 +275,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2, show: true },
         { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays, show: true },
         { to: "/painel/eventos", label: "Eventos", icon: PartyPopper, show: true },
+        { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
       ],
     },
   ];
@@ -302,6 +304,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: CalendarPlus,
           show: can.canManageIrmaos,
         },
+        { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
       ],
     },
     {

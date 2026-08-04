@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { logout } from "@/lib/backend/auth";
+import { contarComunicadosNaoLidos } from "@/lib/backend/comunicacoes";
 import { useSession, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -18,6 +19,7 @@ import {
   Moon,
   Sun,
   PartyPopper,
+  Megaphone,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { useTheme } from "@/lib/use-theme";
@@ -29,6 +31,7 @@ const TITULOS: Record<string, string> = {
   "/painel/frequencia": "Frequência",
   "/painel/sessoes": "Sessões",
   "/painel/eventos": "Eventos",
+  "/painel/comunicacoes": "Comunicações",
 };
 
 const ABAS = [
@@ -52,6 +55,10 @@ export function PainelShell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const { dark, toggle: toggleDark } = useTheme();
+  const { data: naoLidos = 0 } = useQuery({
+    queryKey: ["painel", "comunicadosNaoLidos"],
+    queryFn: () => contarComunicadosNaoLidos(),
+  });
 
   const titulo = TITULOS[loc.pathname] ?? "Meu Painel";
 
@@ -69,9 +76,12 @@ export function PainelShell({ children }: { children: ReactNode }) {
             type="button"
             aria-label="Abrir menu"
             onClick={() => setMenuOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-primary transition-colors hover:bg-muted"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full text-primary transition-colors hover:bg-muted"
           >
             <Menu className="h-6 w-6" />
+            {naoLidos > 0 && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
+            )}
           </button>
           <h1 className="text-lg font-bold text-primary">{titulo}</h1>
           <Link to="/painel/dados">
@@ -116,6 +126,18 @@ export function PainelShell({ children }: { children: ReactNode }) {
               <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
             </div>
             <div className="flex-1 p-3">
+              <Link
+                to="/painel/comunicacoes"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
+              >
+                <Megaphone className="h-4 w-4 text-muted-foreground" /> Comunicações
+                {naoLidos > 0 && (
+                  <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    {naoLidos}
+                  </span>
+                )}
+              </Link>
               <Link
                 to="/painel/dados"
                 onClick={() => setMenuOpen(false)}

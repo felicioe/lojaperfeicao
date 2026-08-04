@@ -19,6 +19,7 @@ import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
+import { Route as AuthenticatedComunicacoesIndexRouteImport } from './routes/_authenticated/comunicacoes/index'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
 import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
@@ -39,6 +40,7 @@ import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authentic
 import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
 import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel/index'
+import { Route as AuthenticatedPainelComunicacoesRouteImport } from './routes/_authenticated/painel/comunicacoes'
 import { Route as AuthenticatedPainelDadosRouteImport } from './routes/_authenticated/painel/dados'
 import { Route as AuthenticatedPainelEventosRouteImport } from './routes/_authenticated/painel/eventos'
 import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_authenticated/painel/financeiro'
@@ -117,6 +119,12 @@ const AuthenticatedAdministracaoResetarFinanceiroRoute =
   AuthenticatedAdministracaoResetarFinanceiroRouteImport.update({
     id: '/administracao/resetar-financeiro',
     path: '/administracao/resetar-financeiro',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedComunicacoesIndexRoute =
+  AuthenticatedComunicacoesIndexRouteImport.update({
+    id: '/comunicacoes/',
+    path: '/comunicacoes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeAuditoriaRoute =
@@ -234,6 +242,12 @@ const AuthenticatedPainelIndexRoute =
   AuthenticatedPainelIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelComunicacoesRoute =
+  AuthenticatedPainelComunicacoesRouteImport.update({
+    id: '/comunicacoes',
+    path: '/comunicacoes',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
 const AuthenticatedPainelDadosRoute =
@@ -416,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
@@ -438,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
   '/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
@@ -472,6 +488,7 @@ export interface FileRoutesByTo {
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
@@ -494,6 +511,7 @@ export interface FileRoutesByTo {
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
   '/gestoes': typeof AuthenticatedGestoesIndexRoute
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
@@ -531,6 +549,7 @@ export interface FileRoutesById {
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/_authenticated/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/_authenticated/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/_authenticated/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/_authenticated/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
@@ -553,6 +572,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
   '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
@@ -590,6 +610,7 @@ export interface FileRouteTypes {
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/orgs/potencias'
+    | '/painel/comunicacoes'
     | '/painel/dados'
     | '/painel/eventos'
     | '/painel/financeiro'
@@ -612,6 +633,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
     | '/tesouraria/tronco'
+    | '/comunicacoes/'
     | '/eventos/'
     | '/gestoes/'
     | '/irmaos/'
@@ -646,6 +668,7 @@ export interface FileRouteTypes {
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/orgs/potencias'
+    | '/painel/comunicacoes'
     | '/painel/dados'
     | '/painel/eventos'
     | '/painel/financeiro'
@@ -668,6 +691,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
     | '/tesouraria/tronco'
+    | '/comunicacoes'
     | '/eventos'
     | '/gestoes'
     | '/irmaos'
@@ -704,6 +728,7 @@ export interface FileRouteTypes {
     | '/_authenticated/irmaos/$id'
     | '/_authenticated/irmaos/novo'
     | '/_authenticated/orgs/potencias'
+    | '/_authenticated/painel/comunicacoes'
     | '/_authenticated/painel/dados'
     | '/_authenticated/painel/eventos'
     | '/_authenticated/painel/financeiro'
@@ -726,6 +751,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/recibos'
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/tronco'
+    | '/_authenticated/comunicacoes/'
     | '/_authenticated/eventos/'
     | '/_authenticated/gestoes/'
     | '/_authenticated/irmaos/'
@@ -815,6 +841,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/resetar-financeiro'
       fullPath: '/administracao/resetar-financeiro'
       preLoaderRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/comunicacoes/': {
+      id: '/_authenticated/comunicacoes/'
+      path: '/comunicacoes'
+      fullPath: '/comunicacoes/'
+      preLoaderRoute: typeof AuthenticatedComunicacoesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contabilidade/auditoria': {
@@ -955,6 +988,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/painel/'
       preLoaderRoute: typeof AuthenticatedPainelIndexRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/comunicacoes': {
+      id: '/_authenticated/painel/comunicacoes'
+      path: '/comunicacoes'
+      fullPath: '/painel/comunicacoes'
+      preLoaderRoute: typeof AuthenticatedPainelComunicacoesRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
     '/_authenticated/painel/dados': {
@@ -1143,6 +1183,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedPainelRouteRouteChildren {
+  AuthenticatedPainelComunicacoesRoute: typeof AuthenticatedPainelComunicacoesRoute
   AuthenticatedPainelDadosRoute: typeof AuthenticatedPainelDadosRoute
   AuthenticatedPainelEventosRoute: typeof AuthenticatedPainelEventosRoute
   AuthenticatedPainelFinanceiroRoute: typeof AuthenticatedPainelFinanceiroRoute
@@ -1154,6 +1195,7 @@ interface AuthenticatedPainelRouteRouteChildren {
 
 const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildren =
   {
+    AuthenticatedPainelComunicacoesRoute: AuthenticatedPainelComunicacoesRoute,
     AuthenticatedPainelDadosRoute: AuthenticatedPainelDadosRoute,
     AuthenticatedPainelEventosRoute: AuthenticatedPainelEventosRoute,
     AuthenticatedPainelFinanceiroRoute: AuthenticatedPainelFinanceiroRoute,
@@ -1205,6 +1247,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
+  AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
   AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
@@ -1271,6 +1314,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaRecorrentesRoute:
     AuthenticatedTesourariaRecorrentesRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
+  AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
   AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
