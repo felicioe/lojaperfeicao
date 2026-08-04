@@ -9,6 +9,7 @@ import {
   criarAcessosEmLote,
   atualizarPapeisUsuario,
   redefinirSenhaUsuario,
+  alternarAtivoUsuario,
   TODOS_PAPEIS,
   type UsuarioAdmin,
 } from "@/lib/backend/usuarios";
@@ -49,7 +50,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { ROLE_LABEL } from "@/lib/format";
-import { ShieldAlert, KeyRound, UserPlus, ShieldCheck } from "lucide-react";
+import { ShieldAlert, KeyRound, UserPlus, ShieldCheck, UserX, UserCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/usuarios/")({
   beforeLoad: ({ context }) => {
@@ -196,13 +197,14 @@ function UsuariosPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Papéis</TableHead>
                 <TableHead>Irmão vinculado</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(usuarios.data ?? []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                     Nenhum usuário encontrado.
                   </TableCell>
                 </TableRow>
@@ -265,6 +267,19 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
     }
   };
 
+  const alternarAtivo = async (ativo: boolean) => {
+    setSalvando(true);
+    try {
+      await alternarAtivoUsuario({ data: { usuarioId: usuario.id, ativo } });
+      toast.success(ativo ? "Usuário reativado." : "Usuário inativado.");
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar status.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   return (
     <TableRow>
       <TableCell className="font-medium">{usuario.email}</TableCell>
@@ -279,6 +294,11 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">{usuario.irmao?.nome_civil ?? "—"}</TableCell>
+      <TableCell>
+        <Badge variant={usuario.ativo ? "secondary" : "outline"}>
+          {usuario.ativo ? "Ativo" : "Inativo"}
+        </Badge>
+      </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <Button size="sm" variant="ghost" onClick={abrirPapeis} title="Editar papéis">
@@ -292,6 +312,41 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
           >
             <KeyRound className="h-4 w-4" />
           </Button>
+          {usuario.ativo ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" title="Inativar usuário" disabled={salvando}>
+                  <UserX className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Inativar {usuario.email}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    A pessoa não vai mais conseguir entrar no sistema (e qualquer sessão já aberta é
+                    encerrada). O cadastro e o histórico continuam intactos — dá para reativar a
+                    qualquer momento.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => alternarAtivo(false)}>
+                    Inativar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => alternarAtivo(true)}
+              title="Reativar usuário"
+              disabled={salvando}
+            >
+              <UserCheck className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         <Dialog open={papeisOpen} onOpenChange={setPapeisOpen}>

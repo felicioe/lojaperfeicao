@@ -47,6 +47,7 @@ export type UsuarioAdmin = {
   nome_completo: string | null;
   papeis: Papel[];
   irmao: { id: string; nome_civil: string } | null;
+  ativo: boolean;
 };
 
 // Só admin — tela de gestão de usuários (evita precisar mexer direto no banco).
@@ -54,13 +55,13 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(
   async (): Promise<UsuarioAdmin[]> => {
     return comPapel(["admin"], async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT u.id, u.email, u.nome_completo,
+        `SELECT u.id, u.email, u.nome_completo, u.ativo,
               GROUP_CONCAT(DISTINCT up.papel) AS papeis,
               i.id AS irmao_id, i.nome_civil AS irmao_nome
        FROM usuarios u
        LEFT JOIN usuarios_papeis up ON up.usuario_id = u.id
        LEFT JOIN irmaos i ON i.usuario_id = u.id
-       GROUP BY u.id, u.email, u.nome_completo, i.id, i.nome_civil
+       GROUP BY u.id, u.email, u.nome_completo, u.ativo, i.id, i.nome_civil
        ORDER BY u.email`,
       );
       return rows.map((r) => ({
@@ -69,6 +70,7 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(
         nome_completo: r.nome_completo,
         papeis: (r.papeis ? String(r.papeis).split(",") : []) as Papel[],
         irmao: r.irmao_id ? { id: r.irmao_id, nome_civil: r.irmao_nome } : null,
+        ativo: !!r.ativo,
       }));
     });
   },
@@ -187,6 +189,25 @@ export const atualizarPapeisUsuario = createServerFn({ method: "POST" })
           papel,
         ]);
       }
+    });
+  });
+
+const alternarAtivoSchema = z.object({
+  usuarioId: z.string().uuid(),
+  ativo: z.boolean(),
+});
+
+// Desabilita/reabilita um login sem excluir o usuário (mantém vínculo com
+// irmão e o histórico de criado_por em lançamentos). O login.tsx bloqueia
+// na hora de autenticar, e getSessao() derruba qualquer sessão já aberta.
+export const alternarAtivoUsuario = createServerFn({ method: "POST" })
+  .validator((d: unknown) => alternarAtivoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
+      if (data.usuarioId === usuarioIdAtual && !data.ativo) {
+        throw new Error("Você não pode inativar seu próprio usuário.");
+      }
+      await conn.query("UPDATE usuarios SET ativo = ? WHERE id = ?", [data.ativo, data.usuarioId]);
     });
   });
 
