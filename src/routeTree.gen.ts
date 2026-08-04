@@ -28,6 +28,7 @@ import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './rout
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
+import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
 import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
 import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
@@ -37,6 +38,7 @@ import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel/index'
 import { Route as AuthenticatedPainelDadosRouteImport } from './routes/_authenticated/painel/dados'
+import { Route as AuthenticatedPainelEventosRouteImport } from './routes/_authenticated/painel/eventos'
 import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_authenticated/painel/financeiro'
 import { Route as AuthenticatedPainelFrequenciaRouteImport } from './routes/_authenticated/painel/frequencia'
 import { Route as AuthenticatedPainelQuitacaoRouteImport } from './routes/_authenticated/painel/quitacao'
@@ -169,6 +171,12 @@ const AuthenticatedContabilidadeRazaoRoute =
     path: '/contabilidade/razao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEventosIndexRoute =
+  AuthenticatedEventosIndexRouteImport.update({
+    id: '/eventos/',
+    path: '/eventos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedGestoesIndexRoute =
   AuthenticatedGestoesIndexRouteImport.update({
     id: '/gestoes/',
@@ -218,6 +226,12 @@ const AuthenticatedPainelDadosRoute =
   AuthenticatedPainelDadosRouteImport.update({
     id: '/dados',
     path: '/dados',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelEventosRoute =
+  AuthenticatedPainelEventosRouteImport.update({
+    id: '/eventos',
+    path: '/eventos',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
 const AuthenticatedPainelFinanceiroRoute =
@@ -387,6 +401,7 @@ export interface FileRoutesByFullPath {
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
+  '/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
@@ -407,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/eventos/': typeof AuthenticatedEventosIndexRoute
   '/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
@@ -439,6 +455,7 @@ export interface FileRoutesByTo {
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
+  '/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
@@ -459,6 +476,7 @@ export interface FileRoutesByTo {
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/eventos': typeof AuthenticatedEventosIndexRoute
   '/gestoes': typeof AuthenticatedGestoesIndexRoute
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
@@ -494,6 +512,7 @@ export interface FileRoutesById {
   '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
   '/_authenticated/painel/dados': typeof AuthenticatedPainelDadosRoute
+  '/_authenticated/painel/eventos': typeof AuthenticatedPainelEventosRoute
   '/_authenticated/painel/financeiro': typeof AuthenticatedPainelFinanceiroRoute
   '/_authenticated/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/_authenticated/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
@@ -514,6 +533,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
   '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
@@ -549,6 +569,7 @@ export interface FileRouteTypes {
     | '/irmaos/novo'
     | '/orgs/potencias'
     | '/painel/dados'
+    | '/painel/eventos'
     | '/painel/financeiro'
     | '/painel/frequencia'
     | '/painel/quitacao'
@@ -569,6 +590,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
     | '/tesouraria/tronco'
+    | '/eventos/'
     | '/gestoes/'
     | '/irmaos/'
     | '/orgs/'
@@ -601,6 +623,7 @@ export interface FileRouteTypes {
     | '/irmaos/novo'
     | '/orgs/potencias'
     | '/painel/dados'
+    | '/painel/eventos'
     | '/painel/financeiro'
     | '/painel/frequencia'
     | '/painel/quitacao'
@@ -621,6 +644,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
     | '/tesouraria/tronco'
+    | '/eventos'
     | '/gestoes'
     | '/irmaos'
     | '/orgs'
@@ -655,6 +679,7 @@ export interface FileRouteTypes {
     | '/_authenticated/irmaos/novo'
     | '/_authenticated/orgs/potencias'
     | '/_authenticated/painel/dados'
+    | '/_authenticated/painel/eventos'
     | '/_authenticated/painel/financeiro'
     | '/_authenticated/painel/frequencia'
     | '/_authenticated/painel/quitacao'
@@ -675,6 +700,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/recibos'
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/tronco'
+    | '/_authenticated/eventos/'
     | '/_authenticated/gestoes/'
     | '/_authenticated/irmaos/'
     | '/_authenticated/orgs/'
@@ -828,6 +854,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/eventos/': {
+      id: '/_authenticated/eventos/'
+      path: '/eventos'
+      fullPath: '/eventos/'
+      preLoaderRoute: typeof AuthenticatedEventosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/gestoes/': {
       id: '/_authenticated/gestoes/'
       path: '/gestoes'
@@ -889,6 +922,13 @@ declare module '@tanstack/react-router' {
       path: '/dados'
       fullPath: '/painel/dados'
       preLoaderRoute: typeof AuthenticatedPainelDadosRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/eventos': {
+      id: '/_authenticated/painel/eventos'
+      path: '/eventos'
+      fullPath: '/painel/eventos'
+      preLoaderRoute: typeof AuthenticatedPainelEventosRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
     '/_authenticated/painel/financeiro': {
@@ -1064,6 +1104,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedPainelRouteRouteChildren {
   AuthenticatedPainelDadosRoute: typeof AuthenticatedPainelDadosRoute
+  AuthenticatedPainelEventosRoute: typeof AuthenticatedPainelEventosRoute
   AuthenticatedPainelFinanceiroRoute: typeof AuthenticatedPainelFinanceiroRoute
   AuthenticatedPainelFrequenciaRoute: typeof AuthenticatedPainelFrequenciaRoute
   AuthenticatedPainelQuitacaoRoute: typeof AuthenticatedPainelQuitacaoRoute
@@ -1074,6 +1115,7 @@ interface AuthenticatedPainelRouteRouteChildren {
 const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildren =
   {
     AuthenticatedPainelDadosRoute: AuthenticatedPainelDadosRoute,
+    AuthenticatedPainelEventosRoute: AuthenticatedPainelEventosRoute,
     AuthenticatedPainelFinanceiroRoute: AuthenticatedPainelFinanceiroRoute,
     AuthenticatedPainelFrequenciaRoute: AuthenticatedPainelFrequenciaRoute,
     AuthenticatedPainelQuitacaoRoute: AuthenticatedPainelQuitacaoRoute,
@@ -1121,6 +1163,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
+  AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
   AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
@@ -1183,6 +1226,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaRecorrentesRoute:
     AuthenticatedTesourariaRecorrentesRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
+  AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
   AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
   AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,

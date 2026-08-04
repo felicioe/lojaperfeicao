@@ -50,6 +50,7 @@ import {
   CalendarCheck2,
   BadgeDollarSign,
   Coins,
+  PartyPopper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
@@ -270,6 +271,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/painel/financeiro", label: "Financeiro", icon: Wallet, show: true },
         { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2, show: true },
         { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays, show: true },
+        { to: "/painel/eventos", label: "Eventos", icon: PartyPopper, show: true },
       ],
     },
   ];
@@ -290,6 +292,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageFinancas,
         },
         { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
+        { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
       ],
     },
     {

@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Moon,
   Sun,
+  PartyPopper,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { useTheme } from "@/lib/use-theme";
@@ -27,6 +28,7 @@ const TITULOS: Record<string, string> = {
   "/painel/financeiro": "Financeiro",
   "/painel/frequencia": "Frequência",
   "/painel/sessoes": "Sessões",
+  "/painel/eventos": "Eventos",
 };
 
 const ABAS = [
@@ -34,6 +36,7 @@ const ABAS = [
   { to: "/painel/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2 },
   { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays },
+  { to: "/painel/eventos", label: "Eventos", icon: PartyPopper },
 ] as const;
 
 function iniciais(nome: string | null | undefined) {
