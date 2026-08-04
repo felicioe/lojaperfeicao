@@ -316,7 +316,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         },
         {
           to: "/ensino/importar-pdf-sessoes",
-          label: "Importar Cronograma (PDF)",
+          label: "Cronograma (PDF)",
           icon: FileUp,
           show: can.canManageIrmaos,
         },
