@@ -90,9 +90,16 @@ function Conciliacao() {
       const resultado = await importarOfx({
         data: { contaFinanceiraId: contaId, arquivoBase64: base64 },
       });
-      toast.success(
-        `${resultado.novos} nova(s) linha(s), ${resultado.jaImportados} já importada(s) anteriormente.`,
-      );
+      if (resultado.erros.length > 0) {
+        toast.error(
+          `${resultado.erros.length} de ${resultado.total} linha(s) do extrato não puderam ser lidas — ${resultado.erros[0]}${resultado.erros.length > 1 ? ` (e mais ${resultado.erros.length - 1})` : ""}`,
+        );
+      }
+      if (resultado.novos > 0 || resultado.jaImportados > 0) {
+        toast.success(
+          `${resultado.novos} nova(s) linha(s), ${resultado.jaImportados} já importada(s) anteriormente.`,
+        );
+      }
       if (fileRef.current) fileRef.current.value = "";
       invalidate();
     } catch (err) {
