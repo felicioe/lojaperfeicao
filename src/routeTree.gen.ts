@@ -28,6 +28,8 @@ import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './rout
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
+import { Route as AuthenticatedEnsinoImportarCalendarioRouteImport } from './routes/_authenticated/ensino/importar-calendario'
+import { Route as AuthenticatedEnsinoPlanosRouteImport } from './routes/_authenticated/ensino/planos'
 import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
 import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
@@ -169,6 +171,18 @@ const AuthenticatedContabilidadeRazaoRoute =
   AuthenticatedContabilidadeRazaoRouteImport.update({
     id: '/contabilidade/razao',
     path: '/contabilidade/razao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEnsinoImportarCalendarioRoute =
+  AuthenticatedEnsinoImportarCalendarioRouteImport.update({
+    id: '/ensino/importar-calendario',
+    path: '/ensino/importar-calendario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEnsinoPlanosRoute =
+  AuthenticatedEnsinoPlanosRouteImport.update({
+    id: '/ensino/planos',
+    path: '/ensino/planos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEventosIndexRoute =
@@ -396,6 +410,8 @@ export interface FileRoutesByFullPath {
   '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
@@ -450,6 +466,8 @@ export interface FileRoutesByTo {
   '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
@@ -507,6 +525,8 @@ export interface FileRoutesById {
   '/_authenticated/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/_authenticated/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
+  '/_authenticated/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/_authenticated/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/_authenticated/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
@@ -564,6 +584,8 @@ export interface FileRouteTypes {
     | '/contabilidade/fluxo-caixa'
     | '/contabilidade/orcamento'
     | '/contabilidade/razao'
+    | '/ensino/importar-calendario'
+    | '/ensino/planos'
     | '/gestoes/cargos'
     | '/irmaos/$id'
     | '/irmaos/novo'
@@ -618,6 +640,8 @@ export interface FileRouteTypes {
     | '/contabilidade/fluxo-caixa'
     | '/contabilidade/orcamento'
     | '/contabilidade/razao'
+    | '/ensino/importar-calendario'
+    | '/ensino/planos'
     | '/gestoes/cargos'
     | '/irmaos/$id'
     | '/irmaos/novo'
@@ -674,6 +698,8 @@ export interface FileRouteTypes {
     | '/_authenticated/contabilidade/fluxo-caixa'
     | '/_authenticated/contabilidade/orcamento'
     | '/_authenticated/contabilidade/razao'
+    | '/_authenticated/ensino/importar-calendario'
+    | '/_authenticated/ensino/planos'
     | '/_authenticated/gestoes/cargos'
     | '/_authenticated/irmaos/$id'
     | '/_authenticated/irmaos/novo'
@@ -852,6 +878,20 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/razao'
       fullPath: '/contabilidade/razao'
       preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ensino/importar-calendario': {
+      id: '/_authenticated/ensino/importar-calendario'
+      path: '/ensino/importar-calendario'
+      fullPath: '/ensino/importar-calendario'
+      preLoaderRoute: typeof AuthenticatedEnsinoImportarCalendarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ensino/planos': {
+      id: '/_authenticated/ensino/planos'
+      path: '/ensino/planos'
+      fullPath: '/ensino/planos'
+      preLoaderRoute: typeof AuthenticatedEnsinoPlanosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/eventos/': {
@@ -1143,6 +1183,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContabilidadeFluxoCaixaRoute: typeof AuthenticatedContabilidadeFluxoCaixaRoute
   AuthenticatedContabilidadeOrcamentoRoute: typeof AuthenticatedContabilidadeOrcamentoRoute
   AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
+  AuthenticatedEnsinoImportarCalendarioRoute: typeof AuthenticatedEnsinoImportarCalendarioRoute
+  AuthenticatedEnsinoPlanosRoute: typeof AuthenticatedEnsinoPlanosRoute
   AuthenticatedGestoesCargosRoute: typeof AuthenticatedGestoesCargosRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
   AuthenticatedIrmaosNovoRoute: typeof AuthenticatedIrmaosNovoRoute
@@ -1197,6 +1239,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContabilidadeOrcamentoRoute:
     AuthenticatedContabilidadeOrcamentoRoute,
   AuthenticatedContabilidadeRazaoRoute: AuthenticatedContabilidadeRazaoRoute,
+  AuthenticatedEnsinoImportarCalendarioRoute:
+    AuthenticatedEnsinoImportarCalendarioRoute,
+  AuthenticatedEnsinoPlanosRoute: AuthenticatedEnsinoPlanosRoute,
   AuthenticatedGestoesCargosRoute: AuthenticatedGestoesCargosRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
   AuthenticatedIrmaosNovoRoute: AuthenticatedIrmaosNovoRoute,
