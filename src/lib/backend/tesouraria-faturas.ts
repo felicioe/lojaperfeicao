@@ -120,19 +120,6 @@ const faturaAvulsaSchema = z.object({
   rateio: rateioSchema,
 });
 
-// Equivalente ao menu do sistema legado que limpava as faturas pendentes.
-// Só atinge faturas em aberto (mesmo critério de listarFaturasAbertas) — a
-// provisão contábil correspondente é removida junto; nada mais é tocado.
-export const zerarFaturasAbertas = createServerFn({ method: "POST" }).handler(
-  async (): Promise<{ total: number }> => {
-    return comPapel(PAPEIS, async (conn) => {
-      await conn.query("CALL zerar_faturas_abertas(@total)");
-      const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT @total AS total");
-      return { total };
-    });
-  },
-);
-
 export const criarFaturaAvulsa = createServerFn({ method: "POST" })
   .validator((d: unknown) => faturaAvulsaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
