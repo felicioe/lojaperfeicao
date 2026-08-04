@@ -66,6 +66,7 @@ import { Route as AuthenticatedTesourariaParcelamentosRouteImport } from './rout
 import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
 import { Route as AuthenticatedTesourariaRecibosRouteImport } from './routes/_authenticated/tesouraria/recibos'
 import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes/_authenticated/tesouraria/recorrentes'
+import { Route as AuthenticatedTesourariaTabelaValoresRouteImport } from './routes/_authenticated/tesouraria/tabela-valores'
 import { Route as AuthenticatedTesourariaTroncoRouteImport } from './routes/_authenticated/tesouraria/tronco'
 import { Route as AuthenticatedUsuariosIndexRouteImport } from './routes/_authenticated/usuarios/index'
 
@@ -399,6 +400,12 @@ const AuthenticatedTesourariaRecorrentesRoute =
     path: '/tesouraria/recorrentes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTesourariaTabelaValoresRoute =
+  AuthenticatedTesourariaTabelaValoresRouteImport.update({
+    id: '/tesouraria/tabela-valores',
+    path: '/tesouraria/tabela-valores',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTesourariaTroncoRoute =
   AuthenticatedTesourariaTroncoRouteImport.update({
     id: '/tesouraria/tronco',
@@ -460,6 +467,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -519,6 +527,7 @@ export interface FileRoutesByTo {
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
@@ -581,6 +590,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -643,6 +653,7 @@ export interface FileRouteTypes {
     | '/tesouraria/plano-contas'
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
+    | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
     | '/comunicacoes/'
     | '/eventos/'
@@ -702,6 +713,7 @@ export interface FileRouteTypes {
     | '/tesouraria/plano-contas'
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
+    | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
     | '/comunicacoes'
     | '/eventos'
@@ -763,6 +775,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/plano-contas'
     | '/_authenticated/tesouraria/recibos'
     | '/_authenticated/tesouraria/recorrentes'
+    | '/_authenticated/tesouraria/tabela-valores'
     | '/_authenticated/tesouraria/tronco'
     | '/_authenticated/comunicacoes/'
     | '/_authenticated/eventos/'
@@ -1185,6 +1198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaRecorrentesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tesouraria/tabela-valores': {
+      id: '/_authenticated/tesouraria/tabela-valores'
+      path: '/tesouraria/tabela-valores'
+      fullPath: '/tesouraria/tabela-valores'
+      preLoaderRoute: typeof AuthenticatedTesourariaTabelaValoresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tesouraria/tronco': {
       id: '/_authenticated/tesouraria/tronco'
       path: '/tesouraria/tronco'
@@ -1267,6 +1287,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaPlanoContasRoute: typeof AuthenticatedTesourariaPlanoContasRoute
   AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
+  AuthenticatedTesourariaTabelaValoresRoute: typeof AuthenticatedTesourariaTabelaValoresRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
@@ -1336,6 +1357,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaRecibosRoute: AuthenticatedTesourariaRecibosRoute,
   AuthenticatedTesourariaRecorrentesRoute:
     AuthenticatedTesourariaRecorrentesRoute,
+  AuthenticatedTesourariaTabelaValoresRoute:
+    AuthenticatedTesourariaTabelaValoresRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,

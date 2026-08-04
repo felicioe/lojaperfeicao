@@ -384,6 +384,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Settings2,
           show: can.canManageFinancas,
         },
+        {
+          to: "/tesouraria/tabela-valores",
+          label: "Tabela de Valores",
+          icon: TrendingUp,
+          show: can.canManageFinancas,
+        },
       ],
     },
     {
