@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
+import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
@@ -90,6 +91,12 @@ const AuthenticatedPainelRouteRoute =
   AuthenticatedPainelRouteRouteImport.update({
     id: '/painel',
     path: '/painel',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdministracaoAuditoriaRoute =
+  AuthenticatedAdministracaoAuditoriaRouteImport.update({
+    id: '/administracao/auditoria',
+    path: '/administracao/auditoria',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdministracaoResetarFinanceiroRoute =
@@ -336,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/privacidade': typeof PrivacidadeRoute
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -383,6 +391,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -433,6 +442,7 @@ export interface FileRoutesById {
   '/privacidade': typeof PrivacidadeRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/_authenticated/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
@@ -483,6 +493,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/painel'
     | '/dashboard'
+    | '/administracao/auditoria'
     | '/administracao/resetar-financeiro'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
@@ -530,6 +541,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/privacidade'
     | '/dashboard'
+    | '/administracao/auditoria'
     | '/administracao/resetar-financeiro'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
@@ -579,6 +591,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
+    | '/_authenticated/administracao/auditoria'
     | '/_authenticated/administracao/resetar-financeiro'
     | '/_authenticated/contabilidade/auditoria'
     | '/_authenticated/contabilidade/balancete'
@@ -678,6 +691,13 @@ declare module '@tanstack/react-router' {
       path: '/painel'
       fullPath: '/painel'
       preLoaderRoute: typeof AuthenticatedPainelRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/administracao/auditoria': {
+      id: '/_authenticated/administracao/auditoria'
+      path: '/administracao/auditoria'
+      fullPath: '/administracao/auditoria'
+      preLoaderRoute: typeof AuthenticatedAdministracaoAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/administracao/resetar-financeiro': {
@@ -988,6 +1008,7 @@ const AuthenticatedPainelRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedPainelRouteRoute: typeof AuthenticatedPainelRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedAdministracaoAuditoriaRoute: typeof AuthenticatedAdministracaoAuditoriaRoute
   AuthenticatedAdministracaoResetarFinanceiroRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
   AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
@@ -1028,6 +1049,8 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPainelRouteRoute: AuthenticatedPainelRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedAdministracaoAuditoriaRoute:
+    AuthenticatedAdministracaoAuditoriaRoute,
   AuthenticatedAdministracaoResetarFinanceiroRoute:
     AuthenticatedAdministracaoResetarFinanceiroRoute,
   AuthenticatedContabilidadeAuditoriaRoute:

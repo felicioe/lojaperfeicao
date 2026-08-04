@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel, SemPermissaoError } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original (mysql/migrations/0002_cadastros.sql):
 // - irmaos: SELECT admin/secretario/tesoureiro (tudo) OU o próprio (usuario_id = current);
@@ -228,8 +229,20 @@ export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
 export const excluirIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(["admin"], async (conn) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
+      const [[irmao]] = await conn.query<RowDataPacket[]>(
+        "SELECT nome_civil, cim FROM irmaos WHERE id = ?",
+        [data.id],
+      );
       await conn.query("DELETE FROM irmaos WHERE id = ?", [data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "excluir_irmao",
+        "irmao",
+        data.id,
+        irmao ?? null,
+      );
     });
   });
 

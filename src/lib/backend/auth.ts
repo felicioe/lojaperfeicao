@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 import { withUserConnection } from "./db";
 import { comSessao } from "./authz";
 import { criarSessao, encerrarSessao, usuarioIdDaSessao } from "./session";
+import { registrarAuditoria } from "./auditoria";
 
 export type Papel = "admin" | "tesoureiro" | "secretario" | "irmao";
 
@@ -82,6 +83,9 @@ export const login = createServerFn({ method: "POST" })
     await criarSessao(usuario.id);
     const sessao = await carregarUsuarioComPapeis(usuario.id);
     if (!sessao) throw new Error("E-mail ou senha inválidos.");
+    await withUserConnection(usuario.id, (conn) =>
+      registrarAuditoria(conn, usuario.id, "login", "usuario", usuario.id),
+    );
     return sessao;
   });
 
@@ -115,7 +119,13 @@ export const signup = createServerFn({ method: "POST" })
   });
 
 export const logout = createServerFn({ method: "POST" }).handler(async () => {
+  const usuarioId = await usuarioIdDaSessao();
   await encerrarSessao();
+  if (usuarioId) {
+    await withUserConnection(usuarioId, (conn) =>
+      registrarAuditoria(conn, usuarioId, "logout", "usuario", usuarioId),
+    );
+  }
 });
 
 export const getSessao = createServerFn({ method: "GET" }).handler(
