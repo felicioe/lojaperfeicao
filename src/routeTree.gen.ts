@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AceiteTermosRouteImport } from './routes/aceite-termos'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
@@ -92,6 +93,11 @@ const AuthRoute = AuthRouteImport.update({
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrocarSenhaRoute = TrocarSenhaRouteImport.update({
+  id: '/trocar-senha',
+  path: '/trocar-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -424,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
@@ -485,6 +492,7 @@ export interface FileRoutesByTo {
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
@@ -547,6 +555,7 @@ export interface FileRoutesById {
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
@@ -610,6 +619,7 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/auth'
     | '/privacidade'
+    | '/trocar-senha'
     | '/painel'
     | '/dashboard'
     | '/administracao/auditoria'
@@ -671,6 +681,7 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/auth'
     | '/privacidade'
+    | '/trocar-senha'
     | '/dashboard'
     | '/administracao/auditoria'
     | '/administracao/exportar-dados'
@@ -732,6 +743,7 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/auth'
     | '/privacidade'
+    | '/trocar-senha'
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
     | '/_authenticated/administracao/auditoria'
@@ -795,6 +807,7 @@ export interface RootRouteChildren {
   AceiteTermosRoute: typeof AceiteTermosRoute
   AuthRoute: typeof AuthRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
+  TrocarSenhaRoute: typeof TrocarSenhaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -832,6 +845,13 @@ declare module '@tanstack/react-router' {
       path: '/privacidade'
       fullPath: '/privacidade'
       preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trocar-senha': {
+      id: '/trocar-senha'
+      path: '/trocar-senha'
+      fullPath: '/trocar-senha'
+      preLoaderRoute: typeof TrocarSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -1380,6 +1400,7 @@ const rootRouteChildren: RootRouteChildren = {
   AceiteTermosRoute: AceiteTermosRoute,
   AuthRoute: AuthRoute,
   PrivacidadeRoute: PrivacidadeRoute,
+  TrocarSenhaRoute: TrocarSenhaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

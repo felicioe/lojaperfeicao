@@ -49,6 +49,7 @@ export type UsuarioAdmin = {
   papeis: Papel[];
   irmao: { id: string; nome_civil: string } | null;
   ativo: boolean;
+  deve_trocar_senha: boolean;
 };
 
 // Só admin — tela de gestão de usuários (evita precisar mexer direto no banco).
@@ -56,13 +57,13 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(
   async (): Promise<UsuarioAdmin[]> => {
     return comPapel(["admin"], async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT u.id, u.email, u.nome_completo, u.ativo,
+        `SELECT u.id, u.email, u.nome_completo, u.ativo, u.deve_trocar_senha,
               GROUP_CONCAT(DISTINCT up.papel) AS papeis,
               i.id AS irmao_id, i.nome_civil AS irmao_nome
        FROM usuarios u
        LEFT JOIN usuarios_papeis up ON up.usuario_id = u.id
        LEFT JOIN irmaos i ON i.usuario_id = u.id
-       GROUP BY u.id, u.email, u.nome_completo, u.ativo, i.id, i.nome_civil
+       GROUP BY u.id, u.email, u.nome_completo, u.ativo, u.deve_trocar_senha, i.id, i.nome_civil
        ORDER BY u.email`,
       );
       return rows.map((r) => ({
@@ -72,6 +73,7 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(
         papeis: (r.papeis ? String(r.papeis).split(",") : []) as Papel[],
         irmao: r.irmao_id ? { id: r.irmao_id, nome_civil: r.irmao_nome } : null,
         ativo: !!r.ativo,
+        deve_trocar_senha: !!r.deve_trocar_senha,
       }));
     });
   },
@@ -104,8 +106,17 @@ export const listarIrmaosSemAcesso = createServerFn({ method: "GET" }).handler(
 // e a senha padrão (decisão explícita do cliente — ver histórico da
 // conversa: login por nome em vez de e-mail, "123" fixo por enquanto,
 // fase de testes — trocar para algo mais rígido depois).
+const criarAcessoSchema = z.object({
+  irmaoId: z.string().uuid(),
+  // true (padrão) = senha "123" é temporária, barrada em /trocar-senha no
+  // primeiro login. false = "fixar" — a pessoa fica com "123" até o admin
+  // redefinir de novo (não recomendado, mas admin pode preferir em casos
+  // pontuais).
+  obrigarTrocaSenha: z.boolean().default(true),
+});
+
 export const criarAcessoIrmao = createServerFn({ method: "POST" })
-  .validator((d: unknown) => z.object({ irmaoId: z.string().uuid() }).parse(d))
+  .validator((d: unknown) => criarAcessoSchema.parse(d))
   .handler(async ({ data }): Promise<{ usuarioId: string; login: string }> => {
     return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const [[irmao]] = await conn.query<RowDataPacket[]>(
@@ -128,9 +139,13 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
       }
       const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
       await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, data.irmaoId]);
+      if (data.obrigarTrocaSenha) {
+        await conn.query("UPDATE usuarios SET deve_trocar_senha = TRUE WHERE id = ?", [novo_id]);
+      }
       await registrarAuditoria(conn, usuarioIdAtual, "criar_acesso", "usuario", novo_id, null, {
         login,
         nome_civil: irmao.nome_civil,
+        obrigar_troca_senha: data.obrigarTrocaSenha,
       });
       return { usuarioId: novo_id as string, login };
     });
@@ -143,8 +158,11 @@ export type RelatorioAcessosLote = {
 
 // Mesma lógica de criarAcessoIrmao, em lote, para todo irmão ainda sem
 // usuario_id — é a ação que substitui ter que rodar SQL manual no phpMyAdmin.
-export const criarAcessosEmLote = createServerFn({ method: "POST" }).handler(
-  async (): Promise<RelatorioAcessosLote> => {
+export const criarAcessosEmLote = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z.object({ obrigarTrocaSenha: z.boolean().default(true) }).parse(d ?? {}),
+  )
+  .handler(async ({ data }): Promise<RelatorioAcessosLote> => {
     return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const [irmaos] = await conn.query<RowDataPacket[]>(
         "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL ORDER BY nome_civil",
@@ -163,9 +181,15 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" }).handler(
           ]);
           const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
           await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, irmao.id]);
+          if (data.obrigarTrocaSenha) {
+            await conn.query("UPDATE usuarios SET deve_trocar_senha = TRUE WHERE id = ?", [
+              novo_id,
+            ]);
+          }
           await registrarAuditoria(conn, usuarioIdAtual, "criar_acesso", "usuario", novo_id, null, {
             login,
             nome_civil: irmao.nome_civil,
+            obrigar_troca_senha: data.obrigarTrocaSenha,
           });
           criados.push({ nome: irmao.nome_civil, login });
         } catch (err: any) {
@@ -174,8 +198,7 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" }).handler(
       }
       return { criados, falhas };
     });
-  },
-);
+  });
 
 const TODOS_PAPEIS: Papel[] = ["admin", "tesoureiro", "secretario", "irmao"];
 
@@ -247,6 +270,9 @@ export { TODOS_PAPEIS };
 const redefinirSenhaSchema = z.object({
   usuarioId: z.string().uuid(),
   novaSenha: z.string().min(3),
+  // true = "obrigar troca no primeiro acesso" (senha vira temporária,
+  // barrada em /trocar-senha). false = "fixar" (senha permanente).
+  obrigarTrocaSenha: z.boolean(),
 });
 
 export const redefinirSenhaUsuario = createServerFn({ method: "POST" })
@@ -254,8 +280,20 @@ export const redefinirSenhaUsuario = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const hash = await bcrypt.hash(data.novaSenha, 10);
-      await conn.query("UPDATE usuarios SET senha_hash = ? WHERE id = ?", [hash, data.usuarioId]);
+      await conn.query("UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = ? WHERE id = ?", [
+        hash,
+        data.obrigarTrocaSenha,
+        data.usuarioId,
+      ]);
       // nunca loga a senha em si, só o fato de ter sido redefinida.
-      await registrarAuditoria(conn, usuarioIdAtual, "redefinir_senha", "usuario", data.usuarioId);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "redefinir_senha",
+        "usuario",
+        data.usuarioId,
+        null,
+        { obrigar_troca_senha: data.obrigarTrocaSenha },
+      );
     });
   });

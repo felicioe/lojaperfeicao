@@ -7,6 +7,10 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
     const usuario = await getSessao();
     if (!usuario) throw redirect({ to: "/auth" });
+    // Senha temporária (admin marcou "obrigar troca no primeiro acesso") —
+    // barra o acesso ao resto do sistema até a pessoa definir uma senha
+    // própria.
+    if (usuario.deveTrocarSenha) throw redirect({ to: "/trocar-senha" });
     // LGPD: contas criadas pelo admin (ou já existentes antes desta
     // migration) ainda não aceitaram a Política de Privacidade — barra o
     // acesso ao resto do sistema até aceitar.
