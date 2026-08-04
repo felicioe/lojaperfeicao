@@ -3,9 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   obterSessao,
   listarPresencas,
+  listarMembrosOrg,
   togglePresenca as togglePresencaFn,
 } from "@/lib/backend/sessoes";
-import { listarIrmaos } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,14 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { GRAU_LABEL, TIPO_SESSAO_LABEL, fmtDate } from "@/lib/format";
+import { TIPO_SESSAO_LABEL, fmtDate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { toast } from "sonner";
-
-// Mesma ordem maçônica aplicada no servidor (togglePresenca, em
-// src/lib/backend/sessoes.ts): quem tem grau maior pode assistir sessão
-// de grau menor, nunca o contrário.
-const GRAU_RANK: Record<string, number> = { aprendiz: 1, companheiro: 2, mestre: 3 };
 
 export const Route = createFileRoute("/_authenticated/sessoes/$id")({
   head: () => ({ meta: [{ title: "Frequência da Sessão — Gestão Maçônica" }] }),
@@ -40,15 +35,12 @@ function SessaoDetail() {
     queryKey: ["sessao", id],
     queryFn: () => obterSessao({ data: { id } }),
   });
+  const s = sessao.data;
 
-  const irmaos = useQuery({
-    queryKey: ["irmaos-ativos"],
-    queryFn: async () => {
-      const todos = await listarIrmaos();
-      return todos
-        .filter((i) => i.situacao !== "adormecido")
-        .sort((a, b) => a.nome_civil.localeCompare(b.nome_civil));
-    },
+  const membros = useQuery({
+    queryKey: ["membros_org", s?.org_id],
+    queryFn: () => listarMembrosOrg({ data: { orgId: s!.org_id! } }),
+    enabled: !!s?.org_id,
   });
 
   const presencas = useQuery({
@@ -68,50 +60,66 @@ function SessaoDetail() {
     }
   };
 
-  const s = sessao.data;
-  const elegiveis = (irmaos.data ?? []).filter(
-    (i: any) => !s || GRAU_RANK[i.grau] >= GRAU_RANK[s.grau],
-  );
+  const elegiveis = (membros.data ?? []).filter((m) => !s || (m.grau_atual ?? 0) >= s.grau);
+
   return (
     <>
       <PageHeader
         title={s ? `Sessão de ${fmtDate(s.data)}` : "Sessão"}
-        description={s ? `${TIPO_SESSAO_LABEL[s.tipo]} — Grau: ${GRAU_LABEL[s.grau]}` : ""}
+        description={
+          s
+            ? `${TIPO_SESSAO_LABEL[s.tipo]} — ${s.org_nome ?? "sem corpo"} — Grau: ${s.grau}${s.nome_grau ? ` (${s.nome_grau})` : ""}`
+            : ""
+        }
       />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Lista de presença</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">Presente</TableHead>
-                <TableHead>Nome civil</TableHead>
-                <TableHead>Nome simbólico</TableHead>
-                <TableHead>Grau</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {elegiveis.map((i: any) => {
-                const p: any = map.get(i.id);
-                return (
-                  <TableRow key={i.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={p?.presente ?? false}
-                        disabled={!can.isSecretario}
-                        onCheckedChange={(v) => togglePresenca(i.id, !!v)}
-                      />
+          {!s?.org_id ? (
+            <p className="text-sm text-muted-foreground">
+              Esta sessão não tem corpo maçônico associado — não é possível montar a lista de
+              presença.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">Presente</TableHead>
+                  <TableHead>Nome civil</TableHead>
+                  <TableHead>Nome simbólico</TableHead>
+                  <TableHead>Grau no corpo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {elegiveis.map((m) => {
+                  const p = map.get(m.irmao_id);
+                  return (
+                    <TableRow key={m.irmao_id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={p?.presente ?? false}
+                          disabled={!can.isSecretario}
+                          onCheckedChange={(v) => togglePresenca(m.irmao_id, !!v)}
+                        />
+                      </TableCell>
+                      <TableCell>{m.nome_civil}</TableCell>
+                      <TableCell>{m.nome_simbolico ?? "—"}</TableCell>
+                      <TableCell>{m.grau_atual ?? "—"}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {elegiveis.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                      Nenhum membro deste corpo com grau suficiente.
                     </TableCell>
-                    <TableCell>{i.nome_civil}</TableCell>
-                    <TableCell>{i.nome_simbolico ?? "—"}</TableCell>
-                    <TableCell>{GRAU_LABEL[i.grau]}</TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </>

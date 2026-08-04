@@ -53,6 +53,8 @@ import {
   PartyPopper,
   GraduationCap,
   CalendarPlus,
+  CalendarRange,
+  FileUp,
   Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -296,6 +298,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Truck,
           show: can.canManageFinancas,
         },
+      ],
+    },
+    {
+      id: "atividades",
+      label: "Atividades",
+      icon: CalendarRange,
+      items: [
         { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
         { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
@@ -303,6 +312,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/ensino/importar-calendario",
           label: "Importar Calendário",
           icon: CalendarPlus,
+          show: can.canManageIrmaos,
+        },
+        {
+          to: "/ensino/importar-pdf-sessoes",
+          label: "Importar Cronograma (PDF)",
+          icon: FileUp,
           show: can.canManageIrmaos,
         },
         { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
