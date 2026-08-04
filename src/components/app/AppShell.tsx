@@ -48,6 +48,8 @@ import {
   UsersRound,
   UserRound,
   CalendarCheck2,
+  BadgeDollarSign,
+  Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, type ReactNode } from "react";
@@ -412,6 +414,25 @@ export function AppShell({ children }: { children: ReactNode }) {
           label: "Auditoria Contábil",
           icon: ShieldCheck,
           show: can.canManageFinancas,
+        },
+      ],
+    },
+    {
+      id: "sgcab",
+      label: "SGCAB",
+      icon: BadgeDollarSign,
+      items: [
+        {
+          to: "/sgcab/taxas",
+          label: "Taxas por Grau",
+          icon: Coins,
+          show: can.isTesoureiro || can.isSecretario,
+        },
+        {
+          to: "/sgcab/cobrancas",
+          label: "Cobranças",
+          icon: ScrollText,
+          show: can.isTesoureiro || can.isSecretario,
         },
       ],
     },
