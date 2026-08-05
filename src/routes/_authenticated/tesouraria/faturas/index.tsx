@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
@@ -9,7 +9,11 @@ import {
   listarPreviewLoteMensalidades,
   criarFaturaAvulsa,
 } from "@/lib/backend/tesouraria-faturas";
-import { gerarMensalidades } from "@/lib/backend/tesouraria-lancamentos";
+import {
+  gerarMensalidades,
+  estornarLancamento,
+  atualizarLancamento,
+} from "@/lib/backend/tesouraria-lancamentos";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -42,15 +46,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, MessageCircle, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, MessageCircle, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 
-export const Route = createFileRoute("/_authenticated/tesouraria/faturas")({
+export const Route = createFileRoute("/_authenticated/tesouraria/faturas/")({
   head: () => ({ meta: [{ title: "Faturas — Gestão Maçônica" }] }),
   component: Faturas,
 });
@@ -224,7 +239,7 @@ function Faturas() {
                   <TableHead>Competência</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="text-right">Cobrança</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -256,17 +271,67 @@ function Faturas() {
                       <TableCell>{fmtDate(f.data_vencimento)}</TableCell>
                       <TableCell className="text-right font-medium">{brl(f.valor)}</TableCell>
                       <TableCell className="text-right">
-                        {fone && (
-                          <a
-                            href={`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <Button size="sm" variant="ghost">
-                              <MessageCircle className="h-4 w-4" />
+                        <div className="flex justify-end gap-1">
+                          {fone && (
+                            <a
+                              href={`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Button size="sm" variant="ghost" title="Enviar por WhatsApp">
+                                <MessageCircle className="h-4 w-4" />
+                              </Button>
+                            </a>
+                          )}
+                          <Link to="/tesouraria/faturas/$id" params={{ id: f.id }}>
+                            <Button size="sm" variant="ghost" title="Imprimir/salvar PDF">
+                              <Printer className="h-4 w-4" />
                             </Button>
-                          </a>
-                        )}
+                          </Link>
+                          {podeEditar && (
+                            <>
+                              <EditarFaturaDialog fatura={f} onDone={invalidate} />
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="sm" variant="ghost" title="Estornar">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Estornar esta fatura?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Remove a fatura de {f.irmaos?.nome_civil} ({brl(f.valor)},{" "}
+                                      {fmtDate(f.competencia_mes)}) e o lançamento contábil
+                                      correspondente. Essa ação não pode ser desfeita — só funciona
+                                      pra faturas ainda em aberto.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={async () => {
+                                        try {
+                                          await estornarLancamento({ data: { id: f.id } });
+                                          toast.success("Fatura estornada.");
+                                          invalidate();
+                                        } catch (err) {
+                                          toast.error(
+                                            err instanceof Error
+                                              ? err.message
+                                              : "Erro ao estornar.",
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Estornar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -441,6 +506,105 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
         </Button>
       </DialogFooter>
     </DialogContent>
+  );
+}
+
+function EditarFaturaDialog({
+  fatura,
+  onDone,
+}: {
+  fatura: { id: string; data: string; data_vencimento: string; descricao: string; valor: number };
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState(toISODate(new Date(fatura.data)));
+  const [dataVencimento, setDataVencimento] = useState(fatura.data_vencimento || "");
+  const [descricao, setDescricao] = useState(fatura.descricao);
+  const [valor, setValor] = useState(Number(fatura.valor));
+  const [salvando, setSalvando] = useState(false);
+
+  const salvar = async () => {
+    if (!descricao.trim() || !valor) return;
+    setSalvando(true);
+    try {
+      await atualizarLancamento({
+        data: {
+          id: fatura.id,
+          data,
+          dataVencimento: dataVencimento || null,
+          descricao,
+          valor: Number(valor),
+        },
+      });
+      toast.success("Fatura atualizada.");
+      setOpen(false);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao editar.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setData(toISODate(new Date(fatura.data)));
+          setDataVencimento(fatura.data_vencimento || "");
+          setDescricao(fatura.descricao);
+          setValor(Number(fatura.valor));
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" title="Editar">
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar fatura</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div>
+            <Label>Descrição</Label>
+            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Data</Label>
+              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+            </div>
+            <div>
+              <Label>Vencimento</Label>
+              <Input
+                type="date"
+                value={dataVencimento}
+                onChange={(e) => setDataVencimento(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Valor</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={valor}
+              onChange={(e) => setValor(Number(e.target.value))}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={salvar} disabled={salvando || !descricao.trim() || !valor}>
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

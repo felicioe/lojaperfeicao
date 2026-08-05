@@ -587,7 +587,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TooltipProvider delayDuration={200}>
         <aside
           className={cn(
-            "hidden shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex",
+            "hidden shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 print:hidden lg:flex",
             collapsed ? "w-[68px]" : "w-64",
           )}
         >
@@ -681,7 +681,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* ===== Layout mobile/tablet (< lg) ===== */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-sidebar px-3 text-sidebar-foreground lg:hidden">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-sidebar px-3 text-sidebar-foreground print:hidden lg:hidden">
           <button
             type="button"
             aria-label="Abrir menu"
