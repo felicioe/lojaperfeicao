@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listarLancamentosParaConciliar,
   listarOfxPendentes,
-  conciliarOfxExistente,
+  conciliarOfxBaixando,
   criarLancamentoDeOfx,
   importarOfx,
   type OfxLancamento,
@@ -112,8 +112,8 @@ function Conciliacao() {
   const vincular = async () => {
     if (!selSistema || !selOfx) return;
     try {
-      await conciliarOfxExistente({ data: { ofxId: selOfx, lancamentoId: selSistema } });
-      toast.success("Linhas conciliadas.");
+      await conciliarOfxBaixando({ data: { ofxId: selOfx, lancamentoId: selSistema } });
+      toast.success("Baixa registrada e linhas conciliadas.");
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao vincular.");

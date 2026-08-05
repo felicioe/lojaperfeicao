@@ -16,13 +16,26 @@ export type LancamentoConciliacao = {
   tipo: string;
 };
 
+// Lançamentos em aberto (faturas/contas a pagar ainda não baixadas) nunca
+// têm conta_id preenchido — só é gravado no momento da baixa — então não
+// dá pra filtrar por conta bancária aqui como se fazia antes (o que
+// deixava esta lista sempre vazia). Qualquer conta em aberto pode ser
+// paga em qualquer uma das contas bancárias da loja, daí mostrar todas.
+// O nome do irmão entra junto na descrição pra facilitar bater o nome de
+// quem pagou (extrato) com a fatura correspondente (sistema).
 export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
-  .handler(async ({ data }): Promise<LancamentoConciliacao[]> => {
+  .handler(async (): Promise<LancamentoConciliacao[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, data, descricao, valor, tipo FROM lancamentos WHERE conta_id = ? AND pago = FALSE ORDER BY data",
-        [data.contaId],
+        `SELECT l.id, l.data,
+                CASE WHEN i.nome_civil IS NOT NULL THEN CONCAT(l.descricao, ' — ', i.nome_civil) ELSE l.descricao END AS descricao,
+                l.valor, l.tipo
+         FROM lancamentos l
+         LEFT JOIN irmaos i ON i.id = l.irmao_id
+         WHERE l.pago = FALSE AND l.tipo IN ('entrada', 'saida')
+         ORDER BY l.data
+         LIMIT 300`,
       );
       return rows as LancamentoConciliacao[];
     });
@@ -57,6 +70,24 @@ export const conciliarOfxExistente = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
       await conn.query("CALL conciliar_ofx_existente(?, ?)", [data.ofxId, data.lancamentoId]);
+    });
+  });
+
+// Vincula a linha do OFX a um lançamento AINDA EM ABERTO, dando baixa nele
+// de verdade (pago/conta/data + contrapartida contábil que fecha a
+// provisão) — é o que a tela usa quando o lançamento do sistema
+// selecionado ainda não está pago (o caso normal: mensalidade em aberto
+// batendo com o PIX recebido no extrato).
+export const conciliarOfxBaixando = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z.object({ ofxId: z.string().uuid(), lancamentoId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn) => {
+      await conn.query("CALL conciliar_ofx_baixando_lancamento(?, ?)", [
+        data.ofxId,
+        data.lancamentoId,
+      ]);
     });
   });
 
