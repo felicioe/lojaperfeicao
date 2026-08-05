@@ -41,6 +41,7 @@ function SessoesList() {
     orgId: string;
     grau: string;
   }>({ data: toISODate(new Date()), tipo: "ordinaria", orgId: "", grau: "" });
+  const [criando, setCriando] = useState(false);
 
   const { data = [] } = useQuery({
     queryKey: ["sessoes"],
@@ -58,12 +59,15 @@ function SessoesList() {
   const criar = async () => {
     const grau = Number(nova.grau);
     if (!nova.orgId || !grau) return toast.error("Selecione o corpo e o grau.");
+    setCriando(true);
     try {
       await criarSessao({ data: { data: nova.data, tipo: nova.tipo, orgId: nova.orgId, grau } });
       toast.success("Sessão criada.");
       qc.invalidateQueries({ queryKey: ["sessoes"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    } finally {
+      setCriando(false);
     }
   };
 
@@ -146,7 +150,7 @@ function SessoesList() {
               )}
             </div>
             <div className="flex items-end md:col-span-4">
-              <Button onClick={criar} className="w-full md:w-auto">
+              <Button onClick={criar} disabled={criando} className="w-full md:w-auto">
                 Criar sessão
               </Button>
             </div>
