@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
   RecebimentoAvulsoDialog,
   useMovimentosFiltrados,
 } from "@/components/app/RecebimentoAvulso";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/movimentos")({
   head: () => ({ meta: [{ title: "Movimento Financeiro — Gestão Maçônica" }] }),
@@ -51,6 +53,7 @@ function Movimentos() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
+  const movPag = usePaginacao(f.movimentos);
 
   const totalEntradas = f.movimentos
     .filter((m) => m.tipo === "entrada")
@@ -173,7 +176,7 @@ function Movimentos() {
                 </TableCell>
               </TableRow>
             )}
-            {f.movimentos.map((m) => (
+            {movPag.itensPagina.map((m) => (
               <TableRow key={m.id}>
                 <TableCell>{fmtDate(m.data)}</TableCell>
                 <TableCell>{m.descricao}</TableCell>
@@ -213,6 +216,13 @@ function Movimentos() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={movPag.pagina}
+          totalPaginas={movPag.totalPaginas}
+          totalItens={movPag.totalItens}
+          tamanhoPagina={movPag.tamanhoPagina}
+          setPagina={movPag.setPagina}
+        />
       </Card>
     </>
   );

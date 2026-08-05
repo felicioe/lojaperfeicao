@@ -45,7 +45,7 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
           contaId: contaId !== "todas" ? contaId : null,
           tipo: tipo !== "todos" ? (tipo as "entrada" | "saida" | "transferencia") : null,
           categoria: categoria !== "todas" ? categoria : null,
-          limite: 300,
+          limite: 500,
         },
       }),
   });
