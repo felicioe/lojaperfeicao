@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarSessoes, criarSessao } from "@/lib/backend/sessoes";
 import { listarOrgs, listarOrgsGraus } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import { TIPO_SESSAO_LABEL, fmtDate, toISODate } from "@/lib/format";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useCan } from "@/lib/auth-hooks";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/sessoes/")({
   head: () => ({ meta: [{ title: "Sessões — Gestão Maçônica" }] }),
@@ -47,6 +49,8 @@ function SessoesList() {
     queryKey: ["sessoes"],
     queryFn: () => listarSessoes(),
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(data);
 
   const { data: orgs = [] } = useQuery({ queryKey: ["orgs_all"], queryFn: () => listarOrgs() });
 
@@ -177,7 +181,7 @@ function SessoesList() {
                 </TableCell>
               </TableRow>
             )}
-            {data.map((s) => (
+            {itensPagina.map((s) => (
               <TableRow key={s.id}>
                 <TableCell>{fmtDate(s.data)}</TableCell>
                 <TableCell>{TIPO_SESSAO_LABEL[s.tipo]}</TableCell>
@@ -197,6 +201,13 @@ function SessoesList() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

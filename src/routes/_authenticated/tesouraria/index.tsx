@@ -10,6 +10,7 @@ import {
   gerarMensalidades as gerarMensalidadesFn,
 } from "@/lib/backend/tesouraria-lancamentos";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +45,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCan } from "@/lib/auth-hooks";
 import { Plus, CheckCircle2, Repeat } from "lucide-react";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/")({
   head: () => ({ meta: [{ title: "Tesouraria — Gestão Maçônica" }] }),
@@ -66,8 +68,11 @@ function Tesouraria() {
   });
   const lancamentos = useQuery({
     queryKey: ["lancamentos"],
-    queryFn: () => listarLancamentos({ data: { limite: 200 } }),
+    queryFn: () => listarLancamentos({ data: { limite: 500 } }),
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    lancamentos.data ?? [],
+  );
 
   const marcarPago = async (id: string) => {
     try {
@@ -160,7 +165,7 @@ function Tesouraria() {
                   </TableCell>
                 </TableRow>
               )}
-              {(lancamentos.data ?? []).map((l: any) => (
+              {itensPagina.map((l: any) => (
                 <TableRow key={l.id}>
                   <TableCell>{fmtDate(l.data)}</TableCell>
                   <TableCell>{l.descricao}</TableCell>
@@ -203,6 +208,13 @@ function Tesouraria() {
               ))}
             </TableBody>
           </Table>
+          <TabelaPaginacao
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            totalItens={totalItens}
+            tamanhoPagina={tamanhoPagina}
+            setPagina={setPagina}
+          />
         </CardContent>
       </Card>
     </>

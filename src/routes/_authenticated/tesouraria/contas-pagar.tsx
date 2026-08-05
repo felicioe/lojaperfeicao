@@ -11,6 +11,7 @@ import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { listarFornecedores } from "@/lib/backend/terceiros";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ import { toast } from "sonner";
 import { CheckCircle2, Plus } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/contas-pagar")({
   head: () => ({ meta: [{ title: "Contas a Pagar — Gestão Maçônica" }] }),
@@ -67,6 +69,9 @@ function ContasPagar() {
     queryKey: ["contas_pagar_pagas"],
     queryFn: () => listarContasPagarPagas(),
   });
+
+  const abertasPag = usePaginacao(abertas);
+  const pagasPag = usePaginacao(pagas);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["contas_pagar_abertas"] });
@@ -133,7 +138,7 @@ function ContasPagar() {
                     </TableCell>
                   </TableRow>
                 )}
-                {abertas.map((l) => {
+                {abertasPag.itensPagina.map((l) => {
                   const vencida = l.data_vencimento && l.data_vencimento < hoje;
                   return (
                     <TableRow key={l.id}>
@@ -170,6 +175,13 @@ function ContasPagar() {
                 })}
               </TableBody>
             </Table>
+            <TabelaPaginacao
+              pagina={abertasPag.pagina}
+              totalPaginas={abertasPag.totalPaginas}
+              totalItens={abertasPag.totalItens}
+              tamanhoPagina={abertasPag.tamanhoPagina}
+              setPagina={abertasPag.setPagina}
+            />
           </Card>
         </TabsContent>
 
@@ -194,7 +206,7 @@ function ContasPagar() {
                     </TableCell>
                   </TableRow>
                 )}
-                {pagas.map((l) => (
+                {pagasPag.itensPagina.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>{fmtDate(l.data_pagamento)}</TableCell>
                     <TableCell>{l.descricao}</TableCell>
@@ -212,6 +224,13 @@ function ContasPagar() {
                 ))}
               </TableBody>
             </Table>
+            <TabelaPaginacao
+              pagina={pagasPag.pagina}
+              totalPaginas={pagasPag.totalPaginas}
+              totalItens={pagasPag.totalItens}
+              tamanhoPagina={pagasPag.tamanhoPagina}
+              setPagina={pagasPag.setPagina}
+            />
           </Card>
         </TabsContent>
       </Tabs>

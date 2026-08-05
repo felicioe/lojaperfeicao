@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listarAuditoria, type EntradaAuditoria } from "@/lib/backend/auditoria";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import {
   Table,
   TableBody,
@@ -16,6 +17,7 @@ import { useCan } from "@/lib/auth-hooks";
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment } from "react";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/administracao/auditoria")({
   head: () => ({ meta: [{ title: "Auditoria — Gestão Maçônica" }] }),
@@ -33,9 +35,11 @@ function AuditoriaPage() {
 
   const { data: entradas = [] } = useQuery({
     queryKey: ["auditoria"],
-    queryFn: () => listarAuditoria({ data: { limite: 200 } }),
+    queryFn: () => listarAuditoria({ data: { limite: 500 } }),
     enabled: can.isAdmin,
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(entradas);
 
   if (!can.isAdmin) {
     return (
@@ -49,7 +53,7 @@ function AuditoriaPage() {
     <>
       <PageHeader
         title="Auditoria"
-        description="Registro imutável das ações mais sensíveis do sistema — últimas 200 entradas."
+        description="Registro imutável das ações mais sensíveis do sistema — últimas 500 entradas."
       />
       <Card>
         <CardContent className="pt-6">
@@ -71,7 +75,7 @@ function AuditoriaPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {entradas.map((e: EntradaAuditoria) => {
+              {itensPagina.map((e: EntradaAuditoria) => {
                 const temDetalhe = e.dados_antes !== null || e.dados_depois !== null;
                 const aberto = expandido === e.id;
                 return (
@@ -133,6 +137,13 @@ function AuditoriaPage() {
               })}
             </TableBody>
           </Table>
+          <TabelaPaginacao
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            totalItens={totalItens}
+            tamanhoPagina={tamanhoPagina}
+            setPagina={setPagina}
+          />
         </CardContent>
       </Card>
     </>

@@ -12,6 +12,7 @@ import {
 import { gerarMensalidades } from "@/lib/backend/tesouraria-lancamentos";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ import { toast } from "sonner";
 import { CheckCircle2, MessageCircle, Plus, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/faturas")({
   head: () => ({ meta: [{ title: "Faturas — Gestão Maçônica" }] }),
@@ -130,6 +132,8 @@ function Faturas() {
     queryKey: ["faturas_abertas"],
     queryFn: () => listarFaturasAbertas(),
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(abertas);
 
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [openBaixa, setOpenBaixa] = useState(false);
@@ -224,7 +228,7 @@ function Faturas() {
                     </TableCell>
                   </TableRow>
                 )}
-                {abertas.map((f) => {
+                {itensPagina.map((f) => {
                   const fone = (f.irmaos?.celular || f.irmaos?.telefone || "").replace(/\D/g, "");
                   const msg = `Olá, ${f.irmaos?.nome_civil}! Sua fatura "${f.descricao}" no valor de ${brl(f.valor)} vence em ${fmtDate(f.data_vencimento)}.`;
                   return (
@@ -262,6 +266,13 @@ function Faturas() {
                 })}
               </TableBody>
             </Table>
+            <TabelaPaginacao
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              totalItens={totalItens}
+              tamanhoPagina={tamanhoPagina}
+              setPagina={setPagina}
+            />
           </Card>
         </TabsContent>
       </Tabs>
