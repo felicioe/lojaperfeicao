@@ -12,6 +12,7 @@ export type FaturaAberta = {
   irmao_id: string;
   descricao: string;
   valor: number;
+  data: string;
   data_vencimento: string;
   competencia_mes: string;
   irmaos: { nome_civil: string; telefone: string | null; celular: string | null } | null;
@@ -21,7 +22,7 @@ export const listarFaturasAbertas = createServerFn({ method: "GET" }).handler(
   async (): Promise<FaturaAberta[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.irmao_id, l.descricao, l.valor, l.data_vencimento, l.competencia_mes,
+        `SELECT l.id, l.irmao_id, l.descricao, l.valor, l.data, l.data_vencimento, l.competencia_mes,
                 i.nome_civil, i.telefone, i.celular
          FROM lancamentos l
          JOIN irmaos i ON i.id = l.irmao_id
@@ -33,6 +34,7 @@ export const listarFaturasAbertas = createServerFn({ method: "GET" }).handler(
         irmao_id: r.irmao_id,
         descricao: r.descricao,
         valor: r.valor,
+        data: r.data,
         data_vencimento: r.data_vencimento,
         competencia_mes: r.competencia_mes,
         irmaos: { nome_civil: r.nome_civil, telefone: r.telefone, celular: r.celular },
@@ -93,14 +95,21 @@ export const listarPreviewLoteMensalidades = createServerFn({ method: "GET" })
     async ({ data }): Promise<{ id: string; nome_civil: string; valor_mensalidade: number }[]> => {
       return comPapel(PAPEIS, async (conn) => {
         const [rows] = await conn.query<RowDataPacket[]>(
-          `SELECT i.id, i.nome_civil, i.valor_mensalidade
+          `SELECT i.id, i.nome_civil,
+                  COALESCE(
+                    (SELECT tv.valor FROM tabela_valores tv
+                     WHERE tv.tipo = 'mensalidade' AND tv.org_id IS NULL
+                       AND tv.vigencia_inicio <= mes_competencia(?)
+                     ORDER BY tv.vigencia_inicio DESC LIMIT 1),
+                    i.valor_mensalidade
+                  ) AS valor_mensalidade
          FROM irmaos i
          WHERE i.situacao IN ('ativo', 'quite', 'irregular') AND i.valor_mensalidade > 0
            AND NOT EXISTS (
              SELECT 1 FROM lancamentos l WHERE l.irmao_id = i.id AND l.is_mensalidade = TRUE AND l.competencia_mes = ?
            )
          ORDER BY i.nome_civil`,
-          [data.competencia],
+          [data.competencia, data.competencia],
         );
         return rows as { id: string; nome_civil: string; valor_mensalidade: number }[];
       });

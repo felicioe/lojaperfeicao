@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original: SELECT admin/tesoureiro/secretario (tudo) OU o próprio
 // irmão vinculado; escrita (INSERT/UPDATE direto, sem procedure) admin OU
@@ -112,16 +113,160 @@ export const listarLancamentos = createServerFn({ method: "GET" })
     });
   });
 
+export type LancamentoDetalhe = {
+  id: string;
+  data: string;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  descricao: string;
+  valor: number;
+  pago: boolean;
+  competencia_mes: string | null;
+  is_mensalidade: boolean;
+  irmao_nome: string | null;
+  irmao_cim: string | null;
+};
+
+// Detalhe de um lançamento pra tela de impressão/edição — inclui dados do
+// irmão (quando houver) pra montar o cabeçalho da fatura impressa.
+export const obterLancamento = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<LancamentoDetalhe | null> => {
+    return comPapel(PAPEIS_LEITURA, async (conn) => {
+      const [[row]] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.pago,
+                l.competencia_mes, l.is_mensalidade, i.nome_civil AS irmao_nome, i.cim AS irmao_cim
+         FROM lancamentos l
+         LEFT JOIN irmaos i ON i.id = l.irmao_id
+         WHERE l.id = ?`,
+        [data.id],
+      );
+      return (row as LancamentoDetalhe) ?? null;
+    });
+  });
+
 export const marcarLancamentoPago = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z.object({ id: z.string().uuid(), dataPagamento: z.string() }).parse(d),
   )
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT pago, data_pagamento FROM lancamentos WHERE id = ?",
+        [data.id],
+      );
       await conn.query("UPDATE lancamentos SET pago = TRUE, data_pagamento = ? WHERE id = ?", [
         data.dataPagamento,
         data.id,
       ]);
+      await registrarAuditoria(conn, usuarioIdAtual, "marcar_pago", "lancamentos", data.id, antes, {
+        pago: true,
+        data_pagamento: data.dataPagamento,
+      });
+    });
+  });
+
+// Desfaz a baixa — volta o lançamento pra "aberto", pra corrigir uma
+// marcação de pago feita por engano (sem apagar o lançamento em si).
+export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT pago, data_pagamento FROM lancamentos WHERE id = ?",
+        [data.id],
+      );
+      await conn.query("UPDATE lancamentos SET pago = FALSE, data_pagamento = NULL WHERE id = ?", [
+        data.id,
+      ]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "desmarcar_pago",
+        "lancamentos",
+        data.id,
+        antes,
+        { pago: false },
+      );
+    });
+  });
+
+const atualizarLancamentoSchema = z.object({
+  id: z.string().uuid(),
+  data: z.string(),
+  dataVencimento: z.string().nullable(),
+  descricao: z.string().min(1),
+  valor: z.number().positive(),
+});
+
+// Só permite editar lançamento ainda em aberto — um já pago já moveu
+// dinheiro de verdade (banco/caixa), editar o valor dele corromperia a
+// conciliação. Pra corrigir um pago por engano, primeiro desfaz a baixa.
+export const atualizarLancamento = createServerFn({ method: "POST" })
+  .validator((d: unknown) => atualizarLancamentoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT data, data_vencimento, descricao, valor, pago FROM lancamentos WHERE id = ?",
+        [data.id],
+      );
+      if (!antes) throw new Error("Lançamento não encontrado.");
+      if (antes.pago) {
+        throw new Error("Não é possível editar um lançamento já pago. Desfaça a baixa primeiro.");
+      }
+      await conn.query(
+        "UPDATE lancamentos SET data = ?, data_vencimento = ?, descricao = ?, valor = ? WHERE id = ?",
+        [data.data, data.dataVencimento, data.descricao, data.valor, data.id],
+      );
+      await registrarAuditoria(conn, usuarioIdAtual, "editar", "lancamentos", data.id, antes, {
+        data: data.data,
+        data_vencimento: data.dataVencimento,
+        descricao: data.descricao,
+        valor: data.valor,
+      });
+    });
+  });
+
+// Estorno = exclusão de um lançamento ainda em aberto (fatura errada,
+// duplicada, lançamento manual incorreto etc.) — junto com a contrapartida
+// contábil de partida dobrada (lancamentos_contabeis/itens), se existir,
+// pra não deixar rastro órfão na contabilidade. Só em aberto: um lançamento
+// pago já moveu dinheiro de verdade, apagar destruiria o histórico de
+// caixa — desfaça a baixa antes, se for o caso.
+export const estornarLancamento = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[lancamento]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM lancamentos WHERE id = ?",
+        [data.id],
+      );
+      if (!lancamento) throw new Error("Lançamento não encontrado.");
+      if (lancamento.pago) {
+        throw new Error("Não é possível estornar um lançamento já pago. Desfaça a baixa primeiro.");
+      }
+
+      const [contabeis] = await conn.query<RowDataPacket[]>(
+        `SELECT id FROM lancamentos_contabeis WHERE origem_id = ? AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso')`,
+        [data.id],
+      );
+      for (const lc of contabeis) {
+        await conn.query("DELETE FROM lancamentos_contabeis_itens WHERE lancamento_id = ?", [
+          lc.id,
+        ]);
+        await conn.query("DELETE FROM lancamentos_contabeis WHERE id = ?", [lc.id]);
+      }
+
+      await conn.query("DELETE FROM lancamentos WHERE id = ?", [data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "estornar",
+        "lancamentos",
+        data.id,
+        lancamento,
+        null,
+      );
     });
   });
 
