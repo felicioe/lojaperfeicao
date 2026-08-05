@@ -1,11 +1,17 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { listarContasAPagarProximas, obterProjecaoFluxo } from "@/lib/backend/dashboard";
+import {
+  listarContasAPagarProximas,
+  obterProjecaoFluxo,
+  contarMembrosAtivos,
+  contarSessoesMes,
+  listarAniversariantesMes,
+} from "@/lib/backend/dashboard";
 import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/AppShell";
 import { brl, fmtDate } from "@/lib/format";
-import { CalendarClock, Wallet, TrendingUp } from "lucide-react";
+import { CalendarClock, Wallet, TrendingUp, Users, CalendarDays, Cake } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -58,22 +64,63 @@ function Dashboard() {
     queryFn: () => obterProjecaoFluxo({ data: { de: today, ate: in30Iso } }),
   });
 
+  const membrosAtivos = useQuery({
+    queryKey: ["dash", "membrosAtivos"],
+    queryFn: () => contarMembrosAtivos(),
+  });
+
+  const sessoesMes = useQuery({
+    queryKey: ["dash", "sessoesMes"],
+    queryFn: () => contarSessoesMes(),
+  });
+
+  const aniversariantes = useQuery({
+    queryKey: ["dash", "aniversariantes"],
+    queryFn: () => listarAniversariantesMes(),
+  });
+
   const totalPagar = (contasPagar.data ?? []).reduce((a, r: any) => a + Number(r.valor), 0);
   const saldoAtual = (saldos.data ?? []).reduce((a, r: any) => a + Number(r.saldo_atual ?? 0), 0);
   const projetado = saldoAtual + (projecao.data?.delta ?? 0);
+  const proximosAniversariantes = (aniversariantes.data ?? [])
+    .slice(0, 2)
+    .map((a) => a.nome_civil.split(" ")[0])
+    .join(", ");
 
   return (
     <>
-      <PageHeader title="Dashboard" description="Visão geral financeira dos próximos 30 dias." />
+      <PageHeader title="Dashboard" description="Visão geral da loja e dos próximos 30 dias." />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          icon={Users}
+          label="Membros Ativos"
+          value={String(membrosAtivos.data ?? "—")}
+          tone="primary"
+        />
+        <MetricCard
+          icon={CalendarDays}
+          label="Sessões do Mês"
+          value={String(sessoesMes.data ?? "—")}
+          tone="primary"
+        />
         <MetricCard
           icon={CalendarClock}
-          label="Contas a Pagar (30 dias)"
+          label="Pendências Financeiras"
           value={brl(totalPagar)}
-          hint={`${contasPagar.data?.length ?? 0} lançamento(s)`}
+          hint={`${contasPagar.data?.length ?? 0} lançamento(s) em 30 dias`}
           tone="warning"
         />
+        <MetricCard
+          icon={Cake}
+          label="Aniversariantes do Mês"
+          value={String(aniversariantes.data?.length ?? "—")}
+          hint={proximosAniversariantes || undefined}
+          tone="gold"
+        />
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <MetricCard
           icon={Wallet}
           label="Saldo de Caixa (hoje)"
@@ -146,24 +193,25 @@ function MetricCard({
   label: string;
   value: string;
   hint?: string;
-  tone: "primary" | "success" | "warning" | "danger";
+  tone: "primary" | "success" | "warning" | "danger" | "gold";
 }) {
   const toneClass = {
     primary: "text-primary bg-primary/10",
     success: "text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30",
     warning: "text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30",
     danger: "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30",
+    gold: "text-gold-foreground bg-gold-muted",
   }[tone];
   return (
     <Card>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="text-2xl font-semibold mt-1">{value}</p>
-            {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
+            <p className="mt-1 text-2xl font-semibold">{value}</p>
+            {hint && <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p>}
           </div>
-          <div className={`p-2 rounded-md ${toneClass}`}>
+          <div className={`shrink-0 rounded-md p-2 ${toneClass}`}>
             <Icon className="h-5 w-5" />
           </div>
         </div>
