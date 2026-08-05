@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listarAuditoriaDesbalanceados, listarSaldoPlanoContas } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -14,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { brl, fmtDate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/auditoria")({
   head: () => ({ meta: [{ title: "Auditoria Contábil — Gestão Maçônica" }] }),
@@ -30,6 +32,9 @@ function AuditoriaContabil() {
     queryKey: ["v_saldo_plano_contas"],
     queryFn: () => listarSaldoPlanoContas(),
   });
+
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(saldos);
 
   const totalDebito = saldos.reduce((s, c) => s + Number(c.total_debito), 0);
   const totalCredito = saldos.reduce((s, c) => s + Number(c.total_credito), 0);
@@ -127,7 +132,7 @@ function AuditoriaContabil() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {saldos.map((c) => (
+              {itensPagina.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-mono">{c.codigo}</TableCell>
                   <TableCell>{c.nome}</TableCell>
@@ -141,6 +146,13 @@ function AuditoriaContabil() {
               ))}
             </TableBody>
           </Table>
+          <TabelaPaginacao
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            totalItens={totalItens}
+            tamanhoPagina={tamanhoPagina}
+            setPagina={setPagina}
+          />
         </CardContent>
       </Card>
     </>

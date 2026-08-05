@@ -15,6 +15,7 @@ import {
 } from "@/lib/backend/usuarios";
 import type { Papel } from "@/lib/backend/auth";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -52,6 +53,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ROLE_LABEL } from "@/lib/format";
 import { ShieldAlert, KeyRound, UserPlus, ShieldCheck, UserX, UserCheck } from "lucide-react";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/usuarios/")({
   beforeLoad: ({ context }) => {
@@ -77,6 +79,10 @@ function UsuariosPage() {
     qc.invalidateQueries({ queryKey: ["usuarios"] });
     qc.invalidateQueries({ queryKey: ["irmaos_sem_acesso"] });
   };
+
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    usuarios.data ?? [],
+  );
 
   const criarUm = async (irmaoId: string) => {
     try {
@@ -225,11 +231,18 @@ function UsuariosPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {(usuarios.data ?? []).map((u) => (
+              {itensPagina.map((u) => (
                 <UsuarioRow key={u.id} usuario={u} onChanged={invalidate} />
               ))}
             </TableBody>
           </Table>
+          <TabelaPaginacao
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            totalItens={totalItens}
+            tamanhoPagina={tamanhoPagina}
+            setPagina={setPagina}
+          />
         </CardContent>
       </Card>
     </>

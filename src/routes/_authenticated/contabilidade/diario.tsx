@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listarLancamentosDiario } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/diario")({
   head: () => ({ meta: [{ title: "Diário Contábil — Gestão Maçônica" }] }),
@@ -36,6 +38,8 @@ function Diario() {
     queryKey: ["diario_lancamentos", de, ate],
     queryFn: () => listarLancamentosDiario({ data: { de, ate } }),
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(lancamentos);
 
   const totalGeral = lancamentos.reduce(
     (s, l) =>
@@ -106,7 +110,7 @@ function Diario() {
             Nenhum lançamento no período.
           </Card>
         )}
-        {lancamentos.map((l) => (
+        {itensPagina.map((l) => (
           <Card key={l.id}>
             <div className="flex items-center justify-between p-3 border-b">
               <div>
@@ -144,6 +148,17 @@ function Diario() {
           </Card>
         ))}
       </div>
+      {totalPaginas > 1 && (
+        <Card className="mt-3">
+          <TabelaPaginacao
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            totalItens={totalItens}
+            tamanhoPagina={tamanhoPagina}
+            setPagina={setPagina}
+          />
+        </Card>
+      )}
     </>
   );
 }

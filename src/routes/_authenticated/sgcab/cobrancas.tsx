@@ -10,6 +10,7 @@ import {
 } from "@/lib/backend/sgcab";
 import { listarOrgs } from "@/lib/backend/orgs";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ import {
 import { brl, fmtDate } from "@/lib/format";
 import { Ban, CheckCircle2, Paperclip, ScrollText } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/sgcab/cobrancas")({
   head: () => ({ meta: [{ title: "Cobranças SGCAB — Gestão Maçônica" }] }),
@@ -90,6 +92,8 @@ function CobrancasSgcabPage() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sgcab_cobrancas"] });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(cobrancas);
 
   const totalPendente = cobrancas
     .filter((c) => c.status === "pendente")
@@ -171,7 +175,7 @@ function CobrancasSgcabPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cobrancas.map((c) => (
+              {itensPagina.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.irmao_nome}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{c.org_nome}</TableCell>
@@ -233,6 +237,13 @@ function CobrancasSgcabPage() {
             </TableBody>
           </Table>
         )}
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

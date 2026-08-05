@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -21,6 +22,7 @@ import {
   RecebimentoAvulsoDialog,
   useMovimentosFiltrados,
 } from "@/components/app/RecebimentoAvulso";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/tronco")({
   head: () => ({ meta: [{ title: "Tronco de Beneficência — Gestão Maçônica" }] }),
@@ -41,6 +43,7 @@ function Tronco() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
   const total = f.movimentos.reduce((s, m) => s + Number(m.valor), 0);
+  const movPag = usePaginacao(f.movimentos);
 
   return (
     <>
@@ -96,7 +99,7 @@ function Tronco() {
                 </TableCell>
               </TableRow>
             )}
-            {f.movimentos.map((m) => (
+            {movPag.itensPagina.map((m) => (
               <TableRow key={m.id}>
                 <TableCell>{fmtDate(m.data)}</TableCell>
                 <TableCell>{m.descricao}</TableCell>
@@ -108,6 +111,13 @@ function Tronco() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={movPag.pagina}
+          totalPaginas={movPag.totalPaginas}
+          totalItens={movPag.totalItens}
+          tamanhoPagina={movPag.tamanhoPagina}
+          setPagina={movPag.setPagina}
+        />
       </Card>
     </>
   );

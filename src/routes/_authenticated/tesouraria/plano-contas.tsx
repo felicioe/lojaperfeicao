@@ -8,6 +8,7 @@ import {
   type TipoConta,
 } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Pencil, X } from "lucide-react";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/plano-contas")({
   head: () => ({ meta: [{ title: "Plano de Contas — Gestão Maçônica" }] }),
@@ -105,6 +107,8 @@ function PlanoContas() {
     if (q && !`${c.codigo} ${c.nome}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(filtrada);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["plano_contas_all"] });
 
@@ -277,7 +281,7 @@ function PlanoContas() {
                 </TableCell>
               </TableRow>
             )}
-            {filtrada.map((c) => (
+            {itensPagina.map((c) => (
               <TableRow key={c.id} className={!c.ativo ? "opacity-50" : undefined}>
                 <TableCell
                   className="font-mono"
@@ -310,6 +314,13 @@ function PlanoContas() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

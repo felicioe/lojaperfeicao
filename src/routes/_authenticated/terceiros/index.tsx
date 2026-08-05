@@ -8,6 +8,7 @@ import {
   type Terceiro,
 } from "@/lib/backend/terceiros";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Pencil, Search, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/terceiros/")({
   head: () => ({ meta: [{ title: "Fornecedores e Clientes — Gestão Maçônica" }] }),
@@ -89,6 +91,8 @@ function Terceiros() {
       return false;
     return true;
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(filtrados);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["terceiros_all"] });
 
@@ -371,7 +375,7 @@ function Terceiros() {
                 </TableCell>
               </TableRow>
             )}
-            {filtrados.map((t) => (
+            {itensPagina.map((t) => (
               <TableRow key={t.id} className={!t.ativo ? "opacity-50" : undefined}>
                 <TableCell className="font-medium">
                   {t.nome}
@@ -400,6 +404,13 @@ function Terceiros() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

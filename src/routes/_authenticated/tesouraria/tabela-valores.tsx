@@ -13,6 +13,7 @@ import {
 } from "@/lib/backend/tabela-valores";
 import { listarOrgs } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ import {
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { Plus, Trash2, TrendingUp } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/tabela-valores")({
   head: () => ({ meta: [{ title: "Tabela de Valores — Gestão Maçônica" }] }),
@@ -89,6 +91,8 @@ function TabelaValoresPage() {
     queryFn: () => listarTabelaValores(),
   });
   const { data: orgs = [] } = useQuery({ queryKey: ["orgs_all"], queryFn: () => listarOrgs() });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(itens);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["tabela_valores"] });
 
@@ -232,7 +236,7 @@ function TabelaValoresPage() {
                 </TableCell>
               </TableRow>
             )}
-            {itens.map((item) => {
+            {itensPagina.map((item) => {
               const vigente = ehVigenteHoje(item, itens);
               return (
                 <TableRow key={item.id} className={!vigente ? "opacity-60" : undefined}>
@@ -266,6 +270,13 @@ function TabelaValoresPage() {
             })}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

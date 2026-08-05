@@ -8,6 +8,7 @@ import {
 } from "@/lib/backend/fluxo-caixa";
 import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/fluxo-caixa")({
   head: () => ({ meta: [{ title: "Fluxo de Caixa — Gestão Maçônica" }] }),
@@ -232,6 +234,8 @@ function FluxoProjetado() {
     queryKey: ["fluxo_pendentes", dataLimite],
     queryFn: () => listarMovimentosPendentes({ data: { hoje, dataLimite } }),
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(pendentes);
 
   const porDia = useMemo(() => {
     const m = new Map<string, { entradas: number; saidas: number }>();
@@ -347,7 +351,7 @@ function FluxoProjetado() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pendentes.map((p, i) => (
+              {itensPagina.map((p, i) => (
                 <TableRow key={i}>
                   <TableCell>{fmtDate(p.data_vencimento)}</TableCell>
                   <TableCell>{p.descricao}</TableCell>
@@ -361,6 +365,13 @@ function FluxoProjetado() {
               ))}
             </TableBody>
           </Table>
+          <TabelaPaginacao
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            totalItens={totalItens}
+            tamanhoPagina={tamanhoPagina}
+            setPagina={setPagina}
+          />
         </Card>
       )}
     </>

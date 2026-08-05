@@ -10,6 +10,7 @@ import {
 } from "@/lib/backend/planos-ensino";
 import { listarOrgs, listarOrgsGraus } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/ensino/planos")({
   head: () => ({ meta: [{ title: "Planos de Ensino — Gestão Maçônica" }] }),
@@ -111,6 +113,8 @@ function PlanosEnsinoPage() {
   };
 
   const itens = planos.filter((p) => filtroOrgId === "todos" || p.org_id === filtroOrgId);
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(itens);
 
   return (
     <>
@@ -242,7 +246,7 @@ function PlanosEnsinoPage() {
                 </TableCell>
               </TableRow>
             )}
-            {itens.map((p) => (
+            {itensPagina.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>Grau {p.grau}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
@@ -264,6 +268,13 @@ function PlanosEnsinoPage() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

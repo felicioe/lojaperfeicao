@@ -6,6 +6,7 @@ import {
   listarItensRazao,
 } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/razao")({
   head: () => ({ meta: [{ title: "Razão Contábil — Gestão Maçônica" }] }),
@@ -68,6 +70,9 @@ function Razao() {
       return { ...i, saldo };
     });
   }, [itens, saldoAnterior]);
+
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(linhas);
 
   const totalDebito = itens
     .filter((i) => i.tipo === "debito")
@@ -177,7 +182,7 @@ function Razao() {
                     </TableCell>
                   </TableRow>
                 )}
-                {linhas.map((l) => (
+                {itensPagina.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>{fmtDate(l.lancamentos_contabeis.data)}</TableCell>
                     <TableCell>{l.descricao ?? l.lancamentos_contabeis.descricao}</TableCell>
@@ -195,6 +200,13 @@ function Razao() {
                 ))}
               </TableBody>
             </Table>
+            <TabelaPaginacao
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              totalItens={totalItens}
+              tamanhoPagina={tamanhoPagina}
+              setPagina={setPagina}
+            />
           </Card>
         </>
       )}

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listarRecibos, listarReciboItens } from "@/lib/backend/tesouraria-recibos";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -15,6 +16,7 @@ import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { brl, fmtDate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/recibos")({
   head: () => ({ meta: [{ title: "Recibos — Gestão Maçônica" }] }),
@@ -28,6 +30,8 @@ function Recibos() {
     queryKey: ["recibos_all"],
     queryFn: () => listarRecibos(),
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(recibos);
 
   return (
     <>
@@ -58,7 +62,7 @@ function Recibos() {
                 </TableCell>
               </TableRow>
             )}
-            {recibos.map((r) => (
+            {itensPagina.map((r) => (
               <Fragment key={r.id}>
                 <TableRow>
                   <TableCell>
@@ -100,6 +104,13 @@ function Recibos() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );
