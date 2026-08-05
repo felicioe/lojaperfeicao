@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AceiteTermosRouteImport } from './routes/aceite-termos'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
@@ -30,6 +31,7 @@ import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './rout
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
 import { Route as AuthenticatedEnsinoImportarCalendarioRouteImport } from './routes/_authenticated/ensino/importar-calendario'
+import { Route as AuthenticatedEnsinoImportarPdfSessoesRouteImport } from './routes/_authenticated/ensino/importar-pdf-sessoes'
 import { Route as AuthenticatedEnsinoPlanosRouteImport } from './routes/_authenticated/ensino/planos'
 import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
@@ -65,6 +67,7 @@ import { Route as AuthenticatedTesourariaParcelamentosRouteImport } from './rout
 import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
 import { Route as AuthenticatedTesourariaRecibosRouteImport } from './routes/_authenticated/tesouraria/recibos'
 import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes/_authenticated/tesouraria/recorrentes'
+import { Route as AuthenticatedTesourariaTabelaValoresRouteImport } from './routes/_authenticated/tesouraria/tabela-valores'
 import { Route as AuthenticatedTesourariaTroncoRouteImport } from './routes/_authenticated/tesouraria/tronco'
 import { Route as AuthenticatedUsuariosIndexRouteImport } from './routes/_authenticated/usuarios/index'
 
@@ -90,6 +93,11 @@ const AuthRoute = AuthRouteImport.update({
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrocarSenhaRoute = TrocarSenhaRouteImport.update({
+  id: '/trocar-senha',
+  path: '/trocar-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -185,6 +193,12 @@ const AuthenticatedEnsinoImportarCalendarioRoute =
   AuthenticatedEnsinoImportarCalendarioRouteImport.update({
     id: '/ensino/importar-calendario',
     path: '/ensino/importar-calendario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEnsinoImportarPdfSessoesRoute =
+  AuthenticatedEnsinoImportarPdfSessoesRouteImport.update({
+    id: '/ensino/importar-pdf-sessoes',
+    path: '/ensino/importar-pdf-sessoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEnsinoPlanosRoute =
@@ -392,6 +406,12 @@ const AuthenticatedTesourariaRecorrentesRoute =
     path: '/tesouraria/recorrentes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTesourariaTabelaValoresRoute =
+  AuthenticatedTesourariaTabelaValoresRouteImport.update({
+    id: '/tesouraria/tabela-valores',
+    path: '/tesouraria/tabela-valores',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTesourariaTroncoRoute =
   AuthenticatedTesourariaTroncoRouteImport.update({
     id: '/tesouraria/tronco',
@@ -410,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
@@ -425,6 +446,7 @@ export interface FileRoutesByFullPath {
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
   '/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -452,6 +474,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -469,6 +492,7 @@ export interface FileRoutesByTo {
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
@@ -483,6 +507,7 @@ export interface FileRoutesByTo {
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
   '/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -510,6 +535,7 @@ export interface FileRoutesByTo {
   '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
@@ -529,6 +555,7 @@ export interface FileRoutesById {
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/trocar-senha': typeof TrocarSenhaRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
@@ -544,6 +571,7 @@ export interface FileRoutesById {
   '/_authenticated/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
   '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/_authenticated/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
+  '/_authenticated/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
   '/_authenticated/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/_authenticated/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -571,6 +599,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
+  '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -590,6 +619,7 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/auth'
     | '/privacidade'
+    | '/trocar-senha'
     | '/painel'
     | '/dashboard'
     | '/administracao/auditoria'
@@ -605,6 +635,7 @@ export interface FileRouteTypes {
     | '/contabilidade/orcamento'
     | '/contabilidade/razao'
     | '/ensino/importar-calendario'
+    | '/ensino/importar-pdf-sessoes'
     | '/ensino/planos'
     | '/gestoes/cargos'
     | '/irmaos/$id'
@@ -632,6 +663,7 @@ export interface FileRouteTypes {
     | '/tesouraria/plano-contas'
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
+    | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
     | '/comunicacoes/'
     | '/eventos/'
@@ -649,6 +681,7 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/auth'
     | '/privacidade'
+    | '/trocar-senha'
     | '/dashboard'
     | '/administracao/auditoria'
     | '/administracao/exportar-dados'
@@ -663,6 +696,7 @@ export interface FileRouteTypes {
     | '/contabilidade/orcamento'
     | '/contabilidade/razao'
     | '/ensino/importar-calendario'
+    | '/ensino/importar-pdf-sessoes'
     | '/ensino/planos'
     | '/gestoes/cargos'
     | '/irmaos/$id'
@@ -690,6 +724,7 @@ export interface FileRouteTypes {
     | '/tesouraria/plano-contas'
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
+    | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
     | '/comunicacoes'
     | '/eventos'
@@ -708,6 +743,7 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/auth'
     | '/privacidade'
+    | '/trocar-senha'
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
     | '/_authenticated/administracao/auditoria'
@@ -723,6 +759,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contabilidade/orcamento'
     | '/_authenticated/contabilidade/razao'
     | '/_authenticated/ensino/importar-calendario'
+    | '/_authenticated/ensino/importar-pdf-sessoes'
     | '/_authenticated/ensino/planos'
     | '/_authenticated/gestoes/cargos'
     | '/_authenticated/irmaos/$id'
@@ -750,6 +787,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/plano-contas'
     | '/_authenticated/tesouraria/recibos'
     | '/_authenticated/tesouraria/recorrentes'
+    | '/_authenticated/tesouraria/tabela-valores'
     | '/_authenticated/tesouraria/tronco'
     | '/_authenticated/comunicacoes/'
     | '/_authenticated/eventos/'
@@ -769,6 +807,7 @@ export interface RootRouteChildren {
   AceiteTermosRoute: typeof AceiteTermosRoute
   AuthRoute: typeof AuthRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
+  TrocarSenhaRoute: typeof TrocarSenhaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -806,6 +845,13 @@ declare module '@tanstack/react-router' {
       path: '/privacidade'
       fullPath: '/privacidade'
       preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trocar-senha': {
+      id: '/trocar-senha'
+      path: '/trocar-senha'
+      fullPath: '/trocar-senha'
+      preLoaderRoute: typeof TrocarSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -918,6 +964,13 @@ declare module '@tanstack/react-router' {
       path: '/ensino/importar-calendario'
       fullPath: '/ensino/importar-calendario'
       preLoaderRoute: typeof AuthenticatedEnsinoImportarCalendarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ensino/importar-pdf-sessoes': {
+      id: '/_authenticated/ensino/importar-pdf-sessoes'
+      path: '/ensino/importar-pdf-sessoes'
+      fullPath: '/ensino/importar-pdf-sessoes'
+      preLoaderRoute: typeof AuthenticatedEnsinoImportarPdfSessoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/ensino/planos': {
@@ -1165,6 +1218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaRecorrentesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tesouraria/tabela-valores': {
+      id: '/_authenticated/tesouraria/tabela-valores'
+      path: '/tesouraria/tabela-valores'
+      fullPath: '/tesouraria/tabela-valores'
+      preLoaderRoute: typeof AuthenticatedTesourariaTabelaValoresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tesouraria/tronco': {
       id: '/_authenticated/tesouraria/tronco'
       path: '/tesouraria/tronco'
@@ -1226,6 +1286,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContabilidadeOrcamentoRoute: typeof AuthenticatedContabilidadeOrcamentoRoute
   AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
   AuthenticatedEnsinoImportarCalendarioRoute: typeof AuthenticatedEnsinoImportarCalendarioRoute
+  AuthenticatedEnsinoImportarPdfSessoesRoute: typeof AuthenticatedEnsinoImportarPdfSessoesRoute
   AuthenticatedEnsinoPlanosRoute: typeof AuthenticatedEnsinoPlanosRoute
   AuthenticatedGestoesCargosRoute: typeof AuthenticatedGestoesCargosRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
@@ -1246,6 +1307,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaPlanoContasRoute: typeof AuthenticatedTesourariaPlanoContasRoute
   AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
+  AuthenticatedTesourariaTabelaValoresRoute: typeof AuthenticatedTesourariaTabelaValoresRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
@@ -1284,6 +1346,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContabilidadeRazaoRoute: AuthenticatedContabilidadeRazaoRoute,
   AuthenticatedEnsinoImportarCalendarioRoute:
     AuthenticatedEnsinoImportarCalendarioRoute,
+  AuthenticatedEnsinoImportarPdfSessoesRoute:
+    AuthenticatedEnsinoImportarPdfSessoesRoute,
   AuthenticatedEnsinoPlanosRoute: AuthenticatedEnsinoPlanosRoute,
   AuthenticatedGestoesCargosRoute: AuthenticatedGestoesCargosRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
@@ -1313,6 +1377,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaRecibosRoute: AuthenticatedTesourariaRecibosRoute,
   AuthenticatedTesourariaRecorrentesRoute:
     AuthenticatedTesourariaRecorrentesRoute,
+  AuthenticatedTesourariaTabelaValoresRoute:
+    AuthenticatedTesourariaTabelaValoresRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
@@ -1334,6 +1400,7 @@ const rootRouteChildren: RootRouteChildren = {
   AceiteTermosRoute: AceiteTermosRoute,
   AuthRoute: AuthRoute,
   PrivacidadeRoute: PrivacidadeRoute,
+  TrocarSenhaRoute: TrocarSenhaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

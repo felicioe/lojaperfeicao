@@ -7,8 +7,8 @@ import {
   salvarPlanoEnsino,
   excluirPlanoEnsino,
   type PlanoEnsino,
-  type Grau,
 } from "@/lib/backend/planos-ensino";
+import { listarOrgs, listarOrgsGraus } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { GRAU_LABEL } from "@/lib/format";
 import { Pencil, Trash2, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 
@@ -41,7 +40,8 @@ export const Route = createFileRoute("/_authenticated/ensino/planos")({
 
 const FORM_VAZIO = {
   id: null as string | null,
-  grau: "aprendiz" as Grau,
+  orgId: "",
+  grau: "",
   ordem: 0,
   titulo: "",
   conteudo: "",
@@ -51,22 +51,33 @@ function PlanosEnsinoPage() {
   const can = useCan();
   const qc = useQueryClient();
   const [form, setForm] = useState(FORM_VAZIO);
-  const [filtroGrau, setFiltroGrau] = useState<Grau | "todos">("todos");
+  const [filtroOrgId, setFiltroOrgId] = useState("todos");
 
   const { data: planos = [] } = useQuery({
     queryKey: ["planos_ensino"],
     queryFn: () => listarPlanosEnsino(),
   });
 
+  const { data: orgs = [] } = useQuery({ queryKey: ["orgs_all"], queryFn: () => listarOrgs() });
+
+  const { data: graus = [] } = useQuery({
+    queryKey: ["orgs_graus", form.orgId],
+    queryFn: () => listarOrgsGraus({ data: { orgId: form.orgId } }),
+    enabled: !!form.orgId,
+  });
+
   const invalidate = () => qc.invalidateQueries({ queryKey: ["planos_ensino"] });
 
   const salvar = async () => {
-    if (!form.titulo.trim()) return;
+    const grau = Number(form.grau);
+    if (!form.titulo.trim()) return toast.error("Informe o título.");
+    if (!grau) return toast.error("Selecione o grau.");
     try {
       await salvarPlanoEnsino({
         data: {
           id: form.id,
-          grau: form.grau,
+          grau,
+          orgId: form.orgId || null,
           ordem: Number(form.ordem) || 0,
           titulo: form.titulo.trim(),
           conteudo: form.conteudo || null,
@@ -83,7 +94,8 @@ function PlanosEnsinoPage() {
   const editar = (p: PlanoEnsino) =>
     setForm({
       id: p.id,
-      grau: p.grau,
+      orgId: p.org_id ?? "",
+      grau: String(p.grau),
       ordem: p.ordem,
       titulo: p.titulo,
       conteudo: p.conteudo ?? "",
@@ -98,7 +110,7 @@ function PlanosEnsinoPage() {
     }
   };
 
-  const itens = planos.filter((p) => filtroGrau === "todos" || p.grau === filtroGrau);
+  const itens = planos.filter((p) => filtroOrgId === "todos" || p.org_id === filtroOrgId);
 
   return (
     <>
@@ -112,24 +124,52 @@ function PlanosEnsinoPage() {
           <CardHeader>
             <CardTitle className="text-base">{form.id ? "Editar item" : "Novo item"}</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-4">
+          <CardContent className="grid gap-3 md:grid-cols-6">
             <div>
-              <Label>Grau</Label>
+              <Label>Corpo (opcional)</Label>
               <Select
-                value={form.grau}
-                onValueChange={(v) => setForm({ ...form, grau: v as Grau })}
+                value={form.orgId || "nenhum"}
+                onValueChange={(v) =>
+                  setForm({ ...form, orgId: v === "nenhum" ? "" : v, grau: "" })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(GRAU_LABEL) as Grau[]).map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {GRAU_LABEL[g]}
+                  <SelectItem value="nenhum">Genérico (todos)</SelectItem>
+                  {orgs.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Grau</Label>
+              {form.orgId ? (
+                <Select value={form.grau} onValueChange={(v) => setForm({ ...form, grau: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {graus.map((g) => (
+                      <SelectItem key={g.id} value={String(g.grau)}>
+                        Grau {g.grau} — {g.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.grau}
+                  onChange={(e) => setForm({ ...form, grau: e.target.value })}
+                  placeholder="Ex.: 4"
+                />
+              )}
             </div>
             <div>
               <Label>Ordem</Label>
@@ -139,21 +179,21 @@ function PlanosEnsinoPage() {
                 onChange={(e) => setForm({ ...form, ordem: Number(e.target.value) })}
               />
             </div>
-            <div className="md:col-span-2">
+            <div className="md:col-span-3">
               <Label>Título</Label>
               <Input
                 value={form.titulo}
                 onChange={(e) => setForm({ ...form, titulo: e.target.value })}
               />
             </div>
-            <div className="md:col-span-4">
+            <div className="md:col-span-6">
               <Label>Conteúdo</Label>
               <Textarea
                 value={form.conteudo}
                 onChange={(e) => setForm({ ...form, conteudo: e.target.value })}
               />
             </div>
-            <div className="flex gap-2 md:col-span-4">
+            <div className="flex gap-2 md:col-span-6">
               <Button onClick={salvar} disabled={!form.titulo}>
                 {form.id ? "Salvar alterações" : "Adicionar"}
               </Button>
@@ -167,16 +207,16 @@ function PlanosEnsinoPage() {
         </Card>
       )}
 
-      <div className="mb-3 w-48">
-        <Select value={filtroGrau} onValueChange={(v) => setFiltroGrau(v as Grau | "todos")}>
+      <div className="mb-3 w-56">
+        <Select value={filtroOrgId} onValueChange={setFiltroOrgId}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos os graus</SelectItem>
-            {(Object.keys(GRAU_LABEL) as Grau[]).map((g) => (
-              <SelectItem key={g} value={g}>
-                {GRAU_LABEL[g]}
+            <SelectItem value="todos">Todos os corpos</SelectItem>
+            {orgs.map((o) => (
+              <SelectItem key={o.id} value={o.id}>
+                {o.nome}
               </SelectItem>
             ))}
           </SelectContent>
@@ -188,6 +228,7 @@ function PlanosEnsinoPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Grau</TableHead>
+              <TableHead>Corpo</TableHead>
               <TableHead>Ordem</TableHead>
               <TableHead>Título</TableHead>
               {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
@@ -196,14 +237,17 @@ function PlanosEnsinoPage() {
           <TableBody>
             {itens.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
                   Nenhum item cadastrado.
                 </TableCell>
               </TableRow>
             )}
             {itens.map((p) => (
               <TableRow key={p.id}>
-                <TableCell>{GRAU_LABEL[p.grau]}</TableCell>
+                <TableCell>Grau {p.grau}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {p.org_nome ?? "Genérico"}
+                </TableCell>
                 <TableCell className="font-mono">{p.ordem}</TableCell>
                 <TableCell className="font-medium">{p.titulo}</TableCell>
                 {can.canManageIrmaos && (

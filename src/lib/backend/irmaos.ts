@@ -647,7 +647,7 @@ export type FrequenciaSessaoIrmao = {
   id: string;
   data: string;
   tipo: string;
-  grau: string;
+  grau: number;
   presente: boolean | null;
   justificado: boolean;
 };

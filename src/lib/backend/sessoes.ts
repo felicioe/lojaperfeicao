@@ -11,7 +11,10 @@ export type Sessao = {
   id: string;
   data: string;
   tipo: "ordinaria" | "magna" | "branca" | "administrativa";
-  grau: "aprendiz" | "companheiro" | "mestre";
+  grau: number;
+  org_id: string | null;
+  org_nome: string | null;
+  nome_grau: string | null;
   observacoes: string | null;
 };
 
@@ -23,10 +26,42 @@ export type Presenca = {
   justificado: boolean;
 };
 
+export type MembroOrg = {
+  irmao_id: string;
+  nome_civil: string;
+  nome_simbolico: string | null;
+  grau_atual: number | null;
+};
+
+// Membros vinculados a um corpo (irmao_orgs), com o grau atual deles NAQUELE
+// corpo — usado pra montar a lista de presença de uma sessão (só quem tem
+// grau_atual suficiente pode ser marcado presente, ver togglePresenca).
+export const listarMembrosOrg = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<MembroOrg[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT io.irmao_id, i.nome_civil, i.nome_simbolico, io.grau_atual
+         FROM irmao_orgs io JOIN irmaos i ON i.id = io.irmao_id
+         WHERE io.org_id = ? AND i.situacao <> 'adormecido'
+         ORDER BY i.nome_civil`,
+        [data.orgId],
+      );
+      return rows as MembroOrg[];
+    });
+  });
+
+const SESSAO_SELECT = `
+  SELECT s.id, s.data, s.tipo, s.grau, s.org_id, o.nome AS org_nome, og.nome AS nome_grau, s.observacoes
+  FROM sessoes s
+  LEFT JOIN orgs o ON o.id = s.org_id
+  LEFT JOIN orgs_graus og ON og.org_id = s.org_id AND og.grau = s.grau
+`;
+
 export const listarSessoes = createServerFn({ method: "GET" }).handler(
   async (): Promise<Sessao[]> => {
     return comSessao(async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM sessoes ORDER BY data DESC");
+      const [rows] = await conn.query<RowDataPacket[]>(`${SESSAO_SELECT} ORDER BY s.data DESC`);
       return rows as Sessao[];
     });
   },
@@ -36,7 +71,7 @@ export const obterSessao = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<Sessao | null> => {
     return comSessao(async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM sessoes WHERE id = ?", [
+      const [rows] = await conn.query<RowDataPacket[]>(`${SESSAO_SELECT} WHERE s.id = ?`, [
         data.id,
       ]);
       return (rows[0] as Sessao) ?? null;
@@ -46,18 +81,27 @@ export const obterSessao = createServerFn({ method: "GET" })
 const novaSessaoSchema = z.object({
   data: z.string(),
   tipo: z.enum(["ordinaria", "magna", "branca", "administrativa"]),
-  grau: z.enum(["aprendiz", "companheiro", "mestre"]),
+  orgId: z.string().uuid(),
+  grau: z.number().int().positive(),
+  observacoes: z.string().nullable().optional(),
 });
 
 export const criarSessao = createServerFn({ method: "POST" })
   .validator((d: unknown) => novaSessaoSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("INSERT INTO sessoes (data, tipo, grau) VALUES (?, ?, ?)", [
-        data.data,
-        data.tipo,
-        data.grau,
-      ]);
+      const [[org]] = await conn.query<RowDataPacket[]>(
+        "SELECT grau_min, grau_max FROM orgs WHERE id = ?",
+        [data.orgId],
+      );
+      if (!org) throw new Error("Corpo maçônico não encontrado.");
+      if (data.grau < org.grau_min || data.grau > org.grau_max) {
+        throw new Error(`Grau fora da faixa deste corpo (${org.grau_min}–${org.grau_max}).`);
+      }
+      await conn.query(
+        "INSERT INTO sessoes (data, tipo, org_id, grau, observacoes) VALUES (?, ?, ?, ?, ?)",
+        [data.data, data.tipo, data.orgId, data.grau, data.observacoes ?? null],
+      );
     });
   });
 
@@ -73,10 +117,11 @@ export const listarPresencas = createServerFn({ method: "GET" })
     });
   });
 
-// Ordem maçônica: quem tem grau maior pode assistir sessão de grau menor,
-// nunca o contrário (um aprendiz não pode ser lançado como presente numa
-// sessão de mestre). Regra aplicada aqui — não só filtrada na tela — pra
-// não depender só do client.
+// Elegibilidade por grau: compara o grau ATUAL do irmão NO CORPO da sessão
+// (irmao_orgs.grau_atual) contra o grau da sessão — não mais irmaos.grau,
+// que representa só o grau craft de origem do irmão (fora deste sistema).
+// Sessões antigas sem corpo definido (org_id NULL, anteriores a esta
+// migração) ficam sem essa checagem, já que não há corpo pra comparar.
 export const togglePresenca = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z
@@ -87,14 +132,14 @@ export const togglePresenca = createServerFn({ method: "POST" })
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       const [[elegivel]] = await conn.query<RowDataPacket[]>(
         `SELECT
-           (CASE i.grau WHEN 'aprendiz' THEN 1 WHEN 'companheiro' THEN 2 WHEN 'mestre' THEN 3 END) >=
-           (CASE s.grau WHEN 'aprendiz' THEN 1 WHEN 'companheiro' THEN 2 WHEN 'mestre' THEN 3 END) AS ok
-         FROM sessoes s, irmaos i
-         WHERE s.id = ? AND i.id = ?`,
-        [data.sessaoId, data.irmaoId],
+           CASE WHEN s.org_id IS NULL THEN TRUE ELSE COALESCE(io.grau_atual, 0) >= s.grau END AS ok
+         FROM sessoes s
+         LEFT JOIN irmao_orgs io ON io.org_id = s.org_id AND io.irmao_id = ?
+         WHERE s.id = ?`,
+        [data.irmaoId, data.sessaoId],
       );
       if (!elegivel?.ok) {
-        throw new Error("Este irmão não tem grau suficiente para esta sessão.");
+        throw new Error("Este irmão não tem grau suficiente (neste corpo) para esta sessão.");
       }
       await conn.query(
         `INSERT INTO presencas (sessao_id, irmao_id, presente) VALUES (?, ?, ?)

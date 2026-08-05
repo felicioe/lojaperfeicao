@@ -21,6 +21,7 @@ export const Route = createFileRoute("/aceite-termos")({
   beforeLoad: async () => {
     const usuario = await getSessao();
     if (!usuario) throw redirect({ to: "/auth" });
+    if (usuario.deveTrocarSenha) throw redirect({ to: "/trocar-senha" });
     if (usuario.consentimentoLgpdEm) throw redirect({ to: "/" });
     return { usuario };
   },

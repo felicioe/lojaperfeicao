@@ -5,7 +5,7 @@ import { useIsDesktop } from "@/lib/use-media-query";
 import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { fmtDate, TIPO_SESSAO_LABEL, GRAU_LABEL } from "@/lib/format";
+import { fmtDate, TIPO_SESSAO_LABEL } from "@/lib/format";
 import { CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/sessoes")({
@@ -42,7 +42,9 @@ function PainelSessoes() {
               <div className="min-w-0">
                 <p className="text-sm font-medium">{fmtDate(s.data)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {TIPO_SESSAO_LABEL[s.tipo] ?? s.tipo} · {GRAU_LABEL[s.grau] ?? s.grau}
+                  {TIPO_SESSAO_LABEL[s.tipo] ?? s.tipo}
+                  {s.org_nome ? ` · ${s.org_nome}` : ""} · Grau {s.grau}
+                  {s.nome_grau ? ` (${s.nome_grau})` : ""}
                 </p>
               </div>
               <Badge variant={futura ? "secondary" : "outline"}>

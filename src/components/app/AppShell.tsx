@@ -53,6 +53,8 @@ import {
   PartyPopper,
   GraduationCap,
   CalendarPlus,
+  CalendarRange,
+  FileUp,
   Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,13 +71,13 @@ type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
 
 function Brand() {
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
+    <div className="flex min-w-0 flex-1 items-center gap-2">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-sidebar-primary-foreground shadow-sm">
         ⚜
       </div>
       <div className="min-w-0">
-        <div className="truncate text-sm font-semibold leading-tight">Gestão da Loja</div>
-        <div className="truncate text-[11px] text-muted-foreground">Sistema Maçônico</div>
+        <div className="text-sm font-semibold leading-tight">Gestão da Loja</div>
+        <div className="truncate text-[11px] text-sidebar-foreground/60">Sistema Maçônico</div>
       </div>
     </div>
   );
@@ -177,7 +179,9 @@ function NavTree({
             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
         )}
       >
-        <dashboard.icon className="h-4 w-4 shrink-0" />
+        <dashboard.icon
+          className={cn("h-4 w-4 shrink-0", isActive(dashboard.to) && "text-sidebar-primary")}
+        />
         {dashboard.label}
       </Link>
 
@@ -199,10 +203,12 @@ function NavTree({
                   size === "mobile" ? "py-2.5" : "py-2",
                   hasActive
                     ? "text-sidebar-foreground"
-                    : "text-muted-foreground hover:text-sidebar-foreground",
+                    : "text-sidebar-foreground/55 hover:text-sidebar-foreground",
                 )}
               >
-                <g.icon className="h-3.5 w-3.5 shrink-0" />
+                <g.icon
+                  className={cn("h-3.5 w-3.5 shrink-0", hasActive && "text-sidebar-primary")}
+                />
                 <span className="flex-1 truncate text-left">{g.label}</span>
                 <ChevronDown
                   className={cn(
@@ -296,6 +302,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Truck,
           show: can.canManageFinancas,
         },
+      ],
+    },
+    {
+      id: "atividades",
+      label: "Atividades",
+      icon: CalendarRange,
+      items: [
         { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
         { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
@@ -303,6 +316,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/ensino/importar-calendario",
           label: "Importar Calendário",
           icon: CalendarPlus,
+          show: can.canManageIrmaos,
+        },
+        {
+          to: "/ensino/importar-pdf-sessoes",
+          label: "Cronograma (PDF)",
+          icon: FileUp,
           show: can.canManageIrmaos,
         },
         { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
@@ -367,6 +386,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/tesouraria/parametros",
           label: "Parâmetros Financeiros",
           icon: Settings2,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/tabela-valores",
+          label: "Tabela de Valores",
+          icon: TrendingUp,
           show: can.canManageFinancas,
         },
       ],
@@ -571,7 +596,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               "border-b border-sidebar-border",
               collapsed
                 ? "flex flex-col items-center gap-2 p-3"
-                : "flex items-center justify-between p-5",
+                : "flex items-center justify-between gap-2 p-4",
             )}
           >
             {collapsed ? (
@@ -619,7 +644,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {!collapsed && (
               <div className="mb-2 text-xs">
                 <div className="truncate font-medium">{user?.email}</div>
-                <div className="text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
+                <div className="text-sidebar-foreground/60">{ROLE_LABEL[primaryRole]}</div>
               </div>
             )}
             {collapsed ? (
@@ -644,7 +669,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   to="/privacidade"
                   target="_blank"
-                  className="mt-2 block text-center text-[11px] text-muted-foreground underline"
+                  className="mt-2 block text-center text-[11px] text-sidebar-foreground/55 underline"
                 >
                   Política de Privacidade
                 </Link>
@@ -670,7 +695,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="hidden min-w-0 max-w-[40%] text-right text-[11px] sm:block">
             <div className="truncate font-medium">{user?.email}</div>
-            <div className="truncate text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
+            <div className="truncate text-sidebar-foreground/60">{ROLE_LABEL[primaryRole]}</div>
           </div>
         </header>
 
@@ -697,7 +722,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="border-t border-sidebar-border p-3">
               <div className="mb-2 text-xs">
                 <div className="truncate font-medium">{user?.email}</div>
-                <div className="text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
+                <div className="text-sidebar-foreground/60">{ROLE_LABEL[primaryRole]}</div>
               </div>
               <Button variant="outline" className="h-10 w-full" onClick={toggleDark}>
                 {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}
@@ -709,7 +734,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 to="/privacidade"
                 target="_blank"
-                className="mt-2 block text-center text-xs text-muted-foreground underline"
+                className="mt-2 block text-center text-xs text-sidebar-foreground/55 underline"
               >
                 Política de Privacidade
               </Link>

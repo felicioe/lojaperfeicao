@@ -111,7 +111,10 @@ function extrairCampo(bloco: string, tag: string): string {
 }
 
 function normalizarData(ofxDate: string): string | null {
-  const m = ofxDate.match(/^(\d{4})(\d{2})(\d{2})/);
+  // Formato clássico OFX: YYYYMMDD[HHMMSS]. Alguns softwares (ex.: OFXMoney)
+  // exportam em ISO 8601 com traços: YYYY-MM-DDTHH:MM:SSZ. O "-?" opcional
+  // cobre os dois sem precisar de dois regexes.
+  const m = ofxDate.match(/^(\d{4})-?(\d{2})-?(\d{2})/);
   if (!m) return null;
   return `${m[1]}-${m[2]}-${m[3]}`;
 }

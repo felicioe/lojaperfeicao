@@ -51,6 +51,48 @@ export const listarContasAPagarProximas = createServerFn({ method: "GET" })
     });
   });
 
+export const contarMembrosAtivos = createServerFn({ method: "GET" }).handler(
+  async (): Promise<number> => {
+    return comSessao(async (conn) => {
+      const [[row]] = await conn.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM irmaos WHERE situacao IN ('ativo', 'quite', 'irregular')",
+      );
+      return Number(row.total);
+    });
+  },
+);
+
+export const contarSessoesMes = createServerFn({ method: "GET" }).handler(
+  async (): Promise<number> => {
+    return comSessao(async (conn) => {
+      const [[row]] = await conn.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS total FROM sessoes
+         WHERE YEAR(data) = YEAR(CURRENT_DATE) AND MONTH(data) = MONTH(CURRENT_DATE)`,
+      );
+      return Number(row.total);
+    });
+  },
+);
+
+export type Aniversariante = { id: string; nome_civil: string; data_nascimento: string };
+
+// Ordenado pelo dia do mês (não pela data completa) pra listar quem faz
+// aniversário primeiro, independente do ano de nascimento.
+export const listarAniversariantesMes = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Aniversariante[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, nome_civil, data_nascimento FROM irmaos
+         WHERE situacao IN ('ativo', 'quite', 'irregular')
+           AND data_nascimento IS NOT NULL
+           AND MONTH(data_nascimento) = MONTH(CURRENT_DATE)
+         ORDER BY DAY(data_nascimento)`,
+      );
+      return rows as Aniversariante[];
+    });
+  },
+);
+
 export type ProjecaoFluxo = { somaE: number; somaS: number; delta: number };
 
 export const obterProjecaoFluxo = createServerFn({ method: "GET" })

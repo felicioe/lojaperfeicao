@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
@@ -64,6 +65,7 @@ export const Route = createFileRoute("/_authenticated/usuarios/")({
 
 function UsuariosPage() {
   const qc = useQueryClient();
+  const [obrigarTrocaNovosAcessos, setObrigarTrocaNovosAcessos] = useState(true);
 
   const usuarios = useQuery({ queryKey: ["usuarios"], queryFn: () => listarUsuarios() });
   const semAcesso = useQuery({
@@ -78,7 +80,9 @@ function UsuariosPage() {
 
   const criarUm = async (irmaoId: string) => {
     try {
-      const { login } = await criarAcessoIrmao({ data: { irmaoId } });
+      const { login } = await criarAcessoIrmao({
+        data: { irmaoId, obrigarTrocaSenha: obrigarTrocaNovosAcessos },
+      });
       toast.success(`Acesso criado — login: ${login}`);
       invalidate();
     } catch (err) {
@@ -88,7 +92,9 @@ function UsuariosPage() {
 
   const criarTodos = async () => {
     try {
-      const relatorio = await criarAcessosEmLote();
+      const relatorio = await criarAcessosEmLote({
+        data: { obrigarTrocaSenha: obrigarTrocaNovosAcessos },
+      });
       if (relatorio.criados.length > 0)
         toast.success(`${relatorio.criados.length} acesso(s) criado(s).`);
       if (relatorio.falhas.length > 0) {
@@ -127,10 +133,19 @@ function UsuariosPage() {
 
       {(semAcesso.data ?? []).length > 0 && (
         <Card className="mb-6">
-          <CardHeader className="flex-row items-center justify-between">
-            <CardTitle className="text-base">
-              Irmãos sem acesso ({semAcesso.data?.length})
-            </CardTitle>
+          <CardHeader className="flex-row items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-4 flex-wrap">
+              <CardTitle className="text-base">
+                Irmãos sem acesso ({semAcesso.data?.length})
+              </CardTitle>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={obrigarTrocaNovosAcessos}
+                  onCheckedChange={(v) => setObrigarTrocaNovosAcessos(v === true)}
+                />
+                Obrigar troca de senha no primeiro acesso
+              </label>
+            </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button size="sm">
@@ -144,7 +159,8 @@ function UsuariosPage() {
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     Vai criar um login (nome.sobrenome) para cada irmão da lista abaixo, com a senha
-                    padrão {"“123”"}.
+                    padrão {"“123”"}
+                    {obrigarTrocaNovosAcessos ? ", com troca obrigatória no primeiro acesso." : "."}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -225,6 +241,7 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
   const [senhaOpen, setSenhaOpen] = useState(false);
   const [papeisSelecionados, setPapeisSelecionados] = useState<Papel[]>(usuario.papeis);
   const [novaSenha, setNovaSenha] = useState("");
+  const [obrigarTroca, setObrigarTroca] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
   const abrirPapeis = () => {
@@ -256,10 +273,13 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
     if (!senha) return toast.error("Informe uma senha.");
     setSalvando(true);
     try {
-      await redefinirSenhaUsuario({ data: { usuarioId: usuario.id, novaSenha: senha } });
+      await redefinirSenhaUsuario({
+        data: { usuarioId: usuario.id, novaSenha: senha, obrigarTrocaSenha: obrigarTroca },
+      });
       toast.success("Senha redefinida.");
       setSenhaOpen(false);
       setNovaSenha("");
+      onChanged();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao redefinir senha.");
     } finally {
@@ -295,9 +315,16 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
       </TableCell>
       <TableCell className="text-muted-foreground">{usuario.irmao?.nome_civil ?? "—"}</TableCell>
       <TableCell>
-        <Badge variant={usuario.ativo ? "secondary" : "outline"}>
-          {usuario.ativo ? "Ativo" : "Inativo"}
-        </Badge>
+        <div className="flex flex-wrap gap-1">
+          <Badge variant={usuario.ativo ? "secondary" : "outline"}>
+            {usuario.ativo ? "Ativo" : "Inativo"}
+          </Badge>
+          {usuario.deve_trocar_senha && (
+            <Badge variant="outline" className="gap-1 text-amber-700 dark:text-amber-400">
+              <KeyRound className="h-3 w-3" /> Senha pendente de troca
+            </Badge>
+          )}
+        </div>
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
@@ -383,7 +410,10 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
           open={senhaOpen}
           onOpenChange={(v) => {
             setSenhaOpen(v);
-            if (!v) setNovaSenha("");
+            if (!v) {
+              setNovaSenha("");
+              setObrigarTroca(true);
+            }
           }}
         >
           <DialogContent>
@@ -408,6 +438,21 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
               >
                 Usar senha padrão (123)
               </Button>
+            </div>
+            <div className="space-y-2">
+              <Label>Depois de definida</Label>
+              <RadioGroup
+                value={obrigarTroca ? "obrigar" : "fixar"}
+                onValueChange={(v) => setObrigarTroca(v === "obrigar")}
+              >
+                <label className="flex items-center gap-2 text-sm">
+                  <RadioGroupItem value="obrigar" /> Obrigar troca no primeiro acesso (senha
+                  temporária)
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <RadioGroupItem value="fixar" /> Fixar esta senha (permanente)
+                </label>
+              </RadioGroup>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setSenhaOpen(false)}>

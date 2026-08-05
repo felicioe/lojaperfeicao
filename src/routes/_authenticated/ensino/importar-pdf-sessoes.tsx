@@ -3,13 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  previewImportacaoCalendario,
-  confirmarImportacaoCalendario,
-  type ItemPreview,
-  type ResumoImportacao,
-} from "@/lib/backend/importacao-calendario";
+  previewImportacaoPdfSessoes,
+  confirmarImportacaoPdfSessoes,
+  type ItemPreviewPdf,
+  type ResumoImportacaoPdf,
+} from "@/lib/backend/importacao-pdf-sessoes";
 import { listarOrgs } from "@/lib/backend/orgs";
-import { parseArquivoCalendario } from "@/lib/calendar-import";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,19 +31,19 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
-import { CheckCircle2, FileUp, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileUp, Upload } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/ensino/importar-calendario")({
-  head: () => ({ meta: [{ title: "Importar Calendário — Gestão Maçônica" }] }),
-  component: ImportarCalendarioPage,
+export const Route = createFileRoute("/_authenticated/ensino/importar-pdf-sessoes")({
+  head: () => ({ meta: [{ title: "Importar Cronograma (PDF) — Gestão Maçônica" }] }),
+  component: ImportarPdfSessoesPage,
 });
 
-function ImportarCalendarioPage() {
+function ImportarPdfSessoesPage() {
   const [orgId, setOrgId] = useState("");
-  const [preview, setPreview] = useState<ItemPreview[] | null>(null);
+  const [preview, setPreview] = useState<ItemPreviewPdf[] | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
-  const [resumo, setResumo] = useState<ResumoImportacao | null>(null);
+  const [resumo, setResumo] = useState<ResumoImportacaoPdf | null>(null);
 
   const { data: orgs = [] } = useQuery({ queryKey: ["orgs_all"], queryFn: () => listarOrgs() });
 
@@ -52,17 +51,17 @@ function ImportarCalendarioPage() {
     setCarregando(true);
     setResumo(null);
     try {
-      const texto = await file.text();
-      const itens = parseArquivoCalendario(file.name, texto);
-      if (itens.length === 0) {
-        toast.error("Nenhum item reconhecido no arquivo.");
-        setPreview(null);
-        return;
-      }
-      const itensPreview = await previewImportacaoCalendario({ data: { orgId, itens } });
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const arquivoBase64 = dataUrl.split(",")[1];
+      const itensPreview = await previewImportacaoPdfSessoes({ data: { orgId, arquivoBase64 } });
       setPreview(itensPreview);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao processar arquivo.");
+      toast.error(err instanceof Error ? err.message : "Erro ao processar o PDF.");
     } finally {
       setCarregando(false);
     }
@@ -72,13 +71,10 @@ function ImportarCalendarioPage() {
     if (!preview) return;
     setConfirmando(true);
     try {
-      const itens = preview.map(({ titulo, data, hora, descricao }) => ({
-        titulo,
-        data,
-        hora,
-        descricao,
-      }));
-      const resultado = await confirmarImportacaoCalendario({ data: { orgId, itens } });
+      const itens = preview
+        .filter((p) => p.importavel)
+        .map(({ data, grau, textoCompleto }) => ({ data, grau: grau!, textoCompleto }));
+      const resultado = await confirmarImportacaoPdfSessoes({ data: { orgId, itens } });
       setResumo(resultado);
       setPreview(null);
       toast.success("Importação concluída.");
@@ -89,14 +85,14 @@ function ImportarCalendarioPage() {
     }
   };
 
-  const novos = preview?.filter((p) => !p.duplicado).length ?? 0;
-  const duplicados = preview?.filter((p) => p.duplicado).length ?? 0;
+  const importaveis = preview?.filter((p) => p.importavel).length ?? 0;
+  const bloqueados = preview?.filter((p) => !p.importavel).length ?? 0;
 
   return (
     <>
       <PageHeader
-        title="Importar Calendário"
-        description="Importação em lote de sessões/eventos a partir de arquivo .ics ou .csv, com preview antes de confirmar."
+        title="Importar Cronograma (PDF)"
+        description="Extração best-effort do cronograma de sessões a partir de um PDF (ex.: Programa de Ensino e Formação Filosófica) — revise o preview com atenção antes de confirmar."
       />
 
       <Card className="mb-4">
@@ -120,18 +116,20 @@ function ImportarCalendarioPage() {
             </Select>
           </div>
           <div>
-            <Label>Selecione um arquivo .ics ou .csv</Label>
+            <Label>Arquivo PDF</Label>
             <Input
               type="file"
-              accept=".ics,.csv,text/calendar,text/csv"
+              accept=".pdf,application/pdf"
               disabled={carregando || !orgId}
               onChange={(e) => e.target.files?.[0] && carregarArquivo(e.target.files[0])}
             />
           </div>
-          <p className="text-xs text-muted-foreground md:col-span-2">
-            Linhas com "grau N" detectado no título/descrição, dentro da faixa do corpo escolhido,
-            viram sessões; as demais viram eventos. CSV aceita colunas titulo, data (AAAA-MM-DD ou
-            DD/MM/AAAA), hora e descricao.
+          <p className="flex items-start gap-1.5 text-xs text-muted-foreground md:col-span-2">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Extração de texto de PDF não reconstrói colunas de tabela com garantia — linhas com
+            "GRAU N" identificado dentro da faixa do corpo viram sessões; avisos da própria pauta
+            (feriado, sessão suspensa, templo cedido, confraternização) são detectados e não entram
+            como sessão. Confira o preview linha a linha antes de confirmar.
           </p>
         </CardContent>
       </Card>
@@ -140,8 +138,7 @@ function ImportarCalendarioPage() {
         <Card className="mb-4 border-emerald-300">
           <CardContent className="flex items-center gap-2 pt-6 text-sm">
             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            {resumo.sessoesCriadas} sessão(ões) e {resumo.eventosCriados} evento(s) criados —{" "}
-            {resumo.duplicadosIgnorados} duplicado(s) ignorado(s).
+            {resumo.sessoesCriadas} sessão(ões) criada(s).
           </CardContent>
         </Card>
       )}
@@ -150,9 +147,9 @@ function ImportarCalendarioPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-base">
-              Preview — {novos} novo(s), {duplicados} duplicado(s)
+              Preview — {importaveis} importável(is), {bloqueados} bloqueado(s)
             </CardTitle>
-            <Button onClick={confirmar} disabled={confirmando || novos === 0}>
+            <Button onClick={confirmar} disabled={confirmando || importaveis === 0}>
               <Upload className="mr-1.5 h-4 w-4" /> Confirmar importação
             </Button>
           </CardHeader>
@@ -160,26 +157,29 @@ function ImportarCalendarioPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
-                <TableHead>Título</TableHead>
-                <TableHead>Tipo</TableHead>
                 <TableHead>Grau</TableHead>
+                <TableHead>Resumo</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {preview.map((item, i) => (
-                <TableRow key={i} className={item.duplicado ? "opacity-50" : undefined}>
-                  <TableCell className="text-sm text-muted-foreground">
+                <TableRow key={i} className={!item.importavel ? "opacity-60" : undefined}>
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                     {fmtDate(item.data)}
-                    {item.hora ? ` ${item.hora}` : ""}
                   </TableCell>
-                  <TableCell className="font-medium">{item.titulo}</TableCell>
-                  <TableCell>{item.tipo === "sessao" ? "Sessão" : "Evento"}</TableCell>
                   <TableCell>{item.grau ?? "—"}</TableCell>
+                  <TableCell className="max-w-md truncate text-sm" title={item.textoCompleto}>
+                    {item.resumo}
+                  </TableCell>
                   <TableCell>
-                    <Badge variant={item.duplicado ? "outline" : "secondary"}>
-                      {item.duplicado ? "Duplicado — será ignorado" : "Novo"}
-                    </Badge>
+                    {item.importavel ? (
+                      <Badge variant="secondary">Novo</Badge>
+                    ) : item.duplicado ? (
+                      <Badge variant="outline">Já existe nesta data</Badge>
+                    ) : (
+                      <Badge variant="outline">{item.motivoBloqueio}</Badge>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -191,7 +191,7 @@ function ImportarCalendarioPage() {
       {!preview && !resumo && !carregando && (
         <Card className="p-10 text-center text-muted-foreground">
           <FileUp className="mx-auto mb-2 h-8 w-8" />
-          Selecione o corpo e um arquivo para ver o preview.
+          Selecione o corpo e um arquivo PDF para ver o preview.
         </Card>
       )}
     </>

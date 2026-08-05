@@ -17,6 +17,10 @@ export type UsuarioSessao = {
   // null = ainda não aceitou a Política de Privacidade (LGPD) — barrado em
   // /aceite-termos até aceitar, ver _authenticated/route.tsx.
   consentimentoLgpdEm: string | null;
+  // true = senha temporária (definida pelo admin com "obrigar troca no
+  // primeiro acesso") — barrado em /trocar-senha até definir uma nova,
+  // mesmo padrão de gate do consentimentoLgpdEm acima.
+  deveTrocarSenha: boolean;
 };
 
 // Aceita e-mail (contas antigas/admin) ou login gerado como nome.sobrenome
@@ -37,7 +41,7 @@ const signupSchema = z.object({
 async function carregarUsuarioComPapeis(usuarioId: string): Promise<UsuarioSessao | null> {
   return withUserConnection(usuarioId, async (conn) => {
     const [usuarios] = await conn.query<RowDataPacket[]>(
-      "SELECT id, email, nome_completo, consentimento_lgpd_em, ativo FROM usuarios WHERE id = ?",
+      "SELECT id, email, nome_completo, consentimento_lgpd_em, ativo, deve_trocar_senha FROM usuarios WHERE id = ?",
       [usuarioId],
     );
     const usuario = usuarios[0];
@@ -58,6 +62,7 @@ async function carregarUsuarioComPapeis(usuarioId: string): Promise<UsuarioSessa
       consentimentoLgpdEm: usuario.consentimento_lgpd_em
         ? new Date(usuario.consentimento_lgpd_em).toISOString()
         : null,
+      deveTrocarSenha: !!usuario.deve_trocar_senha,
     };
   });
 }
@@ -141,6 +146,26 @@ export const registrarConsentimentoLgpd = createServerFn({ method: "POST" }).han
     await conn.query("UPDATE usuarios SET consentimento_lgpd_em = NOW() WHERE id = ?", [usuarioId]);
   });
 });
+
+const trocarMinhaSenhaSchema = z.object({ novaSenha: z.string().min(3) });
+
+// Self-service — usado tanto pelo gate obrigatório de primeiro acesso
+// (/trocar-senha) quanto por uma troca voluntária futura. Sempre limpa
+// deve_trocar_senha, mesmo numa troca voluntária (a pessoa já resolveu
+// o que a flag pedia).
+export const trocarMinhaSenha = createServerFn({ method: "POST" })
+  .validator((data: unknown) => trocarMinhaSenhaSchema.parse(data))
+  .handler(async ({ data }) => {
+    return comSessao(async (conn, usuarioId) => {
+      const hash = await bcrypt.hash(data.novaSenha, 10);
+      await conn.query(
+        "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = FALSE WHERE id = ?",
+        [hash, usuarioId],
+      );
+      // nunca loga a senha em si, só o fato de ter sido trocada.
+      await registrarAuditoria(conn, usuarioId, "trocar_senha", "usuario", usuarioId);
+    });
+  });
 
 export const contarUsuarios = createServerFn({ method: "GET" }).handler(
   async (): Promise<number> => {
