@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listarIrmaos } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +19,7 @@ import { GRAU_LABEL, SITUACAO_LABEL } from "@/lib/format";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useCan } from "@/lib/auth-hooks";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/irmaos/")({
   head: () => ({
@@ -44,6 +46,8 @@ function IrmaosList() {
       i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
       i.cim?.toLowerCase().includes(q.toLowerCase()),
   );
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(filtered);
 
   const situacaoVariant = (s: string) =>
     (
@@ -105,7 +109,7 @@ function IrmaosList() {
                 </TableCell>
               </TableRow>
             )}
-            {filtered.map((i: any) => (
+            {itensPagina.map((i: any) => (
               <TableRow key={i.id}>
                 <TableCell className="font-medium">{i.nome_civil}</TableCell>
                 <TableCell>{i.nome_simbolico ?? "—"}</TableCell>
@@ -125,6 +129,13 @@ function IrmaosList() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );
