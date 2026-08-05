@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { relatorioFrequencia } from "@/lib/backend/relatorios";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -11,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/relatorios/frequencia")({
   head: () => ({ meta: [{ title: "Relatório de Frequência — Gestão Maçônica" }] }),
@@ -22,6 +24,9 @@ function RelatorioFreq() {
     queryKey: ["rel_freq"],
     queryFn: () => relatorioFrequencia(),
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    data?.irmaos ?? [],
+  );
 
   return (
     <>
@@ -40,7 +45,7 @@ function RelatorioFreq() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(data?.irmaos ?? []).map((i) => {
+            {itensPagina.map((i) => {
               const total = data!.totalSessoes;
               const perc = total ? Math.round((i.presencas / total) * 100) : 0;
               return (
@@ -57,6 +62,13 @@ function RelatorioFreq() {
             })}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

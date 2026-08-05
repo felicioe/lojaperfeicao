@@ -12,6 +12,7 @@ import {
 } from "@/lib/backend/eventos";
 import { listarOrgs } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
 import { ChevronDown, ChevronRight, Pencil, Trash2, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/eventos/")({
   head: () => ({ meta: [{ title: "Eventos — Gestão Maçônica" }] }),
@@ -124,6 +126,8 @@ function EventosPage() {
   };
 
   const itens = [...eventos].sort((a, b) => b.data.localeCompare(a.data));
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(itens);
 
   return (
     <>
@@ -245,7 +249,7 @@ function EventosPage() {
                 </TableCell>
               </TableRow>
             )}
-            {itens.map((e) => {
+            {itensPagina.map((e) => {
               const status = statusEvento(e);
               return (
                 <Fragment key={e.id}>
@@ -300,6 +304,13 @@ function EventosPage() {
             })}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

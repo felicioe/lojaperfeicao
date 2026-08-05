@@ -13,6 +13,7 @@ import {
 import { listarOrgs } from "@/lib/backend/orgs";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { fmtDate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/gestoes/")({
   head: () => ({ meta: [{ title: "Gestões — Gestão Maçônica" }] }),
@@ -64,6 +66,8 @@ function Gestoes() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["gestoes_all"] });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(gestoes);
 
   const salvar = async () => {
     if (!form.org_id || !form.nome.trim() || !form.data_inicio || !form.data_fim) return;
@@ -177,7 +181,7 @@ function Gestoes() {
                 </TableCell>
               </TableRow>
             )}
-            {gestoes.map((g) => (
+            {itensPagina.map((g) => (
               <Fragment key={g.id}>
                 <TableRow>
                   <TableCell>
@@ -213,6 +217,13 @@ function Gestoes() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

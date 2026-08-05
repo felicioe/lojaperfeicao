@@ -13,6 +13,7 @@ import { calcularMultaJuros } from "@/lib/backend/tesouraria-faturas";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/parcelamentos")({
   head: () => ({ meta: [{ title: "Parcelamentos — Gestão Maçônica" }] }),
@@ -325,6 +327,8 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
 
 function ListaAcordos({ acordos }: { acordos: Parcelamento[] }) {
   const [expandido, setExpandido] = useState<string | null>(null);
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(acordos);
 
   return (
     <Card>
@@ -348,7 +352,7 @@ function ListaAcordos({ acordos }: { acordos: Parcelamento[] }) {
               </TableCell>
             </TableRow>
           )}
-          {acordos.map((a) => (
+          {itensPagina.map((a) => (
             <Fragment key={a.id}>
               <TableRow>
                 <TableCell>
@@ -382,6 +386,13 @@ function ListaAcordos({ acordos }: { acordos: Parcelamento[] }) {
           ))}
         </TableBody>
       </Table>
+      <TabelaPaginacao
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        totalItens={totalItens}
+        tamanhoPagina={tamanhoPagina}
+        setPagina={setPagina}
+      />
     </Card>
   );
 }
