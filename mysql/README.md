@@ -35,6 +35,20 @@ DATABASE`) e usuário de aplicação também devem usar `utf8mb4`
   é left para quando o cliente MySQL do app (issue #53) estiver pronto; por ora, é
   aplicação manual mesmo, como o próprio projeto legado em PHP fazia.
 
+### ⚠️ Nunca aplicar migração em produção antes de implantar o código correspondente
+
+O deploy de produção (Hostinger) só implanta a partir de `main` — uma migração
+aplicada direto no banco de produção enquanto o código correspondente ainda está
+numa branch de feature deixa o app rodando (código velho) contra um schema novo, o
+que quebra em produção (ex.: `INSERT`/`SELECT` com coluna que virou tipo diferente).
+Isso aconteceu de verdade: migrações 0019–0022 foram aplicadas em produção antes do
+PR #66 (que trazia o código correspondente) ser mesclado em `main`, derrubando o
+site até o merge acontecer. Ordem correta: mesclar o PR em `main` **primeiro**,
+confirmar que o deploy do Hostinger pegou o código novo, **depois** aplicar a
+migração — ou, se a migração precisa rodar antes por algum motivo, mesclar e
+implantar o código na sequência imediatamente, sem deixar o banco "à frente" do
+código implantado por mais que o tempo de um deploy.
+
 ## Decisões de arquitetura (equivalentes ao que o Postgres/Supabase dava de graça)
 
 ### 1. UUIDs
