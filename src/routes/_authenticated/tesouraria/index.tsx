@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
-import { listarPlanoContas } from "@/lib/backend/plano-contas";
+import { listarPlanoContas, listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { calcularMultaJuros, baixarFaturas } from "@/lib/backend/tesouraria-faturas";
 import { baixarContaPagar } from "@/lib/backend/tesouraria-contas-pagar";
 import {
@@ -81,6 +81,10 @@ function Tesouraria() {
   const planos = useQuery({
     queryKey: ["planos"],
     queryFn: async () => (await listarPlanoContas()).filter((p) => p.ativo),
+  });
+  const receitas = useQuery({
+    queryKey: ["planos_receita"],
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "receita" } }),
   });
   const lancamentos = useQuery({
     queryKey: ["lancamentos"],
@@ -219,6 +223,7 @@ function Tesouraria() {
                             <BaixarLancamentoDialog
                               lancamento={l}
                               contas={contas.data ?? []}
+                              receitas={receitas.data ?? []}
                               onDone={invalidateLancamentos}
                             />
                             <AlertDialog>
@@ -631,10 +636,12 @@ function EditarLancamentoDialog({
 function BaixarLancamentoDialog({
   lancamento,
   contas,
+  receitas,
   onDone,
 }: {
   lancamento: Lancamento;
   contas: { id: string; nome: string; plano_conta_id: string | null }[];
+  receitas: { id: string; codigo: string; nome: string }[];
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -642,6 +649,9 @@ function BaixarLancamentoDialog({
   const [formaPagamento, setFormaPagamento] = useState("");
   const [dataPagamento, setDataPagamento] = useState(toISODate(new Date()));
   const [desconto, setDesconto] = useState(0);
+  const [jurosAdicional, setJurosAdicional] = useState(0);
+  const [valorExtra, setValorExtra] = useState(0);
+  const [planoContaExtraId, setPlanoContaExtraId] = useState("");
   const [calculo, setCalculo] = useState<{ multa: number; juros: number; dias_atraso: number }>({
     multa: 0,
     juros: 0,
@@ -665,11 +675,20 @@ function BaixarLancamentoDialog({
       .catch(() => setCalculo({ multa: 0, juros: 0, dias_atraso: 0 }));
   }, [open, ehFatura, lancamento.data_vencimento, lancamento.valor, dataPagamento]);
 
-  const total = Number(lancamento.valor) + calculo.multa + calculo.juros - Number(desconto || 0);
+  const total =
+    Number(lancamento.valor) +
+    calculo.multa +
+    calculo.juros +
+    Number(jurosAdicional || 0) +
+    Number(valorExtra || 0) -
+    Number(desconto || 0);
 
   const confirmar = async () => {
     if (precisaConta && !contaFinanceiraId) {
       return toast.error("Selecione a conta em que o valor entrou/saiu.");
+    }
+    if (ehFatura && Number(valorExtra) > 0 && !planoContaExtraId) {
+      return toast.error("Selecione a conta de receita do valor extra.");
     }
     setSalvando(true);
     try {
@@ -691,6 +710,9 @@ function BaixarLancamentoDialog({
             dataPagamento,
             desconto: Number(desconto) || 0,
             observacoes: null,
+            jurosAdicional: Number(jurosAdicional) || 0,
+            valorExtra: Number(valorExtra) || 0,
+            planoContaExtraId: Number(valorExtra) > 0 ? planoContaExtraId : null,
           },
         });
       } else {
@@ -762,15 +784,60 @@ function BaixarLancamentoDialog({
                   {brl(calculo.juros)}
                 </div>
               )}
-              <div>
-                <Label>Desconto (opcional)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={desconto}
-                  onChange={(e) => setDesconto(Number(e.target.value))}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Desconto (opcional)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={desconto}
+                    onChange={(e) => setDesconto(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label>Juros adicional (opcional)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={jurosAdicional}
+                    onChange={(e) => setJurosAdicional(Number(e.target.value))}
+                    placeholder="Além do calculado automaticamente"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Outra receita recebida junto (opcional)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={valorExtra}
+                    onChange={(e) => setValorExtra(Number(e.target.value))}
+                    placeholder="Ex.: doação"
+                  />
+                </div>
+                <div>
+                  <Label>Conta de receita do valor extra</Label>
+                  <Select
+                    value={planoContaExtraId}
+                    onValueChange={setPlanoContaExtraId}
+                    disabled={!(Number(valorExtra) > 0)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {receitas.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.codigo} — {c.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="text-lg font-semibold flex justify-between border-t pt-3">
                 <span>Total líquido</span>
@@ -782,7 +849,12 @@ function BaixarLancamentoDialog({
         <DialogFooter>
           <Button
             onClick={confirmar}
-            disabled={salvando || (precisaConta && !contaFinanceiraId) || (ehFatura && total < 0)}
+            disabled={
+              salvando ||
+              (precisaConta && !contaFinanceiraId) ||
+              (ehFatura && total < 0) ||
+              (ehFatura && Number(valorExtra) > 0 && !planoContaExtraId)
+            }
           >
             Confirmar baixa
           </Button>
