@@ -188,14 +188,7 @@ function Faturas() {
         </TabsList>
 
         <TabsContent value="lote" className="space-y-4">
-          {podeEditar ? (
-            <>
-              <LoteForm receitas={receitas} onDone={invalidate} />
-              <LoteRetroativoForm onDone={invalidate} />
-            </>
-          ) : (
-            <SemPermissao />
-          )}
+          {podeEditar ? <LoteForm receitas={receitas} onDone={invalidate} /> : <SemPermissao />}
         </TabsContent>
 
         <TabsContent value="individual">
@@ -616,6 +609,11 @@ function SemPermissao() {
   );
 }
 
+// Uma única emissão em lote, que cobre tanto "gerar o mês corrente" (início =
+// fim) quanto "gerar um intervalo retroativo" (fim > início) — antes eram
+// dois cartões/seletores separados, unificados a pedido do usuário.
+// gerarMensalidades já é idempotente por competência, então o loop mês a mês
+// pode incluir competências já geradas antes sem duplicar nada.
 function LoteForm({
   receitas,
   onDone,
@@ -623,101 +621,21 @@ function LoteForm({
   receitas: { id: string; codigo: string; nome: string }[];
   onDone: () => void;
 }) {
-  const [competencia, setCompetencia] = useState(toISODate(new Date()).slice(0, 7) + "-01");
+  const mesAtual = toISODate(new Date()).slice(0, 7);
+  const [inicio, setInicio] = useState(mesAtual);
+  const [fim, setFim] = useState(mesAtual);
   const [vencimento, setVencimento] = useState("");
   const [rateio, setRateio] = useState<Rateio[]>([]);
   const [gerando, setGerando] = useState(false);
+  const [progresso, setProgresso] = useState<{ mes: string; total: number }[] | null>(null);
+
+  const unicaCompetencia = inicio === fim;
 
   const { data: preview = [] } = useQuery({
-    queryKey: ["preview_lote", competencia],
-    queryFn: () => listarPreviewLoteMensalidades({ data: { competencia } }),
+    queryKey: ["preview_lote", inicio],
+    queryFn: () => listarPreviewLoteMensalidades({ data: { competencia: inicio + "-01" } }),
+    enabled: unicaCompetencia,
   });
-
-  const gerar = async () => {
-    if (
-      rateio.length > 0 &&
-      Math.abs(rateio.reduce((s, r) => s + Number(r.percentual || 0), 0) - 100) > 0.01
-    ) {
-      return toast.error("O rateio precisa somar 100%.");
-    }
-    setGerando(true);
-    try {
-      const total = await gerarMensalidades({
-        data: {
-          competencia,
-          dataVencimento: vencimento || null,
-          rateio: rateio.length > 0 ? rateio : null,
-        },
-      });
-      toast.success(`${total} fatura(s) gerada(s).`);
-      onDone();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar.");
-    } finally {
-      setGerando(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Gerar mensalidades do mês</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-4">
-        <div>
-          <Label>Competência</Label>
-          <Input
-            type="month"
-            value={competencia.slice(0, 7)}
-            onChange={(e) => setCompetencia(e.target.value + "-01")}
-          />
-        </div>
-        <div>
-          <Label>Vencimento (opcional)</Label>
-          <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
-        </div>
-        <RateioBuilder rateio={rateio} setRateio={setRateio} receitas={receitas} />
-
-        <div className="md:col-span-4 text-sm text-muted-foreground">
-          {preview.length} irmão(s) serão cobrados nesta emissão (situação ativa/quite/irregular,
-          com mensalidade &gt; 0, ainda sem fatura para esta competência).
-        </div>
-        {preview.length > 0 && (
-          <div className="md:col-span-4 max-h-40 overflow-y-auto border rounded-md">
-            <Table>
-              <TableBody>
-                {preview.map((i: any) => (
-                  <TableRow key={i.id}>
-                    <TableCell>{i.nome_civil}</TableCell>
-                    <TableCell className="text-right">{brl(i.valor_mensalidade)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-
-        <div className="md:col-span-4">
-          <Button onClick={gerar} disabled={gerando || preview.length === 0}>
-            Gerar {preview.length > 0 ? `(${preview.length})` : ""}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Gera mensalidade mês a mês, reaproveitando gerarMensalidades (que já é
-// idempotente por competência) — não precisa de nenhuma procedure nova.
-// Serve pro caso de reajuste/movimento retroativo: em vez de repetir a
-// emissão em lote uma competência de cada vez, cobre um intervalo inteiro
-// numa só ação.
-function LoteRetroativoForm({ onDone }: { onDone: () => void }) {
-  const mesAtual = toISODate(new Date()).slice(0, 7);
-  const [inicio, setInicio] = useState("2026-01");
-  const [fim, setFim] = useState(mesAtual);
-  const [gerando, setGerando] = useState(false);
-  const [progresso, setProgresso] = useState<{ mes: string; total: number }[] | null>(null);
 
   const competencias = (): string[] => {
     const lista: string[] = [];
@@ -735,6 +653,12 @@ function LoteRetroativoForm({ onDone }: { onDone: () => void }) {
   };
 
   const gerar = async () => {
+    if (
+      rateio.length > 0 &&
+      Math.abs(rateio.reduce((s, r) => s + Number(r.percentual || 0), 0) - 100) > 0.01
+    ) {
+      return toast.error("O rateio precisa somar 100%.");
+    }
     const meses = competencias();
     if (meses.length === 0) return toast.error("Intervalo inválido.");
     if (meses.length > 36) return toast.error("Intervalo grande demais (máximo 36 meses).");
@@ -743,15 +667,25 @@ function LoteRetroativoForm({ onDone }: { onDone: () => void }) {
     try {
       const resultados: { mes: string; total: number }[] = [];
       for (const mes of meses) {
-        const total = await gerarMensalidades({ data: { competencia: `${mes}-01` } });
+        const total = await gerarMensalidades({
+          data: {
+            competencia: `${mes}-01`,
+            dataVencimento: unicaCompetencia ? vencimento || null : null,
+            rateio: rateio.length > 0 ? rateio : null,
+          },
+        });
         resultados.push({ mes, total });
         setProgresso([...resultados]);
       }
       const somaTotal = resultados.reduce((s, r) => s + r.total, 0);
-      toast.success(`${somaTotal} fatura(s) geradas em ${meses.length} competência(s).`);
+      toast.success(
+        meses.length > 1
+          ? `${somaTotal} fatura(s) geradas em ${meses.length} competência(s).`
+          : `${somaTotal} fatura(s) gerada(s).`,
+      );
       onDone();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar o intervalo.");
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar.");
     } finally {
       setGerando(false);
     }
@@ -760,24 +694,55 @@ function LoteRetroativoForm({ onDone }: { onDone: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Gerar retroativo (intervalo de competências)</CardTitle>
+        <CardTitle className="text-base">Gerar mensalidades</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
         <div>
           <Label>Competência inicial</Label>
-          <Input type="month" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+          <Input
+            type="month"
+            value={inicio}
+            onChange={(e) => {
+              setInicio(e.target.value);
+              if (e.target.value > fim) setFim(e.target.value);
+            }}
+          />
         </div>
         <div>
           <Label>Competência final</Label>
           <Input type="month" value={fim} onChange={(e) => setFim(e.target.value)} />
         </div>
-        <div className="md:col-span-4 text-sm text-muted-foreground">
-          Gera a mensalidade padrão (100% na conta de Mensalidades, vencimento 9 dias após o início
-          de cada mês) pra todas as competências do intervalo que ainda não têm fatura. Competência
-          que já foi gerada antes é pulada automaticamente — pode incluir meses já feitos sem
-          duplicar nada.
+        <div>
+          <Label>Vencimento (opcional){!unicaCompetencia && " — só pra 1 mês"}</Label>
+          <Input
+            type="date"
+            value={vencimento}
+            onChange={(e) => setVencimento(e.target.value)}
+            disabled={!unicaCompetencia}
+          />
         </div>
-        {progresso && progresso.length > 0 && (
+        <RateioBuilder rateio={rateio} setRateio={setRateio} receitas={receitas} />
+
+        <div className="md:col-span-4 text-sm text-muted-foreground">
+          {unicaCompetencia
+            ? `${preview.length} irmão(s) serão cobrados nesta emissão (situação ativa/quite/irregular, com mensalidade > 0, ainda sem fatura para esta competência).`
+            : "Gera a mensalidade padrão pra todas as competências do intervalo que ainda não têm fatura (vencimento 9 dias após o início de cada mês). Competência já gerada antes é pulada automaticamente — pode incluir meses já feitos sem duplicar nada."}
+        </div>
+        {unicaCompetencia && preview.length > 0 && (
+          <div className="md:col-span-4 max-h-40 overflow-y-auto border rounded-md">
+            <Table>
+              <TableBody>
+                {preview.map((i: any) => (
+                  <TableRow key={i.id}>
+                    <TableCell>{i.nome_civil}</TableCell>
+                    <TableCell className="text-right">{brl(i.valor_mensalidade)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        {!unicaCompetencia && progresso && progresso.length > 0 && (
           <div className="md:col-span-4 max-h-40 overflow-y-auto border rounded-md">
             <Table>
               <TableBody>
@@ -791,9 +756,14 @@ function LoteRetroativoForm({ onDone }: { onDone: () => void }) {
             </Table>
           </div>
         )}
+
         <div className="md:col-span-4">
-          <Button onClick={gerar} disabled={gerando}>
-            {gerando ? "Gerando…" : "Gerar intervalo"}
+          <Button onClick={gerar} disabled={gerando || (unicaCompetencia && preview.length === 0)}>
+            {gerando
+              ? "Gerando…"
+              : unicaCompetencia
+                ? `Gerar ${preview.length > 0 ? `(${preview.length})` : ""}`
+                : "Gerar intervalo"}
           </Button>
         </div>
       </CardContent>
