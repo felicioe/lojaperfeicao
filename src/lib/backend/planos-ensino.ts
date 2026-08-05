@@ -5,13 +5,17 @@ import { comSessao, comPapel } from "./authz";
 
 // Planos de ensino — issue #22. Cadastro de referência (currículo por
 // grau), sem vínculo com sessões/eventos importados.
+//
+// grau é numérico (graus filosóficos, ver migração 0019 pra sessões e
+// 0022 pra esta tabela — este sistema não tem loja simbólica). org_id
+// nullable = plano genérico, não específico de um corpo.
 const PAPEIS_ESCRITA = ["admin", "secretario"];
-
-export type Grau = "aprendiz" | "companheiro" | "mestre";
 
 export type PlanoEnsino = {
   id: string;
-  grau: Grau;
+  grau: number;
+  org_id: string | null;
+  org_nome: string | null;
   ordem: number;
   titulo: string;
   conteudo: string | null;
@@ -21,7 +25,10 @@ export const listarPlanosEnsino = createServerFn({ method: "GET" }).handler(
   async (): Promise<PlanoEnsino[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, grau, ordem, titulo, conteudo FROM planos_ensino ORDER BY grau, ordem, titulo",
+        `SELECT pe.id, pe.grau, pe.org_id, o.nome AS org_nome, pe.ordem, pe.titulo, pe.conteudo
+         FROM planos_ensino pe
+         LEFT JOIN orgs o ON o.id = pe.org_id
+         ORDER BY pe.grau, pe.ordem, pe.titulo`,
       );
       return rows as PlanoEnsino[];
     });
@@ -30,7 +37,8 @@ export const listarPlanosEnsino = createServerFn({ method: "GET" }).handler(
 
 const planoSchema = z.object({
   id: z.string().uuid().nullable(),
-  grau: z.enum(["aprendiz", "companheiro", "mestre"]),
+  grau: z.number().int().positive(),
+  orgId: z.string().uuid().nullable(),
   ordem: z.number().int(),
   titulo: z.string().min(1),
   conteudo: z.string().nullable(),
@@ -40,15 +48,25 @@ export const salvarPlanoEnsino = createServerFn({ method: "POST" })
   .validator((d: unknown) => planoSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      if (data.orgId) {
+        const [[org]] = await conn.query<RowDataPacket[]>(
+          "SELECT grau_min, grau_max FROM orgs WHERE id = ?",
+          [data.orgId],
+        );
+        if (!org) throw new Error("Corpo maçônico não encontrado.");
+        if (data.grau < org.grau_min || data.grau > org.grau_max) {
+          throw new Error(`Grau fora da faixa do corpo (${org.grau_min}–${org.grau_max}).`);
+        }
+      }
       if (data.id) {
         await conn.query(
-          "UPDATE planos_ensino SET grau=?, ordem=?, titulo=?, conteudo=? WHERE id=?",
-          [data.grau, data.ordem, data.titulo, data.conteudo, data.id],
+          "UPDATE planos_ensino SET grau=?, org_id=?, ordem=?, titulo=?, conteudo=? WHERE id=?",
+          [data.grau, data.orgId, data.ordem, data.titulo, data.conteudo, data.id],
         );
       } else {
         await conn.query(
-          "INSERT INTO planos_ensino (grau, ordem, titulo, conteudo) VALUES (?, ?, ?, ?)",
-          [data.grau, data.ordem, data.titulo, data.conteudo],
+          "INSERT INTO planos_ensino (grau, org_id, ordem, titulo, conteudo) VALUES (?, ?, ?, ?, ?)",
+          [data.grau, data.orgId, data.ordem, data.titulo, data.conteudo],
         );
       }
     });
