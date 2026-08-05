@@ -172,8 +172,15 @@ function Faturas() {
           <TabsTrigger value="abertas">Em aberto</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="lote">
-          {podeEditar ? <LoteForm receitas={receitas} onDone={invalidate} /> : <SemPermissao />}
+        <TabsContent value="lote" className="space-y-4">
+          {podeEditar ? (
+            <>
+              <LoteForm receitas={receitas} onDone={invalidate} />
+              <LoteRetroativoForm onDone={invalidate} />
+            </>
+          ) : (
+            <SemPermissao />
+          )}
         </TabsContent>
 
         <TabsContent value="individual">
@@ -529,6 +536,100 @@ function LoteForm({
         <div className="md:col-span-4">
           <Button onClick={gerar} disabled={gerando || preview.length === 0}>
             Gerar {preview.length > 0 ? `(${preview.length})` : ""}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Gera mensalidade mês a mês, reaproveitando gerarMensalidades (que já é
+// idempotente por competência) — não precisa de nenhuma procedure nova.
+// Serve pro caso de reajuste/movimento retroativo: em vez de repetir a
+// emissão em lote uma competência de cada vez, cobre um intervalo inteiro
+// numa só ação.
+function LoteRetroativoForm({ onDone }: { onDone: () => void }) {
+  const mesAtual = toISODate(new Date()).slice(0, 7);
+  const [inicio, setInicio] = useState("2026-01");
+  const [fim, setFim] = useState(mesAtual);
+  const [gerando, setGerando] = useState(false);
+  const [progresso, setProgresso] = useState<{ mes: string; total: number }[] | null>(null);
+
+  const competencias = (): string[] => {
+    const lista: string[] = [];
+    let [ano, mes] = inicio.split("-").map(Number);
+    const [anoFim, mesFim] = fim.split("-").map(Number);
+    while (ano < anoFim || (ano === anoFim && mes <= mesFim)) {
+      lista.push(`${ano}-${String(mes).padStart(2, "0")}`);
+      mes++;
+      if (mes > 12) {
+        mes = 1;
+        ano++;
+      }
+    }
+    return lista;
+  };
+
+  const gerar = async () => {
+    const meses = competencias();
+    if (meses.length === 0) return toast.error("Intervalo inválido.");
+    if (meses.length > 36) return toast.error("Intervalo grande demais (máximo 36 meses).");
+    setGerando(true);
+    setProgresso([]);
+    try {
+      const resultados: { mes: string; total: number }[] = [];
+      for (const mes of meses) {
+        const total = await gerarMensalidades({ data: { competencia: `${mes}-01` } });
+        resultados.push({ mes, total });
+        setProgresso([...resultados]);
+      }
+      const somaTotal = resultados.reduce((s, r) => s + r.total, 0);
+      toast.success(`${somaTotal} fatura(s) geradas em ${meses.length} competência(s).`);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar o intervalo.");
+    } finally {
+      setGerando(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Gerar retroativo (intervalo de competências)</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-4">
+        <div>
+          <Label>Competência inicial</Label>
+          <Input type="month" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+        </div>
+        <div>
+          <Label>Competência final</Label>
+          <Input type="month" value={fim} onChange={(e) => setFim(e.target.value)} />
+        </div>
+        <div className="md:col-span-4 text-sm text-muted-foreground">
+          Gera a mensalidade padrão (100% na conta de Mensalidades, vencimento 9 dias após o início
+          de cada mês) pra todas as competências do intervalo que ainda não têm fatura. Competência
+          que já foi gerada antes é pulada automaticamente — pode incluir meses já feitos sem
+          duplicar nada.
+        </div>
+        {progresso && progresso.length > 0 && (
+          <div className="md:col-span-4 max-h-40 overflow-y-auto border rounded-md">
+            <Table>
+              <TableBody>
+                {progresso.map((p) => (
+                  <TableRow key={p.mes}>
+                    <TableCell>{fmtDate(`${p.mes}-01`).slice(3)}</TableCell>
+                    <TableCell className="text-right">{p.total} fatura(s)</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        <div className="md:col-span-4">
+          <Button onClick={gerar} disabled={gerando}>
+            {gerando ? "Gerando…" : "Gerar intervalo"}
           </Button>
         </div>
       </CardContent>
