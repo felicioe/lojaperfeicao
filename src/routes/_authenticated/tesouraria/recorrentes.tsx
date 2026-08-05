@@ -11,6 +11,7 @@ import {
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { listarFornecedores } from "@/lib/backend/terceiros";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ import { toast } from "sonner";
 import { Pencil, RefreshCw, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/recorrentes")({
   head: () => ({ meta: [{ title: "Despesas Recorrentes — Gestão Maçônica" }] }),
@@ -104,6 +106,8 @@ function Recorrentes() {
     queryFn: () => listarRecorrentesEfetivadasNoMes({ data: { inicioMes } }),
   });
   const efetivadasSet = new Set(efetivadasIds);
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
+    usePaginacao(recorrentes);
 
   const { data: planos = [] } = useQuery({
     queryKey: ["planos_despesa"],
@@ -328,7 +332,7 @@ function Recorrentes() {
                 </TableCell>
               </TableRow>
             )}
-            {recorrentes.map((r) => {
+            {itensPagina.map((r) => {
               const status = statusCompetencia(r, efetivadasSet);
               return (
                 <TableRow key={r.id} className={!r.ativo ? "opacity-50" : undefined}>
@@ -363,6 +367,13 @@ function Recorrentes() {
             })}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );

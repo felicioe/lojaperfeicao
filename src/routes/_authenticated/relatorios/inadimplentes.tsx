@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { relatorioInadimplentes, type ItemInadimplente } from "@/lib/backend/relatorios";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { brl, fmtDate } from "@/lib/format";
+import { usePaginacao } from "@/lib/use-paginacao";
 
 export const Route = createFileRoute("/_authenticated/relatorios/inadimplentes")({
   head: () => ({ meta: [{ title: "Inadimplentes — Gestão Maçônica" }] }),
@@ -49,6 +51,9 @@ function Inadimplentes() {
       return Array.from(grupos.values()).filter((g) => g.itens.length >= 3);
     },
   });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    data ?? [],
+  );
 
   return (
     <>
@@ -74,7 +79,7 @@ function Inadimplentes() {
                 </TableCell>
               </TableRow>
             )}
-            {(data ?? []).map((g: any) => (
+            {itensPagina.map((g: any) => (
               <TableRow key={g.irmao?.nome_civil}>
                 <TableCell>
                   {g.irmao?.nome_civil}
@@ -89,6 +94,13 @@ function Inadimplentes() {
             ))}
           </TableBody>
         </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
       </Card>
     </>
   );
