@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
+import { AcoesLancamento } from "@/components/app/LancamentoAcoes";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
@@ -50,6 +52,10 @@ function Movimentos() {
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
     queryFn: () => listarContasFinanceiras(),
+  });
+  const { data: receitas = [] } = useQuery({
+    queryKey: ["planos_receita"],
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "receita" } }),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
@@ -166,12 +172,13 @@ function Movimentos() {
               <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {f.movimentos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                   Nenhum movimento encontrado.
                 </TableCell>
               </TableRow>
@@ -210,6 +217,16 @@ function Movimentos() {
                     <Badge variant="secondary">Pago</Badge>
                   ) : (
                     <Badge variant="outline">Aberto</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {podeEditar && (
+                    <AcoesLancamento
+                      lancamento={m}
+                      contas={contas}
+                      receitas={receitas}
+                      onDone={invalidate}
+                    />
                   )}
                 </TableCell>
               </TableRow>
