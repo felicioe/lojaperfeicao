@@ -214,6 +214,7 @@ function Faturas() {
                 </DialogTrigger>
                 <BaixaDialog
                   faturas={faturasSelecionadas}
+                  receitas={receitas}
                   onDone={() => {
                     setOpenBaixa(false);
                     invalidate();
@@ -345,11 +346,22 @@ function Faturas() {
   );
 }
 
-function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }) {
+function BaixaDialog({
+  faturas,
+  receitas,
+  onDone,
+}: {
+  faturas: any[];
+  receitas: { id: string; codigo: string; nome: string }[];
+  onDone: () => void;
+}) {
   const [contaFinanceiraId, setContaFinanceiraId] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("");
   const [dataPagamento, setDataPagamento] = useState(toISODate(new Date()));
   const [desconto, setDesconto] = useState(0);
+  const [jurosAdicional, setJurosAdicional] = useState(0);
+  const [valorExtra, setValorExtra] = useState(0);
+  const [planoContaExtraId, setPlanoContaExtraId] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [calculos, setCalculos] = useState<
     Record<string, { multa: number; juros: number; dias_atraso: number; total: number }>
@@ -386,10 +398,19 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
   const somaOriginal = faturas.reduce((s, f) => s + Number(f.valor), 0);
   const somaMulta = Object.values(calculos).reduce((s, c) => s + Number(c.multa), 0);
   const somaJuros = Object.values(calculos).reduce((s, c) => s + Number(c.juros), 0);
-  const totalLiquido = somaOriginal + somaMulta + somaJuros - Number(desconto || 0);
+  const totalLiquido =
+    somaOriginal +
+    somaMulta +
+    somaJuros +
+    Number(jurosAdicional || 0) +
+    Number(valorExtra || 0) -
+    Number(desconto || 0);
 
   const confirmar = async () => {
     if (!contaFinanceiraId) return toast.error("Selecione a conta que recebeu o pagamento.");
+    if (Number(valorExtra) > 0 && !planoContaExtraId) {
+      return toast.error("Selecione a conta de receita do valor extra.");
+    }
     setSalvando(true);
     try {
       await baixarFaturas({
@@ -400,6 +421,9 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
           dataPagamento,
           desconto: Number(desconto) || 0,
           observacoes: observacoes || null,
+          jurosAdicional: Number(jurosAdicional) || 0,
+          valorExtra: Number(valorExtra) || 0,
+          planoContaExtraId: Number(valorExtra) > 0 ? planoContaExtraId : null,
         },
       });
       toast.success("Baixa registrada, recibo emitido e lançamento contábil postado.");
@@ -474,15 +498,60 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
             />
           </div>
         </div>
-        <div>
-          <Label>Desconto (opcional)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={desconto}
-            onChange={(e) => setDesconto(Number(e.target.value))}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Desconto (opcional)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={desconto}
+              onChange={(e) => setDesconto(Number(e.target.value))}
+            />
+          </div>
+          <div>
+            <Label>Juros adicional (opcional)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={jurosAdicional}
+              onChange={(e) => setJurosAdicional(Number(e.target.value))}
+              placeholder="Além do calculado automaticamente"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Outra receita recebida junto (opcional)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={valorExtra}
+              onChange={(e) => setValorExtra(Number(e.target.value))}
+              placeholder="Ex.: doação"
+            />
+          </div>
+          <div>
+            <Label>Conta de receita do valor extra</Label>
+            <Select
+              value={planoContaExtraId}
+              onValueChange={setPlanoContaExtraId}
+              disabled={!(Number(valorExtra) > 0)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                {receitas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.codigo} — {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div>
           <Label>Observações</Label>
@@ -494,7 +563,15 @@ function BaixaDialog({ faturas, onDone }: { faturas: any[]; onDone: () => void }
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={confirmar} disabled={salvando || !contaFinanceiraId || totalLiquido < 0}>
+        <Button
+          onClick={confirmar}
+          disabled={
+            salvando ||
+            !contaFinanceiraId ||
+            totalLiquido < 0 ||
+            (Number(valorExtra) > 0 && !planoContaExtraId)
+          }
+        >
           Confirmar baixa
         </Button>
       </DialogFooter>

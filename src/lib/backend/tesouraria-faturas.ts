@@ -70,19 +70,25 @@ const baixarFaturasSchema = z.object({
   dataPagamento: z.string(),
   desconto: z.number(),
   observacoes: z.string().nullable(),
+  jurosAdicional: z.number().nonnegative(),
+  valorExtra: z.number().nonnegative(),
+  planoContaExtraId: z.string().uuid().nullable(),
 });
 
 export const baixarFaturas = createServerFn({ method: "POST" })
   .validator((d: unknown) => baixarFaturasSchema.parse(d))
   .handler(async ({ data }): Promise<{ reciboId: string }> => {
     return comPapel(PAPEIS, async (conn) => {
-      await conn.query("CALL baixar_faturas(?, ?, ?, ?, ?, ?, @recibo_id)", [
+      await conn.query("CALL baixar_faturas(?, ?, ?, ?, ?, ?, ?, ?, ?, @recibo_id)", [
         JSON.stringify(data.lancamentoIds),
         data.contaFinanceiraId,
         data.formaPagamento,
         data.dataPagamento,
         data.desconto,
         data.observacoes,
+        data.jurosAdicional,
+        data.valorExtra,
+        data.planoContaExtraId,
       ]);
       const [[{ recibo_id }]] = await conn.query<RowDataPacket[]>("SELECT @recibo_id AS recibo_id");
       return { reciboId: recibo_id };
