@@ -55,7 +55,6 @@ import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './rout
 import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
 import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
 import { Route as AuthenticatedSgcabCobrancasRouteImport } from './routes/_authenticated/sgcab/cobrancas'
-import { Route as AuthenticatedSgcabTaxasRouteImport } from './routes/_authenticated/sgcab/taxas'
 import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authenticated/terceiros/index'
 import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
 import { Route as AuthenticatedTesourariaConciliacaoRouteImport } from './routes/_authenticated/tesouraria/conciliacao'
@@ -337,11 +336,6 @@ const AuthenticatedSgcabCobrancasRoute =
     path: '/sgcab/cobrancas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedSgcabTaxasRoute = AuthenticatedSgcabTaxasRouteImport.update({
-  id: '/sgcab/taxas',
-  path: '/sgcab/taxas',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedTerceirosIndexRoute =
   AuthenticatedTerceirosIndexRouteImport.update({
     id: '/terceiros/',
@@ -477,7 +471,6 @@ export interface FileRoutesByFullPath {
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
-  '/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -540,7 +533,6 @@ export interface FileRoutesByTo {
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
-  '/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -606,7 +598,6 @@ export interface FileRoutesById {
   '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/_authenticated/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/_authenticated/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
-  '/_authenticated/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/_authenticated/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/_authenticated/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/_authenticated/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -672,7 +663,6 @@ export interface FileRouteTypes {
     | '/relatorios/inadimplentes'
     | '/sessoes/$id'
     | '/sgcab/cobrancas'
-    | '/sgcab/taxas'
     | '/tesouraria/conciliacao'
     | '/tesouraria/contas'
     | '/tesouraria/contas-pagar'
@@ -735,7 +725,6 @@ export interface FileRouteTypes {
     | '/relatorios/inadimplentes'
     | '/sessoes/$id'
     | '/sgcab/cobrancas'
-    | '/sgcab/taxas'
     | '/tesouraria/conciliacao'
     | '/tesouraria/contas'
     | '/tesouraria/contas-pagar'
@@ -800,7 +789,6 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios/inadimplentes'
     | '/_authenticated/sessoes/$id'
     | '/_authenticated/sgcab/cobrancas'
-    | '/_authenticated/sgcab/taxas'
     | '/_authenticated/tesouraria/conciliacao'
     | '/_authenticated/tesouraria/contas'
     | '/_authenticated/tesouraria/contas-pagar'
@@ -1160,13 +1148,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSgcabCobrancasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/sgcab/taxas': {
-      id: '/_authenticated/sgcab/taxas'
-      path: '/sgcab/taxas'
-      fullPath: '/sgcab/taxas'
-      preLoaderRoute: typeof AuthenticatedSgcabTaxasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/terceiros/': {
       id: '/_authenticated/terceiros/'
       path: '/terceiros'
@@ -1336,7 +1317,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRelatoriosInadimplentesRoute: typeof AuthenticatedRelatoriosInadimplentesRoute
   AuthenticatedSessoesIdRoute: typeof AuthenticatedSessoesIdRoute
   AuthenticatedSgcabCobrancasRoute: typeof AuthenticatedSgcabCobrancasRoute
-  AuthenticatedSgcabTaxasRoute: typeof AuthenticatedSgcabTaxasRoute
   AuthenticatedTesourariaConciliacaoRoute: typeof AuthenticatedTesourariaConciliacaoRoute
   AuthenticatedTesourariaContasRoute: typeof AuthenticatedTesourariaContasRoute
   AuthenticatedTesourariaContasPagarRoute: typeof AuthenticatedTesourariaContasPagarRoute
@@ -1401,7 +1381,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedRelatoriosInadimplentesRoute,
   AuthenticatedSessoesIdRoute: AuthenticatedSessoesIdRoute,
   AuthenticatedSgcabCobrancasRoute: AuthenticatedSgcabCobrancasRoute,
-  AuthenticatedSgcabTaxasRoute: AuthenticatedSgcabTaxasRoute,
   AuthenticatedTesourariaConciliacaoRoute:
     AuthenticatedTesourariaConciliacaoRoute,
   AuthenticatedTesourariaContasRoute: AuthenticatedTesourariaContasRoute,
