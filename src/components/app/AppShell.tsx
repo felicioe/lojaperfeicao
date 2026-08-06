@@ -223,7 +223,7 @@ function NavTree({
                     return (
                       <Fragment key={i.to}>
                         {mostraSecao && (
-                          <div className="px-2.5 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/65 first:pt-0">
+                          <div className="px-2.5 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/65 first:pt-0">
                             {i.section}
                           </div>
                         )}

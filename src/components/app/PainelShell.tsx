@@ -105,8 +105,10 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   key={aba.to}
                   to={aba.to}
                   className={cn(
-                    "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition-opacity",
-                    ativo ? "opacity-100" : "opacity-70 hover:opacity-90",
+                    "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition-all",
+                    ativo
+                      ? "opacity-100 bg-white/10"
+                      : "opacity-60 hover:opacity-85 hover:bg-white/5",
                   )}
                 >
                   <div className="relative">
