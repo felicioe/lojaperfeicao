@@ -22,7 +22,6 @@ import {
   FileStack,
   Receipt,
   Settings2,
-  SplitSquareHorizontal,
   ArrowLeftRight,
   HeartHandshake,
   FileSpreadsheet,
@@ -48,17 +47,16 @@ import {
   UsersRound,
   UserRound,
   CalendarCheck2,
-  BadgeDollarSign,
-  Coins,
   PartyPopper,
   GraduationCap,
   CalendarPlus,
   CalendarRange,
   FileUp,
   Megaphone,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { ROLE_LABEL } from "@/lib/format";
 import { useIsDesktop } from "@/lib/use-media-query";
@@ -66,7 +64,7 @@ import { useTheme } from "@/lib/use-theme";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NotificationBell } from "@/components/app/NotificationBell";
 
-type NavItem = { to: string; label: string; icon: any; show: boolean };
+type NavItem = { to: string; label: string; icon: any; show: boolean; section?: string };
 type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
 
 function Brand() {
@@ -219,26 +217,33 @@ function NavTree({
               </CollapsibleTrigger>
               <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
                 <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border pb-1 pl-3">
-                  {g.items.map((i) => {
+                  {g.items.map((i, idx) => {
                     const active = isActive(i.to);
+                    const mostraSecao = i.section && i.section !== g.items[idx - 1]?.section;
                     return (
-                      <Link
-                        key={i.to}
-                        to={i.to}
-                        onClick={onNavigate}
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-md transition-colors",
-                          itemPad,
-                          active
-                            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                      <Fragment key={i.to}>
+                        {mostraSecao && (
+                          <div className="px-2.5 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 first:pt-0">
+                            {i.section}
+                          </div>
                         )}
-                      >
-                        <i.icon
-                          className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")}
-                        />
-                        <span className="truncate">{i.label}</span>
-                      </Link>
+                        <Link
+                          to={i.to}
+                          onClick={onNavigate}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-md transition-colors",
+                            itemPad,
+                            active
+                              ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                              : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                          )}
+                        >
+                          <i.icon
+                            className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")}
+                          />
+                          <span className="truncate">{i.label}</span>
+                        </Link>
+                      </Fragment>
                     );
                   })}
                 </div>
@@ -296,6 +301,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/irmaos", label: "Irmãos", icon: Users, show: true },
         { to: "/orgs", label: "Corpos Maçônicos", icon: Building2, show: true },
         { to: "/gestoes", label: "Gestões", icon: Award, show: true },
+        { to: "/comissoes", label: "Comissões", icon: UsersRound, show: true },
         {
           to: "/terceiros",
           label: "Fornecedores/Clientes",
@@ -317,12 +323,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           label: "Importar Calendário",
           icon: CalendarPlus,
           show: can.canManageIrmaos,
+          section: "Importar",
         },
         {
           to: "/ensino/importar-pdf-sessoes",
           label: "Cronograma (PDF)",
           icon: FileUp,
           show: can.canManageIrmaos,
+          section: "Importar",
         },
         { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
       ],
@@ -338,12 +346,31 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Wallet,
           show: can.canManageFinancas || can.isSecretario,
         },
-        { to: "/tesouraria/contas", label: "Contas", icon: Landmark, show: can.canManageFinancas },
+        {
+          to: "/tesouraria/contas",
+          label: "Contas",
+          icon: Landmark,
+          show: can.canManageFinancas,
+          section: "Cadastro",
+        },
+        {
+          to: "/tesouraria/parametros",
+          label: "Parâmetros Financeiros",
+          icon: Settings2,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/tabela-valores",
+          label: "Tabela de Valores",
+          icon: TrendingUp,
+          show: can.canManageFinancas,
+        },
         {
           to: "/tesouraria/movimentos",
           label: "Movimento Financeiro",
           icon: ArrowLeftRight,
           show: can.canManageFinancas,
+          section: "Operações",
         },
         {
           to: "/tesouraria/tronco",
@@ -363,13 +390,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: FileStack,
           show: can.canManageFinancas,
         },
-        { to: "/tesouraria/recibos", label: "Recibos", icon: Receipt, show: can.canManageFinancas },
         {
-          to: "/tesouraria/parcelamentos",
-          label: "Parcelamentos",
-          icon: SplitSquareHorizontal,
-          show: can.canManageFinancas,
+          to: "/sgcab/cobrancas",
+          label: "Cobranças (Potência)",
+          icon: ScrollText,
+          show: can.isTesoureiro || can.isSecretario,
         },
+        { to: "/tesouraria/recibos", label: "Recibos", icon: Receipt, show: can.canManageFinancas },
         {
           to: "/tesouraria/contas-pagar",
           label: "Contas a Pagar",
@@ -380,18 +407,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/tesouraria/recorrentes",
           label: "Despesas Recorrentes",
           icon: RefreshCw,
-          show: can.canManageFinancas,
-        },
-        {
-          to: "/tesouraria/parametros",
-          label: "Parâmetros Financeiros",
-          icon: Settings2,
-          show: can.canManageFinancas,
-        },
-        {
-          to: "/tesouraria/tabela-valores",
-          label: "Tabela de Valores",
-          icon: TrendingUp,
           show: can.canManageFinancas,
         },
       ],
@@ -406,6 +421,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           label: "Plano de Contas",
           icon: FileBarChart,
           show: can.canManageFinancas,
+          section: "Registros",
         },
         {
           to: "/contabilidade/razao",
@@ -419,18 +435,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: CalendarClock,
           show: can.canManageFinancas,
         },
-        { to: "/contabilidade/dre", label: "DRE", icon: TrendingUp, show: can.canManageFinancas },
         {
-          to: "/contabilidade/balancete",
-          label: "Balancete",
-          icon: Scale,
+          to: "/contabilidade/dre",
+          label: "DRE",
+          icon: TrendingUp,
           show: can.canManageFinancas,
-        },
-        {
-          to: "/contabilidade/orcamento",
-          label: "Orçamento Anual",
-          icon: Calculator,
-          show: can.canManageFinancas,
+          section: "Relatórios",
         },
         {
           to: "/contabilidade/dre-orcado",
@@ -439,10 +449,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageFinancas,
         },
         {
+          to: "/contabilidade/balancete",
+          label: "Balancete",
+          icon: Scale,
+          show: can.canManageFinancas,
+        },
+        {
           to: "/contabilidade/fluxo-caixa",
           label: "Fluxo de Caixa",
           icon: Waves,
           show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/orcamento",
+          label: "Orçamento Anual",
+          icon: Calculator,
+          show: can.canManageFinancas,
+          section: "Fechamento",
         },
         {
           to: "/contabilidade/fechamento",
@@ -459,25 +482,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       ],
     },
     {
-      id: "sgcab",
-      label: "SGCAB",
-      icon: BadgeDollarSign,
-      items: [
-        {
-          to: "/sgcab/taxas",
-          label: "Taxas por Grau",
-          icon: Coins,
-          show: can.isTesoureiro || can.isSecretario,
-        },
-        {
-          to: "/sgcab/cobrancas",
-          label: "Cobranças",
-          icon: ScrollText,
-          show: can.isTesoureiro || can.isSecretario,
-        },
-      ],
-    },
-    {
       id: "relatorios",
       label: "Relatórios",
       icon: FileBarChart,
@@ -486,7 +490,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {
           to: "/relatorios/inadimplentes",
           label: "Inadimplentes",
-          icon: FileBarChart,
+          icon: AlertTriangle,
           show: can.canManageFinancas,
         },
       ],

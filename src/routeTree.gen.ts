@@ -20,6 +20,7 @@ import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
+import { Route as AuthenticatedComissoesIndexRouteImport } from './routes/_authenticated/comissoes/index'
 import { Route as AuthenticatedComunicacoesIndexRouteImport } from './routes/_authenticated/comunicacoes/index'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
@@ -54,7 +55,6 @@ import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './rout
 import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
 import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
 import { Route as AuthenticatedSgcabCobrancasRouteImport } from './routes/_authenticated/sgcab/cobrancas'
-import { Route as AuthenticatedSgcabTaxasRouteImport } from './routes/_authenticated/sgcab/taxas'
 import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authenticated/terceiros/index'
 import { Route as AuthenticatedTesourariaIndexRouteImport } from './routes/_authenticated/tesouraria/index'
 import { Route as AuthenticatedTesourariaConciliacaoRouteImport } from './routes/_authenticated/tesouraria/conciliacao'
@@ -128,6 +128,12 @@ const AuthenticatedAdministracaoResetarFinanceiroRoute =
   AuthenticatedAdministracaoResetarFinanceiroRouteImport.update({
     id: '/administracao/resetar-financeiro',
     path: '/administracao/resetar-financeiro',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedComissoesIndexRoute =
+  AuthenticatedComissoesIndexRouteImport.update({
+    id: '/comissoes/',
+    path: '/comissoes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedComunicacoesIndexRoute =
@@ -330,11 +336,6 @@ const AuthenticatedSgcabCobrancasRoute =
     path: '/sgcab/cobrancas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedSgcabTaxasRoute = AuthenticatedSgcabTaxasRouteImport.update({
-  id: '/sgcab/taxas',
-  path: '/sgcab/taxas',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedTerceirosIndexRoute =
   AuthenticatedTerceirosIndexRouteImport.update({
     id: '/terceiros/',
@@ -470,7 +471,6 @@ export interface FileRoutesByFullPath {
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
-  '/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -482,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
   '/gestoes/': typeof AuthenticatedGestoesIndexRoute
@@ -532,7 +533,6 @@ export interface FileRoutesByTo {
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
-  '/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -544,6 +544,7 @@ export interface FileRoutesByTo {
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/comissoes': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
   '/gestoes': typeof AuthenticatedGestoesIndexRoute
@@ -597,7 +598,6 @@ export interface FileRoutesById {
   '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/_authenticated/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/_authenticated/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
-  '/_authenticated/sgcab/taxas': typeof AuthenticatedSgcabTaxasRoute
   '/_authenticated/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
   '/_authenticated/tesouraria/contas': typeof AuthenticatedTesourariaContasRoute
   '/_authenticated/tesouraria/contas-pagar': typeof AuthenticatedTesourariaContasPagarRoute
@@ -609,6 +609,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
   '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
@@ -662,7 +663,6 @@ export interface FileRouteTypes {
     | '/relatorios/inadimplentes'
     | '/sessoes/$id'
     | '/sgcab/cobrancas'
-    | '/sgcab/taxas'
     | '/tesouraria/conciliacao'
     | '/tesouraria/contas'
     | '/tesouraria/contas-pagar'
@@ -674,6 +674,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
+    | '/comissoes/'
     | '/comunicacoes/'
     | '/eventos/'
     | '/gestoes/'
@@ -724,7 +725,6 @@ export interface FileRouteTypes {
     | '/relatorios/inadimplentes'
     | '/sessoes/$id'
     | '/sgcab/cobrancas'
-    | '/sgcab/taxas'
     | '/tesouraria/conciliacao'
     | '/tesouraria/contas'
     | '/tesouraria/contas-pagar'
@@ -736,6 +736,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
+    | '/comissoes'
     | '/comunicacoes'
     | '/eventos'
     | '/gestoes'
@@ -788,7 +789,6 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios/inadimplentes'
     | '/_authenticated/sessoes/$id'
     | '/_authenticated/sgcab/cobrancas'
-    | '/_authenticated/sgcab/taxas'
     | '/_authenticated/tesouraria/conciliacao'
     | '/_authenticated/tesouraria/contas'
     | '/_authenticated/tesouraria/contas-pagar'
@@ -800,6 +800,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/tabela-valores'
     | '/_authenticated/tesouraria/tronco'
+    | '/_authenticated/comissoes/'
     | '/_authenticated/comunicacoes/'
     | '/_authenticated/eventos/'
     | '/_authenticated/gestoes/'
@@ -900,6 +901,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/resetar-financeiro'
       fullPath: '/administracao/resetar-financeiro'
       preLoaderRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/comissoes/': {
+      id: '/_authenticated/comissoes/'
+      path: '/comissoes'
+      fullPath: '/comissoes/'
+      preLoaderRoute: typeof AuthenticatedComissoesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/comunicacoes/': {
@@ -1140,13 +1148,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSgcabCobrancasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/sgcab/taxas': {
-      id: '/_authenticated/sgcab/taxas'
-      path: '/sgcab/taxas'
-      fullPath: '/sgcab/taxas'
-      preLoaderRoute: typeof AuthenticatedSgcabTaxasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/terceiros/': {
       id: '/_authenticated/terceiros/'
       path: '/terceiros'
@@ -1316,7 +1317,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRelatoriosInadimplentesRoute: typeof AuthenticatedRelatoriosInadimplentesRoute
   AuthenticatedSessoesIdRoute: typeof AuthenticatedSessoesIdRoute
   AuthenticatedSgcabCobrancasRoute: typeof AuthenticatedSgcabCobrancasRoute
-  AuthenticatedSgcabTaxasRoute: typeof AuthenticatedSgcabTaxasRoute
   AuthenticatedTesourariaConciliacaoRoute: typeof AuthenticatedTesourariaConciliacaoRoute
   AuthenticatedTesourariaContasRoute: typeof AuthenticatedTesourariaContasRoute
   AuthenticatedTesourariaContasPagarRoute: typeof AuthenticatedTesourariaContasPagarRoute
@@ -1328,6 +1328,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaTabelaValoresRoute: typeof AuthenticatedTesourariaTabelaValoresRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
+  AuthenticatedComissoesIndexRoute: typeof AuthenticatedComissoesIndexRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
   AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
@@ -1380,7 +1381,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedRelatoriosInadimplentesRoute,
   AuthenticatedSessoesIdRoute: AuthenticatedSessoesIdRoute,
   AuthenticatedSgcabCobrancasRoute: AuthenticatedSgcabCobrancasRoute,
-  AuthenticatedSgcabTaxasRoute: AuthenticatedSgcabTaxasRoute,
   AuthenticatedTesourariaConciliacaoRoute:
     AuthenticatedTesourariaConciliacaoRoute,
   AuthenticatedTesourariaContasRoute: AuthenticatedTesourariaContasRoute,
@@ -1400,6 +1400,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaTabelaValoresRoute:
     AuthenticatedTesourariaTabelaValoresRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
+  AuthenticatedComissoesIndexRoute: AuthenticatedComissoesIndexRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
   AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,

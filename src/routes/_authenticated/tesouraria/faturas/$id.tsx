@@ -66,6 +66,8 @@ function FaturaDetalhe() {
   }
 
   const hoje = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date());
+  const isBoleto = fatura.forma_cobranca === "boleto";
+  const nossoNumero = fatura.id.replace(/-/g, "").slice(0, 12).toUpperCase();
 
   const copiar = async () => {
     if (!copiaCola) return;
@@ -81,7 +83,12 @@ function FaturaDetalhe() {
           <Printer className="mr-1.5 h-4 w-4" /> Imprimir / salvar PDF
         </Button>
       </div>
-      <Card className="mx-auto max-w-2xl print:border-none print:shadow-none">
+      <Card className="mx-auto max-w-2xl overflow-hidden print:border-none print:shadow-none">
+        <div className="bg-primary px-8 py-1.5 text-center text-xs font-medium text-primary-foreground print:bg-primary">
+          {fatura.pago
+            ? "Fatura quitada"
+            : "Documento gerado eletronicamente pelo sistema — pagamento exclusivo via Pix"}
+        </div>
         <CardContent className="space-y-6 p-8">
           <div className="flex items-start justify-between gap-4 border-b pb-4">
             <div className="flex items-center gap-3">
@@ -93,146 +100,131 @@ function FaturaDetalhe() {
                 />
               )}
               <div>
-                <h2 className="text-xl font-semibold tracking-tight">Fatura de mensalidade</h2>
-                {fatura.org_nome && (
-                  <p className="text-sm text-muted-foreground">{fatura.org_nome}</p>
-                )}
-                <p className="text-xs text-muted-foreground">Emitida em {hoje}</p>
+                <h2 className="text-lg font-semibold tracking-tight">
+                  {fatura.org_nome ?? "Fatura de mensalidade"}
+                </h2>
+                <p className="text-sm text-muted-foreground">Fatura de mensalidade</p>
               </div>
             </div>
-            <span
-              className={
-                "shrink-0 rounded-full px-3 py-1 text-xs font-medium " +
-                (fatura.pago ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800")
-              }
-            >
-              {fatura.pago ? "Pago" : "Em aberto"}
-            </span>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <span
+                className={
+                  "rounded-full px-3 py-1 text-xs font-medium " +
+                  (fatura.pago ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800")
+                }
+              >
+                {fatura.pago ? "Pago" : "Em aberto"}
+              </span>
+              <span className="text-xs text-muted-foreground">Emitida em {hoje}</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="text-muted-foreground">Irmão</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Beneficiário
+              </div>
+              <div className="font-medium">{fatura.org_nome ?? "—"}</div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Pagador
+              </div>
               <div className="font-medium">{fatura.irmao_nome ?? "—"}</div>
+              {fatura.irmao_cim && (
+                <div className="text-xs text-muted-foreground">CIM {fatura.irmao_cim}</div>
+              )}
             </div>
-            <div>
-              <div className="text-muted-foreground">CIM</div>
-              <div className="font-medium">{fatura.irmao_cim ?? "—"}</div>
+          </div>
+
+          <div className="text-sm">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Referente a
             </div>
-            <div>
-              <div className="text-muted-foreground">Descrição</div>
-              <div className="font-medium">{fatura.descricao}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Competência</div>
-              <div className="font-medium">
-                {fatura.competencia_mes ? fmtDate(fatura.competencia_mes) : "—"}
-              </div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Data de emissão</div>
-              <div className="font-medium">{fmtDate(fatura.data)}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Vencimento</div>
-              <div className="font-medium">
-                {fatura.data_vencimento ? fmtDate(fatura.data_vencimento) : "—"}
-              </div>
-            </div>
-            {fatura.pago && (
-              <div>
-                <div className="text-muted-foreground">Data de pagamento</div>
-                <div className="font-medium">
-                  {fatura.data_pagamento ? fmtDate(fatura.data_pagamento) : "—"}
-                </div>
+            <div className="font-medium">{fatura.descricao}</div>
+            {fatura.competencia_mes && (
+              <div className="text-xs text-muted-foreground">
+                Competência {fmtDate(fatura.competencia_mes)} · Emissão {fmtDate(fatura.data)}
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t pt-4">
-            <span className="text-sm text-muted-foreground">Valor total</span>
-            <span className="text-2xl font-semibold">{brl(fatura.valor)}</span>
+          <div className="grid grid-cols-3 divide-x rounded-md border bg-muted/40">
+            <div className="p-3">
+              <div className="text-xs text-muted-foreground">Vencimento</div>
+              <div className="font-semibold">
+                {fatura.data_vencimento ? fmtDate(fatura.data_vencimento) : "—"}
+              </div>
+            </div>
+            <div className="p-3">
+              <div className="text-xs text-muted-foreground">Valor</div>
+              <div className="text-lg font-semibold">{brl(fatura.valor)}</div>
+            </div>
+            <div className="p-3">
+              <div className="text-xs text-muted-foreground">
+                {fatura.pago ? "Pago em" : "Forma de pagamento"}
+              </div>
+              <div className="font-semibold">
+                {fatura.pago
+                  ? fatura.data_pagamento
+                    ? fmtDate(fatura.data_pagamento)
+                    : "—"
+                  : isBoleto
+                    ? "Boleto"
+                    : fatura.forma_cobranca === "pix"
+                      ? "Pix"
+                      : "—"}
+              </div>
+            </div>
           </div>
 
-          {!fatura.pago && fatura.forma_cobranca === "pix" && qrDataUrl && (
-            <div className="flex flex-col items-center gap-3 border-t pt-6 text-center">
-              <div className="text-sm font-medium">Pague com Pix</div>
-              <img src={qrDataUrl} alt="QR code Pix" className="h-44 w-44" />
-              <div className="flex w-full max-w-sm items-center gap-2">
-                <input
-                  readOnly
-                  value={copiaCola ?? ""}
-                  className="flex-1 truncate rounded border bg-muted/40 px-2 py-1.5 text-xs"
-                  onFocus={(e) => e.target.select()}
-                />
-                <Button size="sm" variant="outline" onClick={copiar} className="print:hidden">
-                  <Copy className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
+          {!fatura.pago && qrDataUrl && (
+            <>
+              {isBoleto && (
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex-1 border-t border-dashed" />
+                  Corte na linha pontilhada
+                  <span className="flex-1 border-t border-dashed" />
+                </div>
+              )}
 
-          {!fatura.pago && fatura.forma_cobranca === "boleto" && qrDataUrl && (
-            <div className="border-t pt-6">
-              <div className="rounded-md border">
-                <div className="flex items-center justify-between bg-foreground px-4 py-2 text-background">
-                  <span className="font-serif text-lg font-bold tracking-tight">
-                    {fatura.org_nome ?? "Fatura"}
-                  </span>
-                  <span className="text-xs">Documento não é um boleto bancário registrado</span>
-                </div>
-                <div className="grid grid-cols-3 divide-x border-b text-xs">
-                  <div className="p-3">
-                    <div className="text-muted-foreground">Beneficiário</div>
-                    <div className="font-medium">{fatura.org_nome ?? "—"}</div>
+              <div className="overflow-hidden rounded-md border">
+                {isBoleto && (
+                  <div className="flex items-center justify-between bg-foreground px-4 py-2 text-background">
+                    <span className="font-mono text-xs font-medium">
+                      Nosso número {nossoNumero}
+                    </span>
+                    <span className="text-xs">Documento não é um boleto bancário registrado</span>
                   </div>
-                  <div className="p-3">
-                    <div className="text-muted-foreground">Pagador</div>
-                    <div className="font-medium">{fatura.irmao_nome ?? "—"}</div>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-muted-foreground">Vencimento</div>
-                    <div className="font-medium">
-                      {fatura.data_vencimento ? fmtDate(fatura.data_vencimento) : "—"}
+                )}
+                <div className="flex flex-col items-center gap-4 bg-muted/30 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-2 text-center sm:text-left">
+                    <div className="text-sm font-semibold">Pague com Pix</div>
+                    <p className="max-w-xs text-xs text-muted-foreground">
+                      {isBoleto
+                        ? "Código de barras substituído pelo QR Code Pix. Abra o app do seu banco e escaneie, ou copie o código abaixo."
+                        : "Abra o app do seu banco, escaneie o QR Code ou copie o código Pix Copia e Cola abaixo."}
+                    </p>
+                    <div className="flex w-full max-w-xs items-center gap-2 sm:max-w-none">
+                      <input
+                        readOnly
+                        value={copiaCola ?? ""}
+                        className="flex-1 truncate rounded border bg-background px-2 py-1.5 font-mono text-xs"
+                        onFocus={(e) => e.target.select()}
+                      />
+                      <Button size="sm" variant="outline" onClick={copiar} className="print:hidden">
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-3 divide-x border-b text-xs">
-                  <div className="p-3">
-                    <div className="text-muted-foreground">Nosso número</div>
-                    <div className="font-mono font-medium">
-                      {fatura.id.replace(/-/g, "").slice(0, 12).toUpperCase()}
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-muted-foreground">Descrição</div>
-                    <div className="font-medium">{fatura.descricao}</div>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-muted-foreground">Valor do documento</div>
-                    <div className="font-medium">{brl(fatura.valor)}</div>
-                  </div>
-                </div>
-                <div className="flex flex-col items-center gap-3 p-4">
-                  <div className="text-xs text-muted-foreground">
-                    Código de barras substituído pelo QR Code Pix abaixo — escaneie no app do seu
-                    banco pra pagar.
-                  </div>
-                  <img src={qrDataUrl} alt="QR code Pix" className="h-40 w-40" />
-                  <div className="flex w-full max-w-sm items-center gap-2">
-                    <input
-                      readOnly
-                      value={copiaCola ?? ""}
-                      className="flex-1 truncate rounded border bg-muted/40 px-2 py-1.5 text-xs"
-                      onFocus={(e) => e.target.select()}
-                    />
-                    <Button size="sm" variant="outline" onClick={copiar} className="print:hidden">
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  <img
+                    src={qrDataUrl}
+                    alt="QR code Pix"
+                    className="h-36 w-36 rounded border bg-white p-1.5"
+                  />
                 </div>
               </div>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>
