@@ -15,6 +15,8 @@ export type FaturaAberta = {
   data: string;
   data_vencimento: string;
   competencia_mes: string;
+  forma_cobranca: "pix" | "boleto" | null;
+  pix_chave_id: string | null;
   irmaos: { nome_civil: string; telefone: string | null; celular: string | null } | null;
 };
 
@@ -23,7 +25,7 @@ export const listarFaturasAbertas = createServerFn({ method: "GET" }).handler(
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.irmao_id, l.descricao, l.valor, l.data, l.data_vencimento, l.competencia_mes,
-                i.nome_civil, i.telefone, i.celular
+                l.forma_cobranca, l.pix_chave_id, i.nome_civil, i.telefone, i.celular
          FROM lancamentos l
          JOIN irmaos i ON i.id = l.irmao_id
          WHERE l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE
@@ -37,6 +39,8 @@ export const listarFaturasAbertas = createServerFn({ method: "GET" }).handler(
         data: r.data,
         data_vencimento: r.data_vencimento,
         competencia_mes: r.competencia_mes,
+        forma_cobranca: r.forma_cobranca,
+        pix_chave_id: r.pix_chave_id,
         irmaos: { nome_civil: r.nome_civil, telefone: r.telefone, celular: r.celular },
       }));
     });

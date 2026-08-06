@@ -165,7 +165,8 @@ function Movimentos() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
+              <TableHead>Emissão</TableHead>
+              <TableHead>Vencimento</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Conta</TableHead>
               <TableHead>Categoria</TableHead>
@@ -178,7 +179,7 @@ function Movimentos() {
           <TableBody>
             {f.movimentos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
                   Nenhum movimento encontrado.
                 </TableCell>
               </TableRow>
@@ -186,6 +187,7 @@ function Movimentos() {
             {movPag.itensPagina.map((m) => (
               <TableRow key={m.id}>
                 <TableCell>{fmtDate(m.data)}</TableCell>
+                <TableCell>{m.data_vencimento ? fmtDate(m.data_vencimento) : "—"}</TableCell>
                 <TableCell>{m.descricao}</TableCell>
                 <TableCell className="text-muted-foreground">
                   {m.contas_financeiras?.nome ?? "—"}

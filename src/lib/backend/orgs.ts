@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
 
@@ -32,6 +34,7 @@ export type Org = {
   cnpj: string | null;
   fundacao: string | null;
   endereco: string | null;
+  logo_url: string | null;
   ativo: boolean;
 };
 
@@ -106,6 +109,7 @@ const orgSchema = z.object({
   cnpj: z.string().nullable(),
   fundacao: z.string().nullable(),
   endereco: z.string().nullable(),
+  logo_url: z.string().nullable().optional(),
 });
 
 export const salvarOrg = createServerFn({ method: "POST" })
@@ -125,17 +129,18 @@ export const salvarOrg = createServerFn({ method: "POST" })
         data.cnpj,
         data.fundacao,
         data.endereco,
+        data.logo_url ?? null,
       ];
       if (data.id) {
         await conn.query(
           `UPDATE orgs SET potencia_id=?, nome=?, sigla=?, natureza=?, numero=?, rito=?, grau_min=?, grau_max=?,
-           mensalidade_padrao=?, cnpj=?, fundacao=?, endereco=? WHERE id=?`,
+           mensalidade_padrao=?, cnpj=?, fundacao=?, endereco=?, logo_url=? WHERE id=?`,
           [...valores, data.id],
         );
       } else {
         await conn.query(
           `INSERT INTO orgs (potencia_id, nome, sigla, natureza, numero, rito, grau_min, grau_max,
-           mensalidade_padrao, cnpj, fundacao, endereco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           mensalidade_padrao, cnpj, fundacao, endereco, logo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           valores,
         );
       }
@@ -205,5 +210,30 @@ export const removerOrgGrau = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query("DELETE FROM orgs_graus WHERE id=?", [data.id]);
+    });
+  });
+
+// Mesmo padrão de uploadFotoIrmao (irmaos.ts): só grava o arquivo em
+// public/uploads/ e devolve a URL — persistir em orgs.logo_url continua
+// exigindo o "Salvar alterações" (salvarOrg).
+const uploadLogoSchema = z.object({
+  orgId: z.string().uuid(),
+  nomeArquivo: z.string().min(1),
+  dataUrl: z.string().startsWith("data:"),
+});
+
+export const uploadLogoOrg = createServerFn({ method: "POST" })
+  .validator((d: unknown) => uploadLogoSchema.parse(d))
+  .handler(async ({ data }): Promise<{ url: string }> => {
+    return comPapel(PAPEIS_ESCRITA, async () => {
+      const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) throw new Error("Arquivo inválido.");
+      const buffer = Buffer.from(match[2], "base64");
+      const nomeSeguro = data.nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const dir = join(process.cwd(), "public", "uploads", "orgs", data.orgId);
+      await mkdir(dir, { recursive: true });
+      const nomeArquivoFinal = `${Date.now()}-${nomeSeguro}`;
+      await writeFile(join(dir, nomeArquivoFinal), buffer);
+      return { url: `/uploads/orgs/${data.orgId}/${nomeArquivoFinal}` };
     });
   });
