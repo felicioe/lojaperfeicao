@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createRequire } from "node:module";
-import { PDFParse } from "pdf-parse";
+import type { PDFParse as PDFParseType } from "pdf-parse";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
@@ -19,21 +19,119 @@ import { registrarAuditoria } from "./auditoria";
 // cadastro de irmãos — o casamento é só sugestão, sempre revisável no
 // preview antes de confirmar.
 //
-// pdfjs-dist (usado por baixo do pano pelo pdf-parse) resolve o worker
-// relativo à URL do próprio módulo bundlado — depois que o Nitro empacota
-// tudo em .output/server/_libs/, esse caminho relativo não existe mais.
-// require.resolve() encontra o arquivo real em node_modules (sobe o
-// diretório a partir de .output/server/, que fica dentro do projeto) e
-// PDFParse.setWorker() aponta pdfjs-dist pra lá. Só pode rodar dentro do
-// handler de uma server function — chamado no top level do módulo, o
-// createRequire vaza pro bundle do client também (código de handler é
-// removido do client pelo compilador, o resto do módulo não).
-let workerConfigurado = false;
-function garantirWorkerPdfConfigurado() {
-  if (workerConfigurado) return;
+// pdfjs-dist (usado por baixo do pano pelo pdf-parse) referencia o global
+// DOMMatrix já na avaliação do próprio módulo (`const SCALE_MATRIX = new
+// DOMMatrix();`, fora de qualquer função) — em hospedagem sem a dependência
+// nativa opcional @napi-rs/canvas (caso da Hostinger em produção: ela tenta
+// se auto-polyfillar, avisa no console que não conseguiu, e MESMO ASSIM
+// executa aquela linha), isso derruba a importação inteira com
+// `ReferenceError: DOMMatrix is not defined` — mesmo só extraindo texto,
+// nunca renderizando em canvas.
+//
+// A correção óbvia — aplicar o polyfill num módulo importado antes de
+// "pdf-parse" — não sobrevive ao bundler de produção: o `"sideEffects":
+// false` do package.json deixa o Rollup remover import estático sem export
+// usado, e mesmo exportando e referenciando algo, o Rollup propaga a
+// constante entre módulos e chega na mesma conclusão (ambos os casos
+// testados e confirmados sumindo do `.output/server/_ssr/*.mjs`). Import()
+// dinâmico não sofre desse problema: roda em tempo de execução, na ordem
+// exata do código, sem hasteamento nem tree-shaking cross-módulo — por
+// isso o polyfill e o import de "pdf-parse" ficam os dois aqui dentro,
+// nessa ordem, em vez de imports estáticos no topo do arquivo.
+//
+// É só álgebra de matriz 2D afim (sem depender de nenhum binário nativo),
+// cobrindo exatamente os métodos que o bundle do pdfjs usa: construtor,
+// translate/scale, preMultiplySelf/multiplySelf/invertSelf.
+class DOMMatrixPolyfill {
+  a = 1;
+  b = 0;
+  c = 0;
+  d = 1;
+  e = 0;
+  f = 0;
+
+  constructor(init?: number[] | string) {
+    if (Array.isArray(init) && init.length >= 6) {
+      [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+    }
+  }
+
+  private multiplyMatrices(m1: DOMMatrixPolyfill, m2: DOMMatrixPolyfill): DOMMatrixPolyfill {
+    const r = new DOMMatrixPolyfill();
+    r.a = m1.a * m2.a + m1.c * m2.b;
+    r.b = m1.b * m2.a + m1.d * m2.b;
+    r.c = m1.a * m2.c + m1.c * m2.d;
+    r.d = m1.b * m2.c + m1.d * m2.d;
+    r.e = m1.a * m2.e + m1.c * m2.f + m1.e;
+    r.f = m1.b * m2.e + m1.d * m2.f + m1.f;
+    return r;
+  }
+
+  multiply(other: DOMMatrixPolyfill): DOMMatrixPolyfill {
+    return this.multiplyMatrices(this, other);
+  }
+
+  multiplySelf(other: DOMMatrixPolyfill): this {
+    return this.assign(this.multiplyMatrices(this, other));
+  }
+
+  preMultiplySelf(other: DOMMatrixPolyfill): this {
+    return this.assign(this.multiplyMatrices(other, this));
+  }
+
+  translate(tx: number, ty: number): DOMMatrixPolyfill {
+    return this.multiply(new DOMMatrixPolyfill([1, 0, 0, 1, tx, ty]));
+  }
+
+  scale(sx: number, sy: number = sx): DOMMatrixPolyfill {
+    return this.multiply(new DOMMatrixPolyfill([sx, 0, 0, sy, 0, 0]));
+  }
+
+  invertSelf(): this {
+    const det = this.a * this.d - this.b * this.c;
+    if (!det) {
+      this.a = this.b = this.c = this.d = Number.NaN;
+      this.e = this.f = Number.NaN;
+      return this;
+    }
+    const { a, b, c, d, e, f } = this;
+    this.a = d / det;
+    this.b = -b / det;
+    this.c = -c / det;
+    this.d = a / det;
+    this.e = (c * f - d * e) / det;
+    this.f = (b * e - a * f) / det;
+    return this;
+  }
+
+  private assign(m: DOMMatrixPolyfill): this {
+    this.a = m.a;
+    this.b = m.b;
+    this.c = m.c;
+    this.d = m.d;
+    this.e = m.e;
+    this.f = m.f;
+    return this;
+  }
+}
+
+// pdfjs-dist também resolve o worker relativo à URL do próprio módulo
+// bundlado — depois que o Nitro empacota tudo em .output/server/_libs/,
+// esse caminho relativo não existe mais. require.resolve() encontra o
+// arquivo real em node_modules (sobe o diretório a partir de
+// .output/server/, que fica dentro do projeto) e PDFParse.setWorker()
+// aponta pdfjs-dist pra lá.
+let pdfParseCarregado: typeof PDFParseType | undefined;
+async function carregarPdfParse(): Promise<typeof PDFParseType> {
+  if (pdfParseCarregado) return pdfParseCarregado;
+  if (typeof globalThis.DOMMatrix === "undefined") {
+    (globalThis as unknown as { DOMMatrix: unknown }).DOMMatrix = DOMMatrixPolyfill;
+  }
+  const { PDFParse } = await import("pdf-parse");
   const workerPath = createRequire(import.meta.url).resolve("pdfjs-dist/build/pdf.worker.mjs");
   PDFParse.setWorker(workerPath);
-  workerConfigurado = true;
+  pdfParseCarregado = PDFParse;
+  return PDFParse;
 }
 
 const PAPEIS_ESCRITA = ["admin", "secretario"];
@@ -303,7 +401,7 @@ export const previewImportacaoPdfSessoes = createServerFn({ method: "POST" })
       } catch {
         throw new Error("Arquivo inválido.");
       }
-      garantirWorkerPdfConfigurado();
+      const PDFParse = await carregarPdfParse();
       const parser = new PDFParse({ data: bytes });
       const resultado = await parser.getText();
       const itens = extrairItensDoTextoPdf(resultado.text);
