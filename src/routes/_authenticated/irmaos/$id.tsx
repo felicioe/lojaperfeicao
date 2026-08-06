@@ -1291,7 +1291,9 @@ function FinanceiroPanel({ irmaoId }: { irmaoId: string }) {
                 <TableCell>{fmtDate(l.data)}</TableCell>
                 <TableCell>{l.descricao}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{l.tipo}</Badge>
+                  <Badge variant="outline">
+                    {l.tipo === "entrada" ? "Entrada" : l.tipo === "saida" ? "Saída" : l.tipo === "transferencia" ? "Transferência" : l.tipo}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-right">{brl(l.valor)}</TableCell>
                 <TableCell>

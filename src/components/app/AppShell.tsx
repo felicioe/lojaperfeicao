@@ -223,7 +223,7 @@ function NavTree({
                     return (
                       <Fragment key={i.to}>
                         {mostraSecao && (
-                          <div className="px-2.5 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 first:pt-0">
+                          <div className="px-2.5 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/65 first:pt-0">
                             {i.section}
                           </div>
                         )}
@@ -647,8 +647,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             {!collapsed && (
               <div className="mb-2 text-xs">
-                <div className="truncate font-medium">{user?.email}</div>
-                <div className="text-sidebar-foreground/60">{ROLE_LABEL[primaryRole]}</div>
+                <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
+                {user?.nomeCompleto && (
+                  <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
+                )}
               </div>
             )}
             {collapsed ? (
@@ -698,8 +700,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Brand />
           </div>
           <div className="hidden min-w-0 max-w-[40%] text-right text-[11px] sm:block">
-            <div className="truncate font-medium">{user?.email}</div>
-            <div className="truncate text-sidebar-foreground/60">{ROLE_LABEL[primaryRole]}</div>
+            <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
+            {user?.nomeCompleto && (
+              <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
+            )}
           </div>
         </header>
 
@@ -725,8 +729,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
             <div className="border-t border-sidebar-border p-3">
               <div className="mb-2 text-xs">
-                <div className="truncate font-medium">{user?.email}</div>
-                <div className="text-sidebar-foreground/60">{ROLE_LABEL[primaryRole]}</div>
+                <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
+                {user?.nomeCompleto && (
+                  <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
+                )}
               </div>
               <Button variant="outline" className="h-10 w-full" onClick={toggleDark}>
                 {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}

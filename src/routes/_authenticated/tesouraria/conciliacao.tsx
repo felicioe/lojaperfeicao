@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -246,7 +247,7 @@ function Conciliacao() {
       )}
 
       {podeEditar && (selSistema || selOfx) && (
-        <Card className="mt-4 p-4 flex items-center justify-between">
+        <Card className="mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
           <div className="text-sm text-muted-foreground">
             {selSistema && selOfx
               ? "Sistema e OFX selecionados — prontos para vincular."
@@ -373,6 +374,9 @@ function CriarLancamentoDialog({
         </div>
       </div>
       <DialogFooter>
+        <DialogClose asChild>
+          <Button variant="outline" disabled={saving}>Cancelar</Button>
+        </DialogClose>
         <Button onClick={salvar} disabled={saving || !planoContaId}>
           Criar
         </Button>

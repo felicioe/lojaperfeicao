@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { brl } from "@/lib/format";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -127,6 +128,7 @@ function Contas() {
       </Card>
 
       <Card>
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -155,7 +157,7 @@ function Contas() {
                     </Button>
                   </TableCell>
                   <TableCell className="font-medium">{c.nome}</TableCell>
-                  <TableCell>{c.tipo}</TableCell>
+                  <TableCell>{{ caixa: "Caixa", banco: "Banco", outro: "Outro" }[c.tipo as string] ?? c.tipo}</TableCell>
                   <TableCell className="text-right">{brl(c.saldo_inicial)}</TableCell>
                   <TableCell className="text-right font-medium">{brl(c.saldo_atual)}</TableCell>
                 </TableRow>
@@ -170,6 +172,7 @@ function Contas() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </Card>
     </>
   );
@@ -228,6 +231,7 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
         Usadas pra gerar o QR code do Pix nas faturas cobradas com essa conta. Nome do beneficiário
         (máx. 25 caracteres) e cidade (máx. 15) são exigidos pelo padrão do Banco Central.
       </p>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -263,6 +267,7 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           ))}
         </TableBody>
       </Table>
+      </div>
       <div className="grid gap-2 md:grid-cols-6 items-end">
         <div>
           <Label className="text-xs">Tipo</Label>
@@ -309,11 +314,10 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           />
         </div>
         <div className="flex items-center gap-2">
-          <input
+          <Checkbox
             id={`principal-${contaId}`}
-            type="checkbox"
             checked={nova.principal}
-            onChange={(e) => setNova({ ...nova, principal: e.target.checked })}
+            onCheckedChange={(v) => setNova({ ...nova, principal: v === true })}
           />
           <Label htmlFor={`principal-${contaId}`} className="text-xs cursor-pointer">
             Principal

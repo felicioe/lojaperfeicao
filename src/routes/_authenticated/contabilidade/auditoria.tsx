@@ -137,7 +137,9 @@ function AuditoriaContabil() {
                   <TableCell className="font-mono">{c.codigo}</TableCell>
                   <TableCell>{c.nome}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{c.tipo}</Badge>
+                    <Badge variant="outline">
+                      {c.tipo === "receita" ? "Receita" : c.tipo === "despesa" ? "Despesa" : c.tipo}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right">{brl(c.total_debito)}</TableCell>
                   <TableCell className="text-right">{brl(c.total_credito)}</TableCell>

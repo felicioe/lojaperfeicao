@@ -162,6 +162,7 @@ function Movimentos() {
       </Card>
 
       <Card>
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -210,7 +211,13 @@ function Movimentos() {
                           : "secondary"
                     }
                   >
-                    {m.tipo}
+                    {m.tipo === "entrada"
+                      ? "Entrada"
+                      : m.tipo === "saida"
+                        ? "Saída"
+                        : m.tipo === "transferencia"
+                          ? "Transferência"
+                          : m.tipo}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right font-medium">{brl(m.valor)}</TableCell>
@@ -235,6 +242,7 @@ function Movimentos() {
             ))}
           </TableBody>
         </Table>
+        </div>
         <TabelaPaginacao
           pagina={movPag.pagina}
           totalPaginas={movPag.totalPaginas}

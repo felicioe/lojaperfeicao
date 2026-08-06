@@ -75,7 +75,10 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-serif text-xl mb-2">
+          <div
+            aria-label="Símbolo da loja"
+            className="mx-auto w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-serif text-xl mb-2"
+          >
             ⚜
           </div>
           <CardTitle className="text-2xl">Gestão da Loja</CardTitle>
@@ -150,12 +153,12 @@ function LoginForm({ email, setEmail, password, setPassword, loading, handleLogi
   return (
     <form onSubmit={handleLogin} className="space-y-3">
       <div>
-        <Label>Usuário</Label>
+        <Label>Usuário ou e-mail</Label>
         <Input
           type="text"
           autoCapitalize="none"
           autoCorrect="off"
-          placeholder="nome.sobrenome"
+          placeholder="nome.sobrenome ou email@..."
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required

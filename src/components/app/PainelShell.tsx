@@ -39,7 +39,7 @@ const ABAS = [
   { to: "/painel/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2 },
   { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays },
-  { to: "/painel/eventos", label: "Eventos", icon: PartyPopper },
+  { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone },
 ] as const;
 
 function iniciais(nome: string | null | undefined) {
@@ -99,6 +99,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
           <div className="flex">
             {ABAS.map((aba) => {
               const ativo = loc.pathname === aba.to;
+              const isComunicacoes = aba.to === "/painel/comunicacoes";
               return (
                 <Link
                   key={aba.to}
@@ -108,7 +109,14 @@ export function PainelShell({ children }: { children: ReactNode }) {
                     ativo ? "opacity-100" : "opacity-70 hover:opacity-90",
                   )}
                 >
-                  <aba.icon className="h-5 w-5" />
+                  <div className="relative">
+                    <aba.icon className="h-5 w-5" />
+                    {isComunicacoes && naoLidos > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[10px] font-bold leading-none text-white">
+                        {naoLidos > 9 ? "9+" : naoLidos}
+                      </span>
+                    )}
+                  </div>
                   {aba.label}
                 </Link>
               );
@@ -127,16 +135,11 @@ export function PainelShell({ children }: { children: ReactNode }) {
             </div>
             <div className="flex-1 p-3">
               <Link
-                to="/painel/comunicacoes"
+                to="/painel/eventos"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
               >
-                <Megaphone className="h-4 w-4 text-muted-foreground" /> Comunicações
-                {naoLidos > 0 && (
-                  <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                    {naoLidos}
-                  </span>
-                )}
+                <PartyPopper className="h-4 w-4 text-muted-foreground" /> Eventos
               </Link>
               <Link
                 to="/painel/dados"

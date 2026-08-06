@@ -6,6 +6,7 @@ import { listarLancamentosIrmao, listarFrequenciaIrmao } from "@/lib/backend/irm
 import { contarComunicadosNaoLidos } from "@/lib/backend/comunicacoes";
 import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { brl, SITUACAO_LABEL, GRAU_LABEL } from "@/lib/format";
 import {
   UserRound,
@@ -71,7 +72,44 @@ function PainelInicio() {
     enabled: !!irmaoId,
   });
 
-  if (meuIrmao.isLoading) return null;
+  if (meuIrmao.isLoading) {
+    if (isDesktop) {
+      return (
+        <>
+          <PageHeader title="Meu Painel" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <Card key={i}>
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-8 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      );
+    }
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-16 rounded-2xl" />
+        <div className="grid grid-cols-5 gap-3">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-1.5">
+              <Skeleton className="aspect-square w-full rounded-2xl" />
+              <Skeleton className="h-3 w-10" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!meuIrmao.data) {
     const vazio = (
@@ -186,7 +224,7 @@ function PainelInicio() {
         </Link>
       )}
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         {TILES.map((t) => (
           <Link key={t.to} to={t.to} className="flex flex-col items-center gap-1.5 text-center">
             <div
@@ -225,12 +263,12 @@ function MetricCard({
     <Card>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-muted-foreground">{label}</p>
             <p className="text-2xl font-semibold mt-1">{value}</p>
-            {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
+            {hint && <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p>}
           </div>
-          <div className={`p-2 rounded-md ${toneClass}`}>
+          <div className={`shrink-0 rounded-md p-2 ${toneClass}`}>
             <Icon className="h-5 w-5" />
           </div>
         </div>

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "ai-color-palette",
+        "value": "*",
+        "files": [
+          "src/routes/_authenticated/painel/index.tsx"
+        ],
+        "createdAt": "2026-08-06T14:52:52.305Z",
+        "reason": "Sistema de codificação categórica intencional: 5 tiles com uma cor por módulo (dados, financeiro, frequência, sessões, comunicações). Confirmado pelo usuário."
+      }
+    ]
+  }
+}
