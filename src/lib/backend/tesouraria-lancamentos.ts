@@ -128,19 +128,34 @@ export type LancamentoDetalhe = {
   is_mensalidade: boolean;
   irmao_nome: string | null;
   irmao_cim: string | null;
+  org_nome: string | null;
+  org_logo_url: string | null;
+  forma_cobranca: "pix" | "boleto" | null;
+  pix_chave: string | null;
+  pix_nome_beneficiario: string | null;
+  pix_cidade: string | null;
 };
 
 // Detalhe de um lançamento pra tela de impressão/edição — inclui dados do
-// irmão (quando houver) pra montar o cabeçalho da fatura impressa.
+// irmão e do corpo maçônico PRINCIPAL dele (logo pra imprimir) quando
+// houver, além da chave PIX escolhida na fatura (se houver) pra gerar o
+// QR code na impressão.
 export const obterLancamento = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<LancamentoDetalhe | null> => {
     return comPapel(PAPEIS_LEITURA, async (conn) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.pago,
-                l.competencia_mes, l.is_mensalidade, i.nome_civil AS irmao_nome, i.cim AS irmao_cim
+                l.competencia_mes, l.is_mensalidade, l.forma_cobranca,
+                i.nome_civil AS irmao_nome, i.cim AS irmao_cim,
+                o.nome AS org_nome, o.logo_url AS org_logo_url,
+                pix.chave AS pix_chave, pix.nome_beneficiario AS pix_nome_beneficiario,
+                pix.cidade AS pix_cidade
          FROM lancamentos l
          LEFT JOIN irmaos i ON i.id = l.irmao_id
+         LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
+         LEFT JOIN orgs o ON o.id = io.org_id
+         LEFT JOIN contas_financeiras_pix pix ON pix.id = l.pix_chave_id
          WHERE l.id = ?`,
         [data.id],
       );
@@ -227,6 +242,49 @@ export const atualizarLancamento = createServerFn({ method: "POST" })
         descricao: data.descricao,
         valor: data.valor,
       });
+    });
+  });
+
+const formaCobrancaSchema = z.object({
+  id: z.string().uuid(),
+  formaCobranca: z.enum(["pix", "boleto"]).nullable(),
+  pixChaveId: z.string().uuid().nullable(),
+});
+
+// Forma de cobrança "ofertada" na fatura (o que aparece impresso pro
+// irmão pagar) — não confundir com lancamentos.forma_pagamento, que só é
+// preenchido na baixa e registra o que foi de fato usado (pode ser
+// diferente: cobrou por PIX, mas o irmão pagou em dinheiro na
+// secretaria).
+export const definirFormaCobranca = createServerFn({ method: "POST" })
+  .validator((d: unknown) => formaCobrancaSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT forma_cobranca, pix_chave_id, pago FROM lancamentos WHERE id = ?",
+        [data.id],
+      );
+      if (!antes) throw new Error("Lançamento não encontrado.");
+      if (antes.pago) {
+        throw new Error("Não é possível alterar a forma de cobrança de um lançamento já pago.");
+      }
+      if (data.formaCobranca && !data.pixChaveId) {
+        throw new Error("Selecione a chave PIX que vai gerar o QR code.");
+      }
+      await conn.query("UPDATE lancamentos SET forma_cobranca = ?, pix_chave_id = ? WHERE id = ?", [
+        data.formaCobranca,
+        data.pixChaveId,
+        data.id,
+      ]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "definir_forma_cobranca",
+        "lancamentos",
+        data.id,
+        antes,
+        { forma_cobranca: data.formaCobranca, pix_chave_id: data.pixChaveId },
+      );
     });
   });
 

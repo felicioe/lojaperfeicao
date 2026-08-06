@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
-import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarContasFinanceiras, listarTodasChavesPix } from "@/lib/backend/tesouraria-contas";
 import {
   listarFaturasAbertas,
   calcularMultaJuros,
@@ -13,6 +13,7 @@ import {
   gerarMensalidades,
   estornarLancamento,
   atualizarLancamento,
+  definirFormaCobranca,
 } from "@/lib/backend/tesouraria-lancamentos";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
@@ -583,7 +584,15 @@ function EditarFaturaDialog({
   fatura,
   onDone,
 }: {
-  fatura: { id: string; data: string; data_vencimento: string; descricao: string; valor: number };
+  fatura: {
+    id: string;
+    data: string;
+    data_vencimento: string;
+    descricao: string;
+    valor: number;
+    forma_cobranca: "pix" | "boleto" | null;
+    pix_chave_id: string | null;
+  };
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -591,10 +600,21 @@ function EditarFaturaDialog({
   const [dataVencimento, setDataVencimento] = useState(fatura.data_vencimento || "");
   const [descricao, setDescricao] = useState(fatura.descricao);
   const [valor, setValor] = useState(Number(fatura.valor));
+  const [formaCobranca, setFormaCobranca] = useState(fatura.forma_cobranca ?? "nenhuma");
+  const [pixChaveId, setPixChaveId] = useState(fatura.pix_chave_id ?? "");
   const [salvando, setSalvando] = useState(false);
+
+  const { data: chavesPix = [] } = useQuery({
+    queryKey: ["chaves_pix_todas"],
+    queryFn: () => listarTodasChavesPix(),
+    enabled: open,
+  });
 
   const salvar = async () => {
     if (!descricao.trim() || !valor) return;
+    if (formaCobranca !== "nenhuma" && !pixChaveId) {
+      return toast.error("Selecione a chave PIX que vai gerar o QR code.");
+    }
     setSalvando(true);
     try {
       await atualizarLancamento({
@@ -604,6 +624,13 @@ function EditarFaturaDialog({
           dataVencimento: dataVencimento || null,
           descricao,
           valor: Number(valor),
+        },
+      });
+      await definirFormaCobranca({
+        data: {
+          id: fatura.id,
+          formaCobranca: formaCobranca === "nenhuma" ? null : formaCobranca,
+          pixChaveId: formaCobranca === "nenhuma" ? null : pixChaveId,
         },
       });
       toast.success("Fatura atualizada.");
@@ -626,6 +653,8 @@ function EditarFaturaDialog({
           setDataVencimento(fatura.data_vencimento || "");
           setDescricao(fatura.descricao);
           setValor(Number(fatura.valor));
+          setFormaCobranca(fatura.forma_cobranca ?? "nenhuma");
+          setPixChaveId(fatura.pix_chave_id ?? "");
         }
       }}
     >
@@ -666,6 +695,43 @@ function EditarFaturaDialog({
               value={valor}
               onChange={(e) => setValor(Number(e.target.value))}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Forma de cobrança</Label>
+              <Select
+                value={formaCobranca}
+                onValueChange={(v) => setFormaCobranca(v as typeof formaCobranca)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nenhuma">Não informar</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="boleto">Boleto (layout com QR PIX)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Chave PIX</Label>
+              <Select
+                value={pixChaveId}
+                onValueChange={setPixChaveId}
+                disabled={formaCobranca === "nenhuma"}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {chavesPix.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.conta_nome} — {c.chave}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
         <DialogFooter>

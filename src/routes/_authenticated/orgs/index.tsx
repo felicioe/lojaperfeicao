@@ -11,6 +11,7 @@ import {
   criarOrgGrau,
   renomearOrgGrau,
   removerOrgGrau,
+  uploadLogoOrg,
   type Org,
 } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
@@ -70,6 +71,7 @@ const FORM_VAZIO = {
   cnpj: "",
   fundacao: "",
   endereco: "",
+  logo_url: null as string | null,
 };
 
 function Orgs() {
@@ -108,6 +110,7 @@ function Orgs() {
           cnpj: form.cnpj || null,
           fundacao: form.fundacao || null,
           endereco: form.endereco || null,
+          logo_url: form.logo_url,
         },
       });
       toast.success(form.id ? "Corpo atualizado." : "Corpo criado.");
@@ -115,6 +118,25 @@ function Orgs() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    }
+  };
+
+  const uploadLogo = async (file: File) => {
+    if (!form.id) return;
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { url } = await uploadLogoOrg({
+        data: { orgId: form.id, nomeArquivo: file.name, dataUrl },
+      });
+      setForm({ ...form, logo_url: url });
+      toast.success("Logo enviado — clique em Salvar para confirmar.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar o logo.");
     }
   };
 
@@ -133,6 +155,7 @@ function Orgs() {
       cnpj: o.cnpj ?? "",
       fundacao: o.fundacao ?? "",
       endereco: o.endereco ?? "",
+      logo_url: o.logo_url,
     });
 
   const alternarAtivo = async (o: Org) => {
@@ -162,6 +185,28 @@ function Orgs() {
             <CardTitle className="text-base">{form.id ? "Editar corpo" : "Novo corpo"}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
+            {form.id && (
+              <div className="md:col-span-4 flex items-center gap-4">
+                {form.logo_url && (
+                  <img
+                    src={form.logo_url}
+                    alt="Logo"
+                    className="h-16 w-16 rounded object-contain border bg-white p-1"
+                  />
+                )}
+                <div>
+                  <Label>Logo (usado na fatura impressa)</Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadLogo(file);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="md:col-span-2">
               <Label>Nome</Label>
               <Input

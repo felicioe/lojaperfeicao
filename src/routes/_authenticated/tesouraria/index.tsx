@@ -143,7 +143,8 @@ function Tesouraria() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
+                <TableHead>Emissão</TableHead>
+                <TableHead>Vencimento</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Conta</TableHead>
                 <TableHead>Categoria</TableHead>
@@ -156,7 +157,7 @@ function Tesouraria() {
             <TableBody>
               {(lancamentos.data ?? []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
                     Nenhum lançamento.
                   </TableCell>
                 </TableRow>
@@ -164,6 +165,7 @@ function Tesouraria() {
               {itensPagina.map((l: any) => (
                 <TableRow key={l.id}>
                   <TableCell>{fmtDate(l.data)}</TableCell>
+                  <TableCell>{l.data_vencimento ? fmtDate(l.data_vencimento) : "—"}</TableCell>
                   <TableCell>{l.descricao}</TableCell>
                   <TableCell>
                     {l.contas_financeiras?.nome ?? "—"}
