@@ -5,6 +5,7 @@ import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/br
 import { login, signup, contarUsuarios, getSessao } from "@/lib/backend/auth";
 import { iniciarLoginPasskey, confirmarLoginPasskey } from "@/lib/backend/passkeys";
 import { confirmarLogin2FA } from "@/lib/backend/totp";
+import { iniciarLoginGoogle } from "@/lib/backend/google-auth";
 import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Fingerprint, ShieldCheck } from "lucide-react";
+
+const ERRO_GOOGLE_LABEL: Record<string, string> = {
+  cancelado: "Login com Google cancelado.",
+  expirado: "Sessão do login com Google expirou — tente novamente.",
+  nao_vinculado:
+    "Sua conta Google ainda não está vinculada. Entre com sua senha e vincule em Segurança da Conta.",
+  nao_configurado: "Login com Google não está disponível no momento.",
+  falha_token: "Não foi possível confirmar o login com Google.",
+};
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -38,6 +48,7 @@ function AuthPage() {
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [aguardando2FA, setAguardando2FA] = useState(false);
   const [codigo2FA, setCodigo2FA] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     contarUsuarios().then((total) => setFirstUser(total === 0));
@@ -45,7 +56,23 @@ function AuthPage() {
       if (usuario) navigate({ to: "/dashboard" });
     });
     setWebauthnDisponivel(browserSupportsWebAuthn());
+
+    const erroGoogle = new URLSearchParams(window.location.search).get("erroGoogle");
+    if (erroGoogle) {
+      toast.error(ERRO_GOOGLE_LABEL[erroGoogle] ?? "Erro ao entrar com Google.");
+    }
   }, [navigate]);
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      const { url } = await iniciarLoginGoogle();
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao iniciar login com Google.");
+      setGoogleLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,6 +259,8 @@ function AuthPage() {
                     webauthnDisponivel,
                     passkeyLoading,
                     handlePasskeyLogin,
+                    googleLoading,
+                    handleGoogleLogin,
                   }}
                 />
               </TabsContent>
@@ -248,12 +277,37 @@ function AuthPage() {
                 webauthnDisponivel,
                 passkeyLoading,
                 handlePasskeyLogin,
+                googleLoading,
+                handleGoogleLogin,
               }}
             />
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="mr-1.5 h-4 w-4" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.26v3.1A12 12 0 0 0 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28v-3.1H1.26A12 12 0 0 0 0 12c0 1.94.46 3.77 1.26 5.38l4.01-3.1Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.77c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.26 6.62l4.01 3.1C6.22 6.88 8.87 4.77 12 4.77Z"
+      />
+    </svg>
   );
 }
 
@@ -267,6 +321,8 @@ function LoginForm({
   webauthnDisponivel,
   passkeyLoading,
   handlePasskeyLogin,
+  googleLoading,
+  handleGoogleLogin,
 }: any) {
   return (
     <form onSubmit={handleLogin} className="space-y-3">
@@ -306,6 +362,16 @@ function LoginForm({
           {passkeyLoading ? "Confirmando…" : "Entrar com Face ID / digital"}
         </Button>
       )}
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        disabled={googleLoading}
+        onClick={handleGoogleLogin}
+      >
+        <GoogleIcon />
+        {googleLoading ? "Redirecionando…" : "Entrar com Google"}
+      </Button>
       <p className="text-xs text-muted-foreground pt-2">
         Novas contas são criadas pelo administrador.
       </p>

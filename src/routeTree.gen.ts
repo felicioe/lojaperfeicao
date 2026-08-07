@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AceiteTermosRouteImport } from './routes/aceite-termos'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as GoogleConcluirRouteImport } from './routes/google-concluir'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -96,6 +97,11 @@ const AceiteTermosRoute = AceiteTermosRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GoogleConcluirRoute = GoogleConcluirRouteImport.update({
+  id: '/google-concluir',
+  path: '/google-concluir',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
@@ -486,6 +492,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
+  '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
@@ -556,6 +563,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
+  '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -627,6 +635,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/aceite-termos': typeof AceiteTermosRoute
   '/auth': typeof AuthRoute
+  '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
@@ -699,6 +708,7 @@ export interface FileRouteTypes {
     | '/'
     | '/aceite-termos'
     | '/auth'
+    | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
     | '/painel'
@@ -769,6 +779,7 @@ export interface FileRouteTypes {
     | '/'
     | '/aceite-termos'
     | '/auth'
+    | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
     | '/dashboard'
@@ -839,6 +850,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/aceite-termos'
     | '/auth'
+    | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
     | '/_authenticated/painel'
@@ -911,6 +923,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AceiteTermosRoute: typeof AceiteTermosRoute
   AuthRoute: typeof AuthRoute
+  GoogleConcluirRoute: typeof GoogleConcluirRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TrocarSenhaRoute: typeof TrocarSenhaRoute
 }
@@ -943,6 +956,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/google-concluir': {
+      id: '/google-concluir'
+      path: '/google-concluir'
+      fullPath: '/google-concluir'
+      preLoaderRoute: typeof GoogleConcluirRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacidade': {
@@ -1578,6 +1598,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AceiteTermosRoute: AceiteTermosRoute,
   AuthRoute: AuthRoute,
+  GoogleConcluirRoute: GoogleConcluirRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TrocarSenhaRoute: TrocarSenhaRoute,
 }

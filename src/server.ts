@@ -4,6 +4,7 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { executarDisparoNotificacoes } from "./lib/push-dispatch";
 import { executarBackupAgendado } from "./lib/backup-dispatch";
+import { tratarCallbackGoogle } from "./lib/google-oauth-callback";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -102,6 +103,15 @@ async function tratarCronBackup(request: Request): Promise<Response | null> {
   }
 }
 
+// Callback OAuth do Google — GET puro feito pelo navegador (redirect do
+// Google), não pelo `fetch` da aplicação, então precisa ser um endpoint
+// bruto fora do roteador do TanStack Start, mesmo motivo dos crons acima.
+async function tratarCallbackGoogleOuNull(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/auth/google/callback") return null;
+  return tratarCallbackGoogle(request);
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
@@ -110,6 +120,9 @@ export default {
 
       const backupResponse = await tratarCronBackup(request);
       if (backupResponse) return backupResponse;
+
+      const googleResponse = await tratarCallbackGoogleOuNull(request);
+      if (googleResponse) return googleResponse;
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
