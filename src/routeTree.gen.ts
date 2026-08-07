@@ -18,10 +18,14 @@ import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
+import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
+import { Route as AuthenticatedBibliotecaIndexRouteImport } from './routes/_authenticated/biblioteca/index'
+import { Route as AuthenticatedCalendarioIndexRouteImport } from './routes/_authenticated/calendario/index'
 import { Route as AuthenticatedComissoesIndexRouteImport } from './routes/_authenticated/comissoes/index'
 import { Route as AuthenticatedComunicacoesIndexRouteImport } from './routes/_authenticated/comunicacoes/index'
+import { Route as AuthenticatedContaSegurancaRouteImport } from './routes/_authenticated/conta/seguranca'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
 import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
@@ -31,12 +35,15 @@ import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './rout
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
+import { Route as AuthenticatedDocumentosIndexRouteImport } from './routes/_authenticated/documentos/index'
+import { Route as AuthenticatedEnquetesIndexRouteImport } from './routes/_authenticated/enquetes/index'
 import { Route as AuthenticatedEnsinoImportarCalendarioRouteImport } from './routes/_authenticated/ensino/importar-calendario'
 import { Route as AuthenticatedEnsinoImportarPdfSessoesRouteImport } from './routes/_authenticated/ensino/importar-pdf-sessoes'
 import { Route as AuthenticatedEnsinoPlanosRouteImport } from './routes/_authenticated/ensino/planos'
 import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
 import { Route as AuthenticatedGestoesCargosRouteImport } from './routes/_authenticated/gestoes/cargos'
+import { Route as AuthenticatedIntersticoIndexRouteImport } from './routes/_authenticated/interstico/index'
 import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenticated/irmaos/index'
 import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
 import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
@@ -118,6 +125,12 @@ const AuthenticatedAdministracaoAuditoriaRoute =
     path: '/administracao/auditoria',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdministracaoBackupsRoute =
+  AuthenticatedAdministracaoBackupsRouteImport.update({
+    id: '/administracao/backups',
+    path: '/administracao/backups',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdministracaoExportarDadosRoute =
   AuthenticatedAdministracaoExportarDadosRouteImport.update({
     id: '/administracao/exportar-dados',
@@ -130,6 +143,18 @@ const AuthenticatedAdministracaoResetarFinanceiroRoute =
     path: '/administracao/resetar-financeiro',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBibliotecaIndexRoute =
+  AuthenticatedBibliotecaIndexRouteImport.update({
+    id: '/biblioteca/',
+    path: '/biblioteca/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCalendarioIndexRoute =
+  AuthenticatedCalendarioIndexRouteImport.update({
+    id: '/calendario/',
+    path: '/calendario/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedComissoesIndexRoute =
   AuthenticatedComissoesIndexRouteImport.update({
     id: '/comissoes/',
@@ -140,6 +165,12 @@ const AuthenticatedComunicacoesIndexRoute =
   AuthenticatedComunicacoesIndexRouteImport.update({
     id: '/comunicacoes/',
     path: '/comunicacoes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContaSegurancaRoute =
+  AuthenticatedContaSegurancaRouteImport.update({
+    id: '/conta/seguranca',
+    path: '/conta/seguranca',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeAuditoriaRoute =
@@ -196,6 +227,18 @@ const AuthenticatedContabilidadeRazaoRoute =
     path: '/contabilidade/razao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDocumentosIndexRoute =
+  AuthenticatedDocumentosIndexRouteImport.update({
+    id: '/documentos/',
+    path: '/documentos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEnquetesIndexRoute =
+  AuthenticatedEnquetesIndexRouteImport.update({
+    id: '/enquetes/',
+    path: '/enquetes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEnsinoImportarCalendarioRoute =
   AuthenticatedEnsinoImportarCalendarioRouteImport.update({
     id: '/ensino/importar-calendario',
@@ -230,6 +273,12 @@ const AuthenticatedGestoesCargosRoute =
   AuthenticatedGestoesCargosRouteImport.update({
     id: '/gestoes/cargos',
     path: '/gestoes/cargos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIntersticoIndexRoute =
+  AuthenticatedIntersticoIndexRouteImport.update({
+    id: '/interstico/',
+    path: '/interstico/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedIrmaosIndexRoute =
@@ -442,8 +491,10 @@ export interface FileRoutesByFullPath {
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
+  '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -482,10 +533,15 @@ export interface FileRoutesByFullPath {
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
+  '/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
+  '/documentos/': typeof AuthenticatedDocumentosIndexRoute
+  '/enquetes/': typeof AuthenticatedEnquetesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
   '/gestoes/': typeof AuthenticatedGestoesIndexRoute
+  '/interstico/': typeof AuthenticatedIntersticoIndexRoute
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/painel/': typeof AuthenticatedPainelIndexRoute
@@ -504,8 +560,10 @@ export interface FileRoutesByTo {
   '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
+  '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -544,10 +602,15 @@ export interface FileRoutesByTo {
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/biblioteca': typeof AuthenticatedBibliotecaIndexRoute
+  '/calendario': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
+  '/documentos': typeof AuthenticatedDocumentosIndexRoute
+  '/enquetes': typeof AuthenticatedEnquetesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
   '/gestoes': typeof AuthenticatedGestoesIndexRoute
+  '/interstico': typeof AuthenticatedIntersticoIndexRoute
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
   '/painel': typeof AuthenticatedPainelIndexRoute
@@ -569,8 +632,10 @@ export interface FileRoutesById {
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/_authenticated/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/_authenticated/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/_authenticated/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
+  '/_authenticated/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
   '/_authenticated/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
@@ -609,10 +674,15 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/_authenticated/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
+  '/_authenticated/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
+  '/_authenticated/documentos/': typeof AuthenticatedDocumentosIndexRoute
+  '/_authenticated/enquetes/': typeof AuthenticatedEnquetesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
   '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
+  '/_authenticated/interstico/': typeof AuthenticatedIntersticoIndexRoute
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/_authenticated/painel/': typeof AuthenticatedPainelIndexRoute
@@ -634,8 +704,10 @@ export interface FileRouteTypes {
     | '/painel'
     | '/dashboard'
     | '/administracao/auditoria'
+    | '/administracao/backups'
     | '/administracao/exportar-dados'
     | '/administracao/resetar-financeiro'
+    | '/conta/seguranca'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
     | '/contabilidade/diario'
@@ -674,10 +746,15 @@ export interface FileRouteTypes {
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
+    | '/biblioteca/'
+    | '/calendario/'
     | '/comissoes/'
     | '/comunicacoes/'
+    | '/documentos/'
+    | '/enquetes/'
     | '/eventos/'
     | '/gestoes/'
+    | '/interstico/'
     | '/irmaos/'
     | '/orgs/'
     | '/painel/'
@@ -696,8 +773,10 @@ export interface FileRouteTypes {
     | '/trocar-senha'
     | '/dashboard'
     | '/administracao/auditoria'
+    | '/administracao/backups'
     | '/administracao/exportar-dados'
     | '/administracao/resetar-financeiro'
+    | '/conta/seguranca'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
     | '/contabilidade/diario'
@@ -736,10 +815,15 @@ export interface FileRouteTypes {
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
+    | '/biblioteca'
+    | '/calendario'
     | '/comissoes'
     | '/comunicacoes'
+    | '/documentos'
+    | '/enquetes'
     | '/eventos'
     | '/gestoes'
+    | '/interstico'
     | '/irmaos'
     | '/orgs'
     | '/painel'
@@ -760,8 +844,10 @@ export interface FileRouteTypes {
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
     | '/_authenticated/administracao/auditoria'
+    | '/_authenticated/administracao/backups'
     | '/_authenticated/administracao/exportar-dados'
     | '/_authenticated/administracao/resetar-financeiro'
+    | '/_authenticated/conta/seguranca'
     | '/_authenticated/contabilidade/auditoria'
     | '/_authenticated/contabilidade/balancete'
     | '/_authenticated/contabilidade/diario'
@@ -800,10 +886,15 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/tabela-valores'
     | '/_authenticated/tesouraria/tronco'
+    | '/_authenticated/biblioteca/'
+    | '/_authenticated/calendario/'
     | '/_authenticated/comissoes/'
     | '/_authenticated/comunicacoes/'
+    | '/_authenticated/documentos/'
+    | '/_authenticated/enquetes/'
     | '/_authenticated/eventos/'
     | '/_authenticated/gestoes/'
+    | '/_authenticated/interstico/'
     | '/_authenticated/irmaos/'
     | '/_authenticated/orgs/'
     | '/_authenticated/painel/'
@@ -889,6 +980,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdministracaoAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/administracao/backups': {
+      id: '/_authenticated/administracao/backups'
+      path: '/administracao/backups'
+      fullPath: '/administracao/backups'
+      preLoaderRoute: typeof AuthenticatedAdministracaoBackupsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/administracao/exportar-dados': {
       id: '/_authenticated/administracao/exportar-dados'
       path: '/administracao/exportar-dados'
@@ -903,6 +1001,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/biblioteca/': {
+      id: '/_authenticated/biblioteca/'
+      path: '/biblioteca'
+      fullPath: '/biblioteca/'
+      preLoaderRoute: typeof AuthenticatedBibliotecaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/calendario/': {
+      id: '/_authenticated/calendario/'
+      path: '/calendario'
+      fullPath: '/calendario/'
+      preLoaderRoute: typeof AuthenticatedCalendarioIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/comissoes/': {
       id: '/_authenticated/comissoes/'
       path: '/comissoes'
@@ -915,6 +1027,13 @@ declare module '@tanstack/react-router' {
       path: '/comunicacoes'
       fullPath: '/comunicacoes/'
       preLoaderRoute: typeof AuthenticatedComunicacoesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/conta/seguranca': {
+      id: '/_authenticated/conta/seguranca'
+      path: '/conta/seguranca'
+      fullPath: '/conta/seguranca'
+      preLoaderRoute: typeof AuthenticatedContaSegurancaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contabilidade/auditoria': {
@@ -980,6 +1099,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/documentos/': {
+      id: '/_authenticated/documentos/'
+      path: '/documentos'
+      fullPath: '/documentos/'
+      preLoaderRoute: typeof AuthenticatedDocumentosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/enquetes/': {
+      id: '/_authenticated/enquetes/'
+      path: '/enquetes'
+      fullPath: '/enquetes/'
+      preLoaderRoute: typeof AuthenticatedEnquetesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ensino/importar-calendario': {
       id: '/_authenticated/ensino/importar-calendario'
       path: '/ensino/importar-calendario'
@@ -1020,6 +1153,13 @@ declare module '@tanstack/react-router' {
       path: '/gestoes/cargos'
       fullPath: '/gestoes/cargos'
       preLoaderRoute: typeof AuthenticatedGestoesCargosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/interstico/': {
+      id: '/_authenticated/interstico/'
+      path: '/interstico'
+      fullPath: '/interstico/'
+      preLoaderRoute: typeof AuthenticatedIntersticoIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/irmaos/': {
@@ -1295,8 +1435,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPainelRouteRoute: typeof AuthenticatedPainelRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAdministracaoAuditoriaRoute: typeof AuthenticatedAdministracaoAuditoriaRoute
+  AuthenticatedAdministracaoBackupsRoute: typeof AuthenticatedAdministracaoBackupsRoute
   AuthenticatedAdministracaoExportarDadosRoute: typeof AuthenticatedAdministracaoExportarDadosRoute
   AuthenticatedAdministracaoResetarFinanceiroRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRoute
+  AuthenticatedContaSegurancaRoute: typeof AuthenticatedContaSegurancaRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
   AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
   AuthenticatedContabilidadeDiarioRoute: typeof AuthenticatedContabilidadeDiarioRoute
@@ -1328,10 +1470,15 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaTabelaValoresRoute: typeof AuthenticatedTesourariaTabelaValoresRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
+  AuthenticatedBibliotecaIndexRoute: typeof AuthenticatedBibliotecaIndexRoute
+  AuthenticatedCalendarioIndexRoute: typeof AuthenticatedCalendarioIndexRoute
   AuthenticatedComissoesIndexRoute: typeof AuthenticatedComissoesIndexRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
+  AuthenticatedDocumentosIndexRoute: typeof AuthenticatedDocumentosIndexRoute
+  AuthenticatedEnquetesIndexRoute: typeof AuthenticatedEnquetesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
   AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
+  AuthenticatedIntersticoIndexRoute: typeof AuthenticatedIntersticoIndexRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
   AuthenticatedSessoesIndexRoute: typeof AuthenticatedSessoesIndexRoute
@@ -1347,10 +1494,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedAdministracaoAuditoriaRoute:
     AuthenticatedAdministracaoAuditoriaRoute,
+  AuthenticatedAdministracaoBackupsRoute:
+    AuthenticatedAdministracaoBackupsRoute,
   AuthenticatedAdministracaoExportarDadosRoute:
     AuthenticatedAdministracaoExportarDadosRoute,
   AuthenticatedAdministracaoResetarFinanceiroRoute:
     AuthenticatedAdministracaoResetarFinanceiroRoute,
+  AuthenticatedContaSegurancaRoute: AuthenticatedContaSegurancaRoute,
   AuthenticatedContabilidadeAuditoriaRoute:
     AuthenticatedContabilidadeAuditoriaRoute,
   AuthenticatedContabilidadeBalanceteRoute:
@@ -1400,10 +1550,15 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaTabelaValoresRoute:
     AuthenticatedTesourariaTabelaValoresRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
+  AuthenticatedBibliotecaIndexRoute: AuthenticatedBibliotecaIndexRoute,
+  AuthenticatedCalendarioIndexRoute: AuthenticatedCalendarioIndexRoute,
   AuthenticatedComissoesIndexRoute: AuthenticatedComissoesIndexRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
+  AuthenticatedDocumentosIndexRoute: AuthenticatedDocumentosIndexRoute,
+  AuthenticatedEnquetesIndexRoute: AuthenticatedEnquetesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
   AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,
+  AuthenticatedIntersticoIndexRoute: AuthenticatedIntersticoIndexRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
   AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,
   AuthenticatedSessoesIndexRoute: AuthenticatedSessoesIndexRoute,

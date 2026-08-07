@@ -27,6 +27,7 @@ export const TIPO_SESSAO_LABEL: Record<string, string> = {
   magna: "Magna",
   branca: "Branca",
   administrativa: "Administrativa",
+  iniciacao: "Iniciação",
 };
 
 export const ROLE_LABEL: Record<string, string> = {

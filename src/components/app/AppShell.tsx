@@ -54,6 +54,12 @@ import {
   FileUp,
   Megaphone,
   AlertTriangle,
+  Fingerprint,
+  Library,
+  Calendar,
+  Hourglass,
+  Vote,
+  FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
@@ -223,7 +229,7 @@ function NavTree({
                     return (
                       <Fragment key={i.to}>
                         {mostraSecao && (
-                          <div className="px-2.5 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/65 first:pt-0">
+                          <div className="px-2.5 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/65 first:pt-0">
                             {i.section}
                           </div>
                         )}
@@ -288,6 +294,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays, show: true },
         { to: "/painel/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
+        { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
+        { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
+        { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
+        { to: "/documentos", label: "Documentos", icon: FileSignature, show: true },
       ],
     },
   ];
@@ -303,6 +313,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/gestoes", label: "Gestões", icon: Award, show: true },
         { to: "/comissoes", label: "Comissões", icon: UsersRound, show: true },
         {
+          to: "/interstico",
+          label: "Interstício",
+          icon: Hourglass,
+          show: can.canManageIrmaos,
+        },
+        {
           to: "/terceiros",
           label: "Fornecedores/Clientes",
           icon: Truck,
@@ -315,6 +331,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       label: "Atividades",
       icon: CalendarRange,
       items: [
+        { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
         { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
         { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
@@ -333,6 +350,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           section: "Importar",
         },
         { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
+        { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
+        { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
+        { to: "/documentos", label: "Documentos", icon: FileSignature, show: true },
       ],
     },
     {
@@ -519,6 +539,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Download,
           show: can.isAdmin,
         },
+        {
+          to: "/administracao/backups",
+          label: "Backups",
+          icon: Archive,
+          show: can.isAdmin,
+        },
       ],
     },
   ];
@@ -656,6 +682,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             {collapsed ? (
               <>
                 <SidebarIcon
+                  icon={Fingerprint}
+                  label="Segurança"
+                  active={false}
+                  to="/conta/seguranca"
+                />
+                <SidebarIcon
                   icon={dark ? Sun : Moon}
                   label={dark ? "Modo claro" : "Modo escuro"}
                   active={false}
@@ -665,7 +697,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <Button variant="outline" size="sm" className="w-full" onClick={toggleDark}>
+                <Button variant="outline" size="sm" className="w-full" asChild>
+                  <Link to="/conta/seguranca">
+                    <Fingerprint className="mr-1 h-3 w-3" /> Segurança
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={toggleDark}>
                   {dark ? <Sun className="mr-1 h-3 w-3" /> : <Moon className="mr-1 h-3 w-3" />}
                   {dark ? "Modo claro" : "Modo escuro"}
                 </Button>

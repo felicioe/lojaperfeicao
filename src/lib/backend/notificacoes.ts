@@ -13,7 +13,7 @@ import { comSessao, comPapel } from "./authz";
 export const PAPEIS_NOTIFICACOES = ["admin", "secretario", "tesoureiro"];
 
 export type NotificacaoItem = {
-  tipo: "aniversario" | "fatura_vencida" | "recorrente_pendente";
+  tipo: "aniversario" | "fatura_vencida" | "recorrente_pendente" | "interstico_completo";
   chave: string;
   titulo: string;
   mensagem: string;
@@ -70,6 +70,30 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
       chave: `recorrente_pendente:${rec.id}:${new Date().toISOString().slice(0, 7)}`,
       titulo: "Despesa recorrente pendente",
       mensagem: `${rec.descricao} — ainda não efetivada este mês.`,
+    });
+  }
+
+  // Interstício completo (issue #84) — dispara exatamente no dia em que
+  // o irmão fica elegível (dias_restantes = 0), não todo dia depois disso;
+  // a chave inclui a data de elevação, então mudar o interstício do grau
+  // depois não gera um disparo duplicado para quem já foi avisado.
+  const [intersticiosCompletos] = await conn.query<RowDataPacket[]>(
+    `SELECT i.id, i.nome_civil, og.nome AS nome_grau, io.grau_atual
+     FROM irmaos i
+     JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
+     JOIN orgs_graus og ON og.org_id = io.org_id AND og.grau = io.grau_atual
+     JOIN irmao_elevacoes ie ON ie.irmao_id = i.id AND ie.grau = io.grau_atual
+     WHERE i.situacao = 'ativo'
+       AND og.interstico_minimo_meses IS NOT NULL
+       AND ie.data IS NOT NULL
+       AND DATE_ADD(ie.data, INTERVAL og.interstico_minimo_meses MONTH) = CURRENT_DATE`,
+  );
+  for (const irmao of intersticiosCompletos) {
+    itens.push({
+      tipo: "interstico_completo",
+      chave: `interstico_completo:${irmao.id}:${irmao.grau_atual}`,
+      titulo: "Interstício completo",
+      mensagem: `${irmao.nome_civil} completou o interstício mínimo do grau ${irmao.grau_atual} (${irmao.nome_grau}) — já pode ser elevado.`,
     });
   }
 

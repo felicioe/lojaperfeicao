@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { executarDisparoNotificacoes } from "./lib/push-dispatch";
+import { executarBackupAgendado } from "./lib/backup-dispatch";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -74,11 +75,41 @@ async function tratarCronNotificacoes(request: Request): Promise<Response | null
   }
 }
 
+// Mesmo padrão de tratarCronNotificacoes acima, para o cron de backup
+// agendado (issue #85). Reaproveita o mesmo CRON_SECRET — não faz sentido
+// exigir um segredo por job quando ambos rodam no mesmo hPanel/conta.
+async function tratarCronBackup(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/cron/backup") return null;
+
+  const token = url.searchParams.get("token") ?? request.headers.get("x-cron-token");
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado || token !== esperado) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const resultado = await executarBackupAgendado("cron");
+    return new Response(JSON.stringify(resultado), {
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: (error as Error).message }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const cronResponse = await tratarCronNotificacoes(request);
       if (cronResponse) return cronResponse;
+
+      const backupResponse = await tratarCronBackup(request);
+      if (backupResponse) return backupResponse;
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

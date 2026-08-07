@@ -149,6 +149,7 @@ function Tesouraria() {
                   <Button variant="outline">Transferência</Button>
                 </DialogTrigger>
                 <TransferenciaDialog
+                  key={String(openTransf)}
                   contas={contas.data ?? []}
                   onDone={() => {
                     setOpenTransf(false);
@@ -193,7 +194,7 @@ function Tesouraria() {
                   <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead aria-label="Ações"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -354,9 +355,9 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
       </DialogHeader>
       <div className="grid gap-3 md:grid-cols-2">
         <div>
-          <Label>Tipo</Label>
+          <Label htmlFor="lanc-tipo">Tipo</Label>
           <Select value={d.tipo} onValueChange={(v) => setD({ ...d, tipo: v })}>
-            <SelectTrigger>
+            <SelectTrigger id="lanc-tipo">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -399,9 +400,9 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
           />
         </div>
         <div>
-          <Label>Conta</Label>
+          <Label htmlFor="lanc-conta">Conta</Label>
           <Select value={d.conta_id} onValueChange={(v) => setD({ ...d, conta_id: v })}>
-            <SelectTrigger>
+            <SelectTrigger id="lanc-conta">
               <SelectValue placeholder="Selecionar" />
             </SelectTrigger>
             <SelectContent>
@@ -414,9 +415,9 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
           </Select>
         </div>
         <div>
-          <Label>Categoria (plano de contas)</Label>
+          <Label htmlFor="lanc-categoria">Categoria (plano de contas)</Label>
           <Select value={d.plano_conta_id} onValueChange={(v) => setD({ ...d, plano_conta_id: v })}>
-            <SelectTrigger>
+            <SelectTrigger id="lanc-categoria">
               <SelectValue placeholder="Opcional" />
             </SelectTrigger>
             <SelectContent>
@@ -497,9 +498,17 @@ function TransferenciaDialog({ contas, onDone }: any) {
       </DialogHeader>
       <div className="grid gap-3">
         <div>
-          <Label>Conta de origem</Label>
-          <Select value={d.conta_id} onValueChange={(v) => setD({ ...d, conta_id: v })}>
-            <SelectTrigger>
+          <Label htmlFor="transf-origem">Conta de origem</Label>
+          <Select
+            value={d.conta_id}
+            onValueChange={(v) => {
+              const destino = d.conta_destino_id === v
+                ? contas.find((c: any) => c.id !== v)?.id ?? ""
+                : d.conta_destino_id;
+              setD({ ...d, conta_id: v, conta_destino_id: destino });
+            }}
+          >
+            <SelectTrigger id="transf-origem">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -512,16 +521,16 @@ function TransferenciaDialog({ contas, onDone }: any) {
           </Select>
         </div>
         <div>
-          <Label>Conta de destino</Label>
+          <Label htmlFor="transf-destino">Conta de destino</Label>
           <Select
             value={d.conta_destino_id}
             onValueChange={(v) => setD({ ...d, conta_destino_id: v })}
           >
-            <SelectTrigger>
+            <SelectTrigger id="transf-destino">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {contas.map((c: any) => (
+              {contas.filter((c: any) => c.id !== d.conta_id).map((c: any) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.nome}
                 </SelectItem>

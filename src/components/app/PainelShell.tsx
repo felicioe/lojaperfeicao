@@ -20,6 +20,11 @@ import {
   Sun,
   PartyPopper,
   Megaphone,
+  Fingerprint,
+  Library,
+  Calendar,
+  Vote,
+  FileSignature,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { useTheme } from "@/lib/use-theme";
@@ -105,8 +110,10 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   key={aba.to}
                   to={aba.to}
                   className={cn(
-                    "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition-opacity",
-                    ativo ? "opacity-100" : "opacity-70 hover:opacity-90",
+                    "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition-all",
+                    ativo
+                      ? "opacity-100 bg-white/10"
+                      : "opacity-60 hover:opacity-85 hover:bg-white/5",
                   )}
                 >
                   <div className="relative">
@@ -147,6 +154,41 @@ export function PainelShell({ children }: { children: ReactNode }) {
                 className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
               >
                 <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Meus dados e privacidade
+              </Link>
+              <Link
+                to="/biblioteca"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
+              >
+                <Library className="h-4 w-4 text-muted-foreground" /> Biblioteca de Peças
+              </Link>
+              <Link
+                to="/calendario"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
+              >
+                <Calendar className="h-4 w-4 text-muted-foreground" /> Calendário
+              </Link>
+              <Link
+                to="/enquetes"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
+              >
+                <Vote className="h-4 w-4 text-muted-foreground" /> Enquetes
+              </Link>
+              <Link
+                to="/documentos"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
+              >
+                <FileSignature className="h-4 w-4 text-muted-foreground" /> Documentos
+              </Link>
+              <Link
+                to="/conta/seguranca"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
+              >
+                <Fingerprint className="h-4 w-4 text-muted-foreground" /> Segurança da conta
               </Link>
               <a
                 href="/privacidade"
