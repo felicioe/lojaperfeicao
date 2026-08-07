@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -146,6 +147,11 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      {/* Montado uma vez aqui (não em AppShell/PainelShell) pra também cobrir
+          páginas fora da área autenticada (/auth, /trocar-senha,
+          /aceite-termos, /google-concluir) — toasts de erro de login,
+          por exemplo, não apareciam nelas antes disso. */}
+      <Toaster position="top-right" richColors />
     </QueryClientProvider>
   );
 }

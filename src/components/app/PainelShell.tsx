@@ -26,7 +26,6 @@ import {
   Vote,
   FileSignature,
 } from "lucide-react";
-import { Toaster } from "sonner";
 import { useTheme } from "@/lib/use-theme";
 
 const TITULOS: Record<string, string> = {
@@ -219,7 +218,6 @@ export function PainelShell({ children }: { children: ReactNode }) {
           </SheetContent>
         </Sheet>
       </div>
-      <Toaster position="top-right" richColors />
     </div>
   );
 }

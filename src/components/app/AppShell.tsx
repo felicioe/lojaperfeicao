@@ -63,7 +63,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
-import { Toaster } from "sonner";
 import { ROLE_LABEL } from "@/lib/format";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { useTheme } from "@/lib/use-theme";
@@ -603,12 +602,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // as Rules of Hooks (o número/ordem de hooks precisa ser igual em todo
   // render).
   if (can.isMemberOnly && !isDesktop) {
-    return (
-      <>
-        {children}
-        <Toaster position="top-right" richColors />
-      </>
-    );
+    return <>{children}</>;
   }
 
   return (
@@ -793,8 +787,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
         </main>
       </div>
-
-      <Toaster position="top-right" richColors />
     </div>
   );
 }
