@@ -59,6 +59,7 @@ import {
   Calendar,
   Hourglass,
   Vote,
+  FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
@@ -296,6 +297,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
         { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
+        { to: "/documentos", label: "Documentos", icon: FileSignature, show: true },
       ],
     },
   ];
@@ -350,6 +352,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
         { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
+        { to: "/documentos", label: "Documentos", icon: FileSignature, show: true },
       ],
     },
     {
