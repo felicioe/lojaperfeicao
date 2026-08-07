@@ -35,6 +35,7 @@ import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './rout
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
+import { Route as AuthenticatedEnquetesIndexRouteImport } from './routes/_authenticated/enquetes/index'
 import { Route as AuthenticatedEnsinoImportarCalendarioRouteImport } from './routes/_authenticated/ensino/importar-calendario'
 import { Route as AuthenticatedEnsinoImportarPdfSessoesRouteImport } from './routes/_authenticated/ensino/importar-pdf-sessoes'
 import { Route as AuthenticatedEnsinoPlanosRouteImport } from './routes/_authenticated/ensino/planos'
@@ -223,6 +224,12 @@ const AuthenticatedContabilidadeRazaoRoute =
   AuthenticatedContabilidadeRazaoRouteImport.update({
     id: '/contabilidade/razao',
     path: '/contabilidade/razao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEnquetesIndexRoute =
+  AuthenticatedEnquetesIndexRouteImport.update({
+    id: '/enquetes/',
+    path: '/enquetes/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEnsinoImportarCalendarioRoute =
@@ -523,6 +530,7 @@ export interface FileRoutesByFullPath {
   '/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
+  '/enquetes/': typeof AuthenticatedEnquetesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
   '/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/interstico/': typeof AuthenticatedIntersticoIndexRoute
@@ -590,6 +598,7 @@ export interface FileRoutesByTo {
   '/calendario': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
+  '/enquetes': typeof AuthenticatedEnquetesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
   '/gestoes': typeof AuthenticatedGestoesIndexRoute
   '/interstico': typeof AuthenticatedIntersticoIndexRoute
@@ -660,6 +669,7 @@ export interface FileRoutesById {
   '/_authenticated/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
+  '/_authenticated/enquetes/': typeof AuthenticatedEnquetesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
   '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
   '/_authenticated/interstico/': typeof AuthenticatedIntersticoIndexRoute
@@ -730,6 +740,7 @@ export interface FileRouteTypes {
     | '/calendario/'
     | '/comissoes/'
     | '/comunicacoes/'
+    | '/enquetes/'
     | '/eventos/'
     | '/gestoes/'
     | '/interstico/'
@@ -797,6 +808,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/comissoes'
     | '/comunicacoes'
+    | '/enquetes'
     | '/eventos'
     | '/gestoes'
     | '/interstico'
@@ -866,6 +878,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendario/'
     | '/_authenticated/comissoes/'
     | '/_authenticated/comunicacoes/'
+    | '/_authenticated/enquetes/'
     | '/_authenticated/eventos/'
     | '/_authenticated/gestoes/'
     | '/_authenticated/interstico/'
@@ -1071,6 +1084,13 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/razao'
       fullPath: '/contabilidade/razao'
       preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/enquetes/': {
+      id: '/_authenticated/enquetes/'
+      path: '/enquetes'
+      fullPath: '/enquetes/'
+      preLoaderRoute: typeof AuthenticatedEnquetesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/ensino/importar-calendario': {
@@ -1434,6 +1454,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarioIndexRoute: typeof AuthenticatedCalendarioIndexRoute
   AuthenticatedComissoesIndexRoute: typeof AuthenticatedComissoesIndexRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
+  AuthenticatedEnquetesIndexRoute: typeof AuthenticatedEnquetesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
   AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
   AuthenticatedIntersticoIndexRoute: typeof AuthenticatedIntersticoIndexRoute
@@ -1512,6 +1533,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarioIndexRoute: AuthenticatedCalendarioIndexRoute,
   AuthenticatedComissoesIndexRoute: AuthenticatedComissoesIndexRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
+  AuthenticatedEnquetesIndexRoute: AuthenticatedEnquetesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
   AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,
   AuthenticatedIntersticoIndexRoute: AuthenticatedIntersticoIndexRoute,
