@@ -22,3 +22,18 @@ Em vez disso:
    issue** — nunca uma PR gigante cobrindo várias funcionalidades.
 3. Antes de começar a próxima, confirmar com o usuário qual issue ele quer
    que seja a próxima (a menos que ele já tenha indicado a ordem).
+
+## Validação obrigatória antes de considerar uma issue pronta
+
+Sempre seguir os padrões já adotados no projeto (schema de migração
+sequencial em `mysql/migrations/`, `createServerFn` + `comSessao`/`comPapel`
+pra autorização, componentes shadcn/ui já usados nas telas existentes) e
+sempre validar de verdade antes de dar por concluído:
+
+1. `npx tsc --noEmit` e `npx eslint` limpos (sem regressão nos arquivos
+   tocados).
+2. `npx vite build` sem erros — e, quando a mudança envolver algo que possa
+   vazar código server-only pro bundle do cliente (como já aconteceu com o
+   passkey), inspecionar o build de produção real, não só o dev server.
+3. Testar o fluxo ao vivo (Playwright contra o dev server, com
+   screenshot/assert do resultado), não só confiar nos checks estáticos.
