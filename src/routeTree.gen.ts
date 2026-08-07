@@ -35,6 +35,7 @@ import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './rout
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
+import { Route as AuthenticatedDocumentosIndexRouteImport } from './routes/_authenticated/documentos/index'
 import { Route as AuthenticatedEnquetesIndexRouteImport } from './routes/_authenticated/enquetes/index'
 import { Route as AuthenticatedEnsinoImportarCalendarioRouteImport } from './routes/_authenticated/ensino/importar-calendario'
 import { Route as AuthenticatedEnsinoImportarPdfSessoesRouteImport } from './routes/_authenticated/ensino/importar-pdf-sessoes'
@@ -224,6 +225,12 @@ const AuthenticatedContabilidadeRazaoRoute =
   AuthenticatedContabilidadeRazaoRouteImport.update({
     id: '/contabilidade/razao',
     path: '/contabilidade/razao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDocumentosIndexRoute =
+  AuthenticatedDocumentosIndexRouteImport.update({
+    id: '/documentos/',
+    path: '/documentos/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEnquetesIndexRoute =
@@ -530,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
+  '/documentos/': typeof AuthenticatedDocumentosIndexRoute
   '/enquetes/': typeof AuthenticatedEnquetesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
   '/gestoes/': typeof AuthenticatedGestoesIndexRoute
@@ -598,6 +606,7 @@ export interface FileRoutesByTo {
   '/calendario': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
+  '/documentos': typeof AuthenticatedDocumentosIndexRoute
   '/enquetes': typeof AuthenticatedEnquetesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
   '/gestoes': typeof AuthenticatedGestoesIndexRoute
@@ -669,6 +678,7 @@ export interface FileRoutesById {
   '/_authenticated/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
+  '/_authenticated/documentos/': typeof AuthenticatedDocumentosIndexRoute
   '/_authenticated/enquetes/': typeof AuthenticatedEnquetesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
   '/_authenticated/gestoes/': typeof AuthenticatedGestoesIndexRoute
@@ -740,6 +750,7 @@ export interface FileRouteTypes {
     | '/calendario/'
     | '/comissoes/'
     | '/comunicacoes/'
+    | '/documentos/'
     | '/enquetes/'
     | '/eventos/'
     | '/gestoes/'
@@ -808,6 +819,7 @@ export interface FileRouteTypes {
     | '/calendario'
     | '/comissoes'
     | '/comunicacoes'
+    | '/documentos'
     | '/enquetes'
     | '/eventos'
     | '/gestoes'
@@ -878,6 +890,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendario/'
     | '/_authenticated/comissoes/'
     | '/_authenticated/comunicacoes/'
+    | '/_authenticated/documentos/'
     | '/_authenticated/enquetes/'
     | '/_authenticated/eventos/'
     | '/_authenticated/gestoes/'
@@ -1084,6 +1097,13 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/razao'
       fullPath: '/contabilidade/razao'
       preLoaderRoute: typeof AuthenticatedContabilidadeRazaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/documentos/': {
+      id: '/_authenticated/documentos/'
+      path: '/documentos'
+      fullPath: '/documentos/'
+      preLoaderRoute: typeof AuthenticatedDocumentosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/enquetes/': {
@@ -1454,6 +1474,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCalendarioIndexRoute: typeof AuthenticatedCalendarioIndexRoute
   AuthenticatedComissoesIndexRoute: typeof AuthenticatedComissoesIndexRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
+  AuthenticatedDocumentosIndexRoute: typeof AuthenticatedDocumentosIndexRoute
   AuthenticatedEnquetesIndexRoute: typeof AuthenticatedEnquetesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
   AuthenticatedGestoesIndexRoute: typeof AuthenticatedGestoesIndexRoute
@@ -1533,6 +1554,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCalendarioIndexRoute: AuthenticatedCalendarioIndexRoute,
   AuthenticatedComissoesIndexRoute: AuthenticatedComissoesIndexRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
+  AuthenticatedDocumentosIndexRoute: AuthenticatedDocumentosIndexRoute,
   AuthenticatedEnquetesIndexRoute: AuthenticatedEnquetesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
   AuthenticatedGestoesIndexRoute: AuthenticatedGestoesIndexRoute,
