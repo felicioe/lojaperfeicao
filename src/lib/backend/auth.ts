@@ -4,11 +4,14 @@ import bcrypt from "bcryptjs";
 import type { RowDataPacket } from "mysql2";
 import { withUserConnection } from "./db";
 import { comSessao } from "./authz";
-import { criarSessao, encerrarSessao, usuarioIdDaSessao } from "./session";
+import { criarSessao, encerrarSessao, usuarioIdDaSessao, salvarLoginPendente2FA } from "./session";
 import { registrarAuditoria } from "./auditoria";
 import { carregarUsuarioComPapeis, type Papel, type UsuarioSessao } from "./usuario-sessao";
+import { usuarioTemTotpAtivo } from "./totp";
 
 export type { Papel, UsuarioSessao };
+
+export type LoginResultado = UsuarioSessao | { requerTotp: true };
 
 // Aceita e-mail (contas antigas/admin) ou login gerado como nome.sobrenome
 // (contas de irmão criadas via painel de usuários) — não força formato de
@@ -27,7 +30,7 @@ const signupSchema = z.object({
 
 export const login = createServerFn({ method: "POST" })
   .validator((data: unknown) => loginSchema.parse(data))
-  .handler(async ({ data }): Promise<UsuarioSessao> => {
+  .handler(async ({ data }): Promise<LoginResultado> => {
     const usuario = await withUserConnection(null, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         "SELECT id, senha_hash, ativo FROM usuarios WHERE email = ?",
@@ -41,6 +44,18 @@ export const login = createServerFn({ method: "POST" })
     }
     if (!usuario.ativo) {
       throw new Error("Usuário inativo. Contate o administrador.");
+    }
+
+    // Senha certa, mas 2FA ativo: não abre sessão ainda — falta o código
+    // do app autenticador (confirmarLogin2FA, em totp.ts). Passkey não
+    // passa por aqui (login próprio em passkeys.ts), já é por si só um
+    // segundo fator.
+    const precisaTotp = await withUserConnection(usuario.id, (conn) =>
+      usuarioTemTotpAtivo(conn, usuario.id),
+    );
+    if (precisaTotp) {
+      await salvarLoginPendente2FA(usuario.id);
+      return { requerTotp: true };
     }
 
     await criarSessao(usuario.id);

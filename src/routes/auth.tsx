@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import { login, signup, contarUsuarios, getSessao } from "@/lib/backend/auth";
 import { iniciarLoginPasskey, confirmarLoginPasskey } from "@/lib/backend/passkeys";
+import { confirmarLogin2FA } from "@/lib/backend/totp";
 import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Fingerprint } from "lucide-react";
+import { Fingerprint, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -35,6 +36,8 @@ function AuthPage() {
   const [aceiteLgpd, setAceiteLgpd] = useState(false);
   const [webauthnDisponivel, setWebauthnDisponivel] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
+  const [aguardando2FA, setAguardando2FA] = useState(false);
+  const [codigo2FA, setCodigo2FA] = useState("");
 
   useEffect(() => {
     contarUsuarios().then((total) => setFirstUser(total === 0));
@@ -48,12 +51,32 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const usuario = await login({ data: { email, senha: password } });
-      queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
+      const resultado = await login({ data: { email, senha: password } });
+      if ("requerTotp" in resultado) {
+        setAguardando2FA(true);
+        return;
+      }
+      queryClient.setQueryData(SESSAO_QUERY_KEY, resultado);
       toast.success("Bem-vindo!");
       navigate({ to: "/dashboard" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao entrar.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmar2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const usuario = await confirmarLogin2FA({ data: { codigo: codigo2FA } });
+      queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
+      toast.success("Bem-vindo!");
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Código inválido.");
+      setCodigo2FA("");
     } finally {
       setLoading(false);
     }
@@ -115,7 +138,38 @@ function AuthPage() {
           <CardDescription>Sistema administrativo maçônico</CardDescription>
         </CardHeader>
         <CardContent>
-          {firstUser ? (
+          {aguardando2FA ? (
+            <form onSubmit={handleConfirmar2FA} className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ShieldCheck className="h-4 w-4" /> Digite o código do seu app autenticador.
+              </div>
+              <div>
+                <Label>Código</Label>
+                <Input
+                  autoFocus
+                  inputMode="numeric"
+                  placeholder="000000 ou código de backup"
+                  value={codigo2FA}
+                  onChange={(e) => setCodigo2FA(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Confirmando…" : "Confirmar"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setAguardando2FA(false);
+                  setCodigo2FA("");
+                }}
+              >
+                Voltar
+              </Button>
+            </form>
+          ) : firstUser ? (
             <Tabs defaultValue="signup">
               <TabsList className="grid grid-cols-2 w-full">
                 <TabsTrigger value="signup">Criar 1º admin</TabsTrigger>
