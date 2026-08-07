@@ -26,6 +26,11 @@ dist-ssr
 .env.*
 !.env.example
 
+# Arquivos enviados por usuários em runtime (foto de irmão, logo de corpo,
+# peças de arquitetura...) — gravados em disco pela própria aplicação
+# (ver src/lib/backend/*.ts, funções de upload), nunca fazem parte do código.
+public/uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
