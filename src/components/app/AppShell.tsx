@@ -57,6 +57,7 @@ import {
   Fingerprint,
   Library,
   Calendar,
+  Hourglass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
@@ -307,6 +308,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/orgs", label: "Corpos Maçônicos", icon: Building2, show: true },
         { to: "/gestoes", label: "Gestões", icon: Award, show: true },
         { to: "/comissoes", label: "Comissões", icon: UsersRound, show: true },
+        {
+          to: "/interstico",
+          label: "Interstício",
+          icon: Hourglass,
+          show: can.canManageIrmaos,
+        },
         {
           to: "/terceiros",
           label: "Fornecedores/Clientes",

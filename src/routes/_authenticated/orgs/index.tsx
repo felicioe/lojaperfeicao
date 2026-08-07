@@ -10,6 +10,7 @@ import {
   gerarGrausPadraoOrg,
   criarOrgGrau,
   renomearOrgGrau,
+  atualizarIntersticioOrgGrau,
   removerOrgGrau,
   uploadLogoOrg,
   type Org,
@@ -462,6 +463,19 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
     }
   };
 
+  const alterarIntersticio = async (id: string, valor: string) => {
+    const meses = valor.trim() === "" ? null : Number(valor);
+    if (meses !== null && (!Number.isInteger(meses) || meses <= 0)) {
+      return toast.error("Interstício precisa ser um número inteiro de meses maior que zero.");
+    }
+    try {
+      await atualizarIntersticioOrgGrau({ data: { id, meses } });
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar interstício.");
+    }
+  };
+
   const remover = async (id: string) => {
     try {
       await removerOrgGrau({ data: { id } });
@@ -486,13 +500,14 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
           <TableRow>
             <TableHead className="w-20">Grau</TableHead>
             <TableHead>Nome</TableHead>
+            <TableHead className="w-44">Interstício (meses)</TableHead>
             {podeEditar && <TableHead className="w-10"></TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {graus.length === 0 && (
             <TableRow>
-              <TableCell colSpan={3} className="text-muted-foreground text-sm">
+              <TableCell colSpan={4} className="text-muted-foreground text-sm">
                 Nenhum grau cadastrado ainda.
               </TableCell>
             </TableRow>
@@ -509,6 +524,23 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
                   />
                 ) : (
                   g.nome
+                )}
+              </TableCell>
+              <TableCell>
+                {podeEditar ? (
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Sem regra"
+                    defaultValue={g.interstico_minimo_meses ?? ""}
+                    onBlur={(e) =>
+                      Number(e.target.value || 0) !== (g.interstico_minimo_meses ?? 0) &&
+                      alterarIntersticio(g.id, e.target.value)
+                    }
+                    className="h-8 w-32"
+                  />
+                ) : (
+                  (g.interstico_minimo_meses ?? "—")
                 )}
               </TableCell>
               {podeEditar && (

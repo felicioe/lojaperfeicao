@@ -8,13 +8,14 @@ import {
 } from "@/lib/backend/notificacoes";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Bell, BellRing, Cake, FileWarning, RefreshCw } from "lucide-react";
+import { Bell, BellRing, Cake, FileWarning, RefreshCw, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ICONE_TIPO = {
   aniversario: Cake,
   fatura_vencida: FileWarning,
   recorrente_pendente: RefreshCw,
+  interstico_completo: TrendingUp,
 } as const;
 
 function base64ParaUint8Array(base64: string): Uint8Array {
