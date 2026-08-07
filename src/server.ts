@@ -5,6 +5,7 @@ import { renderErrorPage } from "./lib/error-page";
 import { executarDisparoNotificacoes } from "./lib/push-dispatch";
 import { executarBackupAgendado } from "./lib/backup-dispatch";
 import { tratarCallbackGoogle } from "./lib/google-oauth-callback";
+import { tratarCallbackFacebook } from "./lib/facebook-oauth-callback";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -112,6 +113,13 @@ async function tratarCallbackGoogleOuNull(request: Request): Promise<Response | 
   return tratarCallbackGoogle(request);
 }
 
+// Mesmo motivo do callback do Google acima, agora para o Facebook (issue #99).
+async function tratarCallbackFacebookOuNull(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/auth/facebook/callback") return null;
+  return tratarCallbackFacebook(request);
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
@@ -123,6 +131,9 @@ export default {
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
       if (googleResponse) return googleResponse;
+
+      const facebookResponse = await tratarCallbackFacebookOuNull(request);
+      if (facebookResponse) return facebookResponse;
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
