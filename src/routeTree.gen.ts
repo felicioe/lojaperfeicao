@@ -20,6 +20,7 @@ import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
+import { Route as AuthenticatedBibliotecaIndexRouteImport } from './routes/_authenticated/biblioteca/index'
 import { Route as AuthenticatedComissoesIndexRouteImport } from './routes/_authenticated/comissoes/index'
 import { Route as AuthenticatedComunicacoesIndexRouteImport } from './routes/_authenticated/comunicacoes/index'
 import { Route as AuthenticatedContaSegurancaRouteImport } from './routes/_authenticated/conta/seguranca'
@@ -129,6 +130,12 @@ const AuthenticatedAdministracaoResetarFinanceiroRoute =
   AuthenticatedAdministracaoResetarFinanceiroRouteImport.update({
     id: '/administracao/resetar-financeiro',
     path: '/administracao/resetar-financeiro',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBibliotecaIndexRoute =
+  AuthenticatedBibliotecaIndexRouteImport.update({
+    id: '/biblioteca/',
+    path: '/biblioteca/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedComissoesIndexRoute =
@@ -490,6 +497,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
   '/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -553,6 +561,7 @@ export interface FileRoutesByTo {
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/biblioteca': typeof AuthenticatedBibliotecaIndexRoute
   '/comissoes': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
@@ -619,6 +628,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/_authenticated/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
   '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -685,6 +695,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
+    | '/biblioteca/'
     | '/comissoes/'
     | '/comunicacoes/'
     | '/eventos/'
@@ -748,6 +759,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
+    | '/biblioteca'
     | '/comissoes'
     | '/comunicacoes'
     | '/eventos'
@@ -813,6 +825,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/tabela-valores'
     | '/_authenticated/tesouraria/tronco'
+    | '/_authenticated/biblioteca/'
     | '/_authenticated/comissoes/'
     | '/_authenticated/comunicacoes/'
     | '/_authenticated/eventos/'
@@ -914,6 +927,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/resetar-financeiro'
       fullPath: '/administracao/resetar-financeiro'
       preLoaderRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/biblioteca/': {
+      id: '/_authenticated/biblioteca/'
+      path: '/biblioteca'
+      fullPath: '/biblioteca/'
+      preLoaderRoute: typeof AuthenticatedBibliotecaIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/comissoes/': {
@@ -1349,6 +1369,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaTabelaValoresRoute: typeof AuthenticatedTesourariaTabelaValoresRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
+  AuthenticatedBibliotecaIndexRoute: typeof AuthenticatedBibliotecaIndexRoute
   AuthenticatedComissoesIndexRoute: typeof AuthenticatedComissoesIndexRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
@@ -1422,6 +1443,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaTabelaValoresRoute:
     AuthenticatedTesourariaTabelaValoresRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
+  AuthenticatedBibliotecaIndexRoute: AuthenticatedBibliotecaIndexRoute,
   AuthenticatedComissoesIndexRoute: AuthenticatedComissoesIndexRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,
