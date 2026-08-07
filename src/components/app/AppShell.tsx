@@ -56,6 +56,7 @@ import {
   AlertTriangle,
   Fingerprint,
   Library,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
@@ -291,6 +292,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/painel/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
         { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
+        { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
       ],
     },
   ];
@@ -318,6 +320,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       label: "Atividades",
       icon: CalendarRange,
       items: [
+        { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
         { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
         { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
