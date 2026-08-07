@@ -38,7 +38,13 @@ export type Org = {
   ativo: boolean;
 };
 
-export type OrgGrau = { id: string; org_id: string; grau: number; nome: string };
+export type OrgGrau = {
+  id: string;
+  org_id: string;
+  grau: number;
+  nome: string;
+  interstico_minimo_meses: number | null;
+};
 
 export const listarPotencias = createServerFn({ method: "GET" }).handler(
   async (): Promise<Potencia[]> => {
@@ -202,6 +208,19 @@ export const renomearOrgGrau = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query("UPDATE orgs_graus SET nome=? WHERE id=?", [data.nome, data.id]);
+    });
+  });
+
+export const atualizarIntersticioOrgGrau = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z.object({ id: z.string().uuid(), meses: z.number().int().positive().nullable() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      await conn.query("UPDATE orgs_graus SET interstico_minimo_meses=? WHERE id=?", [
+        data.meses,
+        data.id,
+      ]);
     });
   });
 
