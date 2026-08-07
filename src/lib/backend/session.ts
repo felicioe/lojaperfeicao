@@ -15,6 +15,11 @@ type SessaoData = {
   // o usuário sendo autenticado, resolvido por e-mail antes do desafio.
   webauthnChallenge?: string;
   webauthnPendingUsuarioId?: string;
+  // Login por senha validado, mas o usuário tem 2FA (TOTP) ativo — falta
+  // confirmar o código do app antes de criarSessao de verdade. Mesmo
+  // espírito de webauthnPendingUsuarioId (usuário sendo autenticado, ainda
+  // sem usuarioId de sessão).
+  totpPendingUsuarioId?: string;
 };
 
 function sessionConfig(): SessionConfig {
@@ -79,4 +84,19 @@ export async function consumirDesafioWebauthn(): Promise<{
   });
   if (!challenge) return null;
   return { challenge, usuarioPendente };
+}
+
+/** Marca que a senha já foi validada para esse usuário, mas falta o código
+ * TOTP — usado entre login() e confirmarLogin2FA(). */
+export async function salvarLoginPendente2FA(usuarioId: string): Promise<void> {
+  await updateSession<SessaoData>(sessionConfig(), { totpPendingUsuarioId: usuarioId });
+}
+
+/** Lê e imediatamente invalida o usuário pendente de 2FA — cada login
+ * parcial só pode ser concluído uma vez, sucesso ou falha. */
+export async function consumirLoginPendente2FA(): Promise<string | null> {
+  const session = await getSession<SessaoData>(sessionConfig());
+  const usuarioPendente = session.data.totpPendingUsuarioId ?? null;
+  await updateSession<SessaoData>(sessionConfig(), { totpPendingUsuarioId: undefined });
+  return usuarioPendente;
 }
