@@ -533,6 +533,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Download,
           show: can.isAdmin,
         },
+        {
+          to: "/administracao/backups",
+          label: "Backups",
+          icon: Archive,
+          show: can.isAdmin,
+        },
       ],
     },
   ];
