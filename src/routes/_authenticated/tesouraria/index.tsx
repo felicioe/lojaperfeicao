@@ -237,13 +237,15 @@ function Tesouraria() {
                     </TableCell>
                   </TableRow>
                 )}
-                {!lancamentos.isLoading && !lancamentos.isError && (lancamentos.data ?? []).length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
-                      Nenhum lançamento.
-                    </TableCell>
-                  </TableRow>
-                )}
+                {!lancamentos.isLoading &&
+                  !lancamentos.isError &&
+                  (lancamentos.data ?? []).length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                        Nenhum lançamento.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 {itensPagina.map((l: any) => (
                   <TableRow key={l.id}>
                     <TableCell className="hidden sm:table-cell">{fmtDate(l.data)}</TableCell>
@@ -446,7 +448,9 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
       </div>
       <DialogFooter>
         <DialogClose asChild>
-          <Button variant="outline" disabled={saving}>Cancelar</Button>
+          <Button variant="outline" disabled={saving}>
+            Cancelar
+          </Button>
         </DialogClose>
         <Button onClick={save} disabled={saving || !d.descricao || !d.conta_id || !Number(d.valor)}>
           Salvar
@@ -549,7 +553,9 @@ function TransferenciaDialog({ contas, onDone }: any) {
       </div>
       <DialogFooter>
         <DialogClose asChild>
-          <Button variant="outline" disabled={saving}>Cancelar</Button>
+          <Button variant="outline" disabled={saving}>
+            Cancelar
+          </Button>
         </DialogClose>
         <Button onClick={save} disabled={saving || !Number(d.valor)}>
           Transferir

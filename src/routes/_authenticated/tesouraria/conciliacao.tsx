@@ -375,7 +375,9 @@ function CriarLancamentoDialog({
       </div>
       <DialogFooter>
         <DialogClose asChild>
-          <Button variant="outline" disabled={saving}>Cancelar</Button>
+          <Button variant="outline" disabled={saving}>
+            Cancelar
+          </Button>
         </DialogClose>
         <Button onClick={salvar} disabled={saving || !planoContaId}>
           Criar

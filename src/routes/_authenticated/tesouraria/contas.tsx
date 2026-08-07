@@ -129,49 +129,52 @@ function Contas() {
 
       <Card>
         <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead></TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Saldo inicial</TableHead>
-              <TableHead className="text-right">Saldo atual</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(saldos.data ?? []).map((c: any) => (
-              <Fragment key={c.id}>
-                <TableRow>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setExpandido(expandido === c.id ? null : c.id)}
-                    >
-                      {expandido === c.id ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TableCell>
-                  <TableCell className="font-medium">{c.nome}</TableCell>
-                  <TableCell>{{ caixa: "Caixa", banco: "Banco", outro: "Outro" }[c.tipo as string] ?? c.tipo}</TableCell>
-                  <TableCell className="text-right">{brl(c.saldo_inicial)}</TableCell>
-                  <TableCell className="text-right font-medium">{brl(c.saldo_atual)}</TableCell>
-                </TableRow>
-                {expandido === c.id && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead></TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="text-right">Saldo inicial</TableHead>
+                <TableHead className="text-right">Saldo atual</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(saldos.data ?? []).map((c: any) => (
+                <Fragment key={c.id}>
                   <TableRow>
-                    <TableCell colSpan={5} className="bg-muted/30">
-                      <ChavesPixPanel contaId={c.id} />
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setExpandido(expandido === c.id ? null : c.id)}
+                      >
+                        {expandido === c.id ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
                     </TableCell>
+                    <TableCell className="font-medium">{c.nome}</TableCell>
+                    <TableCell>
+                      {{ caixa: "Caixa", banco: "Banco", outro: "Outro" }[c.tipo as string] ??
+                        c.tipo}
+                    </TableCell>
+                    <TableCell className="text-right">{brl(c.saldo_inicial)}</TableCell>
+                    <TableCell className="text-right font-medium">{brl(c.saldo_atual)}</TableCell>
                   </TableRow>
-                )}
-              </Fragment>
-            ))}
-          </TableBody>
-        </Table>
+                  {expandido === c.id && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="bg-muted/30">
+                        <ChavesPixPanel contaId={c.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </Card>
     </>
@@ -232,41 +235,41 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
         (máx. 25 caracteres) e cidade (máx. 15) são exigidos pelo padrão do Banco Central.
       </p>
       <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Chave</TableHead>
-            <TableHead>Beneficiário</TableHead>
-            <TableHead>Cidade</TableHead>
-            <TableHead></TableHead>
-            <TableHead className="w-10"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {chaves.length === 0 && (
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={6} className="text-muted-foreground text-sm">
-                Nenhuma chave cadastrada ainda.
-              </TableCell>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Chave</TableHead>
+              <TableHead>Beneficiário</TableHead>
+              <TableHead>Cidade</TableHead>
+              <TableHead></TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
-          )}
-          {chaves.map((c) => (
-            <TableRow key={c.id}>
-              <TableCell>{TIPO_PIX_LABEL[c.tipo]}</TableCell>
-              <TableCell className="font-mono text-sm">{c.chave}</TableCell>
-              <TableCell>{c.nome_beneficiario}</TableCell>
-              <TableCell>{c.cidade}</TableCell>
-              <TableCell>{c.principal && <Badge variant="secondary">Principal</Badge>}</TableCell>
-              <TableCell>
-                <Button variant="ghost" size="sm" onClick={() => remover(c.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {chaves.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-muted-foreground text-sm">
+                  Nenhuma chave cadastrada ainda.
+                </TableCell>
+              </TableRow>
+            )}
+            {chaves.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell>{TIPO_PIX_LABEL[c.tipo]}</TableCell>
+                <TableCell className="font-mono text-sm">{c.chave}</TableCell>
+                <TableCell>{c.nome_beneficiario}</TableCell>
+                <TableCell>{c.cidade}</TableCell>
+                <TableCell>{c.principal && <Badge variant="secondary">Principal</Badge>}</TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="sm" onClick={() => remover(c.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
       <div className="grid gap-2 md:grid-cols-6 items-end">
         <div>
