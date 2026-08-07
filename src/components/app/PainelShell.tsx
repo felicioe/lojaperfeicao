@@ -20,6 +20,7 @@ import {
   Sun,
   PartyPopper,
   Megaphone,
+  Fingerprint,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { useTheme } from "@/lib/use-theme";
@@ -149,6 +150,13 @@ export function PainelShell({ children }: { children: ReactNode }) {
                 className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
               >
                 <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Meus dados e privacidade
+              </Link>
+              <Link
+                to="/conta/seguranca"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
+              >
+                <Fingerprint className="h-4 w-4 text-muted-foreground" /> Segurança da conta
               </Link>
               <a
                 href="/privacidade"

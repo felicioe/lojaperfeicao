@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import { login, signup, contarUsuarios, getSessao } from "@/lib/backend/auth";
+import { iniciarLoginPasskey, confirmarLoginPasskey } from "@/lib/backend/passkeys";
 import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Fingerprint } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -30,12 +33,15 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [firstUser, setFirstUser] = useState<boolean | null>(null);
   const [aceiteLgpd, setAceiteLgpd] = useState(false);
+  const [webauthnDisponivel, setWebauthnDisponivel] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
 
   useEffect(() => {
     contarUsuarios().then((total) => setFirstUser(total === 0));
     getSessao().then((usuario) => {
       if (usuario) navigate({ to: "/dashboard" });
     });
+    setWebauthnDisponivel(browserSupportsWebAuthn());
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -50,6 +56,30 @@ function AuthPage() {
       toast.error(err instanceof Error ? err.message : "Erro ao entrar.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (!email) return toast.error("Digite seu usuário antes de entrar com Face ID/digital.");
+    setPasskeyLoading(true);
+    try {
+      const optionsJSON = await iniciarLoginPasskey({ data: { email } });
+      const response = await startAuthentication({ optionsJSON });
+      const usuario = await confirmarLoginPasskey({ data: { response } });
+      queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
+      toast.success("Bem-vindo!");
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      // startAuthentication rejeita com DOMException (cancelou o prompt,
+      // sem biometria cadastrada no dispositivo etc.) — não é erro do
+      // servidor, não faz sentido mostrar "Erro ao entrar" genérico.
+      if (err instanceof Error && err.name === "NotAllowedError") {
+        toast.error("Login cancelado.");
+      } else {
+        toast.error(err instanceof Error ? err.message : "Erro ao entrar com Face ID/digital.");
+      }
+    } finally {
+      setPasskeyLoading(false);
     }
   };
 
@@ -137,11 +167,35 @@ function AuthPage() {
                 </form>
               </TabsContent>
               <TabsContent value="login" className="pt-4">
-                <LoginForm {...{ email, setEmail, password, setPassword, loading, handleLogin }} />
+                <LoginForm
+                  {...{
+                    email,
+                    setEmail,
+                    password,
+                    setPassword,
+                    loading,
+                    handleLogin,
+                    webauthnDisponivel,
+                    passkeyLoading,
+                    handlePasskeyLogin,
+                  }}
+                />
               </TabsContent>
             </Tabs>
           ) : (
-            <LoginForm {...{ email, setEmail, password, setPassword, loading, handleLogin }} />
+            <LoginForm
+              {...{
+                email,
+                setEmail,
+                password,
+                setPassword,
+                loading,
+                handleLogin,
+                webauthnDisponivel,
+                passkeyLoading,
+                handlePasskeyLogin,
+              }}
+            />
           )}
         </CardContent>
       </Card>
@@ -149,7 +203,17 @@ function AuthPage() {
   );
 }
 
-function LoginForm({ email, setEmail, password, setPassword, loading, handleLogin }: any) {
+function LoginForm({
+  email,
+  setEmail,
+  password,
+  setPassword,
+  loading,
+  handleLogin,
+  webauthnDisponivel,
+  passkeyLoading,
+  handlePasskeyLogin,
+}: any) {
   return (
     <form onSubmit={handleLogin} className="space-y-3">
       <div>
@@ -176,6 +240,18 @@ function LoginForm({ email, setEmail, password, setPassword, loading, handleLogi
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Entrando…" : "Entrar"}
       </Button>
+      {webauthnDisponivel && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={passkeyLoading}
+          onClick={handlePasskeyLogin}
+        >
+          <Fingerprint className="mr-1.5 h-4 w-4" />
+          {passkeyLoading ? "Confirmando…" : "Entrar com Face ID / digital"}
+        </Button>
+      )}
       <p className="text-xs text-muted-foreground pt-2">
         Novas contas são criadas pelo administrador.
       </p>

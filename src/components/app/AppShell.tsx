@@ -54,6 +54,7 @@ import {
   FileUp,
   Megaphone,
   AlertTriangle,
+  Fingerprint,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
@@ -656,6 +657,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             {collapsed ? (
               <>
                 <SidebarIcon
+                  icon={Fingerprint}
+                  label="Segurança"
+                  active={false}
+                  to="/conta/seguranca"
+                />
+                <SidebarIcon
                   icon={dark ? Sun : Moon}
                   label={dark ? "Modo claro" : "Modo escuro"}
                   active={false}
@@ -665,7 +672,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <Button variant="outline" size="sm" className="w-full" onClick={toggleDark}>
+                <Button variant="outline" size="sm" className="w-full" asChild>
+                  <Link to="/conta/seguranca">
+                    <Fingerprint className="mr-1 h-3 w-3" /> Segurança
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={toggleDark}>
                   {dark ? <Sun className="mr-1 h-3 w-3" /> : <Moon className="mr-1 h-3 w-3" />}
                   {dark ? "Modo claro" : "Modo escuro"}
                 </Button>
