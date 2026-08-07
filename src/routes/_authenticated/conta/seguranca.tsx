@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser";
@@ -18,6 +18,11 @@ import {
   regenerarCodigosBackup,
 } from "@/lib/backend/totp";
 import { trocarMinhaSenha } from "@/lib/backend/auth";
+import {
+  statusVinculacaoGoogle,
+  iniciarVinculacaoGoogle,
+  desvincularGoogle,
+} from "@/lib/backend/google-auth";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -41,7 +46,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { fmtDate } from "@/lib/format";
-import { Fingerprint, KeyRound, Plus, Trash2, ShieldCheck, RotateCw, Copy } from "lucide-react";
+import {
+  Fingerprint,
+  KeyRound,
+  Plus,
+  Trash2,
+  ShieldCheck,
+  RotateCw,
+  Copy,
+  CheckCircle2,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/conta/seguranca")({
   head: () => ({ meta: [{ title: "Segurança da Conta — Gestão Maçônica" }] }),
@@ -57,10 +71,101 @@ function SegurancaPage() {
       />
       <div className="grid gap-4 lg:grid-cols-2">
         <PasskeysCard />
+        <GoogleCard />
         <Totp2FACard />
         <TrocarSenhaCard />
       </div>
     </>
+  );
+}
+
+function GoogleCard() {
+  const qc = useQueryClient();
+  const [loading, setLoading] = useState(false);
+
+  const { data: status } = useQuery({
+    queryKey: ["status_vinculacao_google"],
+    queryFn: () => statusVinculacaoGoogle(),
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const google = params.get("google");
+    const erroGoogle = params.get("erroGoogle");
+    if (google === "vinculado") toast.success("Conta Google vinculada.");
+    if (erroGoogle === "ja_vinculada") {
+      toast.error("Essa conta Google já está vinculada a outro usuário.");
+    } else if (erroGoogle) {
+      toast.error("Erro ao vincular conta Google.");
+    }
+  }, []);
+
+  const vincular = async () => {
+    setLoading(true);
+    try {
+      const { url } = await iniciarVinculacaoGoogle();
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao iniciar vinculação.");
+      setLoading(false);
+    }
+  };
+
+  const desvincular = async () => {
+    try {
+      await desvincularGoogle();
+      toast.success("Conta Google desvinculada.");
+      qc.invalidateQueries({ queryKey: ["status_vinculacao_google"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao desvincular.");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+            <path
+              fill="#4285F4"
+              d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82Z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.26v3.1A12 12 0 0 0 12 24Z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.27 14.28A7.2 7.2 0 0 1 4.89 12c0-.79.14-1.56.38-2.28v-3.1H1.26A12 12 0 0 0 0 12c0 1.94.46 3.77 1.26 5.38l4.01-3.1Z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 4.77c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.26 6.62l4.01 3.1C6.22 6.88 8.87 4.77 12 4.77Z"
+            />
+          </svg>
+          Login com Google
+        </CardTitle>
+        <CardDescription>
+          Entre sem senha usando sua conta Google, depois de vincular aqui uma vez.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {status?.vinculado ? (
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" /> Conta Google vinculada
+            </span>
+            <Button variant="outline" size="sm" onClick={desvincular}>
+              Desvincular
+            </Button>
+          </div>
+        ) : (
+          <Button size="sm" disabled={loading} onClick={vincular}>
+            {loading ? "Redirecionando…" : "Vincular Google"}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
