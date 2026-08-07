@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './route
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
 import { Route as AuthenticatedBibliotecaIndexRouteImport } from './routes/_authenticated/biblioteca/index'
+import { Route as AuthenticatedCalendarioIndexRouteImport } from './routes/_authenticated/calendario/index'
 import { Route as AuthenticatedComissoesIndexRouteImport } from './routes/_authenticated/comissoes/index'
 import { Route as AuthenticatedComunicacoesIndexRouteImport } from './routes/_authenticated/comunicacoes/index'
 import { Route as AuthenticatedContaSegurancaRouteImport } from './routes/_authenticated/conta/seguranca'
@@ -136,6 +137,12 @@ const AuthenticatedBibliotecaIndexRoute =
   AuthenticatedBibliotecaIndexRouteImport.update({
     id: '/biblioteca/',
     path: '/biblioteca/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCalendarioIndexRoute =
+  AuthenticatedCalendarioIndexRouteImport.update({
+    id: '/calendario/',
+    path: '/calendario/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedComissoesIndexRoute =
@@ -498,6 +505,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
+  '/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -562,6 +570,7 @@ export interface FileRoutesByTo {
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/biblioteca': typeof AuthenticatedBibliotecaIndexRoute
+  '/calendario': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
   '/eventos': typeof AuthenticatedEventosIndexRoute
@@ -629,6 +638,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/_authenticated/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
+  '/_authenticated/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/_authenticated/eventos/': typeof AuthenticatedEventosIndexRoute
@@ -696,6 +706,7 @@ export interface FileRouteTypes {
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
     | '/biblioteca/'
+    | '/calendario/'
     | '/comissoes/'
     | '/comunicacoes/'
     | '/eventos/'
@@ -760,6 +771,7 @@ export interface FileRouteTypes {
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
     | '/biblioteca'
+    | '/calendario'
     | '/comissoes'
     | '/comunicacoes'
     | '/eventos'
@@ -826,6 +838,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/tabela-valores'
     | '/_authenticated/tesouraria/tronco'
     | '/_authenticated/biblioteca/'
+    | '/_authenticated/calendario/'
     | '/_authenticated/comissoes/'
     | '/_authenticated/comunicacoes/'
     | '/_authenticated/eventos/'
@@ -934,6 +947,13 @@ declare module '@tanstack/react-router' {
       path: '/biblioteca'
       fullPath: '/biblioteca/'
       preLoaderRoute: typeof AuthenticatedBibliotecaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/calendario/': {
+      id: '/_authenticated/calendario/'
+      path: '/calendario'
+      fullPath: '/calendario/'
+      preLoaderRoute: typeof AuthenticatedCalendarioIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/comissoes/': {
@@ -1370,6 +1390,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaTabelaValoresRoute: typeof AuthenticatedTesourariaTabelaValoresRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
   AuthenticatedBibliotecaIndexRoute: typeof AuthenticatedBibliotecaIndexRoute
+  AuthenticatedCalendarioIndexRoute: typeof AuthenticatedCalendarioIndexRoute
   AuthenticatedComissoesIndexRoute: typeof AuthenticatedComissoesIndexRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
   AuthenticatedEventosIndexRoute: typeof AuthenticatedEventosIndexRoute
@@ -1444,6 +1465,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedTesourariaTabelaValoresRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
   AuthenticatedBibliotecaIndexRoute: AuthenticatedBibliotecaIndexRoute,
+  AuthenticatedCalendarioIndexRoute: AuthenticatedCalendarioIndexRoute,
   AuthenticatedComissoesIndexRoute: AuthenticatedComissoesIndexRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
   AuthenticatedEventosIndexRoute: AuthenticatedEventosIndexRoute,

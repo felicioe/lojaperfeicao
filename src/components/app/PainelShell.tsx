@@ -22,6 +22,7 @@ import {
   Megaphone,
   Fingerprint,
   Library,
+  Calendar,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { useTheme } from "@/lib/use-theme";
@@ -158,6 +159,13 @@ export function PainelShell({ children }: { children: ReactNode }) {
                 className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
               >
                 <Library className="h-4 w-4 text-muted-foreground" /> Biblioteca de Peças
+              </Link>
+              <Link
+                to="/calendario"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
+              >
+                <Calendar className="h-4 w-4 text-muted-foreground" /> Calendário
               </Link>
               <Link
                 to="/conta/seguranca"
