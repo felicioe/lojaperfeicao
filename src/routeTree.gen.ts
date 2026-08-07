@@ -18,6 +18,7 @@ import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
+import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
 import { Route as AuthenticatedBibliotecaIndexRouteImport } from './routes/_authenticated/biblioteca/index'
@@ -120,6 +121,12 @@ const AuthenticatedAdministracaoAuditoriaRoute =
   AuthenticatedAdministracaoAuditoriaRouteImport.update({
     id: '/administracao/auditoria',
     path: '/administracao/auditoria',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdministracaoBackupsRoute =
+  AuthenticatedAdministracaoBackupsRouteImport.update({
+    id: '/administracao/backups',
+    path: '/administracao/backups',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdministracaoExportarDadosRoute =
@@ -470,6 +477,7 @@ export interface FileRoutesByFullPath {
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
@@ -536,6 +544,7 @@ export interface FileRoutesByTo {
   '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
@@ -605,6 +614,7 @@ export interface FileRoutesById {
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
+  '/_authenticated/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/_authenticated/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/_authenticated/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/_authenticated/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
@@ -674,6 +684,7 @@ export interface FileRouteTypes {
     | '/painel'
     | '/dashboard'
     | '/administracao/auditoria'
+    | '/administracao/backups'
     | '/administracao/exportar-dados'
     | '/administracao/resetar-financeiro'
     | '/conta/seguranca'
@@ -740,6 +751,7 @@ export interface FileRouteTypes {
     | '/trocar-senha'
     | '/dashboard'
     | '/administracao/auditoria'
+    | '/administracao/backups'
     | '/administracao/exportar-dados'
     | '/administracao/resetar-financeiro'
     | '/conta/seguranca'
@@ -808,6 +820,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
     | '/_authenticated/administracao/auditoria'
+    | '/_authenticated/administracao/backups'
     | '/_authenticated/administracao/exportar-dados'
     | '/_authenticated/administracao/resetar-financeiro'
     | '/_authenticated/conta/seguranca'
@@ -939,6 +952,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/auditoria'
       fullPath: '/administracao/auditoria'
       preLoaderRoute: typeof AuthenticatedAdministracaoAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/administracao/backups': {
+      id: '/_authenticated/administracao/backups'
+      path: '/administracao/backups'
+      fullPath: '/administracao/backups'
+      preLoaderRoute: typeof AuthenticatedAdministracaoBackupsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/administracao/exportar-dados': {
@@ -1375,6 +1395,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPainelRouteRoute: typeof AuthenticatedPainelRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAdministracaoAuditoriaRoute: typeof AuthenticatedAdministracaoAuditoriaRoute
+  AuthenticatedAdministracaoBackupsRoute: typeof AuthenticatedAdministracaoBackupsRoute
   AuthenticatedAdministracaoExportarDadosRoute: typeof AuthenticatedAdministracaoExportarDadosRoute
   AuthenticatedAdministracaoResetarFinanceiroRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   AuthenticatedContaSegurancaRoute: typeof AuthenticatedContaSegurancaRoute
@@ -1431,6 +1452,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedAdministracaoAuditoriaRoute:
     AuthenticatedAdministracaoAuditoriaRoute,
+  AuthenticatedAdministracaoBackupsRoute:
+    AuthenticatedAdministracaoBackupsRoute,
   AuthenticatedAdministracaoExportarDadosRoute:
     AuthenticatedAdministracaoExportarDadosRoute,
   AuthenticatedAdministracaoResetarFinanceiroRoute:

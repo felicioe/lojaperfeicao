@@ -31,6 +31,11 @@ dist-ssr
 # (ver src/lib/backend/*.ts, funções de upload), nunca fazem parte do código.
 public/uploads/
 
+# Backups completos gerados pelo cron/UI de administração (issue #85) —
+# nunca em public/ (teriam senha_hash, secrets de 2FA/passkey etc.) e
+# nunca versionados, são dados de runtime.
+/backups/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
