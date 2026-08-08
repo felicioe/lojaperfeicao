@@ -308,3 +308,82 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
       return rows as ItemExtratoIrmao[];
     });
   });
+
+// ---------- Relatório de inadimplência detalhado (issue #115) ----------
+// Multa/juros calculados até hoje via a mesma procedure calcular_multa_juros
+// já usada em baixar_faturas/BaixaDialog — não duplica a fórmula em JS,
+// só chama a procedure por fatura (lista de inadimplentes tende a ser
+// pequena/moderada, LIMIT 500 evita N chamadas descontroladas).
+
+export type ItemInadimplenciaDetalhado = {
+  id: string;
+  irmao_id: string;
+  nome_civil: string;
+  nome_simbolico: string | null;
+  descricao: string;
+  data_vencimento: string;
+  dias_atraso: number;
+  valor_original: number;
+  valor_multa: number;
+  valor_juros: number;
+  valor_total: number;
+};
+
+export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ItemInadimplenciaDetalhado[]> => {
+    return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+      const hoje = new Date().toISOString().slice(0, 10);
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.irmao_id, l.valor, l.data_vencimento, l.descricao,
+                i.nome_civil, i.nome_simbolico
+         FROM lancamentos l
+         JOIN irmaos i ON i.id = l.irmao_id
+         WHERE l.tipo = 'entrada' AND l.pago = FALSE AND l.data_vencimento < ?
+         ORDER BY l.data_vencimento
+         LIMIT 500`,
+        [hoje],
+      );
+
+      const itens: ItemInadimplenciaDetalhado[] = [];
+      for (const r of rows) {
+        await conn.query("CALL calcular_multa_juros(?, ?, ?, @multa, @juros, @dias, @total)", [
+          r.valor,
+          r.data_vencimento,
+          hoje,
+        ]);
+        const [[out]] = await conn.query<RowDataPacket[]>(
+          "SELECT @multa AS multa, @juros AS juros, @dias AS dias, @total AS total",
+        );
+        itens.push({
+          id: r.id,
+          irmao_id: r.irmao_id,
+          nome_civil: r.nome_civil,
+          nome_simbolico: r.nome_simbolico,
+          descricao: r.descricao,
+          data_vencimento: r.data_vencimento,
+          dias_atraso: Number(out.dias),
+          valor_original: Number(r.valor),
+          valor_multa: Number(out.multa),
+          valor_juros: Number(out.juros),
+          valor_total: Number(out.total),
+        });
+      }
+      return itens;
+    });
+  },
+);
+
+const gerarCobrancaLoteSchema = z.object({ lancamentoIds: z.array(z.string().uuid()).min(1) });
+
+export const gerarCobrancaLote = createServerFn({ method: "POST" })
+  .validator((d: unknown) => gerarCobrancaLoteSchema.parse(d))
+  .handler(async ({ data }): Promise<{ id: string; sucesso: boolean }[]> => {
+    return comPapel(PAPEIS_TESOURARIA, async () => {
+      const { enviarCobrancaManual } = await import("../email-dispatch");
+      const resultados: { id: string; sucesso: boolean }[] = [];
+      for (const id of data.lancamentoIds) {
+        resultados.push({ id, sucesso: await enviarCobrancaManual(id) });
+      }
+      return resultados;
+    });
+  });

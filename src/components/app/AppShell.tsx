@@ -530,6 +530,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: UserRound,
           show: can.canManageFinancas,
         },
+        {
+          to: "/relatorios/inadimplencia",
+          label: "Inadimplência Detalhada",
+          icon: AlertTriangle,
+          show: can.canManageFinancas,
+        },
       ],
     },
     {

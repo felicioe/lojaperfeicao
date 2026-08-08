@@ -149,7 +149,33 @@ export async function enviarEmailFaturaEmitida(lancamentoId: string): Promise<vo
   });
 }
 
-// ---------- Lembrete de fatura em aberto (cron) ----------
+// ---------- Lembrete de fatura em aberto (cron + manual) ----------
+
+type FaturaLembrete = {
+  descricao: string;
+  valor: number;
+  data_vencimento: string;
+  nome_civil: string;
+};
+
+function montarLembreteFatura(fatura: FaturaLembrete, hojeISO: string) {
+  const vencida = new Date(fatura.data_vencimento) < new Date(hojeISO);
+  const html = `
+    <p>Olá, ${fatura.nome_civil}!</p>
+    <p>${vencida ? "Você tem uma fatura vencida" : "Sua fatura está próxima do vencimento"}:</p>
+    <ul>
+      <li><strong>Descrição:</strong> ${fatura.descricao}</li>
+      <li><strong>Valor:</strong> ${brl(fatura.valor)}</li>
+      <li><strong>Vencimento:</strong> ${fmtDate(fatura.data_vencimento)}</li>
+    </ul>
+    <p>Acesse o sistema em <a href="${origemPublica()}/painel/financeiro">${origemPublica()}/painel/financeiro</a> para regularizar.</p>
+  `;
+  const texto = `${vencida ? "Fatura vencida" : "Fatura próxima do vencimento"}: ${fatura.descricao}, valor ${brl(fatura.valor)}, vencimento ${fmtDate(fatura.data_vencimento)}. Acesse ${origemPublica()}/painel/financeiro.`;
+  const assunto = vencida
+    ? `Fatura vencida — ${fatura.descricao}`
+    : `Lembrete de fatura — ${fatura.descricao}`;
+  return { assunto, html, texto };
+}
 
 export type ResultadoLembretes = { avaliadas: number; enviadas: number; falhas: number };
 
@@ -176,25 +202,14 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
       const chave = `lembrete_fatura:${fatura.id}:${anoSemana}`;
       if (await jaEnviadoComSucesso(conn, chave)) continue;
 
-      const vencida = new Date(fatura.data_vencimento) < new Date(hojeISO);
-      const html = `
-        <p>Olá, ${fatura.nome_civil}!</p>
-        <p>${vencida ? "Você tem uma fatura vencida" : "Sua fatura está próxima do vencimento"}:</p>
-        <ul>
-          <li><strong>Descrição:</strong> ${fatura.descricao}</li>
-          <li><strong>Valor:</strong> ${brl(fatura.valor)}</li>
-          <li><strong>Vencimento:</strong> ${fmtDate(fatura.data_vencimento)}</li>
-        </ul>
-        <p>Acesse o sistema em <a href="${origemPublica()}/painel/financeiro">${origemPublica()}/painel/financeiro</a> para regularizar.</p>
-      `;
-      const texto = `${vencida ? "Fatura vencida" : "Fatura próxima do vencimento"}: ${fatura.descricao}, valor ${brl(fatura.valor)}, vencimento ${fmtDate(fatura.data_vencimento)}. Acesse ${origemPublica()}/painel/financeiro.`;
-
+      const { assunto, html, texto } = montarLembreteFatura(
+        fatura as unknown as FaturaLembrete,
+        hojeISO,
+      );
       const ok = await enviarEGravar(conn, {
         chave,
         destinatario: fatura.email,
-        assunto: vencida
-          ? `Fatura vencida — ${fatura.descricao}`
-          : `Lembrete de fatura — ${fatura.descricao}`,
+        assunto,
         html,
         texto,
       });
@@ -203,6 +218,37 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
     }
 
     return { avaliadas: faturas.length, enviadas, falhas };
+  });
+}
+
+// ---------- Cobrança manual (issue #115) ----------
+// Chamado pelo botão "Gerar cobrança" do relatório de inadimplência.
+// Reaproveita o mesmo template do lembrete automático, mas com chave
+// sempre única (randomUUID) — diferente do lembrete semanal, aqui o
+// tesoureiro está pedindo o envio de propósito, não faz sentido a dedup
+// por semana bloquear.
+export async function enviarCobrancaManual(lancamentoId: string): Promise<boolean> {
+  return withUserConnection(null, async (conn) => {
+    const [[fatura]] = await conn.query<RowDataPacket[]>(
+      `SELECT l.descricao, l.valor, l.data_vencimento, i.nome_civil, i.email
+       FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id
+       WHERE l.id = ?`,
+      [lancamentoId],
+    );
+    if (!fatura || !fatura.email) return false;
+
+    const hojeISO = new Date().toISOString().slice(0, 10);
+    const { assunto, html, texto } = montarLembreteFatura(
+      fatura as unknown as FaturaLembrete,
+      hojeISO,
+    );
+    return enviarEGravar(conn, {
+      chave: `cobranca_manual:${lancamentoId}:${randomUUID()}`,
+      destinatario: fatura.email,
+      assunto,
+      html,
+      texto,
+    });
   });
 }
 
