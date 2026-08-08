@@ -257,3 +257,54 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
       }));
     });
   });
+
+// ---------- Relatório de extrato do irmão / histórico (issue #114) ----------
+// Admin/tesoureiro apenas (mesmo padrão do resto do módulo de Tesouraria) —
+// diferente do relatorioInadimplentes, que também deixa o próprio irmão
+// ver o dele: aqui é uma consulta administrativa ("me dá o extrato do
+// Fulano"), não uma tela de autoatendimento.
+
+export type ItemExtratoIrmao = {
+  id: string;
+  data: string;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  descricao: string;
+  valor: number;
+  tipo: string;
+  pago: boolean;
+  forma_pagamento: string | null;
+};
+
+const filtroExtratoIrmaoSchema = z.object({
+  irmaoId: z.string().uuid(),
+  de: z.string().nullable(),
+  ate: z.string().nullable(),
+});
+
+export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
+  .validator((d: unknown) => filtroExtratoIrmaoSchema.parse(d))
+  .handler(async ({ data }): Promise<ItemExtratoIrmao[]> => {
+    return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+      const condicoes = ["l.irmao_id = ?"];
+      const valores: unknown[] = [data.irmaoId];
+      if (data.de) {
+        condicoes.push("l.data >= ?");
+        valores.push(data.de);
+      }
+      if (data.ate) {
+        condicoes.push("l.data <= ?");
+        valores.push(data.ate);
+      }
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor,
+                l.tipo, l.pago, l.forma_pagamento
+         FROM lancamentos l
+         WHERE ${condicoes.join(" AND ")}
+         ORDER BY l.data DESC
+         LIMIT 2000`,
+        valores,
+      );
+      return rows as ItemExtratoIrmao[];
+    });
+  });
