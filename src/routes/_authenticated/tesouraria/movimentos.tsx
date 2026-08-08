@@ -166,42 +166,35 @@ function Movimentos() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Emissão</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="px-2">Emissão</TableHead>
+                <TableHead className="px-2">Vencimento</TableHead>
+                <TableHead className="px-2">Descrição</TableHead>
+                <TableHead className="px-2">Irmão</TableHead>
+                <TableHead className="px-2">Tipo</TableHead>
+                <TableHead className="px-2 text-right">Valor</TableHead>
+                <TableHead className="px-2">Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {f.movimentos.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                     Nenhum movimento encontrado.
                   </TableCell>
                 </TableRow>
               )}
               {movPag.itensPagina.map((m) => (
                 <TableRow key={m.id}>
-                  <TableCell>{fmtDate(m.data)}</TableCell>
-                  <TableCell>{m.data_vencimento ? fmtDate(m.data_vencimento) : "—"}</TableCell>
-                  <TableCell>{m.descricao}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {m.contas_financeiras?.nome ?? "—"}
-                    {m.destino?.nome && <span> → {m.destino.nome}</span>}
+                  <TableCell className="px-2">{fmtDate(m.data)}</TableCell>
+                  <TableCell className="px-2">
+                    {m.data_vencimento ? fmtDate(m.data_vencimento) : "—"}
                   </TableCell>
-                  <TableCell>
-                    {m.categoria_recebimento ? (
-                      <Badge variant="outline">{CATEGORIA_LABEL[m.categoria_recebimento]}</Badge>
-                    ) : (
-                      "—"
-                    )}
+                  <TableCell className="px-2">{m.descricao}</TableCell>
+                  <TableCell className="px-2 text-muted-foreground">
+                    {m.irmao_nome ?? "—"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-2">
                     <Badge
                       variant={
                         m.tipo === "entrada"
@@ -220,8 +213,8 @@ function Movimentos() {
                             : m.tipo}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-medium">{brl(m.valor)}</TableCell>
-                  <TableCell>
+                  <TableCell className="px-2 text-right font-medium">{brl(m.valor)}</TableCell>
+                  <TableCell className="px-2">
                     {m.pago ? (
                       <Badge variant="secondary">Pago</Badge>
                     ) : (
