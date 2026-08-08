@@ -59,6 +59,7 @@ import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_aut
 import { Route as AuthenticatedPainelFrequenciaRouteImport } from './routes/_authenticated/painel/frequencia'
 import { Route as AuthenticatedPainelQuitacaoRouteImport } from './routes/_authenticated/painel/quitacao'
 import { Route as AuthenticatedPainelSessoesRouteImport } from './routes/_authenticated/painel/sessoes'
+import { Route as AuthenticatedRelatoriosExtratoConciliacaoRouteImport } from './routes/_authenticated/relatorios/extrato-conciliacao'
 import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
 import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
 import { Route as AuthenticatedRelatoriosRecebimentosRouteImport } from './routes/_authenticated/relatorios/recebimentos'
@@ -369,6 +370,12 @@ const AuthenticatedPainelSessoesRoute =
     path: '/sessoes',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
+const AuthenticatedRelatoriosExtratoConciliacaoRoute =
+  AuthenticatedRelatoriosExtratoConciliacaoRouteImport.update({
+    id: '/relatorios/extrato-conciliacao',
+    path: '/relatorios/extrato-conciliacao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRelatoriosFrequenciaRoute =
   AuthenticatedRelatoriosFrequenciaRouteImport.update({
     id: '/relatorios/frequencia',
@@ -539,6 +546,7 @@ export interface FileRoutesByFullPath {
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
+  '/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
@@ -611,6 +619,7 @@ export interface FileRoutesByTo {
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
+  '/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
@@ -686,6 +695,7 @@ export interface FileRoutesById {
   '/_authenticated/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/_authenticated/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/_authenticated/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
+  '/_authenticated/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/_authenticated/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
@@ -761,6 +771,7 @@ export interface FileRouteTypes {
     | '/painel/frequencia'
     | '/painel/quitacao'
     | '/painel/sessoes'
+    | '/relatorios/extrato-conciliacao'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
     | '/relatorios/recebimentos'
@@ -833,6 +844,7 @@ export interface FileRouteTypes {
     | '/painel/frequencia'
     | '/painel/quitacao'
     | '/painel/sessoes'
+    | '/relatorios/extrato-conciliacao'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
     | '/relatorios/recebimentos'
@@ -907,6 +919,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/frequencia'
     | '/_authenticated/painel/quitacao'
     | '/_authenticated/painel/sessoes'
+    | '/_authenticated/relatorios/extrato-conciliacao'
     | '/_authenticated/relatorios/frequencia'
     | '/_authenticated/relatorios/inadimplentes'
     | '/_authenticated/relatorios/recebimentos'
@@ -1306,6 +1319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelSessoesRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
+    '/_authenticated/relatorios/extrato-conciliacao': {
+      id: '/_authenticated/relatorios/extrato-conciliacao'
+      path: '/relatorios/extrato-conciliacao'
+      fullPath: '/relatorios/extrato-conciliacao'
+      preLoaderRoute: typeof AuthenticatedRelatoriosExtratoConciliacaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/relatorios/frequencia': {
       id: '/_authenticated/relatorios/frequencia'
       path: '/relatorios/frequencia'
@@ -1515,6 +1535,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
   AuthenticatedIrmaosNovoRoute: typeof AuthenticatedIrmaosNovoRoute
   AuthenticatedOrgsPotenciasRoute: typeof AuthenticatedOrgsPotenciasRoute
+  AuthenticatedRelatoriosExtratoConciliacaoRoute: typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
   AuthenticatedRelatoriosInadimplentesRoute: typeof AuthenticatedRelatoriosInadimplentesRoute
   AuthenticatedRelatoriosRecebimentosRoute: typeof AuthenticatedRelatoriosRecebimentosRoute
@@ -1586,6 +1607,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
   AuthenticatedIrmaosNovoRoute: AuthenticatedIrmaosNovoRoute,
   AuthenticatedOrgsPotenciasRoute: AuthenticatedOrgsPotenciasRoute,
+  AuthenticatedRelatoriosExtratoConciliacaoRoute:
+    AuthenticatedRelatoriosExtratoConciliacaoRoute,
   AuthenticatedRelatoriosFrequenciaRoute:
     AuthenticatedRelatoriosFrequenciaRoute,
   AuthenticatedRelatoriosInadimplentesRoute:

@@ -164,3 +164,96 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
       return rows as ItemRecebimento[];
     });
   });
+
+// ---------- Relatório de extrato da conciliação (issue #113) ----------
+// Uma linha do OFX pode ter sido conciliada de duas formas diferentes,
+// dependendo de quando/como foi feita:
+// - "legado" (conciliar_ofx_existente/conciliar_ofx_baixando_lancamento/
+//   criar_lancamento_de_ofx, ainda em uso pelo botão "Criar lançamento"
+//   de linha órfã): grava só `ofx_lancamentos.lancamento_id`, 1 pra 1.
+// - "lote" (conciliar_ofx_lote, issue #110): grava `conciliacao_id` tanto
+//   no(s) lançamento(s) quanto na(s) linha(s) OFX do mesmo evento — N:N.
+// O relatório precisa juntar os dois casos pra mostrar o vínculo correto
+// nos dois.
+
+export type ItemExtratoConciliacao = {
+  id: string;
+  data: string;
+  valor: number;
+  tipo_ofx: string | null;
+  descricao: string | null;
+  conciliado: boolean;
+  lancamentos_vinculados: { id: string; descricao: string; valor: number }[];
+};
+
+const filtroExtratoConciliacaoSchema = z.object({
+  contaId: z.string().uuid(),
+  de: z.string().nullable(),
+  ate: z.string().nullable(),
+});
+
+export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
+  .validator((d: unknown) => filtroExtratoConciliacaoSchema.parse(d))
+  .handler(async ({ data }): Promise<ItemExtratoConciliacao[]> => {
+    return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+      const condicoes = ["o.conta_financeira_id = ?"];
+      const valores: unknown[] = [data.contaId];
+      if (data.de) {
+        condicoes.push("o.data >= ?");
+        valores.push(data.de);
+      }
+      if (data.ate) {
+        condicoes.push("o.data <= ?");
+        valores.push(data.ate);
+      }
+      const [linhas] = await conn.query<RowDataPacket[]>(
+        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado,
+                o.lancamento_id, o.conciliacao_id
+         FROM ofx_lancamentos o
+         WHERE ${condicoes.join(" AND ")}
+         ORDER BY o.data DESC
+         LIMIT 2000`,
+        valores,
+      );
+
+      const idsLegado = [...new Set(linhas.map((l) => l.lancamento_id).filter(Boolean))];
+      const idsConciliacao = [...new Set(linhas.map((l) => l.conciliacao_id).filter(Boolean))];
+
+      const legadoMap = new Map<string, { id: string; descricao: string; valor: number }>();
+      if (idsLegado.length > 0) {
+        const [rows] = await conn.query<RowDataPacket[]>(
+          `SELECT id, descricao, valor FROM lancamentos WHERE id IN (?)`,
+          [idsLegado],
+        );
+        for (const r of rows)
+          legadoMap.set(r.id, { id: r.id, descricao: r.descricao, valor: r.valor });
+      }
+
+      const loteMap = new Map<string, { id: string; descricao: string; valor: number }[]>();
+      if (idsConciliacao.length > 0) {
+        const [rows] = await conn.query<RowDataPacket[]>(
+          `SELECT id, descricao, valor, conciliacao_id FROM lancamentos WHERE conciliacao_id IN (?)`,
+          [idsConciliacao],
+        );
+        for (const r of rows) {
+          const lista = loteMap.get(r.conciliacao_id) ?? [];
+          lista.push({ id: r.id, descricao: r.descricao, valor: r.valor });
+          loteMap.set(r.conciliacao_id, lista);
+        }
+      }
+
+      return linhas.map((l) => ({
+        id: l.id,
+        data: l.data,
+        valor: l.valor,
+        tipo_ofx: l.tipo_ofx,
+        descricao: l.descricao,
+        conciliado: !!l.conciliado,
+        lancamentos_vinculados: l.conciliacao_id
+          ? (loteMap.get(l.conciliacao_id) ?? [])
+          : l.lancamento_id && legadoMap.has(l.lancamento_id)
+            ? [legadoMap.get(l.lancamento_id)!]
+            : [],
+      }));
+    });
+  });
