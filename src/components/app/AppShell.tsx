@@ -518,6 +518,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Wallet,
           show: can.canManageFinancas,
         },
+        {
+          to: "/relatorios/extrato-conciliacao",
+          label: "Extrato da Conciliação",
+          icon: ArrowLeftRight,
+          show: can.canManageFinancas,
+        },
       ],
     },
     {
