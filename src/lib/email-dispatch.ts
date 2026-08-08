@@ -2,6 +2,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import type { RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
+import { randomUUID } from "node:crypto";
 import { withUserConnection } from "./backend/db";
 
 // Envio de e-mail (issue #103) — SMTP da própria Hostinger via nodemailer,
@@ -40,7 +41,14 @@ function getTransporter(): Transporter {
 // jaEnviadoComSucesso) — aqui só registra o resultado desta tentativa.
 async function enviarEGravar(
   conn: PoolConnection,
-  params: { chave: string; destinatario: string; assunto: string; html: string; texto: string },
+  params: {
+    chave: string;
+    destinatario: string;
+    assunto: string;
+    html: string;
+    texto: string;
+    anexos?: { filename: string; content: Buffer; contentType: string }[];
+  },
 ): Promise<boolean> {
   const remetente = process.env.SMTP_FROM || process.env.SMTP_USER || "";
   try {
@@ -50,6 +58,7 @@ async function enviarEGravar(
       subject: params.assunto,
       html: params.html,
       text: params.texto,
+      attachments: params.anexos,
     });
     await conn.query(
       "INSERT INTO emails_enviados (chave, destinatario, assunto, sucesso) VALUES (?, ?, ?, TRUE)",
@@ -194,5 +203,45 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
     }
 
     return { avaliadas: faturas.length, enviadas, falhas };
+  });
+}
+
+// ---------- Envio manual de relatório (issue #111) ----------
+// Sem dedup por chave (cada chamada gera uma chave única com randomUUID):
+// é um envio manual disparado pelo usuário, não um job periódico que
+// possa repetir — não faz sentido "já enviado antes" bloquear um reenvio
+// pedido de propósito. Ainda assim grava em emails_enviados pelo mesmo
+// motivo dos outros fluxos: auditoria de o que foi mandado e quando.
+
+export type ResultadoEnvioRelatorio = { destinatario: string; sucesso: boolean }[];
+
+export async function enviarArquivoPorEmail(params: {
+  destinatarios: string[];
+  assunto: string;
+  corpoTexto: string;
+  anexoBuffer: Buffer;
+  anexoNome: string;
+  anexoMimeType: string;
+}): Promise<ResultadoEnvioRelatorio> {
+  return withUserConnection(null, async (conn) => {
+    const resultados: ResultadoEnvioRelatorio = [];
+    for (const destinatario of params.destinatarios) {
+      const ok = await enviarEGravar(conn, {
+        chave: `relatorio_manual:${randomUUID()}`,
+        destinatario,
+        assunto: params.assunto,
+        html: `<p>${params.corpoTexto}</p>`,
+        texto: params.corpoTexto,
+        anexos: [
+          {
+            filename: params.anexoNome,
+            content: params.anexoBuffer,
+            contentType: params.anexoMimeType,
+          },
+        ],
+      });
+      resultados.push({ destinatario, sucesso: ok });
+    }
+    return resultados;
   });
 }
