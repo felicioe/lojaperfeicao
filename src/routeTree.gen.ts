@@ -62,6 +62,7 @@ import { Route as AuthenticatedPainelSessoesRouteImport } from './routes/_authen
 import { Route as AuthenticatedRelatoriosExtratoConciliacaoRouteImport } from './routes/_authenticated/relatorios/extrato-conciliacao'
 import { Route as AuthenticatedRelatoriosExtratoIrmaoRouteImport } from './routes/_authenticated/relatorios/extrato-irmao'
 import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
+import { Route as AuthenticatedRelatoriosInadimplenciaRouteImport } from './routes/_authenticated/relatorios/inadimplencia'
 import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
 import { Route as AuthenticatedRelatoriosRecebimentosRouteImport } from './routes/_authenticated/relatorios/recebimentos'
 import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
@@ -389,6 +390,12 @@ const AuthenticatedRelatoriosFrequenciaRoute =
     path: '/relatorios/frequencia',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRelatoriosInadimplenciaRoute =
+  AuthenticatedRelatoriosInadimplenciaRouteImport.update({
+    id: '/relatorios/inadimplencia',
+    path: '/relatorios/inadimplencia',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRelatoriosInadimplentesRoute =
   AuthenticatedRelatoriosInadimplentesRouteImport.update({
     id: '/relatorios/inadimplentes',
@@ -556,6 +563,7 @@ export interface FileRoutesByFullPath {
   '/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/relatorios/extrato-irmao': typeof AuthenticatedRelatoriosExtratoIrmaoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
+  '/relatorios/inadimplencia': typeof AuthenticatedRelatoriosInadimplenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
@@ -630,6 +638,7 @@ export interface FileRoutesByTo {
   '/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/relatorios/extrato-irmao': typeof AuthenticatedRelatoriosExtratoIrmaoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
+  '/relatorios/inadimplencia': typeof AuthenticatedRelatoriosInadimplenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
@@ -707,6 +716,7 @@ export interface FileRoutesById {
   '/_authenticated/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/_authenticated/relatorios/extrato-irmao': typeof AuthenticatedRelatoriosExtratoIrmaoRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
+  '/_authenticated/relatorios/inadimplencia': typeof AuthenticatedRelatoriosInadimplenciaRoute
   '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
   '/_authenticated/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
   '/_authenticated/sessoes/$id': typeof AuthenticatedSessoesIdRoute
@@ -784,6 +794,7 @@ export interface FileRouteTypes {
     | '/relatorios/extrato-conciliacao'
     | '/relatorios/extrato-irmao'
     | '/relatorios/frequencia'
+    | '/relatorios/inadimplencia'
     | '/relatorios/inadimplentes'
     | '/relatorios/recebimentos'
     | '/sessoes/$id'
@@ -858,6 +869,7 @@ export interface FileRouteTypes {
     | '/relatorios/extrato-conciliacao'
     | '/relatorios/extrato-irmao'
     | '/relatorios/frequencia'
+    | '/relatorios/inadimplencia'
     | '/relatorios/inadimplentes'
     | '/relatorios/recebimentos'
     | '/sessoes/$id'
@@ -934,6 +946,7 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios/extrato-conciliacao'
     | '/_authenticated/relatorios/extrato-irmao'
     | '/_authenticated/relatorios/frequencia'
+    | '/_authenticated/relatorios/inadimplencia'
     | '/_authenticated/relatorios/inadimplentes'
     | '/_authenticated/relatorios/recebimentos'
     | '/_authenticated/sessoes/$id'
@@ -1353,6 +1366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRelatoriosFrequenciaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/relatorios/inadimplencia': {
+      id: '/_authenticated/relatorios/inadimplencia'
+      path: '/relatorios/inadimplencia'
+      fullPath: '/relatorios/inadimplencia'
+      preLoaderRoute: typeof AuthenticatedRelatoriosInadimplenciaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/relatorios/inadimplentes': {
       id: '/_authenticated/relatorios/inadimplentes'
       path: '/relatorios/inadimplentes'
@@ -1558,6 +1578,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRelatoriosExtratoConciliacaoRoute: typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   AuthenticatedRelatoriosExtratoIrmaoRoute: typeof AuthenticatedRelatoriosExtratoIrmaoRoute
   AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
+  AuthenticatedRelatoriosInadimplenciaRoute: typeof AuthenticatedRelatoriosInadimplenciaRoute
   AuthenticatedRelatoriosInadimplentesRoute: typeof AuthenticatedRelatoriosInadimplentesRoute
   AuthenticatedRelatoriosRecebimentosRoute: typeof AuthenticatedRelatoriosRecebimentosRoute
   AuthenticatedSessoesIdRoute: typeof AuthenticatedSessoesIdRoute
@@ -1634,6 +1655,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedRelatoriosExtratoIrmaoRoute,
   AuthenticatedRelatoriosFrequenciaRoute:
     AuthenticatedRelatoriosFrequenciaRoute,
+  AuthenticatedRelatoriosInadimplenciaRoute:
+    AuthenticatedRelatoriosInadimplenciaRoute,
   AuthenticatedRelatoriosInadimplentesRoute:
     AuthenticatedRelatoriosInadimplentesRoute,
   AuthenticatedRelatoriosRecebimentosRoute:
