@@ -448,6 +448,21 @@ export const gerarMensalidades = createServerFn({ method: "POST" })
         data.rateio ? JSON.stringify(data.rateio) : null,
       ]);
       const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT @total AS total");
+
+      // Dispara e-mail de "fatura emitida" (issue #103) pra cada mensalidade
+      // gerada — dedup por lancamento_id em email-dispatch.ts garante que
+      // rodar de novo pra uma competência já processada não reenvia.
+      const [gerados] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM lancamentos WHERE competencia_mes = ? AND is_mensalidade = TRUE",
+        [data.competencia],
+      );
+      const { enviarEmailFaturaEmitida } = await import("../email-dispatch");
+      for (const g of gerados) {
+        enviarEmailFaturaEmitida(g.id as string).catch((err) =>
+          console.error("Falha ao enviar e-mail de fatura emitida:", err),
+        );
+      }
+
       return Number(total);
     });
   });
