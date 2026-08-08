@@ -152,6 +152,12 @@ export const criarFaturaAvulsa = createServerFn({ method: "POST" })
         data.rateio ? JSON.stringify(data.rateio) : null,
       ]);
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+
+      const { enviarEmailFaturaEmitida } = await import("../email-dispatch");
+      enviarEmailFaturaEmitida(lanc_id as string).catch((err) =>
+        console.error("Falha ao enviar e-mail de fatura emitida:", err),
+      );
+
       return { id: lanc_id };
     });
   });

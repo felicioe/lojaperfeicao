@@ -6,6 +6,7 @@ import { executarDisparoNotificacoes } from "./lib/push-dispatch";
 import { executarBackupAgendado } from "./lib/backup-dispatch";
 import { tratarCallbackGoogle } from "./lib/google-oauth-callback";
 import { tratarCallbackFacebook } from "./lib/facebook-oauth-callback";
+import { executarLembretesFaturas } from "./lib/email-dispatch";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -104,6 +105,32 @@ async function tratarCronBackup(request: Request): Promise<Response | null> {
   }
 }
 
+// Mesmo padrão de tratarCronNotificacoes acima, para os lembretes de
+// fatura por e-mail (issue #103). Reaproveita o mesmo CRON_SECRET.
+async function tratarCronLembretesEmail(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/cron/lembretes-email") return null;
+
+  const token = url.searchParams.get("token") ?? request.headers.get("x-cron-token");
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado || token !== esperado) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const resultado = await executarLembretesFaturas();
+    return new Response(JSON.stringify(resultado), {
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: (error as Error).message }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
 // Callback OAuth do Google — GET puro feito pelo navegador (redirect do
 // Google), não pelo `fetch` da aplicação, então precisa ser um endpoint
 // bruto fora do roteador do TanStack Start, mesmo motivo dos crons acima.
@@ -128,6 +155,9 @@ export default {
 
       const backupResponse = await tratarCronBackup(request);
       if (backupResponse) return backupResponse;
+
+      const lembretesResponse = await tratarCronLembretesEmail(request);
+      if (lembretesResponse) return lembretesResponse;
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
       if (googleResponse) return googleResponse;
