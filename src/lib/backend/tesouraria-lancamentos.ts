@@ -32,6 +32,7 @@ export type Lancamento = {
   conta_destino_id: string | null;
   plano_conta_id: string | null;
   irmao_id: string | null;
+  irmao_nome: string | null;
   contas_financeiras: { nome: string } | null;
   destino: { nome: string } | null;
   plano_contas: { nome: string } | null;
@@ -83,9 +84,10 @@ export const listarLancamentos = createServerFn({ method: "GET" })
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.tipo, l.pago,
                 l.forma_pagamento, l.categoria_recebimento, l.conta_id, l.conta_destino_id, l.plano_conta_id,
-                l.irmao_id,
+                l.irmao_id, i.nome_civil AS irmao_nome,
                 cf.nome AS conta_nome, cfd.nome AS destino_nome, pc.nome AS plano_conta_nome
          FROM lancamentos l
+         LEFT JOIN irmaos i ON i.id = l.irmao_id
          LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
          LEFT JOIN contas_financeiras cfd ON cfd.id = l.conta_destino_id
          LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
@@ -109,6 +111,7 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         conta_destino_id: r.conta_destino_id,
         plano_conta_id: r.plano_conta_id,
         irmao_id: r.irmao_id,
+        irmao_nome: r.irmao_nome,
         contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
         destino: r.destino_nome ? { nome: r.destino_nome } : null,
         plano_contas: r.plano_conta_nome ? { nome: r.plano_conta_nome } : null,
