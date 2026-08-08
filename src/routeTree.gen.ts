@@ -61,6 +61,7 @@ import { Route as AuthenticatedPainelQuitacaoRouteImport } from './routes/_authe
 import { Route as AuthenticatedPainelSessoesRouteImport } from './routes/_authenticated/painel/sessoes'
 import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
 import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
+import { Route as AuthenticatedRelatoriosRecebimentosRouteImport } from './routes/_authenticated/relatorios/recebimentos'
 import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
 import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
 import { Route as AuthenticatedSgcabCobrancasRouteImport } from './routes/_authenticated/sgcab/cobrancas'
@@ -380,6 +381,12 @@ const AuthenticatedRelatoriosInadimplentesRoute =
     path: '/relatorios/inadimplentes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRelatoriosRecebimentosRoute =
+  AuthenticatedRelatoriosRecebimentosRouteImport.update({
+    id: '/relatorios/recebimentos',
+    path: '/relatorios/recebimentos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSessoesIndexRoute =
   AuthenticatedSessoesIndexRouteImport.update({
     id: '/sessoes/',
@@ -534,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
+  '/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
   '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
@@ -605,6 +613,7 @@ export interface FileRoutesByTo {
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
+  '/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
   '/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
   '/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
@@ -679,6 +688,7 @@ export interface FileRoutesById {
   '/_authenticated/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
   '/_authenticated/relatorios/inadimplentes': typeof AuthenticatedRelatoriosInadimplentesRoute
+  '/_authenticated/relatorios/recebimentos': typeof AuthenticatedRelatoriosRecebimentosRoute
   '/_authenticated/sessoes/$id': typeof AuthenticatedSessoesIdRoute
   '/_authenticated/sgcab/cobrancas': typeof AuthenticatedSgcabCobrancasRoute
   '/_authenticated/tesouraria/conciliacao': typeof AuthenticatedTesourariaConciliacaoRoute
@@ -753,6 +763,7 @@ export interface FileRouteTypes {
     | '/painel/sessoes'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
+    | '/relatorios/recebimentos'
     | '/sessoes/$id'
     | '/sgcab/cobrancas'
     | '/tesouraria/conciliacao'
@@ -824,6 +835,7 @@ export interface FileRouteTypes {
     | '/painel/sessoes'
     | '/relatorios/frequencia'
     | '/relatorios/inadimplentes'
+    | '/relatorios/recebimentos'
     | '/sessoes/$id'
     | '/sgcab/cobrancas'
     | '/tesouraria/conciliacao'
@@ -897,6 +909,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/sessoes'
     | '/_authenticated/relatorios/frequencia'
     | '/_authenticated/relatorios/inadimplentes'
+    | '/_authenticated/relatorios/recebimentos'
     | '/_authenticated/sessoes/$id'
     | '/_authenticated/sgcab/cobrancas'
     | '/_authenticated/tesouraria/conciliacao'
@@ -1307,6 +1320,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRelatoriosInadimplentesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/relatorios/recebimentos': {
+      id: '/_authenticated/relatorios/recebimentos'
+      path: '/relatorios/recebimentos'
+      fullPath: '/relatorios/recebimentos'
+      preLoaderRoute: typeof AuthenticatedRelatoriosRecebimentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/sessoes/': {
       id: '/_authenticated/sessoes/'
       path: '/sessoes'
@@ -1497,6 +1517,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOrgsPotenciasRoute: typeof AuthenticatedOrgsPotenciasRoute
   AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
   AuthenticatedRelatoriosInadimplentesRoute: typeof AuthenticatedRelatoriosInadimplentesRoute
+  AuthenticatedRelatoriosRecebimentosRoute: typeof AuthenticatedRelatoriosRecebimentosRoute
   AuthenticatedSessoesIdRoute: typeof AuthenticatedSessoesIdRoute
   AuthenticatedSgcabCobrancasRoute: typeof AuthenticatedSgcabCobrancasRoute
   AuthenticatedTesourariaConciliacaoRoute: typeof AuthenticatedTesourariaConciliacaoRoute
@@ -1569,6 +1590,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedRelatoriosFrequenciaRoute,
   AuthenticatedRelatoriosInadimplentesRoute:
     AuthenticatedRelatoriosInadimplentesRoute,
+  AuthenticatedRelatoriosRecebimentosRoute:
+    AuthenticatedRelatoriosRecebimentosRoute,
   AuthenticatedSessoesIdRoute: AuthenticatedSessoesIdRoute,
   AuthenticatedSgcabCobrancasRoute: AuthenticatedSgcabCobrancasRoute,
   AuthenticatedTesourariaConciliacaoRoute:
