@@ -73,21 +73,30 @@ export const conciliarOfxExistente = createServerFn({ method: "POST" })
     });
   });
 
-// Vincula a linha do OFX a um lançamento AINDA EM ABERTO, dando baixa nele
-// de verdade (pago/conta/data + contrapartida contábil que fecha a
-// provisão) — é o que a tela usa quando o lançamento do sistema
-// selecionado ainda não está pago (o caso normal: mensalidade em aberto
-// batendo com o PIX recebido no extrato).
-export const conciliarOfxBaixando = createServerFn({ method: "POST" })
+// Vincula N linhas do OFX a M lançamentos AINDA EM ABERTO, dando baixa
+// neles de verdade (pago/conta/data + contrapartida contábil que fecha a
+// provisão) — é o que a tela usa depois de marcar os ticks dos dois
+// lados. O total de cada lado precisa bater exatamente; a validação real
+// é feita dentro da procedure (não confia só na UI), aqui só repassa.
+export const conciliarOfxLote = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ ofxId: z.string().uuid(), lancamentoId: z.string().uuid() }).parse(d),
+    z
+      .object({
+        ofxIds: z.array(z.string().uuid()).min(1),
+        lancamentoIds: z.array(z.string().uuid()).min(1),
+      })
+      .parse(d),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<{ conciliacaoId: string }> => {
     return comPapel(PAPEIS, async (conn) => {
-      await conn.query("CALL conciliar_ofx_baixando_lancamento(?, ?)", [
-        data.ofxId,
-        data.lancamentoId,
+      await conn.query("CALL conciliar_ofx_lote(?, ?, @conciliacao_id)", [
+        JSON.stringify(data.ofxIds),
+        JSON.stringify(data.lancamentoIds),
       ]);
+      const [[{ conciliacao_id }]] = await conn.query<RowDataPacket[]>(
+        "SELECT @conciliacao_id AS conciliacao_id",
+      );
+      return { conciliacaoId: conciliacao_id };
     });
   });
 

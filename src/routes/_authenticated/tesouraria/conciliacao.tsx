@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listarLancamentosParaConciliar,
   listarOfxPendentes,
-  conciliarOfxBaixando,
+  conciliarOfxLote,
   criarLancamentoDeOfx,
   importarOfx,
   type OfxLancamento,
@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -34,7 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { Link2, Loader2, Plus, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Link2, Loader2, Plus, Upload } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
 import { CATEGORIA_LABEL } from "@/components/app/RecebimentoAvulso";
@@ -53,9 +54,10 @@ function Conciliacao() {
   const [importando, setImportando] = useState(false);
   const [buscaSistema, setBuscaSistema] = useState("");
   const [buscaOfx, setBuscaOfx] = useState("");
-  const [selSistema, setSelSistema] = useState<string | null>(null);
-  const [selOfx, setSelOfx] = useState<string | null>(null);
+  const [selSistema, setSelSistema] = useState<string[]>([]);
+  const [selOfx, setSelOfx] = useState<string[]>([]);
   const [openCriar, setOpenCriar] = useState(false);
+  const [vinculando, setVinculando] = useState(false);
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
@@ -77,9 +79,14 @@ function Conciliacao() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["conciliacao_sistema"] });
     qc.invalidateQueries({ queryKey: ["conciliacao_ofx"] });
-    setSelSistema(null);
-    setSelOfx(null);
+    setSelSistema([]);
+    setSelOfx([]);
   };
+
+  const toggleSistema = (id: string) =>
+    setSelSistema((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleOfx = (id: string) =>
+    setSelOfx((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const importar = async () => {
     const file = fileRef.current?.files?.[0];
@@ -111,13 +118,16 @@ function Conciliacao() {
   };
 
   const vincular = async () => {
-    if (!selSistema || !selOfx) return;
+    if (selSistema.length === 0 || selOfx.length === 0) return;
+    setVinculando(true);
     try {
-      await conciliarOfxBaixando({ data: { ofxId: selOfx, lancamentoId: selSistema } });
+      await conciliarOfxLote({ data: { ofxIds: selOfx, lancamentoIds: selSistema } });
       toast.success("Baixa registrada e linhas conciliadas.");
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao vincular.");
+    } finally {
+      setVinculando(false);
     }
   };
 
@@ -127,7 +137,19 @@ function Conciliacao() {
   const ofxFiltrado = ofx.filter(
     (o) => !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase()),
   );
-  const ofxSelecionado = ofx.find((o) => o.id === selOfx);
+  const ofxSelecionadoUnico =
+    selOfx.length === 1 && selSistema.length === 0
+      ? ofx.find((o) => o.id === selOfx[0])
+      : undefined;
+
+  const totalSistema = sistema
+    .filter((s) => selSistema.includes(s.id))
+    .reduce((acc, s) => acc + (s.tipo === "entrada" ? Number(s.valor) : -Number(s.valor)), 0);
+  const totalOfx = ofx
+    .filter((o) => selOfx.includes(o.id))
+    .reduce((acc, o) => acc + Number(o.valor), 0);
+  const diferenca = Math.round((totalOfx - totalSistema) * 100) / 100;
+  const totaisBatem = selSistema.length > 0 && selOfx.length > 0 && diferenca === 0;
 
   return (
     <>
@@ -190,22 +212,33 @@ function Conciliacao() {
                     Nenhum lançamento em aberto.
                   </div>
                 )}
-                {sistemaFiltrado.map((s: any) => (
-                  <button
+                {sistemaFiltrado.map((s) => (
+                  <label
                     key={s.id}
-                    onClick={() => setSelSistema(selSistema === s.id ? null : s.id)}
-                    className={`w-full text-left p-2 text-sm hover:bg-muted/50 ${selSistema === s.id ? "bg-muted" : ""}`}
+                    className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selSistema.includes(s.id) ? "bg-muted" : ""}`}
                   >
-                    <div className="flex justify-between">
-                      <span>{s.descricao}</span>
-                      <span className="font-medium">{brl(s.valor)}</span>
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={selSistema.includes(s.id)}
+                      onCheckedChange={() => toggleSistema(s.id)}
+                    />
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <span>{s.descricao}</span>
+                        <span className="font-medium">{brl(s.valor)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {fmtDate(s.data)} · {s.tipo}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {fmtDate(s.data)} · {s.tipo}
-                    </div>
-                  </button>
+                  </label>
                 ))}
               </div>
+              {selSistema.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  {selSistema.length} selecionado(s) · Total: {brl(totalSistema)}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -225,52 +258,85 @@ function Conciliacao() {
                     Nenhuma linha pendente. Importe um extrato acima.
                   </div>
                 )}
-                {ofxFiltrado.map((o: any) => (
-                  <button
+                {ofxFiltrado.map((o) => (
+                  <label
                     key={o.id}
-                    onClick={() => setSelOfx(selOfx === o.id ? null : o.id)}
-                    className={`w-full text-left p-2 text-sm hover:bg-muted/50 ${selOfx === o.id ? "bg-muted" : ""}`}
+                    className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selOfx.includes(o.id) ? "bg-muted" : ""}`}
                   >
-                    <div className="flex justify-between">
-                      <span>{o.descricao}</span>
-                      <span className="font-medium">{brl(o.valor)}</span>
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={selOfx.includes(o.id)}
+                      onCheckedChange={() => toggleOfx(o.id)}
+                    />
+                    <div className="flex-1">
+                      <div className="flex justify-between">
+                        <span>{o.descricao}</span>
+                        <span className="font-medium">{brl(o.valor)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {fmtDate(o.data)} · {o.tipo_ofx}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {fmtDate(o.data)} · {o.tipo_ofx}
-                    </div>
-                  </button>
+                  </label>
                 ))}
               </div>
+              {selOfx.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  {selOfx.length} selecionado(s) · Total: {brl(totalOfx)}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       )}
 
-      {podeEditar && (selSistema || selOfx) && (
+      {podeEditar && (selSistema.length > 0 || selOfx.length > 0) && (
         <Card className="mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
-          <div className="text-sm text-muted-foreground">
-            {selSistema && selOfx
-              ? "Sistema e OFX selecionados — prontos para vincular."
-              : selOfx
-                ? "Linha OFX selecionada — vincule a um lançamento do sistema ou crie um novo."
-                : "Lançamento do sistema selecionado."}
+          <div className="flex items-center gap-2 text-sm">
+            {selSistema.length > 0 && selOfx.length > 0 ? (
+              totaisBatem ? (
+                <span className="flex items-center gap-1 text-green-600">
+                  <CheckCircle2 className="h-4 w-4" /> Totais batem — pronto para vincular.
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-destructive">
+                  <AlertTriangle className="h-4 w-4" /> Diferença: {brl(Math.abs(diferenca))}{" "}
+                  {diferenca > 0 ? "(OFX maior)" : "(Sistema maior)"} — os totais precisam bater
+                  para vincular.
+                </span>
+              )
+            ) : selOfx.length > 0 ? (
+              <span className="text-muted-foreground">
+                Linha(s) do OFX selecionada(s) — marque lançamento(s) do sistema para vincular, ou
+                crie um novo lançamento.
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Lançamento(s) do sistema selecionado(s).
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
-            {selSistema && selOfx && (
-              <Button onClick={vincular}>
-                <Link2 className="h-4 w-4 mr-1" /> Vincular
+            {selSistema.length > 0 && selOfx.length > 0 && (
+              <Button onClick={vincular} disabled={!totaisBatem || vinculando}>
+                {vinculando ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Link2 className="h-4 w-4 mr-1" />
+                )}
+                Vincular
               </Button>
             )}
-            {selOfx && !selSistema && (
+            {ofxSelecionadoUnico && (
               <Dialog open={openCriar} onOpenChange={setOpenCriar}>
                 <DialogTrigger asChild>
                   <Button variant="outline">
                     <Plus className="h-4 w-4 mr-1" /> Criar lançamento
                   </Button>
                 </DialogTrigger>
-                {ofxSelecionado && (
+                {ofxSelecionadoUnico && (
                   <CriarLancamentoDialog
-                    ofxLinha={ofxSelecionado}
+                    ofxLinha={ofxSelecionadoUnico}
                     onDone={() => {
                       setOpenCriar(false);
                       invalidate();
