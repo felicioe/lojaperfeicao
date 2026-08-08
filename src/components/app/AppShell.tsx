@@ -512,6 +512,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: AlertTriangle,
           show: can.canManageFinancas,
         },
+        {
+          to: "/relatorios/recebimentos",
+          label: "Recebimentos no Mês",
+          icon: Wallet,
+          show: can.canManageFinancas,
+        },
       ],
     },
     {

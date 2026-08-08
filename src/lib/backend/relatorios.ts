@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
-import { comSessao } from "./authz";
+import { comSessao, comPapel } from "./authz";
 import { listarIrmaos } from "./irmaos";
 
 export type FrequenciaIrmao = {
@@ -86,5 +86,81 @@ export const relatorioInadimplentes = createServerFn({ method: "GET" })
         valores,
       );
       return rows as ItemInadimplente[];
+    });
+  });
+
+// ---------- Relatório de recebimentos no mês (issue #112) ----------
+// Mesmos papéis de tesouraria-lancamentos.ts/tesouraria-faturas.ts — é
+// dado financeiro da loja como um todo, não "próprio irmão".
+const PAPEIS_TESOURARIA = ["admin", "tesoureiro"];
+
+export type ItemRecebimento = {
+  id: string;
+  data: string;
+  data_pagamento: string;
+  descricao: string;
+  valor: number;
+  forma_pagamento: string | null;
+  categoria_recebimento: string | null;
+  conta_nome: string | null;
+  irmao_nome: string | null;
+};
+
+const filtroRecebimentosSchema = z.object({
+  competenciaMes: z.string().nullable(),
+  de: z.string().nullable(),
+  ate: z.string().nullable(),
+  contaId: z.string().uuid().nullable(),
+  categoria: z.string().nullable(),
+  irmaoId: z.string().uuid().nullable(),
+  formaPagamento: z.string().nullable(),
+});
+
+export const relatorioRecebimentos = createServerFn({ method: "GET" })
+  .validator((d: unknown) => filtroRecebimentosSchema.parse(d))
+  .handler(async ({ data }): Promise<ItemRecebimento[]> => {
+    return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+      const condicoes = ["l.tipo = 'entrada'", "l.pago = TRUE"];
+      const valores: unknown[] = [];
+      if (data.competenciaMes) {
+        condicoes.push("l.competencia_mes = ?");
+        valores.push(data.competenciaMes);
+      }
+      if (data.de) {
+        condicoes.push("l.data_pagamento >= ?");
+        valores.push(data.de);
+      }
+      if (data.ate) {
+        condicoes.push("l.data_pagamento <= ?");
+        valores.push(data.ate);
+      }
+      if (data.contaId) {
+        condicoes.push("l.conta_id = ?");
+        valores.push(data.contaId);
+      }
+      if (data.categoria) {
+        condicoes.push("l.categoria_recebimento = ?");
+        valores.push(data.categoria);
+      }
+      if (data.irmaoId) {
+        condicoes.push("l.irmao_id = ?");
+        valores.push(data.irmaoId);
+      }
+      if (data.formaPagamento) {
+        condicoes.push("l.forma_pagamento LIKE ?");
+        valores.push(`%${data.formaPagamento}%`);
+      }
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.data, l.data_pagamento, l.descricao, l.valor, l.forma_pagamento,
+                l.categoria_recebimento, cf.nome AS conta_nome, i.nome_civil AS irmao_nome
+         FROM lancamentos l
+         LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
+         LEFT JOIN irmaos i ON i.id = l.irmao_id
+         WHERE ${condicoes.join(" AND ")}
+         ORDER BY l.data_pagamento DESC
+         LIMIT 2000`,
+        valores,
+      );
+      return rows as ItemRecebimento[];
     });
   });
