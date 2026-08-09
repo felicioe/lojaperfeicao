@@ -46,5 +46,9 @@ export function extrairPossivelNome(descricaoOfx: string): string {
   const termos = normalizarTexto(descricaoOfx)
     .split(" ")
     .filter((t) => t.length >= 3 && !/^\d+$/.test(t) && !TERMOS_BANCARIOS.has(t));
-  return termos.join(" ");
+  // Só primeiro nome + sobrenome: juntar todos os termos restantes trazia
+  // lixo da descrição do banco (ex.: "outra", número de agência/conta) que
+  // não faz parte do nome e quebrava o filtro por substring na tela de
+  // conciliação.
+  return termos.slice(0, 2).join(" ");
 }

@@ -41,6 +41,7 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "tipo", titulo: "Tipo" },
   { chave: "valor", titulo: "Valor" },
   { chave: "status", titulo: "Status" },
+  { chave: "pago_em", titulo: "Pago em" },
   { chave: "forma_pagamento", titulo: "Forma de pagamento" },
 ];
 
@@ -71,6 +72,7 @@ function ExtratoIrmao() {
     tipo: i.tipo,
     valor: Number(i.valor),
     status: i.pago ? "Pago" : "Aberto",
+    pago_em: i.data_pagamento ? fmtDate(i.data_pagamento) : "—",
     forma_pagamento: i.forma_pagamento ?? "—",
   }));
 
@@ -148,13 +150,14 @@ function ExtratoIrmao() {
                     <TableHead>Tipo</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Pago em</TableHead>
                     <TableHead>Forma de pagamento</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {itens.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                         Nenhum lançamento encontrado.
                       </TableCell>
                     </TableRow>
@@ -172,6 +175,9 @@ function ExtratoIrmao() {
                         ) : (
                           <Badge variant="outline">Aberto</Badge>
                         )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {i.data_pagamento ? fmtDate(i.data_pagamento) : "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {i.forma_pagamento ?? "—"}
