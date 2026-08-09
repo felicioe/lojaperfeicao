@@ -183,6 +183,7 @@ export type ItemExtratoConciliacao = {
   tipo_ofx: string | null;
   descricao: string | null;
   conciliado: boolean;
+  conciliacao_id: string | null;
   lancamentos_vinculados: { id: string; descricao: string; valor: number }[];
 };
 
@@ -249,6 +250,7 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
         tipo_ofx: l.tipo_ofx,
         descricao: l.descricao,
         conciliado: !!l.conciliado,
+        conciliacao_id: l.conciliacao_id,
         lancamentos_vinculados: l.conciliacao_id
           ? (loteMap.get(l.conciliacao_id) ?? [])
           : l.lancamento_id && legadoMap.has(l.lancamento_id)
