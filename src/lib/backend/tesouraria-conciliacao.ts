@@ -11,7 +11,9 @@ const PAPEIS = ["admin", "tesoureiro"];
 export type LancamentoConciliacao = {
   id: string;
   data: string;
+  data_vencimento: string | null;
   descricao: string;
+  irmao_nome: string | null;
   valor: number;
   tipo: string;
 };
@@ -22,19 +24,22 @@ export type LancamentoConciliacao = {
 // deixava esta lista sempre vazia). Qualquer conta em aberto pode ser
 // paga em qualquer uma das contas bancárias da loja, daí mostrar todas.
 // O nome do irmão entra junto na descrição pra facilitar bater o nome de
-// quem pagou (extrato) com a fatura correspondente (sistema).
+// quem pagou (extrato) com a fatura correspondente (sistema); também vem
+// separado (irmao_nome) e com data_vencimento pra alimentar a sugestão
+// automática por depositante da tela (issue #123).
 export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
   .handler(async (): Promise<LancamentoConciliacao[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data,
+        `SELECT l.id, l.data, l.data_vencimento,
                 CASE WHEN i.nome_civil IS NOT NULL THEN CONCAT(l.descricao, ' — ', i.nome_civil) ELSE l.descricao END AS descricao,
+                i.nome_civil AS irmao_nome,
                 l.valor, l.tipo
          FROM lancamentos l
          LEFT JOIN irmaos i ON i.id = l.irmao_id
          WHERE l.pago = FALSE AND l.tipo IN ('entrada', 'saida')
-         ORDER BY l.data
+         ORDER BY l.data_vencimento IS NULL, l.data_vencimento, l.data
          LIMIT 300`,
       );
       return rows as LancamentoConciliacao[];
