@@ -12,6 +12,7 @@ export type FaturaAberta = {
   irmao_id: string;
   descricao: string;
   valor: number;
+  valor_pago: number;
   data: string;
   data_vencimento: string;
   competencia_mes: string;
@@ -24,7 +25,7 @@ export const listarFaturasAbertas = createServerFn({ method: "GET" }).handler(
   async (): Promise<FaturaAberta[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.irmao_id, l.descricao, l.valor, l.data, l.data_vencimento, l.competencia_mes,
+        `SELECT l.id, l.irmao_id, l.descricao, l.valor, l.valor_pago, l.data, l.data_vencimento, l.competencia_mes,
                 l.forma_cobranca, l.pix_chave_id, i.nome_civil, i.telefone, i.celular
          FROM lancamentos l
          JOIN irmaos i ON i.id = l.irmao_id
@@ -36,6 +37,7 @@ export const listarFaturasAbertas = createServerFn({ method: "GET" }).handler(
         irmao_id: r.irmao_id,
         descricao: r.descricao,
         valor: r.valor,
+        valor_pago: r.valor_pago,
         data: r.data,
         data_vencimento: r.data_vencimento,
         competencia_mes: r.competencia_mes,
@@ -93,6 +95,41 @@ export const baixarFaturas = createServerFn({ method: "POST" })
         data.jurosAdicional,
         data.valorExtra,
         data.planoContaExtraId,
+      ]);
+      const [[{ recibo_id }]] = await conn.query<RowDataPacket[]>("SELECT @recibo_id AS recibo_id");
+      return { reciboId: recibo_id };
+    });
+  });
+
+// Pagamento parcial (issue #131) — negociação de dívida: recebe menos
+// que o total devido e aplica nas faturas selecionadas conforme a
+// alocação vinda da tela (sugerida automaticamente, editável pelo
+// usuário). Diferente de baixarFaturas (baixa integral, calcula
+// multa/juros): aqui não há cálculo automático de multa/juros, só o
+// principal da fatura. Fecha a fatura (pago = TRUE) só quando o valor
+// aplicado cobre o saldo restante; senão fica em aberto com saldo menor.
+const baixarPagamentoParcialSchema = z.object({
+  alocacao: z
+    .array(z.object({ lancamentoId: z.string().uuid(), valor: z.number().positive() }))
+    .min(1),
+  contaFinanceiraId: z.string().uuid(),
+  formaPagamento: z.string().nullable(),
+  dataPagamento: z.string(),
+  observacoes: z.string().nullable(),
+});
+
+export const baixarPagamentoParcial = createServerFn({ method: "POST" })
+  .validator((d: unknown) => baixarPagamentoParcialSchema.parse(d))
+  .handler(async ({ data }): Promise<{ reciboId: string }> => {
+    return comPapel(PAPEIS, async (conn) => {
+      await conn.query("CALL baixar_pagamento_parcial(?, ?, ?, ?, ?, @recibo_id)", [
+        JSON.stringify(
+          data.alocacao.map((a) => ({ lancamento_id: a.lancamentoId, valor: a.valor })),
+        ),
+        data.contaFinanceiraId,
+        data.formaPagamento,
+        data.dataPagamento,
+        data.observacoes,
       ]);
       const [[{ recibo_id }]] = await conn.query<RowDataPacket[]>("SELECT @recibo_id AS recibo_id");
       return { reciboId: recibo_id };

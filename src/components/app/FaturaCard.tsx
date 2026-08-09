@@ -38,7 +38,7 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
           chave: fatura.pix_chave,
           nomeBeneficiario: fatura.pix_nome_beneficiario,
           cidade: fatura.pix_cidade,
-          valor: Number(fatura.valor),
+          valor: Number(fatura.valor) - Number(fatura.valor_pago),
           txid: fatura.id.replace(/-/g, "").slice(0, 25),
         })
       : null;
@@ -85,7 +85,7 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
                 (fatura.pago ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800")
               }
             >
-              {fatura.pago ? "Pago" : "Em aberto"}
+              {fatura.pago ? "Pago" : fatura.valor_pago > 0 ? "Parcial" : "Em aberto"}
             </span>
             <span className="text-xs text-muted-foreground">Emitida em {hoje}</span>
           </div>
@@ -129,8 +129,17 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
             </div>
           </div>
           <div className="p-3">
-            <div className="text-xs text-muted-foreground">Valor</div>
-            <div className="text-lg font-semibold">{brl(fatura.valor)}</div>
+            <div className="text-xs text-muted-foreground">
+              {fatura.valor_pago > 0 && !fatura.pago ? "Saldo restante" : "Valor"}
+            </div>
+            <div className="text-lg font-semibold">
+              {brl(Number(fatura.valor) - Number(fatura.valor_pago))}
+            </div>
+            {fatura.valor_pago > 0 && !fatura.pago && (
+              <div className="text-xs text-muted-foreground">
+                {brl(fatura.valor_pago)} já pago de {brl(fatura.valor)}
+              </div>
+            )}
           </div>
           <div className="p-3">
             <div className="text-xs text-muted-foreground">

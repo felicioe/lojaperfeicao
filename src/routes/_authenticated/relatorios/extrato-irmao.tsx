@@ -61,17 +61,22 @@ function ExtratoIrmao() {
     queryFn: () => relatorioExtratoIrmao({ data: { irmaoId, de: de || null, ate: ate || null } }),
   });
 
-  const totalPago = itens.filter((i) => i.pago).reduce((s, i) => s + Number(i.valor), 0);
-  const totalAberto = itens.filter((i) => !i.pago).reduce((s, i) => s + Number(i.valor), 0);
+  const totalPago = itens.reduce((s, i) => s + Number(i.valor_pago), 0);
+  const totalAberto = itens
+    .filter((i) => !i.pago)
+    .reduce((s, i) => s + (Number(i.valor) - Number(i.valor_pago)), 0);
   const irmaoNome = irmaos.find((i) => i.id === irmaoId)?.nome_civil ?? "";
+
+  const statusLabel = (i: (typeof itens)[number]) =>
+    i.pago ? "Pago" : i.valor_pago > 0 ? "Parcial" : "Aberto";
 
   const linhasExportacao = itens.map((i) => ({
     data: fmtDate(i.data),
     vencimento: i.data_vencimento ? fmtDate(i.data_vencimento) : "—",
     descricao: i.descricao,
     tipo: i.tipo,
-    valor: Number(i.valor),
-    status: i.pago ? "Pago" : "Aberto",
+    valor: Number(i.valor) - Number(i.valor_pago),
+    status: statusLabel(i),
     pago_em: i.data_pagamento ? fmtDate(i.data_pagamento) : "—",
     forma_pagamento: i.forma_pagamento ?? "—",
   }));
@@ -168,13 +173,18 @@ function ExtratoIrmao() {
                       <TableCell>{i.data_vencimento ? fmtDate(i.data_vencimento) : "—"}</TableCell>
                       <TableCell>{i.descricao}</TableCell>
                       <TableCell className="text-muted-foreground">{i.tipo}</TableCell>
-                      <TableCell className="text-right font-medium">{brl(i.valor)}</TableCell>
-                      <TableCell>
-                        {i.pago ? (
-                          <Badge variant="secondary">Pago</Badge>
-                        ) : (
-                          <Badge variant="outline">Aberto</Badge>
+                      <TableCell className="text-right font-medium">
+                        {brl(i.valor - i.valor_pago)}
+                        {!i.pago && i.valor_pago > 0 && (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            de {brl(i.valor)}
+                          </div>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusLabel(i) === "Aberto" ? "outline" : "secondary"}>
+                          {statusLabel(i)}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {i.data_pagamento ? fmtDate(i.data_pagamento) : "—"}

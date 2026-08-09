@@ -75,8 +75,8 @@ export const listarFaturasAbertasPorIrmao = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<FaturaAbertaIrmao[]> => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, descricao, valor, data_vencimento FROM lancamentos
-         WHERE irmao_id = ? AND tipo = 'entrada' AND pago = FALSE ORDER BY data_vencimento`,
+        `SELECT id, descricao, (valor - valor_pago) AS valor, data_vencimento FROM lancamentos
+         WHERE irmao_id = ? AND tipo = 'entrada' AND pago = FALSE AND valor_pago = 0 ORDER BY data_vencimento`,
         [data.irmaoId],
       );
       return rows as FaturaAbertaIrmao[];

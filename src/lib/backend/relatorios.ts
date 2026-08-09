@@ -77,7 +77,7 @@ export const relatorioInadimplentes = createServerFn({ method: "GET" })
         valores.push(usuarioId);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.irmao_id, l.valor, l.data_vencimento, l.competencia_mes, l.descricao,
+        `SELECT l.id, l.irmao_id, (l.valor - l.valor_pago) AS valor, l.data_vencimento, l.competencia_mes, l.descricao,
                 i.nome_civil, i.nome_simbolico
          FROM lancamentos l
          JOIN irmaos i ON i.id = l.irmao_id
@@ -116,50 +116,100 @@ const filtroRecebimentosSchema = z.object({
   formaPagamento: z.string().nullable(),
 });
 
+// Desde o pagamento parcial (issue #131), uma fatura pode ser recebida em
+// mais de um evento (baixa manual e/ou conciliação), cada um com sua
+// própria data e valor — l.valor/l.data_pagamento representam só o
+// fechamento final, não cada recebimento. Pra "quanto entrou em cada
+// mês" bater com a realidade, a fonte de verdade é o evento de
+// recebimento (recibo_itens pra baixa manual, conciliacao_lancamentos
+// pra conciliação), não mais a fatura. Um terceiro braço cobre o que
+// ainda ficar pago=TRUE sem nenhum dos dois (ex.: o caminho legado de
+// conciliação 1:1 de antes da issue #110, que nunca gerou recibo nem
+// evento de conciliação em lote) — usa o valor/data cheios da fatura
+// como sempre foi.
 export const relatorioRecebimentos = createServerFn({ method: "GET" })
   .validator((d: unknown) => filtroRecebimentosSchema.parse(d))
   .handler(async ({ data }): Promise<ItemRecebimento[]> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
-      const condicoes = ["l.tipo = 'entrada'", "l.pago = TRUE"];
-      const valores: unknown[] = [];
+      const condicoes = ["l.tipo = 'entrada'"];
+      const valoresBase: unknown[] = [];
       if (data.competenciaMes) {
         condicoes.push("l.competencia_mes = ?");
-        valores.push(data.competenciaMes);
-      }
-      if (data.de) {
-        condicoes.push("l.data_pagamento >= ?");
-        valores.push(data.de);
-      }
-      if (data.ate) {
-        condicoes.push("l.data_pagamento <= ?");
-        valores.push(data.ate);
+        valoresBase.push(data.competenciaMes);
       }
       if (data.contaId) {
         condicoes.push("l.conta_id = ?");
-        valores.push(data.contaId);
+        valoresBase.push(data.contaId);
       }
       if (data.categoria) {
         condicoes.push("l.categoria_recebimento = ?");
-        valores.push(data.categoria);
+        valoresBase.push(data.categoria);
       }
       if (data.irmaoId) {
         condicoes.push("l.irmao_id = ?");
-        valores.push(data.irmaoId);
+        valoresBase.push(data.irmaoId);
       }
       if (data.formaPagamento) {
         condicoes.push("l.forma_pagamento LIKE ?");
-        valores.push(`%${data.formaPagamento}%`);
+        valoresBase.push(`%${data.formaPagamento}%`);
       }
+      const whereLancamento = condicoes.join(" AND ");
+
+      const condicoesFora = [
+        ...condicoes,
+        "l.pago = TRUE",
+        "NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)",
+        "NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)",
+      ].join(" AND ");
+
+      const condicoesData: string[] = [];
+      const valoresData: unknown[] = [];
+      if (data.de) {
+        condicoesData.push("data_pagamento >= ?");
+        valoresData.push(data.de);
+      }
+      if (data.ate) {
+        condicoesData.push("data_pagamento <= ?");
+        valoresData.push(data.ate);
+      }
+      const havingData = condicoesData.length > 0 ? `WHERE ${condicoesData.join(" AND ")}` : "";
+
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data, l.data_pagamento, l.descricao, l.valor, l.forma_pagamento,
-                l.categoria_recebimento, cf.nome AS conta_nome, i.nome_civil AS irmao_nome
-         FROM lancamentos l
-         LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
-         LEFT JOIN irmaos i ON i.id = l.irmao_id
-         WHERE ${condicoes.join(" AND ")}
-         ORDER BY l.data_pagamento DESC
+        `SELECT * FROM (
+           SELECT ri.recibo_id AS id, l.data, r.data AS data_pagamento, l.descricao,
+                  (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor,
+                  r.forma_pagamento, l.categoria_recebimento,
+                  cf.nome AS conta_nome, i.nome_civil AS irmao_nome
+           FROM recibo_itens ri
+           JOIN recibos r ON r.id = ri.recibo_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id
+           LEFT JOIN contas_financeiras cf ON cf.id = r.conta_financeira_id
+           LEFT JOIN irmaos i ON i.id = l.irmao_id
+           WHERE ${whereLancamento}
+           UNION ALL
+           SELECT cl.id, l.data, c.data_conciliacao AS data_pagamento, l.descricao,
+                  cl.valor_aplicado AS valor,
+                  l.forma_pagamento, l.categoria_recebimento,
+                  cf.nome AS conta_nome, i.nome_civil AS irmao_nome
+           FROM conciliacao_lancamentos cl
+           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
+           JOIN lancamentos l ON l.id = cl.lancamento_id
+           LEFT JOIN contas_financeiras cf ON cf.id = c.conta_financeira_id
+           LEFT JOIN irmaos i ON i.id = l.irmao_id
+           WHERE ${whereLancamento}
+           UNION ALL
+           SELECT l.id, l.data, l.data_pagamento, l.descricao, l.valor,
+                  l.forma_pagamento, l.categoria_recebimento,
+                  cf.nome AS conta_nome, i.nome_civil AS irmao_nome
+           FROM lancamentos l
+           LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
+           LEFT JOIN irmaos i ON i.id = l.irmao_id
+           WHERE ${condicoesFora}
+         ) rec
+         ${havingData}
+         ORDER BY data_pagamento DESC
          LIMIT 2000`,
-        valores,
+        [...valoresBase, ...valoresBase, ...valoresBase, ...valoresData],
       );
       return rows as ItemRecebimento[];
     });
@@ -273,6 +323,7 @@ export type ItemExtratoIrmao = {
   data_pagamento: string | null;
   descricao: string;
   valor: number;
+  valor_pago: number;
   tipo: string;
   pago: boolean;
   forma_pagamento: string | null;
@@ -299,7 +350,7 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
         valores.push(data.ate);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor,
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago,
                 l.tipo, l.pago, l.forma_pagamento
          FROM lancamentos l
          WHERE ${condicoes.join(" AND ")}
@@ -336,7 +387,7 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
       const hoje = new Date().toISOString().slice(0, 10);
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.irmao_id, l.valor, l.data_vencimento, l.descricao,
+        `SELECT l.id, l.irmao_id, (l.valor - l.valor_pago) AS valor, l.data_vencimento, l.descricao,
                 i.nome_civil, i.nome_simbolico
          FROM lancamentos l
          JOIN irmaos i ON i.id = l.irmao_id

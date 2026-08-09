@@ -6,9 +6,12 @@ import {
   listarFaturasAbertas,
   calcularMultaJuros,
   baixarFaturas,
+  baixarPagamentoParcial,
   listarPreviewLoteMensalidades,
   criarFaturaAvulsa,
 } from "@/lib/backend/tesouraria-faturas";
+import { AlocacaoParcialTable } from "@/components/app/AlocacaoParcial";
+import { sugerirAlocacao, somaAlocacao } from "@/lib/alocacao-parcial";
 import {
   gerarMensalidades,
   estornarLancamento,
@@ -264,7 +267,14 @@ function Faturas() {
                         {fmtDate(f.competencia_mes)}
                       </TableCell>
                       <TableCell>{fmtDate(f.data_vencimento)}</TableCell>
-                      <TableCell className="text-right font-medium">{brl(f.valor)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {brl(f.valor - f.valor_pago)}
+                        {f.valor_pago > 0 && (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            de {brl(f.valor)} — parcial
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {fone && (
@@ -283,7 +293,12 @@ function Faturas() {
                               <Printer className="h-4 w-4" />
                             </Button>
                           </Link>
-                          {podeEditar && (
+                          {podeEditar && f.valor_pago > 0 && (
+                            <Badge variant="secondary" className="self-center">
+                              Parcial
+                            </Badge>
+                          )}
+                          {podeEditar && f.valor_pago === 0 && (
                             <>
                               <EditarFaturaDialog fatura={f} onDone={invalidate} />
                               <AlertDialog>
@@ -356,6 +371,7 @@ function BaixaDialog({
   receitas: { id: string; codigo: string; nome: string }[];
   onDone: () => void;
 }) {
+  const [modo, setModo] = useState<"integral" | "parcial">("integral");
   const [contaFinanceiraId, setContaFinanceiraId] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("");
   const [dataPagamento, setDataPagamento] = useState(toISODate(new Date()));
@@ -373,6 +389,53 @@ function BaixaDialog({
     queryKey: ["contas_financeiras_ativas"],
     queryFn: () => listarContasFinanceiras(),
   });
+
+  const faturasParaAlocar = faturas.map((f) => ({
+    id: f.id,
+    descricao: f.descricao,
+    saldo: Number(f.valor) - Number(f.valor_pago ?? 0),
+    dataVencimento: f.data_vencimento,
+  }));
+  const somaSaldos = faturasParaAlocar.reduce((s, f) => s + f.saldo, 0);
+  const [valorRecebidoParcial, setValorRecebidoParcial] = useState(somaSaldos);
+  const [alocacao, setAlocacao] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (modo !== "parcial") return;
+    setAlocacao(sugerirAlocacao(faturasParaAlocar, valorRecebidoParcial));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modo, valorRecebidoParcial]);
+
+  const totalAlocado = somaAlocacao(alocacao);
+
+  const confirmarParcial = async () => {
+    if (!contaFinanceiraId) return toast.error("Selecione a conta que recebeu o pagamento.");
+    const itens = Object.entries(alocacao)
+      .filter(([, v]) => v > 0)
+      .map(([lancamentoId, valor]) => ({ lancamentoId, valor }));
+    if (itens.length === 0) return toast.error("Informe o valor a aplicar em ao menos uma fatura.");
+    if (Math.abs(totalAlocado - valorRecebidoParcial) > 0.01) {
+      return toast.error("A soma aplicada nas faturas precisa bater com o valor recebido.");
+    }
+    setSalvando(true);
+    try {
+      await baixarPagamentoParcial({
+        data: {
+          alocacao: itens,
+          contaFinanceiraId,
+          formaPagamento: formaPagamento || null,
+          dataPagamento,
+          observacoes: observacoes || null,
+        },
+      });
+      toast.success("Pagamento parcial registrado, recibo emitido e lançamento contábil postado.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao registrar pagamento.");
+    } finally {
+      setSalvando(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -437,34 +500,89 @@ function BaixaDialog({
   };
 
   return (
-    <DialogContent className="max-w-lg">
+    <DialogContent className={modo === "parcial" ? "max-w-2xl" : "max-w-lg"}>
       <DialogHeader>
         <DialogTitle>Baixar {faturas.length} fatura(s)</DialogTitle>
       </DialogHeader>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={modo === "integral" ? "default" : "outline"}
+          onClick={() => setModo("integral")}
+        >
+          Baixa integral
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={modo === "parcial" ? "default" : "outline"}
+          onClick={() => setModo("parcial")}
+        >
+          Pagamento parcial
+        </Button>
+      </div>
       <div className="grid gap-3">
-        <div className="border rounded-md divide-y">
-          {faturas.map((f) => {
-            const c = calculos[f.id];
-            return (
-              <div key={f.id} className="p-2 text-sm flex justify-between">
-                <span>
-                  {f.descricao}{" "}
-                  {c?.dias_atraso > 0 && (
-                    <span className="text-destructive">({c.dias_atraso}d atraso)</span>
-                  )}
-                </span>
-                <span>
-                  {brl(f.valor)}
-                  {c && (c.multa > 0 || c.juros > 0) ? ` + ${brl(c.multa + c.juros)}` : ""}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>Multa: {brl(somaMulta)}</div>
-          <div>Juros: {brl(somaJuros)}</div>
-        </div>
+        {modo === "integral" ? (
+          <>
+            <div className="border rounded-md divide-y">
+              {faturas.map((f) => {
+                const c = calculos[f.id];
+                return (
+                  <div key={f.id} className="p-2 text-sm flex justify-between">
+                    <span>
+                      {f.descricao}{" "}
+                      {c?.dias_atraso > 0 && (
+                        <span className="text-destructive">({c.dias_atraso}d atraso)</span>
+                      )}
+                    </span>
+                    <span>
+                      {brl(f.valor)}
+                      {c && (c.multa > 0 || c.juros > 0) ? ` + ${brl(c.multa + c.juros)}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>Multa: {brl(somaMulta)}</div>
+              <div>Juros: {brl(somaJuros)}</div>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Sem cálculo automático de multa/juros — só o principal da fatura. A sugestão abaixo
+              quita as mais antigas primeiro; ajuste os valores por fatura se precisar.
+            </p>
+            <div>
+              <Label>Valor recebido</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max={somaSaldos}
+                value={valorRecebidoParcial}
+                onChange={(e) =>
+                  setValorRecebidoParcial(Math.min(Number(e.target.value) || 0, somaSaldos))
+                }
+              />
+            </div>
+            <AlocacaoParcialTable
+              faturas={faturasParaAlocar}
+              alocacao={alocacao}
+              onChange={(id, valor) => setAlocacao((a) => ({ ...a, [id]: valor }))}
+            />
+            <div
+              className={`text-sm flex justify-between ${Math.abs(totalAlocado - valorRecebidoParcial) > 0.01 ? "text-destructive" : "text-muted-foreground"}`}
+            >
+              <span>Alocado</span>
+              <span>
+                {brl(totalAlocado)} de {brl(valorRecebidoParcial)}
+              </span>
+            </div>
+          </>
+        )}
         <div>
           <Label>Conta que recebeu</Label>
           <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
@@ -499,82 +617,102 @@ function BaixaDialog({
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Desconto (opcional)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={desconto}
-              onChange={(e) => setDesconto(Number(e.target.value))}
-            />
-          </div>
-          <div>
-            <Label>Juros adicional (opcional)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={jurosAdicional}
-              onChange={(e) => setJurosAdicional(Number(e.target.value))}
-              placeholder="Além do calculado automaticamente"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Outra receita recebida junto (opcional)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={valorExtra}
-              onChange={(e) => setValorExtra(Number(e.target.value))}
-              placeholder="Ex.: doação"
-            />
-          </div>
-          <div>
-            <Label>Conta de receita do valor extra</Label>
-            <Select
-              value={planoContaExtraId}
-              onValueChange={setPlanoContaExtraId}
-              disabled={!(Number(valorExtra) > 0)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione…" />
-              </SelectTrigger>
-              <SelectContent>
-                {receitas.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.codigo} — {c.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        {modo === "integral" && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Desconto (opcional)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={desconto}
+                  onChange={(e) => setDesconto(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label>Juros adicional (opcional)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={jurosAdicional}
+                  onChange={(e) => setJurosAdicional(Number(e.target.value))}
+                  placeholder="Além do calculado automaticamente"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Outra receita recebida junto (opcional)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={valorExtra}
+                  onChange={(e) => setValorExtra(Number(e.target.value))}
+                  placeholder="Ex.: doação"
+                />
+              </div>
+              <div>
+                <Label>Conta de receita do valor extra</Label>
+                <Select
+                  value={planoContaExtraId}
+                  onValueChange={setPlanoContaExtraId}
+                  disabled={!(Number(valorExtra) > 0)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {receitas.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.codigo} — {c.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </>
+        )}
         <div>
           <Label>Observações</Label>
           <Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
         </div>
-        <div className="text-lg font-semibold flex justify-between border-t pt-3">
-          <span>Total líquido</span>
-          <span>{brl(totalLiquido)}</span>
-        </div>
+        {modo === "integral" && (
+          <div className="text-lg font-semibold flex justify-between border-t pt-3">
+            <span>Total líquido</span>
+            <span>{brl(totalLiquido)}</span>
+          </div>
+        )}
       </div>
       <DialogFooter>
-        <Button
-          onClick={confirmar}
-          disabled={
-            salvando ||
-            !contaFinanceiraId ||
-            totalLiquido < 0 ||
-            (Number(valorExtra) > 0 && !planoContaExtraId)
-          }
-        >
-          Confirmar baixa
-        </Button>
+        {modo === "integral" ? (
+          <Button
+            onClick={confirmar}
+            disabled={
+              salvando ||
+              !contaFinanceiraId ||
+              totalLiquido < 0 ||
+              (Number(valorExtra) > 0 && !planoContaExtraId)
+            }
+          >
+            Confirmar baixa
+          </Button>
+        ) : (
+          <Button
+            onClick={confirmarParcial}
+            disabled={
+              salvando ||
+              !contaFinanceiraId ||
+              totalAlocado <= 0 ||
+              Math.abs(totalAlocado - valorRecebidoParcial) > 0.01
+            }
+          >
+            Confirmar pagamento parcial
+          </Button>
+        )}
       </DialogFooter>
     </DialogContent>
   );

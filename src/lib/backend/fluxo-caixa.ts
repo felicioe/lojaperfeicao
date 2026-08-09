@@ -105,7 +105,7 @@ export const listarMovimentosPendentes = createServerFn({ method: "GET" })
         valores.push(usuarioId);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT descricao, valor, tipo, data_vencimento FROM lancamentos WHERE ${condicoes.join(" AND ")} ORDER BY data_vencimento`,
+        `SELECT descricao, (valor - valor_pago) AS valor, tipo, data_vencimento FROM lancamentos WHERE ${condicoes.join(" AND ")} ORDER BY data_vencimento`,
         valores,
       );
       return rows as MovimentoPendente[];
