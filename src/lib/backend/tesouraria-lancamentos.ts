@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
-import { comSessao, comPapel } from "./authz";
+import { comSessao, comPapel, SemPermissaoError } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
 // RLS original: SELECT admin/tesoureiro/secretario (tudo) OU o próprio
@@ -142,15 +142,17 @@ export type LancamentoDetalhe = {
 // Detalhe de um lançamento pra tela de impressão/edição — inclui dados do
 // irmão e do corpo maçônico PRINCIPAL dele (logo pra imprimir) quando
 // houver, além da chave PIX escolhida na fatura (se houver) pra gerar o
-// QR code na impressão.
+// QR code na impressão. Acesso "privilegiado ou próprio" (mesmo padrão de
+// podeVerIrmao em irmaos.ts) — o próprio irmão pode abrir/imprimir a
+// fatura dele no Meu Painel, não só admin/tesoureiro/secretario.
 export const obterLancamento = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<LancamentoDetalhe | null> => {
-    return comPapel(PAPEIS_LEITURA, async (conn) => {
+    return comSessao(async (conn, usuarioId) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.pago,
                 l.competencia_mes, l.is_mensalidade, l.forma_cobranca,
-                i.nome_civil AS irmao_nome, i.cim AS irmao_cim,
+                i.nome_civil AS irmao_nome, i.cim AS irmao_cim, i.usuario_id AS irmao_usuario_id,
                 o.nome AS org_nome, o.logo_url AS org_logo_url,
                 pix.chave AS pix_chave, pix.nome_beneficiario AS pix_nome_beneficiario,
                 pix.cidade AS pix_cidade
@@ -162,7 +164,11 @@ export const obterLancamento = createServerFn({ method: "GET" })
          WHERE l.id = ?`,
         [data.id],
       );
-      return (row as LancamentoDetalhe) ?? null;
+      if (!row) return null;
+      if (!(await ehPrivilegiadoLancamentos(conn)) && row.irmao_usuario_id !== usuarioId) {
+        throw new SemPermissaoError();
+      }
+      return row as LancamentoDetalhe;
     });
   });
 

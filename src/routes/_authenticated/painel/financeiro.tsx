@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMeuIrmao } from "@/lib/use-meu-irmao";
 import { useIsDesktop } from "@/lib/use-media-query";
@@ -6,8 +6,9 @@ import { listarLancamentosIrmao } from "@/lib/backend/irmaos";
 import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { brl, fmtDate } from "@/lib/format";
-import { Wallet } from "lucide-react";
+import { Download, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/financeiro")({
   component: PainelFinanceiro,
@@ -39,9 +40,41 @@ function PainelFinanceiro() {
   const emAberto = itens.filter((l) => !l.pago);
   const totalEmAberto = emAberto.reduce((a, l) => a + Number(l.valor), 0);
 
+  const exportarCSV = () => {
+    const cabecalho = ["Data", "Descrição", "Tipo", "Valor", "Status"];
+    const linhas = itens.map((l) => [
+      fmtDate(l.data),
+      l.descricao,
+      l.tipo,
+      String(l.valor),
+      l.pago ? "Pago" : "Em aberto",
+    ]);
+    const csv = [cabecalho, ...linhas]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
+      .join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "meu-financeiro.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
-      {isDesktop && <PageHeader title="Financeiro" />}
+      {isDesktop && (
+        <PageHeader
+          title="Financeiro"
+          actions={
+            itens.length > 0 && (
+              <Button variant="outline" onClick={exportarCSV}>
+                <Download className="mr-1.5 h-4 w-4" /> Exportar CSV
+              </Button>
+            )
+          }
+        />
+      )}
       <Card>
         <CardContent className="flex items-center justify-between pt-6">
           <div>
@@ -55,6 +88,12 @@ function PainelFinanceiro() {
         </CardContent>
       </Card>
 
+      {!isDesktop && itens.length > 0 && (
+        <Button variant="outline" className="w-full" onClick={exportarCSV}>
+          <Download className="mr-1.5 h-4 w-4" /> Exportar CSV
+        </Button>
+      )}
+
       {itens.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
@@ -64,20 +103,22 @@ function PainelFinanceiro() {
       ) : (
         <div className="space-y-2">
           {itens.map((l) => (
-            <Card key={l.id}>
-              <CardContent className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{l.descricao}</p>
-                  <p className="text-xs text-muted-foreground">{fmtDate(l.data)}</p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-sm font-semibold">{brl(l.valor)}</span>
-                  <Badge variant={l.pago ? "secondary" : "destructive"}>
-                    {l.pago ? "Pago" : "Em aberto"}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+            <Link key={l.id} to="/painel/faturas/$id" params={{ id: l.id }} className="block">
+              <Card className="transition-colors hover:bg-muted/50">
+                <CardContent className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{l.descricao}</p>
+                    <p className="text-xs text-muted-foreground">{fmtDate(l.data)}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="text-sm font-semibold">{brl(l.valor)}</span>
+                    <Badge variant={l.pago ? "secondary" : "destructive"}>
+                      {l.pago ? "Pago" : "Em aberto"}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

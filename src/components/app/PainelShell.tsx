@@ -64,7 +64,9 @@ export function PainelShell({ children }: { children: ReactNode }) {
     queryFn: () => contarComunicadosNaoLidos(),
   });
 
-  const titulo = TITULOS[loc.pathname] ?? "Meu Painel";
+  const titulo =
+    TITULOS[loc.pathname] ??
+    (loc.pathname.startsWith("/painel/faturas/") ? "Fatura" : "Meu Painel");
 
   const sair = async () => {
     await logout();
