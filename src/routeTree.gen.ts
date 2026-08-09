@@ -83,6 +83,7 @@ import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes
 import { Route as AuthenticatedTesourariaTabelaValoresRouteImport } from './routes/_authenticated/tesouraria/tabela-valores'
 import { Route as AuthenticatedTesourariaTroncoRouteImport } from './routes/_authenticated/tesouraria/tronco'
 import { Route as AuthenticatedUsuariosIndexRouteImport } from './routes/_authenticated/usuarios/index'
+import { Route as AuthenticatedPainelFaturasIdRouteImport } from './routes/_authenticated/painel/faturas/$id'
 import { Route as AuthenticatedTesourariaFaturasIndexRouteImport } from './routes/_authenticated/tesouraria/faturas/index'
 import { Route as AuthenticatedTesourariaFaturasIdRouteImport } from './routes/_authenticated/tesouraria/faturas/$id'
 
@@ -516,6 +517,12 @@ const AuthenticatedUsuariosIndexRoute =
     path: '/usuarios/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPainelFaturasIdRoute =
+  AuthenticatedPainelFaturasIdRouteImport.update({
+    id: '/faturas/$id',
+    path: '/faturas/$id',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
 const AuthenticatedTesourariaFaturasIndexRoute =
   AuthenticatedTesourariaFaturasIndexRouteImport.update({
     id: '/tesouraria/faturas/',
@@ -603,6 +610,7 @@ export interface FileRoutesByFullPath {
   '/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
   '/usuarios/': typeof AuthenticatedUsuariosIndexRoute
+  '/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
   '/tesouraria/faturas/': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
@@ -679,6 +687,7 @@ export interface FileRoutesByTo {
   '/terceiros': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria': typeof AuthenticatedTesourariaIndexRoute
   '/usuarios': typeof AuthenticatedUsuariosIndexRoute
+  '/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
   '/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
@@ -758,6 +767,7 @@ export interface FileRoutesById {
   '/_authenticated/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/_authenticated/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
   '/_authenticated/usuarios/': typeof AuthenticatedUsuariosIndexRoute
+  '/_authenticated/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/_authenticated/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
   '/_authenticated/tesouraria/faturas/': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
@@ -837,6 +847,7 @@ export interface FileRouteTypes {
     | '/terceiros/'
     | '/tesouraria/'
     | '/usuarios/'
+    | '/painel/faturas/$id'
     | '/tesouraria/faturas/$id'
     | '/tesouraria/faturas/'
   fileRoutesByTo: FileRoutesByTo
@@ -913,6 +924,7 @@ export interface FileRouteTypes {
     | '/terceiros'
     | '/tesouraria'
     | '/usuarios'
+    | '/painel/faturas/$id'
     | '/tesouraria/faturas/$id'
     | '/tesouraria/faturas'
   id:
@@ -991,6 +1003,7 @@ export interface FileRouteTypes {
     | '/_authenticated/terceiros/'
     | '/_authenticated/tesouraria/'
     | '/_authenticated/usuarios/'
+    | '/_authenticated/painel/faturas/$id'
     | '/_authenticated/tesouraria/faturas/$id'
     | '/_authenticated/tesouraria/faturas/'
   fileRoutesById: FileRoutesById
@@ -1526,6 +1539,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsuariosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/painel/faturas/$id': {
+      id: '/_authenticated/painel/faturas/$id'
+      path: '/faturas/$id'
+      fullPath: '/painel/faturas/$id'
+      preLoaderRoute: typeof AuthenticatedPainelFaturasIdRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
     '/_authenticated/tesouraria/faturas/': {
       id: '/_authenticated/tesouraria/faturas/'
       path: '/tesouraria/faturas'
@@ -1552,6 +1572,7 @@ interface AuthenticatedPainelRouteRouteChildren {
   AuthenticatedPainelQuitacaoRoute: typeof AuthenticatedPainelQuitacaoRoute
   AuthenticatedPainelSessoesRoute: typeof AuthenticatedPainelSessoesRoute
   AuthenticatedPainelIndexRoute: typeof AuthenticatedPainelIndexRoute
+  AuthenticatedPainelFaturasIdRoute: typeof AuthenticatedPainelFaturasIdRoute
 }
 
 const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildren =
@@ -1564,6 +1585,7 @@ const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildr
     AuthenticatedPainelQuitacaoRoute: AuthenticatedPainelQuitacaoRoute,
     AuthenticatedPainelSessoesRoute: AuthenticatedPainelSessoesRoute,
     AuthenticatedPainelIndexRoute: AuthenticatedPainelIndexRoute,
+    AuthenticatedPainelFaturasIdRoute: AuthenticatedPainelFaturasIdRoute,
   }
 
 const AuthenticatedPainelRouteRouteWithChildren =

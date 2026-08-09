@@ -1,19 +1,21 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { obterLancamento } from "@/lib/backend/tesouraria-lancamentos";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
 import { FaturaCard } from "@/components/app/FaturaCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileWarning, Printer } from "lucide-react";
+import { useIsDesktop } from "@/lib/use-media-query";
+import { ArrowLeft, FileWarning, Printer } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/tesouraria/faturas/$id")({
+export const Route = createFileRoute("/_authenticated/painel/faturas/$id")({
   head: () => ({ meta: [{ title: "Fatura — Gestão Maçônica" }] }),
-  component: FaturaDetalhe,
+  component: PainelFaturaDetalhe,
 });
 
-function FaturaDetalhe() {
-  const { id } = useParams({ from: "/_authenticated/tesouraria/faturas/$id" });
+function PainelFaturaDetalhe() {
+  const isDesktop = useIsDesktop();
+  const { id } = useParams({ from: "/_authenticated/painel/faturas/$id" });
   const { data: fatura, isLoading } = useQuery({
     queryKey: ["fatura", id],
     queryFn: () => obterLancamento({ data: { id } }),
@@ -33,8 +35,13 @@ function FaturaDetalhe() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Fatura" />
-      <div className="print:hidden">
+      {isDesktop && <PageHeader title="Fatura" />}
+      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/painel/financeiro">
+            <ArrowLeft className="mr-1.5 h-4 w-4" /> Voltar
+          </Link>
+        </Button>
         <Button onClick={() => window.print()}>
           <Printer className="mr-1.5 h-4 w-4" /> Imprimir / salvar PDF
         </Button>
