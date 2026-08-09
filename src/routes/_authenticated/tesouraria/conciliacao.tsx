@@ -223,6 +223,17 @@ function Conciliacao() {
   }));
   const totalAlocadoParcial = somaAlocacao(alocacaoParcial);
 
+  // Quando o depósito é MAIOR que a soma das faturas marcadas ("OFX
+  // maior"), não tem valor sobrando pra alocar — mas o usuário pode
+  // querer puxar mais uma fatura em aberto do mesmo filtro pra dentro da
+  // seleção, virando o caso oposto (que já é suportado): o depósito passa
+  // a cobrir as faturas já marcadas por inteiro e o restante entra como
+  // pagamento parcial na fatura adicionada, com o saldo dela ficando em
+  // aberto.
+  const proximaFaturaParaCobrirExcedente = sistemaOrdenado.find(
+    (s) => s.tipo === "entrada" && !selSistema.includes(s.id),
+  );
+
   useEffect(() => {
     if (!usarParcial) {
       setAlocacaoParcial({});
@@ -450,10 +461,22 @@ function Conciliacao() {
                   Confira a alocação do pagamento parcial acima.
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-destructive">
-                  <AlertTriangle className="h-4 w-4" /> Diferença: {brl(Math.abs(diferenca))}{" "}
-                  {diferenca > 0 ? "(OFX maior)" : "(Sistema maior)"} — os totais precisam bater
-                  para vincular.
+                <span className="flex flex-wrap items-center gap-2 text-destructive">
+                  <span className="flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4" /> Diferença: {brl(Math.abs(diferenca))}{" "}
+                    {diferenca > 0 ? "(OFX maior)" : "(Sistema maior)"} — os totais precisam bater
+                    para vincular.
+                  </span>
+                  {diferenca > 0 && proximaFaturaParaCobrirExcedente && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => toggleSistema(proximaFaturaParaCobrirExcedente.id)}
+                    >
+                      + {proximaFaturaParaCobrirExcedente.descricao} (aplica só o excedente, resto
+                      fica em aberto)
+                    </Button>
+                  )}
                 </span>
               )
             ) : selOfx.length > 0 ? (
