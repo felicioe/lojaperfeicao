@@ -14,6 +14,7 @@ export type ContaPagar = {
   data_pagamento: string | null;
   descricao: string;
   valor: number;
+  valor_pago: number;
   pago: boolean;
   forma_pagamento: string | null;
   plano_contas: { codigo: string; nome: string } | null;
@@ -28,7 +29,7 @@ async function buscarContasPagar(
 ): Promise<ContaPagar[]> {
   const ordenacao = pago ? "l.data_pagamento DESC" : "l.data_vencimento";
   const [rows] = await conn.query<RowDataPacket[]>(
-    `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.pago, l.forma_pagamento,
+    `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago, l.forma_pagamento,
             pc.codigo AS plano_codigo, pc.nome AS plano_nome, t.nome AS terceiro_nome, cf.nome AS conta_nome
      FROM lancamentos l
      LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
@@ -46,6 +47,7 @@ async function buscarContasPagar(
     data_pagamento: r.data_pagamento,
     descricao: r.descricao,
     valor: r.valor,
+    valor_pago: r.valor_pago,
     pago: r.pago,
     forma_pagamento: r.forma_pagamento,
     plano_contas: r.plano_codigo ? { codigo: r.plano_codigo, nome: r.plano_nome } : null,

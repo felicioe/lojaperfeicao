@@ -79,7 +79,7 @@ function ContasPagar() {
   };
 
   const hoje = toISODate(new Date());
-  const totalAberto = abertas.reduce((s, l) => s + Number(l.valor), 0);
+  const totalAberto = abertas.reduce((s, l) => s + Number(l.valor) - Number(l.valor_pago), 0);
 
   return (
     <>
@@ -150,7 +150,14 @@ function ContasPagar() {
                       <TableCell className="text-muted-foreground">
                         {l.terceiros?.nome ?? "—"}
                       </TableCell>
-                      <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {brl(Number(l.valor) - Number(l.valor_pago))}
+                        {l.valor_pago > 0 && (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            de {brl(l.valor)} — parcial
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {vencida ? (
                           <Badge variant="destructive">Vencida</Badge>

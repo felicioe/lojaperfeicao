@@ -29,20 +29,44 @@ export const obterSaldoBaseContas = createServerFn({ method: "GET" }).handler(
   },
 );
 
+// Mesmo problema de atribuição por evento resolvido em
+// listarMovimentosRealizados abaixo — o saldo acumulado antes do período
+// também precisa somar pelo evento real, senão uma fatura com pagamento
+// parcial antes do corte e fechamento depois "some" dos dois lados (não
+// entra no saldo anterior nem no período corrente).
 export const obterFluxoAnteriores = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ de: z.string() }).parse(d))
   .handler(async ({ data }): Promise<number> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      const condicoes = ["pago = TRUE", "tipo IN ('entrada','saida')", "data_pagamento < ?"];
-      const valores: unknown[] = [data.de];
-      if (!privilegiado) {
-        condicoes.push("irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
-        valores.push(usuarioId);
-      }
+      const condicaoIrmao = privilegiado
+        ? ""
+        : "AND l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)";
+      const valoresIrmao = privilegiado ? [] : [usuarioId];
+
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT valor, tipo FROM lancamentos WHERE ${condicoes.join(" AND ")}`,
-        valores,
+        `SELECT valor, tipo FROM (
+           SELECT (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor, l.tipo, r.data AS data_pagamento
+           FROM recibo_itens ri
+           JOIN recibos r ON r.id = ri.recibo_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id
+           WHERE l.tipo IN ('entrada','saida') ${condicaoIrmao}
+           UNION ALL
+           SELECT cl.valor_aplicado AS valor, l.tipo, c.data_conciliacao AS data_pagamento
+           FROM conciliacao_lancamentos cl
+           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
+           JOIN lancamentos l ON l.id = cl.lancamento_id
+           WHERE l.tipo IN ('entrada','saida') ${condicaoIrmao}
+           UNION ALL
+           SELECT l.valor, l.tipo, l.data_pagamento
+           FROM lancamentos l
+           WHERE l.pago = TRUE AND l.tipo IN ('entrada','saida')
+             AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)
+             ${condicaoIrmao}
+         ) mov
+         WHERE data_pagamento < ?`,
+        [...valoresIrmao, ...valoresIrmao, ...valoresIrmao, data.de],
       );
       return rows.reduce(
         (s, l) => s + (l.tipo === "entrada" ? Number(l.valor) : -Number(l.valor)),
@@ -57,25 +81,46 @@ export type MovimentoRealizado = {
   data_pagamento: string;
 };
 
+// Mesmo problema resolvido em relatorioRecebimentos (relatorios.ts, issue
+// #131): uma fatura paga em mais de um evento (parcial num mês, fechada
+// noutro) não pode ser atribuída inteira ao mês do fechamento — precisa
+// somar pelo evento real (recibo_itens/conciliacao_lancamentos), com um
+// fallback pros pagos que não passaram por nenhum dos dois (ex.:
+// recebimento avulso, conciliação legado 1:1).
 export const listarMovimentosRealizados = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ de: z.string(), ate: z.string() }).parse(d))
   .handler(async ({ data }): Promise<MovimentoRealizado[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      const condicoes = [
-        "pago = TRUE",
-        "tipo IN ('entrada','saida')",
-        "data_pagamento >= ?",
-        "data_pagamento <= ?",
-      ];
-      const valores: unknown[] = [data.de, data.ate];
-      if (!privilegiado) {
-        condicoes.push("irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
-        valores.push(usuarioId);
-      }
+      const condicaoIrmao = privilegiado
+        ? ""
+        : "AND l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)";
+      const valoresIrmao = privilegiado ? [] : [usuarioId];
+
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT valor, tipo, data_pagamento FROM lancamentos WHERE ${condicoes.join(" AND ")} ORDER BY data_pagamento`,
-        valores,
+        `SELECT valor, tipo, data_pagamento FROM (
+           SELECT (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor, l.tipo, r.data AS data_pagamento
+           FROM recibo_itens ri
+           JOIN recibos r ON r.id = ri.recibo_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id
+           WHERE l.tipo IN ('entrada','saida') ${condicaoIrmao}
+           UNION ALL
+           SELECT cl.valor_aplicado AS valor, l.tipo, c.data_conciliacao AS data_pagamento
+           FROM conciliacao_lancamentos cl
+           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
+           JOIN lancamentos l ON l.id = cl.lancamento_id
+           WHERE l.tipo IN ('entrada','saida') ${condicaoIrmao}
+           UNION ALL
+           SELECT l.valor, l.tipo, l.data_pagamento
+           FROM lancamentos l
+           WHERE l.pago = TRUE AND l.tipo IN ('entrada','saida')
+             AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)
+             ${condicaoIrmao}
+         ) mov
+         WHERE data_pagamento >= ? AND data_pagamento <= ?
+         ORDER BY data_pagamento`,
+        [...valoresIrmao, ...valoresIrmao, ...valoresIrmao, data.de, data.ate],
       );
       return rows as MovimentoRealizado[];
     });
