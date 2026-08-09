@@ -33,12 +33,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Link2, Loader2, Plus, Upload } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
 import { CATEGORIA_LABEL } from "@/components/app/RecebimentoAvulso";
+import { extrairPossivelNome, normalizarTexto } from "@/lib/conciliacao-match";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/conciliacao")({
   head: () => ({ meta: [{ title: "Conciliação Bancária — Gestão Maçônica" }] }),
@@ -53,6 +54,7 @@ function Conciliacao() {
   const [contaId, setContaId] = useState("");
   const [importando, setImportando] = useState(false);
   const [buscaSistema, setBuscaSistema] = useState("");
+  const [buscaSistemaAuto, setBuscaSistemaAuto] = useState(false);
   const [buscaOfx, setBuscaOfx] = useState("");
   const [selSistema, setSelSistema] = useState<string[]>([]);
   const [selOfx, setSelOfx] = useState<string[]>([]);
@@ -85,8 +87,28 @@ function Conciliacao() {
 
   const toggleSistema = (id: string) =>
     setSelSistema((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  // Sugestão automática por depositante (issue #123): ao marcar a única
+  // linha do OFX selecionada, pré-preenche a busca do "Sistema" com um
+  // nome provável extraído da descrição — só quando a busca está vazia ou
+  // foi ela mesma quem preencheu da última vez (não atropela busca digitada
+  // manualmente). Some flag pra saber quando limpar de volta ao desmarcar.
   const toggleOfx = (id: string) =>
-    setSelOfx((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelOfx((prev) => {
+      const proximo = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      if (proximo.length === 1 && (buscaSistema === "" || buscaSistemaAuto)) {
+        const linha = ofx.find((o) => o.id === proximo[0]);
+        const termo = linha ? extrairPossivelNome(linha.descricao ?? "") : "";
+        if (termo) {
+          setBuscaSistema(termo);
+          setBuscaSistemaAuto(true);
+        }
+      } else if (proximo.length === 0 && buscaSistemaAuto) {
+        setBuscaSistema("");
+        setBuscaSistemaAuto(false);
+      }
+      return proximo;
+    });
 
   const importar = async () => {
     const file = fileRef.current?.files?.[0];
@@ -131,9 +153,25 @@ function Conciliacao() {
     }
   };
 
-  const sistemaFiltrado = sistema.filter(
-    (s) => !buscaSistema || s.descricao.toLowerCase().includes(buscaSistema.toLowerCase()),
-  );
+  // Busca aceita vários termos separados por vírgula (OR) — cobre o caso de
+  // "mais de um depositante" pedido no #123 (ex.: "joao, maria"). Vazio =
+  // sem filtro nenhum, mostra tudo.
+  const termosSistema = buscaSistema
+    .split(",")
+    .map((t) => normalizarTexto(t.trim()))
+    .filter(Boolean);
+  const sistemaFiltrado = sistema.filter((s) => {
+    if (termosSistema.length === 0) return true;
+    const alvo = normalizarTexto(s.descricao);
+    return termosSistema.some((t) => alvo.includes(t));
+  });
+  const hojeIso = new Date().toISOString().slice(0, 10);
+  const sistemaOrdenado = [...sistemaFiltrado].sort((a, b) => {
+    const aVencida = !!a.data_vencimento && a.data_vencimento < hojeIso;
+    const bVencida = !!b.data_vencimento && b.data_vencimento < hojeIso;
+    if (aVencida !== bVencida) return aVencida ? -1 : 1;
+    return (a.data_vencimento ?? a.data).localeCompare(b.data_vencimento ?? b.data);
+  });
   const ofxFiltrado = ofx.filter(
     (o) => !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase()),
   );
@@ -150,6 +188,26 @@ function Conciliacao() {
     .reduce((acc, o) => acc + Number(o.valor), 0);
   const diferenca = Math.round((totalOfx - totalSistema) * 100) / 100;
   const totaisBatem = selSistema.length > 0 && selOfx.length > 0 && diferenca === 0;
+
+  // Se a sugestão automática filtrou pra um único irmão e a soma de todas
+  // as faturas dele bater exatamente com a linha do OFX marcada, pré-marca
+  // sozinho — usuário só confirma (ver comentário em toggleOfx). Não mexe
+  // se o usuário já tiver marcado algo do lado do sistema.
+  useEffect(() => {
+    if (!buscaSistemaAuto || selOfx.length !== 1 || selSistema.length > 0) return;
+    const nomesUnicos = new Set(sistemaOrdenado.map((s) => s.irmao_nome).filter(Boolean));
+    if (nomesUnicos.size !== 1 || sistemaOrdenado.length === 0) return;
+    const ofxLinha = ofx.find((o) => o.id === selOfx[0]);
+    if (!ofxLinha) return;
+    const soma = sistemaOrdenado.reduce(
+      (acc, s) => acc + (s.tipo === "entrada" ? Number(s.valor) : -Number(s.valor)),
+      0,
+    );
+    if (Math.round(soma * 100) === Math.round(Number(ofxLinha.valor) * 100)) {
+      setSelSistema(sistemaOrdenado.map((s) => s.id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buscaSistemaAuto, selOfx]);
 
   return (
     <>
@@ -202,37 +260,53 @@ function Conciliacao() {
             </CardHeader>
             <CardContent className="space-y-2">
               <Input
-                placeholder="Buscar…"
+                placeholder="Buscar por nome do depositante… (separe vários por vírgula, ou deixe vazio)"
                 value={buscaSistema}
-                onChange={(e) => setBuscaSistema(e.target.value)}
+                onChange={(e) => {
+                  setBuscaSistema(e.target.value);
+                  setBuscaSistemaAuto(false);
+                }}
               />
+              {buscaSistemaAuto && (
+                <p className="text-xs text-muted-foreground">
+                  Filtro sugerido a partir da linha do OFX marcada — edite ou limpe se precisar.
+                </p>
+              )}
               <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
-                {sistemaFiltrado.length === 0 && (
+                {sistemaOrdenado.length === 0 && (
                   <div className="p-3 text-sm text-muted-foreground">
                     Nenhum lançamento em aberto.
                   </div>
                 )}
-                {sistemaFiltrado.map((s) => (
-                  <label
-                    key={s.id}
-                    className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selSistema.includes(s.id) ? "bg-muted" : ""}`}
-                  >
-                    <Checkbox
-                      className="mt-0.5"
-                      checked={selSistema.includes(s.id)}
-                      onCheckedChange={() => toggleSistema(s.id)}
-                    />
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <span>{s.descricao}</span>
-                        <span className="font-medium">{brl(s.valor)}</span>
+                {sistemaOrdenado.map((s) => {
+                  const vencida = !!s.data_vencimento && s.data_vencimento < hojeIso;
+                  return (
+                    <label
+                      key={s.id}
+                      className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selSistema.includes(s.id) ? "bg-muted" : ""}`}
+                    >
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={selSistema.includes(s.id)}
+                        onCheckedChange={() => toggleSistema(s.id)}
+                      />
+                      <div className="flex-1">
+                        <div className="flex justify-between">
+                          <span>{s.descricao}</span>
+                          <span className="font-medium">{brl(s.valor)}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                          {fmtDate(s.data)} · {s.tipo}
+                          {vencida && (
+                            <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                              Vencida
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {fmtDate(s.data)} · {s.tipo}
-                      </div>
-                    </div>
-                  </label>
-                ))}
+                    </label>
+                  );
+                })}
               </div>
               {selSistema.length > 0 && (
                 <div className="text-xs text-muted-foreground">
