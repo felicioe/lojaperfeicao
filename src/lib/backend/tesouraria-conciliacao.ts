@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original: SELECT admin/tesoureiro. Sem policy de escrita: a
 // importação roda nesta própria rota server-side; a conciliação roda
@@ -102,6 +103,29 @@ export const conciliarOfxLote = createServerFn({ method: "POST" })
         "SELECT @conciliacao_id AS conciliacao_id",
       );
       return { conciliacaoId: conciliacao_id };
+    });
+  });
+
+// Desfaz um evento de conciliação (issue #124) — volta OFX/lançamentos
+// pra pendente e estorna a contrapartida contábil. A validação real
+// (já desfeita, período fechado, motivo obrigatório) é feita dentro da
+// procedure; aqui só repassa e grava a auditoria.
+export const desfazerConciliacao = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z.object({ conciliacaoId: z.string().uuid(), motivo: z.string().min(1) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn, usuarioId) => {
+      await conn.query("CALL desfazer_conciliacao(?, ?)", [data.conciliacaoId, data.motivo]);
+      await registrarAuditoria(
+        conn,
+        usuarioId,
+        "desfazer_conciliacao",
+        "conciliacao",
+        data.conciliacaoId,
+        null,
+        { motivo: data.motivo },
+      );
     });
   });
 
