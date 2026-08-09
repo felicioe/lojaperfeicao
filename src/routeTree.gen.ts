@@ -22,6 +22,7 @@ import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
+import { Route as AuthenticatedAdministracaoFechamentoPeriodoRouteImport } from './routes/_authenticated/administracao/fechamento-periodo'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
 import { Route as AuthenticatedBibliotecaIndexRouteImport } from './routes/_authenticated/biblioteca/index'
 import { Route as AuthenticatedCalendarioIndexRouteImport } from './routes/_authenticated/calendario/index'
@@ -151,6 +152,12 @@ const AuthenticatedAdministracaoExportarDadosRoute =
   AuthenticatedAdministracaoExportarDadosRouteImport.update({
     id: '/administracao/exportar-dados',
     path: '/administracao/exportar-dados',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdministracaoFechamentoPeriodoRoute =
+  AuthenticatedAdministracaoFechamentoPeriodoRouteImport.update({
+    id: '/administracao/fechamento-periodo',
+    path: '/administracao/fechamento-periodo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdministracaoResetarFinanceiroRoute =
@@ -535,6 +542,7 @@ export interface FileRoutesByFullPath {
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
+  '/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
@@ -610,6 +618,7 @@ export interface FileRoutesByTo {
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
+  '/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
@@ -688,6 +697,7 @@ export interface FileRoutesById {
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/_authenticated/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/_authenticated/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
+  '/_authenticated/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
   '/_authenticated/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/_authenticated/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
@@ -766,6 +776,7 @@ export interface FileRouteTypes {
     | '/administracao/auditoria'
     | '/administracao/backups'
     | '/administracao/exportar-dados'
+    | '/administracao/fechamento-periodo'
     | '/administracao/resetar-financeiro'
     | '/conta/seguranca'
     | '/contabilidade/auditoria'
@@ -841,6 +852,7 @@ export interface FileRouteTypes {
     | '/administracao/auditoria'
     | '/administracao/backups'
     | '/administracao/exportar-dados'
+    | '/administracao/fechamento-periodo'
     | '/administracao/resetar-financeiro'
     | '/conta/seguranca'
     | '/contabilidade/auditoria'
@@ -918,6 +930,7 @@ export interface FileRouteTypes {
     | '/_authenticated/administracao/auditoria'
     | '/_authenticated/administracao/backups'
     | '/_authenticated/administracao/exportar-dados'
+    | '/_authenticated/administracao/fechamento-periodo'
     | '/_authenticated/administracao/resetar-financeiro'
     | '/_authenticated/conta/seguranca'
     | '/_authenticated/contabilidade/auditoria'
@@ -1084,6 +1097,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/exportar-dados'
       fullPath: '/administracao/exportar-dados'
       preLoaderRoute: typeof AuthenticatedAdministracaoExportarDadosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/administracao/fechamento-periodo': {
+      id: '/_authenticated/administracao/fechamento-periodo'
+      path: '/administracao/fechamento-periodo'
+      fullPath: '/administracao/fechamento-periodo'
+      preLoaderRoute: typeof AuthenticatedAdministracaoFechamentoPeriodoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/administracao/resetar-financeiro': {
@@ -1557,6 +1577,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdministracaoAuditoriaRoute: typeof AuthenticatedAdministracaoAuditoriaRoute
   AuthenticatedAdministracaoBackupsRoute: typeof AuthenticatedAdministracaoBackupsRoute
   AuthenticatedAdministracaoExportarDadosRoute: typeof AuthenticatedAdministracaoExportarDadosRoute
+  AuthenticatedAdministracaoFechamentoPeriodoRoute: typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
   AuthenticatedAdministracaoResetarFinanceiroRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   AuthenticatedContaSegurancaRoute: typeof AuthenticatedContaSegurancaRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
@@ -1622,6 +1643,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAdministracaoBackupsRoute,
   AuthenticatedAdministracaoExportarDadosRoute:
     AuthenticatedAdministracaoExportarDadosRoute,
+  AuthenticatedAdministracaoFechamentoPeriodoRoute:
+    AuthenticatedAdministracaoFechamentoPeriodoRoute,
   AuthenticatedAdministracaoResetarFinanceiroRoute:
     AuthenticatedAdministracaoResetarFinanceiroRoute,
   AuthenticatedContaSegurancaRoute: AuthenticatedContaSegurancaRoute,
