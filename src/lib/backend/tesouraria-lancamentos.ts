@@ -24,6 +24,7 @@ export type Lancamento = {
   data_pagamento: string | null;
   descricao: string;
   valor: number;
+  valor_pago: number;
   tipo: "entrada" | "saida" | "transferencia";
   pago: boolean;
   forma_pagamento: string | null;
@@ -82,7 +83,7 @@ export const listarLancamentos = createServerFn({ method: "GET" })
       const limite = data.limite ?? 200;
 
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.tipo, l.pago,
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.tipo, l.pago,
                 l.forma_pagamento, l.categoria_recebimento, l.conta_id, l.conta_destino_id, l.plano_conta_id,
                 l.irmao_id, i.nome_civil AS irmao_nome,
                 cf.nome AS conta_nome, cfd.nome AS destino_nome, pc.nome AS plano_conta_nome
@@ -103,6 +104,7 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         data_pagamento: r.data_pagamento,
         descricao: r.descricao,
         valor: r.valor,
+        valor_pago: r.valor_pago,
         tipo: r.tipo,
         pago: r.pago,
         forma_pagamento: r.forma_pagamento,
@@ -126,6 +128,7 @@ export type LancamentoDetalhe = {
   data_pagamento: string | null;
   descricao: string;
   valor: number;
+  valor_pago: number;
   pago: boolean;
   competencia_mes: string | null;
   is_mensalidade: boolean;
@@ -150,7 +153,7 @@ export const obterLancamento = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<LancamentoDetalhe | null> => {
     return comSessao(async (conn, usuarioId) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.pago,
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago,
                 l.competencia_mes, l.is_mensalidade, l.forma_cobranca,
                 i.nome_civil AS irmao_nome, i.cim AS irmao_cim, i.usuario_id AS irmao_usuario_id,
                 o.nome AS org_nome, o.logo_url AS org_logo_url,
@@ -203,9 +206,10 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
         "SELECT pago, data_pagamento FROM lancamentos WHERE id = ?",
         [data.id],
       );
-      await conn.query("UPDATE lancamentos SET pago = FALSE, data_pagamento = NULL WHERE id = ?", [
-        data.id,
-      ]);
+      await conn.query(
+        "UPDATE lancamentos SET pago = FALSE, data_pagamento = NULL, valor_pago = 0 WHERE id = ?",
+        [data.id],
+      );
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
@@ -234,12 +238,17 @@ export const atualizarLancamento = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT data, data_vencimento, descricao, valor, pago FROM lancamentos WHERE id = ?",
+        "SELECT data, data_vencimento, descricao, valor, valor_pago, pago FROM lancamentos WHERE id = ?",
         [data.id],
       );
       if (!antes) throw new Error("Lançamento não encontrado.");
       if (antes.pago) {
         throw new Error("Não é possível editar um lançamento já pago. Desfaça a baixa primeiro.");
+      }
+      if (Number(antes.valor_pago) > 0) {
+        throw new Error(
+          "Esta fatura já recebeu pagamento parcial — não é possível editar o valor dela.",
+        );
       }
       await conn.query(
         "UPDATE lancamentos SET data = ?, data_vencimento = ?, descricao = ?, valor = ? WHERE id = ?",
@@ -314,6 +323,11 @@ export const estornarLancamento = createServerFn({ method: "POST" })
       if (!lancamento) throw new Error("Lançamento não encontrado.");
       if (lancamento.pago) {
         throw new Error("Não é possível estornar um lançamento já pago. Desfaça a baixa primeiro.");
+      }
+      if (Number(lancamento.valor_pago) > 0) {
+        throw new Error(
+          "Esta fatura já recebeu pagamento parcial — não é possível estorná-la sem reverter o pagamento primeiro.",
+        );
       }
 
       const [contabeis] = await conn.query<RowDataPacket[]>(

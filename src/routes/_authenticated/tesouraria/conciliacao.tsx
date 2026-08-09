@@ -40,6 +40,8 @@ import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
 import { CATEGORIA_LABEL } from "@/components/app/RecebimentoAvulso";
 import { extrairPossivelNome, normalizarTexto } from "@/lib/conciliacao-match";
+import { AlocacaoParcialTable } from "@/components/app/AlocacaoParcial";
+import { sugerirAlocacao, somaAlocacao } from "@/lib/alocacao-parcial";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/conciliacao")({
   head: () => ({ meta: [{ title: "Conciliação Bancária — Gestão Maçônica" }] }),
@@ -60,6 +62,7 @@ function Conciliacao() {
   const [selOfx, setSelOfx] = useState<string[]>([]);
   const [openCriar, setOpenCriar] = useState(false);
   const [vinculando, setVinculando] = useState(false);
+  const [alocacaoParcial, setAlocacaoParcial] = useState<Record<string, number>>({});
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
@@ -143,7 +146,15 @@ function Conciliacao() {
     if (selSistema.length === 0 || selOfx.length === 0) return;
     setVinculando(true);
     try {
-      await conciliarOfxLote({ data: { ofxIds: selOfx, lancamentoIds: selSistema } });
+      const alocacao = usarParcial
+        ? Object.entries(alocacaoParcial)
+            .filter(([, v]) => v > 0)
+            .map(([lancamentoId, valor]) => ({ lancamentoId, valor }))
+        : selecionadosSistema.map((s) => ({
+            lancamentoId: s.id,
+            valor: Number(s.valor) - Number(s.valor_pago),
+          }));
+      await conciliarOfxLote({ data: { ofxIds: selOfx, alocacao } });
       toast.success("Baixa registrada e linhas conciliadas.");
       invalidate();
     } catch (err) {
@@ -180,14 +191,46 @@ function Conciliacao() {
       ? ofx.find((o) => o.id === selOfx[0])
       : undefined;
 
-  const totalSistema = sistema
-    .filter((s) => selSistema.includes(s.id))
-    .reduce((acc, s) => acc + (s.tipo === "entrada" ? Number(s.valor) : -Number(s.valor)), 0);
+  const selecionadosSistema = sistema.filter((s) => selSistema.includes(s.id));
+  const totalSistema = selecionadosSistema.reduce(
+    (acc, s) => acc + (s.tipo === "entrada" ? 1 : -1) * (Number(s.valor) - Number(s.valor_pago)),
+    0,
+  );
   const totalOfx = ofx
     .filter((o) => selOfx.includes(o.id))
     .reduce((acc, o) => acc + Number(o.valor), 0);
   const diferenca = Math.round((totalOfx - totalSistema) * 100) / 100;
   const totaisBatem = selSistema.length > 0 && selOfx.length > 0 && diferenca === 0;
+
+  // Pagamento parcial (issue #131): quando o depósito marcado no OFX é
+  // MENOR que a soma das faturas (todas do mesmo tipo, sem mistura de
+  // entrada/saída), oferece alocação sugerida/editável em vez de só
+  // bloquear por diferença. Excesso (OFX maior que o sistema) continua
+  // pedindo pra marcar mais faturas — não tem o que "sobrar" alocado.
+  const todosEntrada =
+    selecionadosSistema.length > 0 && selecionadosSistema.every((s) => s.tipo === "entrada");
+  const usarParcial =
+    selSistema.length > 0 &&
+    selOfx.length > 0 &&
+    todosEntrada &&
+    totalOfx > 0 &&
+    totalOfx < totalSistema;
+  const faturasParaAlocarConciliacao = selecionadosSistema.map((s) => ({
+    id: s.id,
+    descricao: s.descricao,
+    saldo: Number(s.valor) - Number(s.valor_pago),
+    dataVencimento: s.data_vencimento,
+  }));
+  const totalAlocadoParcial = somaAlocacao(alocacaoParcial);
+
+  useEffect(() => {
+    if (!usarParcial) {
+      setAlocacaoParcial({});
+      return;
+    }
+    setAlocacaoParcial(sugerirAlocacao(faturasParaAlocarConciliacao, totalOfx));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usarParcial, totalOfx, selSistema.join(","), selOfx.join(",")]);
 
   // Se a sugestão automática filtrou pra um único irmão e a soma de todas
   // as faturas dele bater exatamente com a linha do OFX marcada, pré-marca
@@ -200,7 +243,7 @@ function Conciliacao() {
     const ofxLinha = ofx.find((o) => o.id === selOfx[0]);
     if (!ofxLinha) return;
     const soma = sistemaOrdenado.reduce(
-      (acc, s) => acc + (s.tipo === "entrada" ? Number(s.valor) : -Number(s.valor)),
+      (acc, s) => acc + (s.tipo === "entrada" ? 1 : -1) * (Number(s.valor) - Number(s.valor_pago)),
       0,
     );
     if (Math.round(soma * 100) === Math.round(Number(ofxLinha.valor) * 100)) {
@@ -293,13 +336,20 @@ function Conciliacao() {
                       <div className="flex-1">
                         <div className="flex justify-between">
                           <span>{s.descricao}</span>
-                          <span className="font-medium">{brl(s.valor)}</span>
+                          <span className="font-medium">
+                            {brl(Number(s.valor) - Number(s.valor_pago))}
+                          </span>
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           {fmtDate(s.data)} · {s.tipo}
                           {vencida && (
                             <Badge variant="destructive" className="h-4 px-1 text-[10px]">
                               Vencida
+                            </Badge>
+                          )}
+                          {Number(s.valor_pago) > 0 && (
+                            <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                              Parcial — de {brl(s.valor)}
                             </Badge>
                           )}
                         </div>
@@ -364,6 +414,29 @@ function Conciliacao() {
         </div>
       )}
 
+      {podeEditar && usarParcial && (
+        <Card className="mt-4 p-4 space-y-2">
+          <div className="flex items-center gap-1 text-sm text-amber-600">
+            <AlertTriangle className="h-4 w-4" /> O depósito é menor que a soma das faturas
+            selecionadas — pagamento parcial. Sugestão abaixo quita as mais antigas primeiro; ajuste
+            se precisar.
+          </div>
+          <AlocacaoParcialTable
+            faturas={faturasParaAlocarConciliacao}
+            alocacao={alocacaoParcial}
+            onChange={(id, valor) => setAlocacaoParcial((a) => ({ ...a, [id]: valor }))}
+          />
+          <div
+            className={`text-sm flex justify-between ${Math.abs(totalAlocadoParcial - totalOfx) > 0.01 ? "text-destructive" : "text-muted-foreground"}`}
+          >
+            <span>Alocado</span>
+            <span>
+              {brl(totalAlocadoParcial)} de {brl(totalOfx)}
+            </span>
+          </div>
+        </Card>
+      )}
+
       {podeEditar && (selSistema.length > 0 || selOfx.length > 0) && (
         <Card className="mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-2 text-sm">
@@ -371,6 +444,10 @@ function Conciliacao() {
               totaisBatem ? (
                 <span className="flex items-center gap-1 text-green-600">
                   <CheckCircle2 className="h-4 w-4" /> Totais batem — pronto para vincular.
+                </span>
+              ) : usarParcial ? (
+                <span className="text-muted-foreground">
+                  Confira a alocação do pagamento parcial acima.
                 </span>
               ) : (
                 <span className="flex items-center gap-1 text-destructive">
@@ -392,7 +469,15 @@ function Conciliacao() {
           </div>
           <div className="flex gap-2">
             {selSistema.length > 0 && selOfx.length > 0 && (
-              <Button onClick={vincular} disabled={!totaisBatem || vinculando}>
+              <Button
+                onClick={vincular}
+                disabled={
+                  vinculando ||
+                  (usarParcial
+                    ? Math.abs(totalAlocadoParcial - totalOfx) > 0.01 || totalAlocadoParcial <= 0
+                    : !totaisBatem)
+                }
+              >
                 {vinculando ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                 ) : (

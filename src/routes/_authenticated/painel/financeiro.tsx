@@ -38,7 +38,9 @@ function PainelFinanceiro() {
 
   const itens = lancamentos.data ?? [];
   const emAberto = itens.filter((l) => !l.pago);
-  const totalEmAberto = emAberto.reduce((a, l) => a + Number(l.valor), 0);
+  const totalEmAberto = emAberto.reduce((a, l) => a + Number(l.valor) - Number(l.valor_pago), 0);
+  const statusLabel = (l: (typeof itens)[number]) =>
+    l.pago ? "Pago" : Number(l.valor_pago) > 0 ? "Parcial" : "Em aberto";
 
   const exportarCSV = () => {
     const cabecalho = ["Data", "Descrição", "Tipo", "Valor", "Status"];
@@ -46,8 +48,8 @@ function PainelFinanceiro() {
       fmtDate(l.data),
       l.descricao,
       l.tipo,
-      String(l.valor),
-      l.pago ? "Pago" : "Em aberto",
+      String(Number(l.valor) - Number(l.valor_pago)),
+      statusLabel(l),
     ]);
     const csv = [cabecalho, ...linhas]
       .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
@@ -111,10 +113,10 @@ function PainelFinanceiro() {
                     <p className="text-xs text-muted-foreground">{fmtDate(l.data)}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="text-sm font-semibold">{brl(l.valor)}</span>
-                    <Badge variant={l.pago ? "secondary" : "destructive"}>
-                      {l.pago ? "Pago" : "Em aberto"}
-                    </Badge>
+                    <span className="text-sm font-semibold">
+                      {brl(Number(l.valor) - Number(l.valor_pago))}
+                    </span>
+                    <Badge variant={l.pago ? "secondary" : "destructive"}>{statusLabel(l)}</Badge>
                   </div>
                 </CardContent>
               </Card>

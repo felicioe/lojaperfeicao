@@ -42,7 +42,7 @@ export const listarContasAPagarProximas = createServerFn({ method: "GET" })
         valores.push(usuarioId);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, descricao, valor, data_vencimento, tipo FROM lancamentos
+        `SELECT id, descricao, (valor - valor_pago) AS valor, data_vencimento, tipo FROM lancamentos
          WHERE ${condicoes.join(" AND ")}
          ORDER BY data_vencimento`,
         valores,
@@ -108,7 +108,7 @@ export const obterProjecaoFluxo = createServerFn({ method: "GET" })
       }
       const where = condicoes.join(" AND ");
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT tipo, valor FROM lancamentos WHERE tipo IN ('entrada','saida') AND ${where}`,
+        `SELECT tipo, (valor - valor_pago) AS valor FROM lancamentos WHERE tipo IN ('entrada','saida') AND ${where}`,
         valores,
       );
       let somaE = 0;

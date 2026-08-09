@@ -16,6 +16,7 @@ export type LancamentoConciliacao = {
   descricao: string;
   irmao_nome: string | null;
   valor: number;
+  valor_pago: number;
   tipo: string;
 };
 
@@ -36,7 +37,7 @@ export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
         `SELECT l.id, l.data, l.data_vencimento,
                 CASE WHEN i.nome_civil IS NOT NULL THEN CONCAT(l.descricao, ' — ', i.nome_civil) ELSE l.descricao END AS descricao,
                 i.nome_civil AS irmao_nome,
-                l.valor, l.tipo
+                l.valor, l.valor_pago, l.tipo
          FROM lancamentos l
          LEFT JOIN irmaos i ON i.id = l.irmao_id
          WHERE l.pago = FALSE AND l.tipo IN ('entrada', 'saida')
@@ -82,14 +83,20 @@ export const conciliarOfxExistente = createServerFn({ method: "POST" })
 // Vincula N linhas do OFX a M lançamentos AINDA EM ABERTO, dando baixa
 // neles de verdade (pago/conta/data + contrapartida contábil que fecha a
 // provisão) — é o que a tela usa depois de marcar os ticks dos dois
-// lados. O total de cada lado precisa bater exatamente; a validação real
-// é feita dentro da procedure (não confia só na UI), aqui só repassa.
+// lados. `alocacao` traz quanto aplicar em cada lançamento (issue #131):
+// pra baixa integral (comportamento de sempre) o valor de cada item é o
+// saldo cheio da fatura; um valor menor é pagamento parcial (fica em
+// aberto com saldo residual). O total de cada lado precisa bater
+// exatamente; a validação real é feita dentro da procedure (não confia
+// só na UI), aqui só repassa.
 export const conciliarOfxLote = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z
       .object({
         ofxIds: z.array(z.string().uuid()).min(1),
-        lancamentoIds: z.array(z.string().uuid()).min(1),
+        alocacao: z
+          .array(z.object({ lancamentoId: z.string().uuid(), valor: z.number().positive() }))
+          .min(1),
       })
       .parse(d),
   )
@@ -97,7 +104,9 @@ export const conciliarOfxLote = createServerFn({ method: "POST" })
     return comPapel(PAPEIS, async (conn) => {
       await conn.query("CALL conciliar_ofx_lote(?, ?, @conciliacao_id)", [
         JSON.stringify(data.ofxIds),
-        JSON.stringify(data.lancamentoIds),
+        JSON.stringify(
+          data.alocacao.map((a) => ({ lancamento_id: a.lancamentoId, valor: a.valor })),
+        ),
       ]);
       const [[{ conciliacao_id }]] = await conn.query<RowDataPacket[]>(
         "SELECT @conciliacao_id AS conciliacao_id",

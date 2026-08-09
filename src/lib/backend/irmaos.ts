@@ -625,6 +625,7 @@ export type LancamentoIrmao = {
   descricao: string;
   tipo: string;
   valor: number;
+  valor_pago: number;
   pago: boolean;
 };
 
@@ -636,7 +637,7 @@ export const listarLancamentosIrmao = createServerFn({ method: "GET" })
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeVerIrmao(conn, usuarioId, data.irmaoId))) throw new SemPermissaoError();
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, data, descricao, tipo, valor, pago FROM lancamentos WHERE irmao_id = ? ORDER BY data DESC LIMIT 100",
+        "SELECT id, data, descricao, tipo, valor, valor_pago, pago FROM lancamentos WHERE irmao_id = ? ORDER BY data DESC LIMIT 100",
         [data.irmaoId],
       );
       return rows as LancamentoIrmao[];

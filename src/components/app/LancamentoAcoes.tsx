@@ -8,7 +8,11 @@ import {
   marcarLancamentoPago,
   type Lancamento,
 } from "@/lib/backend/tesouraria-lancamentos";
-import { calcularMultaJuros, baixarFaturas } from "@/lib/backend/tesouraria-faturas";
+import {
+  calcularMultaJuros,
+  baixarFaturas,
+  baixarPagamentoParcial,
+} from "@/lib/backend/tesouraria-faturas";
 import { baixarContaPagar } from "@/lib/backend/tesouraria-contas-pagar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -166,6 +170,7 @@ function BaixarLancamentoDialog({
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [modo, setModo] = useState<"integral" | "parcial">("integral");
   const [contaFinanceiraId, setContaFinanceiraId] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("");
   const [dataPagamento, setDataPagamento] = useState(toISODate(new Date()));
@@ -182,6 +187,8 @@ function BaixarLancamentoDialog({
 
   const precisaConta = lancamento.tipo === "saida" || !!lancamento.irmao_id;
   const ehFatura = lancamento.tipo === "entrada" && !!lancamento.irmao_id;
+  const saldo = Number(lancamento.valor) - Number(lancamento.valor_pago ?? 0);
+  const [valorRecebidoParcial, setValorRecebidoParcial] = useState(saldo);
 
   useEffect(() => {
     if (!open || !ehFatura || !lancamento.data_vencimento) return;
@@ -208,7 +215,7 @@ function BaixarLancamentoDialog({
     if (precisaConta && !contaFinanceiraId) {
       return toast.error("Selecione a conta em que o valor entrou/saiu.");
     }
-    if (ehFatura && Number(valorExtra) > 0 && !planoContaExtraId) {
+    if (ehFatura && modo === "integral" && Number(valorExtra) > 0 && !planoContaExtraId) {
       return toast.error("Selecione a conta de receita do valor extra.");
     }
     setSalvando(true);
@@ -220,6 +227,16 @@ function BaixarLancamentoDialog({
             contaFinanceiraId,
             formaPagamento: formaPagamento || null,
             dataPagamento,
+          },
+        });
+      } else if (ehFatura && modo === "parcial") {
+        await baixarPagamentoParcial({
+          data: {
+            alocacao: [{ lancamentoId: lancamento.id, valor: Number(valorRecebidoParcial) }],
+            contaFinanceiraId,
+            formaPagamento: formaPagamento || null,
+            dataPagamento,
+            observacoes: null,
           },
         });
       } else if (ehFatura) {
@@ -260,6 +277,26 @@ function BaixarLancamentoDialog({
         <DialogHeader>
           <DialogTitle>Baixar "{lancamento.descricao}"</DialogTitle>
         </DialogHeader>
+        {ehFatura && (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={modo === "integral" ? "default" : "outline"}
+              onClick={() => setModo("integral")}
+            >
+              Baixa integral
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={modo === "parcial" ? "default" : "outline"}
+              onClick={() => setModo("parcial")}
+            >
+              Pagamento parcial
+            </Button>
+          </div>
+        )}
         <div className="grid gap-3">
           {precisaConta && (
             <div>
@@ -297,7 +334,7 @@ function BaixarLancamentoDialog({
               />
             </div>
           </div>
-          {ehFatura && (
+          {ehFatura && modo === "integral" && (
             <>
               {calculo.dias_atraso > 0 && (
                 <div className="text-sm text-destructive">
@@ -366,6 +403,26 @@ function BaixarLancamentoDialog({
               </div>
             </>
           )}
+          {ehFatura && modo === "parcial" && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Sem cálculo automático de multa/juros — só o principal da fatura.
+              </p>
+              <div>
+                <Label>Valor recebido (saldo: {brl(saldo)})</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={saldo}
+                  value={valorRecebidoParcial}
+                  onChange={(e) =>
+                    setValorRecebidoParcial(Math.min(Number(e.target.value) || 0, saldo))
+                  }
+                />
+              </div>
+            </>
+          )}
         </div>
         <DialogFooter>
           <Button
@@ -373,8 +430,9 @@ function BaixarLancamentoDialog({
             disabled={
               salvando ||
               (precisaConta && !contaFinanceiraId) ||
-              (ehFatura && total < 0) ||
-              (ehFatura && Number(valorExtra) > 0 && !planoContaExtraId)
+              (ehFatura && modo === "integral" && total < 0) ||
+              (ehFatura && modo === "integral" && Number(valorExtra) > 0 && !planoContaExtraId) ||
+              (ehFatura && modo === "parcial" && !(Number(valorRecebidoParcial) > 0))
             }
           >
             Confirmar baixa
@@ -405,46 +463,50 @@ export function AcoesLancamento({
       </Link>
       {!lancamento.pago && (
         <>
-          <EditarLancamentoDialog lancamento={lancamento} onDone={onDone} />
+          {Number(lancamento.valor_pago ?? 0) === 0 && (
+            <EditarLancamentoDialog lancamento={lancamento} onDone={onDone} />
+          )}
           <BaixarLancamentoDialog
             lancamento={lancamento}
             contas={contas}
             receitas={receitas}
             onDone={onDone}
           />
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" variant="ghost" title="Cancelar">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Cancelar este lançamento?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Remove "{lancamento.descricao}" ({brl(lancamento.valor)}) e a contrapartida
-                  contábil correspondente, se existir. Só funciona pra lançamentos ainda em aberto e
-                  não pode ser desfeito.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Voltar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={async () => {
-                    try {
-                      await estornarLancamento({ data: { id: lancamento.id } });
-                      toast.success("Lançamento cancelado.");
-                      onDone();
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Erro ao cancelar.");
-                    }
-                  }}
-                >
-                  Cancelar lançamento
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {Number(lancamento.valor_pago ?? 0) === 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" title="Cancelar">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancelar este lançamento?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Remove "{lancamento.descricao}" ({brl(lancamento.valor)}) e a contrapartida
+                    contábil correspondente, se existir. Só funciona pra lançamentos ainda em aberto
+                    e não pode ser desfeito.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      try {
+                        await estornarLancamento({ data: { id: lancamento.id } });
+                        toast.success("Lançamento cancelado.");
+                        onDone();
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Erro ao cancelar.");
+                      }
+                    }}
+                  >
+                    Cancelar lançamento
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </>
       )}
     </div>
