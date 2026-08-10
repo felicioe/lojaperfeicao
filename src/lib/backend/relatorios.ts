@@ -426,6 +426,75 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
   },
 );
 
+// ---------- Extrato Bancário (issue #142) ----------
+// Extrato tradicional de UMA conta financeira, com saldo corrente
+// (acumulado a partir do saldo_inicial). O saldo corrente sempre reflete o
+// caixa real da conta — só considera lançamentos pago=TRUE (faturas em
+// aberto não entram, decisão explícita do cliente) — e é calculado sobre
+// TODO o histórico da conta até "ate" (ou hoje, sem "ate"), pra não ficar
+// errado quando o usuário aplica um filtro de "de"/tipo/categoria: o filtro
+// só decide QUAIS linhas aparecem na lista, nunca recalcula o saldo a
+// partir de um subconjunto (isso daria um saldo corrente fictício,
+// diferente do saldo real do banco).
+
+export type ItemExtratoBancario = {
+  id: string;
+  data: string;
+  descricao: string;
+  tipo: "entrada" | "saida" | "transferencia";
+  categoria_recebimento: string | null;
+  valor_sinal: number;
+  saldo_corrente: number;
+};
+
+const filtroExtratoBancarioSchema = z.object({
+  contaId: z.string().uuid(),
+  de: z.string().nullable(),
+  ate: z.string().nullable(),
+  tipo: z.enum(["entrada", "saida", "transferencia"]).nullable(),
+  categoria: z.string().nullable(),
+});
+
+export const relatorioExtratoBancario = createServerFn({ method: "GET" })
+  .validator((d: unknown) => filtroExtratoBancarioSchema.parse(d))
+  .handler(async ({ data }): Promise<ItemExtratoBancario[]> => {
+    return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, data, descricao, tipo, categoria_recebimento, valor_sinal,
+                (SELECT saldo_inicial FROM contas_financeiras WHERE id = ?)
+                  + SUM(valor_sinal) OVER (ORDER BY data, criado_em, id) AS saldo_corrente
+         FROM (
+           SELECT l.id, l.data, l.descricao, l.tipo, l.categoria_recebimento, l.criado_em,
+                  CASE
+                    WHEN l.conta_destino_id = ? THEN l.valor
+                    WHEN l.tipo = 'entrada' THEN l.valor
+                    ELSE -l.valor
+                  END AS valor_sinal
+           FROM lancamentos l
+           WHERE l.pago = TRUE
+             AND (l.conta_id = ? OR l.conta_destino_id = ?)
+             AND (? IS NULL OR l.data <= ?)
+         ) movimentos
+         ORDER BY data, criado_em, id`,
+        [data.contaId, data.contaId, data.contaId, data.contaId, data.ate, data.ate],
+      );
+
+      return (rows as (ItemExtratoBancario & { criado_em?: unknown })[])
+        .filter((r) => !data.de || r.data >= data.de)
+        .filter((r) => !data.tipo || r.tipo === data.tipo)
+        .filter((r) => !data.categoria || r.categoria_recebimento === data.categoria)
+        .map((r) => ({
+          id: r.id,
+          data: r.data,
+          descricao: r.descricao,
+          tipo: r.tipo,
+          categoria_recebimento: r.categoria_recebimento,
+          valor_sinal: Number(r.valor_sinal),
+          saldo_corrente: Number(r.saldo_corrente),
+        }));
+    });
+  });
+
 const gerarCobrancaLoteSchema = z.object({ lancamentoIds: z.array(z.string().uuid()).min(1) });
 
 export const gerarCobrancaLote = createServerFn({ method: "POST" })

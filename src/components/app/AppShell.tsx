@@ -526,6 +526,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageFinancas,
         },
         {
+          to: "/relatorios/extrato-bancario",
+          label: "Extrato Bancário",
+          icon: Landmark,
+          show: can.canManageFinancas,
+        },
+        {
           to: "/relatorios/extrato-irmao",
           label: "Extrato do Irmão",
           icon: UserRound,
