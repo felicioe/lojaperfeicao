@@ -8,6 +8,7 @@ import { withUserConnection } from "./db";
 import { criarSessao, salvarLoginPendente2FA, consumirLoginPendente2FA } from "./session";
 import { carregarUsuarioComPapeis, type UsuarioSessao } from "./usuario-sessao";
 import { registrarAuditoria } from "./auditoria";
+import { verificarBloqueio, registrarTentativaFalha, limparTentativas } from "./rate-limit";
 
 const EMISSOR = "Gestão da Loja";
 const QUANTIDADE_CODIGOS_BACKUP = 8;
@@ -246,6 +247,8 @@ export const confirmarLogin2FA = createServerFn({ method: "POST" })
     const usuarioId = await consumirLoginPendente2FA();
     if (!usuarioId) throw new Error("Login expirado — tente novamente.");
 
+    await withUserConnection(null, (conn) => verificarBloqueio(conn, usuarioId));
+
     const valido = await withUserConnection(null, (conn) =>
       validarCodigoTotpOuBackup(conn, usuarioId, data.codigo),
     );
@@ -254,8 +257,10 @@ export const confirmarLogin2FA = createServerFn({ method: "POST" })
       // reabrir a janela custaria a ela ter que digitar e-mail/senha de
       // novo à toa por um simples typo no código.
       await salvarLoginPendente2FA(usuarioId);
+      await withUserConnection(null, (conn) => registrarTentativaFalha(conn, usuarioId));
       throw new Error("Código inválido.");
     }
+    await withUserConnection(null, (conn) => limparTentativas(conn, usuarioId));
 
     await criarSessao(usuarioId);
     const sessao = await carregarUsuarioComPapeis(usuarioId);

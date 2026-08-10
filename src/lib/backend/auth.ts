@@ -8,6 +8,7 @@ import { criarSessao, encerrarSessao, usuarioIdDaSessao, salvarLoginPendente2FA 
 import { registrarAuditoria } from "./auditoria";
 import { carregarUsuarioComPapeis, type Papel, type UsuarioSessao } from "./usuario-sessao";
 import { usuarioTemTotpAtivo } from "./totp";
+import { verificarBloqueio, registrarTentativaFalha, limparTentativas } from "./rate-limit";
 
 export type { Papel, UsuarioSessao };
 
@@ -31,6 +32,8 @@ const signupSchema = z.object({
 export const login = createServerFn({ method: "POST" })
   .validator((data: unknown) => loginSchema.parse(data))
   .handler(async ({ data }): Promise<LoginResultado> => {
+    await withUserConnection(null, (conn) => verificarBloqueio(conn, data.email));
+
     const usuario = await withUserConnection(null, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         "SELECT id, senha_hash, ativo FROM usuarios WHERE email = ?",
@@ -40,11 +43,13 @@ export const login = createServerFn({ method: "POST" })
     });
 
     if (!usuario || !(await bcrypt.compare(data.senha, usuario.senha_hash))) {
+      await withUserConnection(null, (conn) => registrarTentativaFalha(conn, data.email));
       throw new Error("E-mail ou senha inválidos.");
     }
     if (!usuario.ativo) {
       throw new Error("Usuário inativo. Contate o administrador.");
     }
+    await withUserConnection(null, (conn) => limparTentativas(conn, data.email));
 
     // Senha certa, mas 2FA ativo: não abre sessão ainda — falta o código
     // do app autenticador (confirmarLogin2FA, em totp.ts). Passkey não
