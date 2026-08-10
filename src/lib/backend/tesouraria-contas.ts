@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+import { chavePixValida } from "@/lib/pix";
 
 // RLS original: SELECT livre; escrita admin OU tesoureiro.
 const PAPEIS_ESCRITA = ["admin", "tesoureiro"];
@@ -120,6 +121,9 @@ export const criarChavePix = createServerFn({ method: "POST" })
   .validator((d: unknown) => chavePixSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      if (!chavePixValida(data.tipo, data.chave)) {
+        throw new Error("Chave não bate com o formato esperado para o tipo selecionado.");
+      }
       if (data.principal) {
         await conn.query(
           "UPDATE contas_financeiras_pix SET principal = FALSE WHERE conta_financeira_id = ?",
