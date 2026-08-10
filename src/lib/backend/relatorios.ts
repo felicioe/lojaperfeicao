@@ -578,13 +578,13 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
              SELECT c.id, c.data_conciliacao AS data, c.criado_em,
                     CASE WHEN COUNT(*) = 1 THEN MAX(l.descricao)
                          ELSE CONCAT(COUNT(*), ' item(ns) conciliado(s)') END AS descricao,
-                    CASE WHEN SUM(CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END) >= 0
+                    CASE WHEN SUM(CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END) >= 0
                          THEN 'entrada' ELSE 'saida' END AS tipo,
                     CASE WHEN COUNT(DISTINCT l.categoria_recebimento) = 1 THEN MAX(l.categoria_recebimento) END AS categoria_recebimento,
                     CASE WHEN COUNT(DISTINCT l.irmao_id) = 1 THEN MAX(i.nome_civil) END AS irmao_nome,
                     GROUP_CONCAT(DISTINCT l.irmao_id) AS irmao_ids,
                     NULL AS plano_conta_nome,
-                    SUM(CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END) AS valor_sinal
+                    SUM(CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END) AS valor_sinal
              FROM conciliacoes c
              JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id
              JOIN lancamentos l ON l.id = cl.lancamento_id
