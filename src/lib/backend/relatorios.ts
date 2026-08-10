@@ -443,6 +443,8 @@ export type ItemExtratoBancario = {
   descricao: string;
   tipo: "entrada" | "saida" | "transferencia";
   categoria_recebimento: string | null;
+  irmao_nome: string | null;
+  plano_conta_nome: string | null;
   valor_sinal: number;
   saldo_corrente: number;
 };
@@ -460,17 +462,20 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ItemExtratoBancario[]> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, data, descricao, tipo, categoria_recebimento, valor_sinal,
+        `SELECT id, data, descricao, tipo, categoria_recebimento, irmao_nome, plano_conta_nome, valor_sinal,
                 (SELECT saldo_inicial FROM contas_financeiras WHERE id = ?)
                   + SUM(valor_sinal) OVER (ORDER BY data, criado_em, id) AS saldo_corrente
          FROM (
            SELECT l.id, l.data, l.descricao, l.tipo, l.categoria_recebimento, l.criado_em,
+                  i.nome_civil AS irmao_nome, pc.nome AS plano_conta_nome,
                   CASE
                     WHEN l.conta_destino_id = ? THEN l.valor
                     WHEN l.tipo = 'entrada' THEN l.valor
                     ELSE -l.valor
                   END AS valor_sinal
            FROM lancamentos l
+           LEFT JOIN irmaos i ON i.id = l.irmao_id
+           LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
            WHERE l.pago = TRUE
              AND (l.conta_id = ? OR l.conta_destino_id = ?)
              AND (? IS NULL OR l.data <= ?)
@@ -489,6 +494,8 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
           descricao: r.descricao,
           tipo: r.tipo,
           categoria_recebimento: r.categoria_recebimento,
+          irmao_nome: r.irmao_nome,
+          plano_conta_nome: r.plano_conta_nome,
           valor_sinal: Number(r.valor_sinal),
           saldo_corrente: Number(r.saldo_corrente),
         }));
