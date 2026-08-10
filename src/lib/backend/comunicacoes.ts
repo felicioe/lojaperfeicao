@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
@@ -86,6 +87,10 @@ const comunicadoSchema = z.object({
   corpo: z.string().min(1),
   publico: z.enum(["todos", "org"]),
   orgId: z.string().uuid().nullable(),
+  // Opcional por comunicado (issue #107) — decisão explícita do cliente,
+  // desmarcado por padrão. Só faz sentido num comunicado NOVO (ver
+  // salvarComunicado): editar um já publicado não deve reenviar e-mail.
+  enviarEmail: z.boolean().default(false),
 });
 
 export const salvarComunicado = createServerFn({ method: "POST" })
@@ -105,13 +110,20 @@ export const salvarComunicado = createServerFn({ method: "POST" })
           ...data,
         });
       } else {
+        const novoId = randomUUID();
         await conn.query(
-          "INSERT INTO comunicados (titulo, corpo, publico, org_id, criado_por) VALUES (?, ?, ?, ?, ?)",
-          [data.titulo, data.corpo, data.publico, orgId, usuarioIdAtual],
+          "INSERT INTO comunicados (id, titulo, corpo, publico, org_id, criado_por) VALUES (?, ?, ?, ?, ?, ?)",
+          [novoId, data.titulo, data.corpo, data.publico, orgId, usuarioIdAtual],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "criar", "comunicado", null, null, {
           ...data,
         });
+        if (data.enviarEmail) {
+          const { enviarEmailComunicado } = await import("../email-dispatch");
+          enviarEmailComunicado(novoId).catch((err) =>
+            console.error("Falha ao enviar e-mail do comunicado:", err),
+          );
+        }
       }
     });
   });
