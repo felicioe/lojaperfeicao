@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -42,6 +43,7 @@ const FORM_VAZIO = {
   corpo: "",
   publico: "todos" as Comunicado["publico"],
   orgId: "",
+  enviarEmail: false,
 };
 
 function ComunicacoesPage() {
@@ -67,6 +69,7 @@ function ComunicacoesPage() {
           corpo: form.corpo.trim(),
           publico: form.publico,
           orgId: form.publico === "org" ? form.orgId || null : null,
+          enviarEmail: form.enviarEmail,
         },
       });
       toast.success(form.id ? "Comunicado atualizado." : "Comunicado publicado.");
@@ -84,6 +87,7 @@ function ComunicacoesPage() {
       corpo: c.corpo,
       publico: c.publico,
       orgId: c.org_id ?? "",
+      enviarEmail: false,
     });
 
   const excluir = async (id: string) => {
@@ -162,6 +166,15 @@ function ComunicacoesPage() {
                 </div>
               )}
             </div>
+            {!form.id && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={form.enviarEmail}
+                  onCheckedChange={(v) => setForm({ ...form, enviarEmail: v === true })}
+                />
+                Enviar também por e-mail
+              </label>
+            )}
             <div className="flex gap-2">
               <Button onClick={salvar} disabled={!form.titulo || !form.corpo}>
                 {form.id ? "Salvar alterações" : "Publicar"}

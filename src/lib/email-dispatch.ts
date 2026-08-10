@@ -189,6 +189,53 @@ export async function enviarEmailBoasVindas(usuarioId: string): Promise<boolean>
   });
 }
 
+// ---------- Comunicado publicado (issue #107) ----------
+// Opcional por comunicado (decisão explícita do cliente — checkbox
+// desmarcado por padrão, ver comunicacoes.ts). Só dispara na CRIAÇÃO de um
+// comunicado novo, nunca em edição. Destinatários: irmãos ativos com
+// e-mail de contato cadastrado, respeitando a mesma regra de visibilidade
+// da tela (publico='todos' → todo mundo; publico='org' → só quem tem
+// vínculo com aquele corpo maçônico).
+
+export async function enviarEmailComunicado(
+  comunicadoId: string,
+): Promise<ResultadoEnvioRelatorio> {
+  return withUserConnection(null, async (conn) => {
+    const [[comunicado]] = await conn.query<RowDataPacket[]>(
+      "SELECT titulo, corpo, publico, org_id FROM comunicados WHERE id = ?",
+      [comunicadoId],
+    );
+    if (!comunicado) return [];
+
+    const [destinatarios] = await conn.query<RowDataPacket[]>(
+      comunicado.publico === "org"
+        ? `SELECT DISTINCT i.email FROM irmaos i
+           JOIN irmao_orgs io ON io.irmao_id = i.id
+           WHERE i.situacao = 'ativo' AND i.email IS NOT NULL AND i.email != '' AND io.org_id = ?`
+        : `SELECT email FROM irmaos WHERE situacao = 'ativo' AND email IS NOT NULL AND email != ''`,
+      comunicado.publico === "org" ? [comunicado.org_id] : [],
+    );
+
+    const corpoHtml = String(comunicado.corpo).replace(/\n/g, "<br>");
+    const html = `<h3>${comunicado.titulo}</h3><p>${corpoHtml}</p>`;
+    const texto = `${comunicado.titulo}\n\n${comunicado.corpo}`;
+    const chave = `comunicado:${comunicadoId}`;
+
+    const resultados: ResultadoEnvioRelatorio = [];
+    for (const { email } of destinatarios) {
+      const ok = await enviarEGravar(conn, {
+        chave: `${chave}:${email}`,
+        destinatario: email,
+        assunto: `Comunicado — ${comunicado.titulo}`,
+        html,
+        texto,
+      });
+      resultados.push({ destinatario: email, sucesso: ok });
+    }
+    return resultados;
+  });
+}
+
 // ---------- Lembrete de fatura em aberto (cron + manual) ----------
 
 type FaturaLembrete = {
