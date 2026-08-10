@@ -138,6 +138,31 @@ export const desfazerConciliacao = createServerFn({ method: "POST" })
     });
   });
 
+export type ConciliacaoRecente = {
+  id: string;
+  data_conciliacao: string;
+  valor_total: number;
+  criado_em: string;
+};
+
+// Lista os últimos eventos de conciliação ainda ativos (não desfeitos) de
+// uma conta — alimenta o "Desfazer" direto na tela de Conciliação Bancária
+// (issue #141), sem precisar ir até o relatório de Extrato da Conciliação
+// pra corrigir um vínculo feito por engano.
+export const listarConciliacoesRecentes = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<ConciliacaoRecente[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, data_conciliacao, valor_total, criado_em FROM conciliacoes
+         WHERE conta_financeira_id = ? AND status = 'ativa'
+         ORDER BY criado_em DESC LIMIT 20`,
+        [data.contaId],
+      );
+      return rows as ConciliacaoRecente[];
+    });
+  });
+
 const criarLancamentoOfxSchema = z.object({
   ofxId: z.string().uuid(),
   planoContaId: z.string().uuid(),
