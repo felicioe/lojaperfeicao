@@ -184,18 +184,24 @@ function ExtratoBancario() {
       {contaId && (
         <>
           {saldoFinal !== null && saldoInicial !== null && (
-            <Card className="mb-4 p-4">
-              <div className="flex flex-wrap items-baseline gap-2 text-sm">
-                <span className="text-muted-foreground">Saldo inicial</span>
-                <span className="font-medium">{brl(saldoInicial)}</span>
-                <span className="text-muted-foreground">+ Entradas</span>
-                <span className="font-medium text-emerald-600">{brl(totalEntradas)}</span>
-                <span className="text-muted-foreground">− Saídas</span>
-                <span className="font-medium text-destructive">{brl(totalSaidas)}</span>
-                <span className="text-muted-foreground">= Saldo final</span>
-                <span className="text-2xl font-semibold">{brl(saldoFinal)}</span>
-              </div>
-            </Card>
+            <div className="mb-4 grid gap-3 grid-cols-2 md:grid-cols-4">
+              <Card className="p-4">
+                <div className="text-sm text-muted-foreground">Saldo inicial</div>
+                <div className="text-xl font-semibold">{brl(saldoInicial)}</div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-sm text-muted-foreground">Entradas</div>
+                <div className="text-xl font-semibold text-emerald-600">{brl(totalEntradas)}</div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-sm text-muted-foreground">Saídas</div>
+                <div className="text-xl font-semibold text-destructive">{brl(totalSaidas)}</div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-sm text-muted-foreground">Saldo final</div>
+                <div className="text-xl font-semibold">{brl(saldoFinal)}</div>
+              </Card>
+            </div>
           )}
 
           <Card>
