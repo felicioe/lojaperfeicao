@@ -13,10 +13,33 @@ import { withUserConnection } from "./backend/db";
 // futuro — mesma lição aprendida com o bug de bundle do passkey.
 //
 // Os arquivos ficam em BACKUPS_DIR, fora de public/ — nunca podem ser
-// servidos estaticamente (teriam senha_hash, secrets de 2FA/passkey,
-// tudo). Download só via rota autenticada admin-only (backups.ts).
+// servidos estaticamente. Download só via rota autenticada admin-only
+// (backups.ts).
+//
+// Campos sensíveis (issue de segurança, revisão pós-#87): senha_hash e o
+// secret de TOTP nunca são gravados nem em disco nem no download — numa
+// restauração de desastre, cada usuário redefine senha e 2FA do zero,
+// decisão explícita do cliente (mais simples e mais seguro do que manter
+// esses campos vivos em qualquer backup). usuario_passkeys NÃO entra
+// nessa lista: por desenho do WebAuthn, o servidor só guarda a CHAVE
+// PÚBLICA da passkey — não há segredo nenhum ali para redigir.
 const BACKUPS_DIR = join(process.cwd(), "backups");
 const RETENCAO_MAXIMA = 7;
+const CAMPOS_SENSIVEIS: Record<string, string[]> = {
+  usuarios: ["senha_hash"],
+  usuario_totp: ["secret"],
+  usuario_totp_codigos_backup: ["codigo_hash"],
+};
+
+function redigirLinhas(tabela: string, linhas: RowDataPacket[]): RowDataPacket[] {
+  const campos = CAMPOS_SENSIVEIS[tabela];
+  if (!campos) return linhas;
+  return linhas.map((linha) => {
+    const copia = { ...linha } as RowDataPacket;
+    for (const campo of campos) delete copia[campo];
+    return copia;
+  });
+}
 
 export type ResultadoBackup = {
   nomeArquivo: string;
@@ -37,7 +60,7 @@ export async function executarBackupAgendado(origem: "cron" | "manual"): Promise
       // Nomes de tabela vêm de SHOW TABLES (não de entrada do cliente),
       // então interpolar aqui é seguro — mysql2 não parametriza identificadores.
       const [rows] = await conn.query<RowDataPacket[]>(`SELECT * FROM \`${tabela}\``);
-      dump[tabela] = rows;
+      dump[tabela] = redigirLinhas(tabela, rows);
       totalLinhas += rows.length;
     }
 
