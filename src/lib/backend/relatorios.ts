@@ -491,6 +491,8 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
 // data e paga só em outra) — é a data em que o dinheiro de fato
 // entrou/saiu, que é o que um extrato bancário mostra (issue #196).
 
+export type FaturaExtratoBancario = { id: string; descricao: string; valor: number };
+
 export type ItemExtratoBancario = {
   id: string;
   data: string;
@@ -501,6 +503,11 @@ export type ItemExtratoBancario = {
   plano_conta_nome: string | null;
   valor_sinal: number;
   saldo_corrente: number;
+  // Só preenchido no modo "creditado": a(s) fatura(s) quitada(s) por esse
+  // pagamento — um recibo ou uma conciliação em lote pode fechar várias de
+  // uma vez (issue do usuário: extrato deve bater com o extrato do banco
+  // de verdade, não com o valor de face de cada fatura).
+  faturas: FaturaExtratoBancario[] | null;
 };
 
 const filtroExtratoBancarioSchema = z.object({
@@ -509,40 +516,164 @@ const filtroExtratoBancarioSchema = z.object({
   ate: z.string().nullable(),
   tipo: z.enum(["entrada", "saida", "transferencia"]).nullable(),
   categoria: z.string().nullable(),
+  irmaoId: z.string().uuid().nullable(),
+  // "compensado" (padrão histórico): uma linha por fatura, com o valor de
+  // face dela — bate com "quais faturas foram quitadas", não com o
+  // extrato real do banco quando há multa/juros/desconto ou um pagamento
+  // único quitando várias faturas juntas. "creditado": uma linha por
+  // evento real de caixa (recibo, conciliação em lote, ou lançamento
+  // avulso/legado), com o valor que de fato entrou/saiu da conta — bate
+  // com o extrato do banco.
+  modo: z.enum(["compensado", "creditado"]),
 });
+
+type LinhaBrutaExtratoBancario = {
+  id: string;
+  data: string;
+  criado_em: unknown;
+  descricao: string;
+  tipo: "entrada" | "saida" | "transferencia";
+  categoria_recebimento: string | null;
+  irmao_nome: string | null;
+  irmao_ids: string | null;
+  plano_conta_nome: string | null;
+  valor_sinal: number | string;
+  saldo_corrente: number | string;
+};
 
 export const relatorioExtratoBancario = createServerFn({ method: "GET" })
   .validator((d: unknown) => filtroExtratoBancarioSchema.parse(d))
   .handler(async ({ data }): Promise<ItemExtratoBancario[]> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+      const movimentosSql =
+        data.modo === "compensado"
+          ? `SELECT l.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
+                    l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
+                    pc.nome AS plano_conta_nome,
+                    CASE
+                      WHEN l.conta_destino_id = ? THEN l.valor
+                      WHEN l.tipo = 'entrada' THEN l.valor
+                      ELSE -l.valor
+                    END AS valor_sinal
+             FROM lancamentos l
+             LEFT JOIN irmaos i ON i.id = l.irmao_id
+             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
+             WHERE l.pago = TRUE AND (l.conta_id = ? OR l.conta_destino_id = ?)`
+          : `SELECT r.id, r.data AS data, r.criado_em,
+                    CASE WHEN COUNT(*) = 1 THEN MAX(l.descricao)
+                         ELSE CONCAT(COUNT(*), ' fatura(s) quitada(s)') END AS descricao,
+                    'entrada' AS tipo,
+                    CASE WHEN COUNT(DISTINCT l.categoria_recebimento) = 1 THEN MAX(l.categoria_recebimento) END AS categoria_recebimento,
+                    MAX(i.nome_civil) AS irmao_nome, GROUP_CONCAT(DISTINCT l.irmao_id) AS irmao_ids,
+                    NULL AS plano_conta_nome, r.valor_total AS valor_sinal
+             FROM recibos r
+             JOIN recibo_itens ri ON ri.recibo_id = r.id
+             JOIN lancamentos l ON l.id = ri.lancamento_id
+             LEFT JOIN irmaos i ON i.id = r.irmao_id
+             WHERE r.conta_financeira_id = ?
+             GROUP BY r.id, r.data, r.criado_em, r.valor_total
+
+             UNION ALL
+
+             SELECT c.id, c.data_conciliacao AS data, c.criado_em,
+                    CASE WHEN COUNT(*) = 1 THEN MAX(l.descricao)
+                         ELSE CONCAT(COUNT(*), ' item(ns) conciliado(s)') END AS descricao,
+                    CASE WHEN SUM(CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END) >= 0
+                         THEN 'entrada' ELSE 'saida' END AS tipo,
+                    CASE WHEN COUNT(DISTINCT l.categoria_recebimento) = 1 THEN MAX(l.categoria_recebimento) END AS categoria_recebimento,
+                    CASE WHEN COUNT(DISTINCT l.irmao_id) = 1 THEN MAX(i.nome_civil) END AS irmao_nome,
+                    GROUP_CONCAT(DISTINCT l.irmao_id) AS irmao_ids,
+                    NULL AS plano_conta_nome,
+                    SUM(CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END) AS valor_sinal
+             FROM conciliacoes c
+             JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id
+             JOIN lancamentos l ON l.id = cl.lancamento_id
+             LEFT JOIN irmaos i ON i.id = l.irmao_id
+             WHERE c.conta_financeira_id = ? AND c.status = 'ativa'
+             GROUP BY c.id, c.data_conciliacao, c.criado_em
+
+             UNION ALL
+
+             SELECT o.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
+                    l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
+                    pc.nome AS plano_conta_nome,
+                    CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
+             FROM ofx_lancamentos o
+             JOIN lancamentos l ON l.id = o.lancamento_id
+             LEFT JOIN irmaos i ON i.id = l.irmao_id
+             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
+             WHERE o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.conta_financeira_id = ?
+
+             UNION ALL
+
+             SELECT l.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
+                    l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
+                    pc.nome AS plano_conta_nome,
+                    CASE
+                      WHEN l.conta_destino_id = ? THEN l.valor
+                      WHEN l.tipo = 'entrada' THEN l.valor
+                      ELSE -l.valor
+                    END AS valor_sinal
+             FROM lancamentos l
+             LEFT JOIN irmaos i ON i.id = l.irmao_id
+             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
+             WHERE l.pago = TRUE
+               AND (l.conta_id = ? OR l.conta_destino_id = ?)
+               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+               AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)
+               AND NOT EXISTS (
+                 SELECT 1 FROM ofx_lancamentos o WHERE o.lancamento_id = l.id AND o.conciliacao_id IS NULL
+               )`;
+
+      const movimentosParams =
+        data.modo === "compensado"
+          ? [data.contaId, data.contaId, data.contaId]
+          : [data.contaId, data.contaId, data.contaId, data.contaId, data.contaId, data.contaId];
+
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, data, descricao, tipo, categoria_recebimento, irmao_nome, plano_conta_nome, valor_sinal,
+        `SELECT id, data, criado_em, descricao, tipo, categoria_recebimento, irmao_nome, irmao_ids,
+                plano_conta_nome, valor_sinal,
                 (SELECT saldo_inicial FROM contas_financeiras WHERE id = ?)
                   + SUM(valor_sinal) OVER (ORDER BY data, criado_em, id) AS saldo_corrente
-         FROM (
-           SELECT l.id, COALESCE(l.data_pagamento, l.data) AS data, l.descricao, l.tipo,
-                  l.categoria_recebimento, l.criado_em,
-                  i.nome_civil AS irmao_nome, pc.nome AS plano_conta_nome,
-                  CASE
-                    WHEN l.conta_destino_id = ? THEN l.valor
-                    WHEN l.tipo = 'entrada' THEN l.valor
-                    ELSE -l.valor
-                  END AS valor_sinal
-           FROM lancamentos l
-           LEFT JOIN irmaos i ON i.id = l.irmao_id
-           LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
-           WHERE l.pago = TRUE
-             AND (l.conta_id = ? OR l.conta_destino_id = ?)
-             AND (? IS NULL OR COALESCE(l.data_pagamento, l.data) <= ?)
-         ) movimentos
+         FROM (${movimentosSql}) movimentos
+         WHERE ? IS NULL OR data <= ?
          ORDER BY data, criado_em, id`,
-        [data.contaId, data.contaId, data.contaId, data.contaId, data.ate, data.ate],
+        [data.contaId, ...movimentosParams, data.ate, data.ate],
       );
 
-      return (rows as (ItemExtratoBancario & { criado_em?: unknown })[])
+      let faturasPorRecibo = new Map<string, FaturaExtratoBancario[]>();
+      let faturasPorConciliacao = new Map<string, FaturaExtratoBancario[]>();
+      if (data.modo === "creditado") {
+        const [reciboRows] = await conn.query<RowDataPacket[]>(
+          `SELECT r.id AS recibo_id, l.id, l.descricao,
+                  (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor
+           FROM recibos r
+           JOIN recibo_itens ri ON ri.recibo_id = r.id
+           JOIN lancamentos l ON l.id = ri.lancamento_id
+           WHERE r.conta_financeira_id = ?`,
+          [data.contaId],
+        );
+        faturasPorRecibo = agruparFaturas(reciboRows, "recibo_id");
+
+        const [conciliacaoRows] = await conn.query<RowDataPacket[]>(
+          `SELECT c.id AS conciliacao_id, l.id, l.descricao, cl.valor_aplicado AS valor
+           FROM conciliacoes c
+           JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id
+           JOIN lancamentos l ON l.id = cl.lancamento_id
+           WHERE c.conta_financeira_id = ? AND c.status = 'ativa'`,
+          [data.contaId],
+        );
+        faturasPorConciliacao = agruparFaturas(conciliacaoRows, "conciliacao_id");
+      }
+
+      const idsRecibo = new Set(faturasPorRecibo.keys());
+      const idsConciliacao = new Set(faturasPorConciliacao.keys());
+
+      return (rows as LinhaBrutaExtratoBancario[])
         .filter((r) => !data.de || r.data >= data.de)
         .filter((r) => !data.tipo || r.tipo === data.tipo)
         .filter((r) => !data.categoria || r.categoria_recebimento === data.categoria)
+        .filter((r) => !data.irmaoId || (r.irmao_ids ?? "").split(",").includes(data.irmaoId!))
         .map((r) => ({
           id: r.id,
           data: r.data,
@@ -553,9 +684,30 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
           plano_conta_nome: r.plano_conta_nome,
           valor_sinal: Number(r.valor_sinal),
           saldo_corrente: Number(r.saldo_corrente),
+          faturas:
+            data.modo !== "creditado"
+              ? null
+              : idsRecibo.has(r.id)
+                ? (faturasPorRecibo.get(r.id) ?? [])
+                : idsConciliacao.has(r.id)
+                  ? (faturasPorConciliacao.get(r.id) ?? [])
+                  : [{ id: r.id, descricao: r.descricao, valor: Math.abs(Number(r.valor_sinal)) }],
         }));
     });
   });
+
+function agruparFaturas(
+  rows: RowDataPacket[],
+  chave: "recibo_id" | "conciliacao_id",
+): Map<string, FaturaExtratoBancario[]> {
+  const mapa = new Map<string, FaturaExtratoBancario[]>();
+  for (const r of rows) {
+    const lista = mapa.get(r[chave]) ?? [];
+    lista.push({ id: r.id, descricao: r.descricao, valor: Number(r.valor) });
+    mapa.set(r[chave], lista);
+  }
+  return mapa;
+}
 
 const gerarCobrancaLoteSchema = z.object({ lancamentoIds: z.array(z.string().uuid()).min(1) });
 
