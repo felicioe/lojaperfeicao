@@ -60,6 +60,7 @@ import { Route as AuthenticatedPainelFinanceiroRouteImport } from './routes/_aut
 import { Route as AuthenticatedPainelFrequenciaRouteImport } from './routes/_authenticated/painel/frequencia'
 import { Route as AuthenticatedPainelQuitacaoRouteImport } from './routes/_authenticated/painel/quitacao'
 import { Route as AuthenticatedPainelSessoesRouteImport } from './routes/_authenticated/painel/sessoes'
+import { Route as AuthenticatedRelatoriosExtratoBancarioRouteImport } from './routes/_authenticated/relatorios/extrato-bancario'
 import { Route as AuthenticatedRelatoriosExtratoConciliacaoRouteImport } from './routes/_authenticated/relatorios/extrato-conciliacao'
 import { Route as AuthenticatedRelatoriosExtratoIrmaoRouteImport } from './routes/_authenticated/relatorios/extrato-irmao'
 import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/_authenticated/relatorios/frequencia'
@@ -380,6 +381,12 @@ const AuthenticatedPainelSessoesRoute =
     path: '/sessoes',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
+const AuthenticatedRelatoriosExtratoBancarioRoute =
+  AuthenticatedRelatoriosExtratoBancarioRouteImport.update({
+    id: '/relatorios/extrato-bancario',
+    path: '/relatorios/extrato-bancario',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedRelatoriosExtratoConciliacaoRoute =
   AuthenticatedRelatoriosExtratoConciliacaoRouteImport.update({
     id: '/relatorios/extrato-conciliacao',
@@ -575,6 +582,7 @@ export interface FileRoutesByFullPath {
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
+  '/relatorios/extrato-bancario': typeof AuthenticatedRelatoriosExtratoBancarioRoute
   '/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/relatorios/extrato-irmao': typeof AuthenticatedRelatoriosExtratoIrmaoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -652,6 +660,7 @@ export interface FileRoutesByTo {
   '/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
+  '/relatorios/extrato-bancario': typeof AuthenticatedRelatoriosExtratoBancarioRoute
   '/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/relatorios/extrato-irmao': typeof AuthenticatedRelatoriosExtratoIrmaoRoute
   '/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -732,6 +741,7 @@ export interface FileRoutesById {
   '/_authenticated/painel/frequencia': typeof AuthenticatedPainelFrequenciaRoute
   '/_authenticated/painel/quitacao': typeof AuthenticatedPainelQuitacaoRoute
   '/_authenticated/painel/sessoes': typeof AuthenticatedPainelSessoesRoute
+  '/_authenticated/relatorios/extrato-bancario': typeof AuthenticatedRelatoriosExtratoBancarioRoute
   '/_authenticated/relatorios/extrato-conciliacao': typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   '/_authenticated/relatorios/extrato-irmao': typeof AuthenticatedRelatoriosExtratoIrmaoRoute
   '/_authenticated/relatorios/frequencia': typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -812,6 +822,7 @@ export interface FileRouteTypes {
     | '/painel/frequencia'
     | '/painel/quitacao'
     | '/painel/sessoes'
+    | '/relatorios/extrato-bancario'
     | '/relatorios/extrato-conciliacao'
     | '/relatorios/extrato-irmao'
     | '/relatorios/frequencia'
@@ -889,6 +900,7 @@ export interface FileRouteTypes {
     | '/painel/frequencia'
     | '/painel/quitacao'
     | '/painel/sessoes'
+    | '/relatorios/extrato-bancario'
     | '/relatorios/extrato-conciliacao'
     | '/relatorios/extrato-irmao'
     | '/relatorios/frequencia'
@@ -968,6 +980,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/frequencia'
     | '/_authenticated/painel/quitacao'
     | '/_authenticated/painel/sessoes'
+    | '/_authenticated/relatorios/extrato-bancario'
     | '/_authenticated/relatorios/extrato-conciliacao'
     | '/_authenticated/relatorios/extrato-irmao'
     | '/_authenticated/relatorios/frequencia'
@@ -1378,6 +1391,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelSessoesRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
+    '/_authenticated/relatorios/extrato-bancario': {
+      id: '/_authenticated/relatorios/extrato-bancario'
+      path: '/relatorios/extrato-bancario'
+      fullPath: '/relatorios/extrato-bancario'
+      preLoaderRoute: typeof AuthenticatedRelatoriosExtratoBancarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/relatorios/extrato-conciliacao': {
       id: '/_authenticated/relatorios/extrato-conciliacao'
       path: '/relatorios/extrato-conciliacao'
@@ -1618,6 +1638,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
   AuthenticatedIrmaosNovoRoute: typeof AuthenticatedIrmaosNovoRoute
   AuthenticatedOrgsPotenciasRoute: typeof AuthenticatedOrgsPotenciasRoute
+  AuthenticatedRelatoriosExtratoBancarioRoute: typeof AuthenticatedRelatoriosExtratoBancarioRoute
   AuthenticatedRelatoriosExtratoConciliacaoRoute: typeof AuthenticatedRelatoriosExtratoConciliacaoRoute
   AuthenticatedRelatoriosExtratoIrmaoRoute: typeof AuthenticatedRelatoriosExtratoIrmaoRoute
   AuthenticatedRelatoriosFrequenciaRoute: typeof AuthenticatedRelatoriosFrequenciaRoute
@@ -1694,6 +1715,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
   AuthenticatedIrmaosNovoRoute: AuthenticatedIrmaosNovoRoute,
   AuthenticatedOrgsPotenciasRoute: AuthenticatedOrgsPotenciasRoute,
+  AuthenticatedRelatoriosExtratoBancarioRoute:
+    AuthenticatedRelatoriosExtratoBancarioRoute,
   AuthenticatedRelatoriosExtratoConciliacaoRoute:
     AuthenticatedRelatoriosExtratoConciliacaoRoute,
   AuthenticatedRelatoriosExtratoIrmaoRoute:
