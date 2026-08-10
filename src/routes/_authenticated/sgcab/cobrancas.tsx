@@ -33,6 +33,17 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -207,28 +218,47 @@ function CobrancasSgcabPage() {
                         <RegistrarPagamentoDialog cobranca={c} onDone={invalidate} />
                       )}
                       {c.status === "pendente" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              await registrarPagamentoSgcab({
-                                data: {
-                                  id: c.id,
-                                  status: "cancelado",
-                                  dataPagamento: null,
-                                  comprovanteUrl: null,
-                                  observacoes: c.observacoes,
-                                },
-                              });
-                              invalidate();
-                            } catch (err) {
-                              toast.error(err instanceof Error ? err.message : "Erro ao cancelar.");
-                            }
-                          }}
-                        >
-                          <Ban className="h-4 w-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Cancelar esta cobrança?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Marca a cobrança de {brl(c.valor)} como cancelada. Pode ser
+                                revertido depois registrando o pagamento normalmente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Voltar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={async () => {
+                                  try {
+                                    await registrarPagamentoSgcab({
+                                      data: {
+                                        id: c.id,
+                                        status: "cancelado",
+                                        dataPagamento: null,
+                                        comprovanteUrl: null,
+                                        observacoes: c.observacoes,
+                                      },
+                                    });
+                                    invalidate();
+                                  } catch (err) {
+                                    toast.error(
+                                      err instanceof Error ? err.message : "Erro ao cancelar.",
+                                    );
+                                  }
+                                }}
+                              >
+                                Cancelar cobrança
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </TableCell>
                   )}
