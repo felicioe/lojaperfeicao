@@ -75,8 +75,17 @@ export const conciliarOfxExistente = createServerFn({ method: "POST" })
     z.object({ ofxId: z.string().uuid(), lancamentoId: z.string().uuid() }).parse(d),
   )
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL conciliar_ofx_existente(?, ?)", [data.ofxId, data.lancamentoId]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "conciliar",
+        "ofx_lancamento",
+        data.ofxId,
+        null,
+        data,
+      );
     });
   });
 
@@ -101,7 +110,7 @@ export const conciliarOfxLote = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }): Promise<{ conciliacaoId: string }> => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL conciliar_ofx_lote(?, ?, @conciliacao_id)", [
         JSON.stringify(data.ofxIds),
         JSON.stringify(
@@ -110,6 +119,15 @@ export const conciliarOfxLote = createServerFn({ method: "POST" })
       ]);
       const [[{ conciliacao_id }]] = await conn.query<RowDataPacket[]>(
         "SELECT @conciliacao_id AS conciliacao_id",
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "conciliar_lote",
+        "conciliacao",
+        conciliacao_id,
+        null,
+        data,
       );
       return { conciliacaoId: conciliacao_id };
     });
@@ -176,7 +194,7 @@ const criarLancamentoOfxSchema = z.object({
 export const criarLancamentoDeOfx = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarLancamentoOfxSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL criar_lancamento_de_ofx(?, ?, ?, ?, NULL, ?, @lanc_id)", [
         data.ofxId,
         data.planoContaId,
@@ -185,6 +203,15 @@ export const criarLancamentoDeOfx = createServerFn({ method: "POST" })
         data.descricao,
       ]);
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "criar_de_ofx",
+        "lancamento",
+        lanc_id,
+        null,
+        data,
+      );
       return { id: lanc_id };
     });
   });
@@ -210,7 +237,7 @@ const criarLancamentosOfxRateadoSchema = z.object({
 export const criarLancamentosDeOfxRateado = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarLancamentosOfxRateadoSchema.parse(d))
   .handler(async ({ data }): Promise<{ conciliacaoId: string }> => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL criar_lancamentos_de_ofx_rateado(?, ?, @conciliacao_id)", [
         data.ofxId,
         JSON.stringify(
@@ -225,6 +252,15 @@ export const criarLancamentosDeOfxRateado = createServerFn({ method: "POST" })
       ]);
       const [[{ conciliacao_id }]] = await conn.query<RowDataPacket[]>(
         "SELECT @conciliacao_id AS conciliacao_id",
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "criar_de_ofx_rateado",
+        "conciliacao",
+        conciliacao_id,
+        null,
+        data,
       );
       return { conciliacaoId: conciliacao_id };
     });
