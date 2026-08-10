@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // lancamentos_write original: admin/tesoureiro.
 const PAPEIS = ["admin", "tesoureiro"];
@@ -81,7 +82,7 @@ const novaContaPagarSchema = z.object({
 export const criarContaPagar = createServerFn({ method: "POST" })
   .validator((d: unknown) => novaContaPagarSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL criar_conta_pagar(?, ?, ?, ?, ?, NULL, ?, ?, @lanc_id)", [
         data.descricao,
         data.valor,
@@ -92,6 +93,7 @@ export const criarContaPagar = createServerFn({ method: "POST" })
         data.observacoes,
       ]);
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+      await registrarAuditoria(conn, usuarioIdAtual, "criar", "conta_pagar", lanc_id, null, data);
       return { id: lanc_id };
     });
   });
@@ -106,12 +108,21 @@ const baixarContaPagarSchema = z.object({
 export const baixarContaPagar = createServerFn({ method: "POST" })
   .validator((d: unknown) => baixarContaPagarSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL baixar_conta_pagar(?, ?, ?, ?)", [
         data.lancamentoId,
         data.contaFinanceiraId,
         data.formaPagamento,
         data.dataPagamento,
       ]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "baixar",
+        "conta_pagar",
+        data.lancamentoId,
+        null,
+        data,
+      );
     });
   });
