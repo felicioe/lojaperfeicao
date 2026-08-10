@@ -182,13 +182,18 @@ export const marcarLancamentoPago = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT pago, data_pagamento FROM lancamentos WHERE id = ?",
+        "SELECT pago, data_pagamento, valor_pago FROM lancamentos WHERE id = ?",
         [data.id],
       );
-      await conn.query("UPDATE lancamentos SET pago = TRUE, data_pagamento = ? WHERE id = ?", [
-        data.dataPagamento,
-        data.id,
-      ]);
+      // valor_pago = valor: mesmo invariante "pago=TRUE implica valor_pago
+      // >= valor" que baixar_faturas/baixar_conta_pagar/etc já seguem desde
+      // 0048 — sem isso, Total pago no Extrato do Irmão e o saldo em aberto
+      // (valor - valor_pago) ficavam errados pra lançamento baixado por
+      // aqui (achado #9 da auditoria financeira).
+      await conn.query(
+        "UPDATE lancamentos SET pago = TRUE, data_pagamento = ?, valor_pago = valor WHERE id = ?",
+        [data.dataPagamento, data.id],
+      );
       await registrarAuditoria(conn, usuarioIdAtual, "marcar_pago", "lancamentos", data.id, antes, {
         pago: true,
         data_pagamento: data.dataPagamento,
