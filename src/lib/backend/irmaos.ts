@@ -218,8 +218,17 @@ export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => perfilSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      const campos = CAMPOS_PERFIL.filter((c) => c in data.perfil);
+      const campos: string[] = CAMPOS_PERFIL.filter((c) => c in data.perfil);
       if (campos.length === 0) return;
+      // Editar a mensalidade aqui (fora do reajuste em massa) é sempre uma
+      // negociação individual — marca como customizada pra gerar_mensalidades
+      // nunca mais sobrescrever com o histórico global da Tabela de Valores
+      // (achado #5 da auditoria: reajuste em massa estava atropelando quem
+      // tinha valor diferenciado).
+      if (campos.includes("valor_mensalidade")) {
+        campos.push("valor_mensalidade_customizado");
+        data.perfil.valor_mensalidade_customizado = true;
+      }
       // Só o estado ANTERIOR dos campos que de fato vão ser alterados — sem
       // isso, uma mudança indevida de grau/situação/mensalidade não deixava
       // rastro nenhum de quem fez nem do valor anterior.

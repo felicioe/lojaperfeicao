@@ -87,7 +87,10 @@ export const contarIrmaosParaReajuste = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<number> => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      const condicoes = ["situacao IN ('ativo', 'quite', 'irregular')"];
+      const condicoes = [
+        "situacao IN ('ativo', 'quite', 'irregular')",
+        "valor_mensalidade_customizado = FALSE",
+      ];
       const valores: unknown[] = [];
       if (data.apenasComValorAtual !== null) {
         condicoes.push("valor_mensalidade = ?");
@@ -112,8 +115,14 @@ export type ResultadoReajuste = { irmaosAtualizados: number };
 
 // Reajuste em massa: grava a nova vigência na tabela de valores E atualiza
 // irmaos.valor_mensalidade de quem está ativo — só afeta gerações futuras
-// de mensalidade (gerar_mensalidades lê o valor atual no momento em que
-// roda); lançamentos já gerados nunca são tocados.
+// de mensalidade (gerar_mensalidades lê o valor no momento em que roda);
+// lançamentos já gerados nunca são tocados. Nunca inclui quem tem
+// valor_mensalidade_customizado = TRUE (mensalidade negociada à parte, ver
+// atualizarPerfilIrmao) — e quem É incluído aqui passa a
+// valor_mensalidade_customizado = FALSE, porque está justamente entrando
+// no valor padrão de propósito (achado #5 da auditoria financeira: antes
+// disso, mesmo "poupando" alguém do valor_mensalidade, gerar_mensalidades
+// aplicava o histórico global da Tabela de Valores nele mesmo assim).
 export const reajustarMensalidadeEmMassa = createServerFn({ method: "POST" })
   .validator((d: unknown) => reajusteSchema.parse(d))
   .handler(async ({ data }): Promise<ResultadoReajuste> => {
@@ -123,7 +132,10 @@ export const reajustarMensalidadeEmMassa = createServerFn({ method: "POST" })
         [data.novoValor, data.vigenciaInicio, data.observacoes],
       );
 
-      const condicoes = ["situacao IN ('ativo', 'quite', 'irregular')"];
+      const condicoes = [
+        "situacao IN ('ativo', 'quite', 'irregular')",
+        "valor_mensalidade_customizado = FALSE",
+      ];
       const valores: unknown[] = [];
       if (data.apenasComValorAtual !== null) {
         condicoes.push("valor_mensalidade = ?");
