@@ -164,6 +164,47 @@ export const criarLancamentoDeOfx = createServerFn({ method: "POST" })
     });
   });
 
+// Rateio (issue #137) — quando um único depósito junta mais de uma
+// natureza (ex.: mensalidade + juros de atraso), desdobra a linha do OFX
+// em N lançamentos, um por item, cada um com sua própria conta contábil,
+// categoria e irmão (opcional). A soma dos itens precisa bater exatamente
+// com o valor da linha — validado de verdade na procedure, não só na UI.
+const rateioItemSchema = z.object({
+  planoContaId: z.string().uuid(),
+  categoria: z.enum(["mensalidade", "taxa_grau", "tronco", "doacao", "outros"]).nullable(),
+  irmaoId: z.string().uuid().nullable(),
+  valor: z.number().positive(),
+  descricao: z.string().nullable(),
+});
+
+const criarLancamentosOfxRateadoSchema = z.object({
+  ofxId: z.string().uuid(),
+  itens: z.array(rateioItemSchema).min(2),
+});
+
+export const criarLancamentosDeOfxRateado = createServerFn({ method: "POST" })
+  .validator((d: unknown) => criarLancamentosOfxRateadoSchema.parse(d))
+  .handler(async ({ data }): Promise<{ conciliacaoId: string }> => {
+    return comPapel(PAPEIS, async (conn) => {
+      await conn.query("CALL criar_lancamentos_de_ofx_rateado(?, ?, @conciliacao_id)", [
+        data.ofxId,
+        JSON.stringify(
+          data.itens.map((i) => ({
+            plano_conta_id: i.planoContaId,
+            categoria: i.categoria,
+            irmao_id: i.irmaoId,
+            valor: i.valor,
+            descricao: i.descricao,
+          })),
+        ),
+      ]);
+      const [[{ conciliacao_id }]] = await conn.query<RowDataPacket[]>(
+        "SELECT @conciliacao_id AS conciliacao_id",
+      );
+      return { conciliacaoId: conciliacao_id };
+    });
+  });
+
 // ---------- Importação de extrato OFX ----------
 // Porta 1:1 a lógica da antiga Edge Function "importar-ofx" (Deno) para
 // Node: mesmo parser SGML manual (elementos-folha sem tag de fechamento),

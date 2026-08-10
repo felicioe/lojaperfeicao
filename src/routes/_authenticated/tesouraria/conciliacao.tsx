@@ -5,6 +5,7 @@ import {
   listarOfxPendentes,
   conciliarOfxLote,
   criarLancamentoDeOfx,
+  criarLancamentosDeOfxRateado,
   importarOfx,
   type OfxLancamento,
 } from "@/lib/backend/tesouraria-conciliacao";
@@ -535,6 +536,26 @@ function Conciliacao() {
   );
 }
 
+type RateioItem = {
+  chave: string;
+  planoContaId: string;
+  categoria: string;
+  irmaoId: string;
+  valor: string;
+  descricao: string;
+};
+
+function novoItemRateio(): RateioItem {
+  return {
+    chave: Math.random().toString(36).slice(2),
+    planoContaId: "",
+    categoria: "outros",
+    irmaoId: "",
+    valor: "",
+    descricao: "",
+  };
+}
+
 function CriarLancamentoDialog({
   ofxLinha,
   onDone,
@@ -543,10 +564,16 @@ function CriarLancamentoDialog({
   onDone: () => void;
 }) {
   const isEntrada = Number(ofxLinha.valor) >= 0;
+  const valorOfxAbs = Math.abs(Number(ofxLinha.valor));
+  const [modo, setModo] = useState<"simples" | "rateio">("simples");
   const [categoria, setCategoria] = useState("outros");
   const [planoContaId, setPlanoContaId] = useState("");
   const [irmaoId, setIrmaoId] = useState("");
   const [descricao, setDescricao] = useState(ofxLinha.descricao ?? "");
+  const [itensRateio, setItensRateio] = useState<RateioItem[]>(() => [
+    novoItemRateio(),
+    novoItemRateio(),
+  ]);
   const [saving, setSaving] = useState(false);
 
   const { data: planos = [] } = useQuery({
@@ -558,6 +585,13 @@ function CriarLancamentoDialog({
     queryFn: () => listarIrmaosNomes(),
     enabled: isEntrada,
   });
+
+  const atualizarItem = (chave: string, patch: Partial<RateioItem>) => {
+    setItensRateio((atual) => atual.map((it) => (it.chave === chave ? { ...it, ...patch } : it)));
+  };
+
+  const totalRateio = itensRateio.reduce((s, it) => s + (Number(it.valor) || 0), 0);
+  const diferencaRateio = Math.round((valorOfxAbs - totalRateio) * 100) / 100;
 
   const salvar = async () => {
     if (!planoContaId) return toast.error("Selecione a categoria contábil.");
@@ -583,72 +617,242 @@ function CriarLancamentoDialog({
     }
   };
 
+  const salvarRateio = async () => {
+    if (itensRateio.some((it) => !it.planoContaId || !(Number(it.valor) > 0))) {
+      return toast.error("Preencha a categoria contábil e o valor de cada item.");
+    }
+    if (diferencaRateio !== 0) {
+      return toast.error("A soma dos itens precisa bater exatamente com o valor do extrato.");
+    }
+    setSaving(true);
+    try {
+      await criarLancamentosDeOfxRateado({
+        data: {
+          ofxId: ofxLinha.id,
+          itens: itensRateio.map((it) => ({
+            planoContaId: it.planoContaId,
+            categoria: isEntrada
+              ? (it.categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros")
+              : null,
+            irmaoId: it.irmaoId || null,
+            valor: Number(it.valor),
+            descricao: it.descricao || null,
+          })),
+        },
+      });
+      toast.success("Lançamentos criados e conciliados.");
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <DialogContent>
+    <DialogContent className={modo === "rateio" ? "max-w-2xl" : undefined}>
       <DialogHeader>
         <DialogTitle>Criar lançamento a partir do extrato</DialogTitle>
       </DialogHeader>
       <div className="grid gap-3">
-        <div className="text-sm text-muted-foreground">
-          {brl(ofxLinha.valor)} — {fmtDate(ofxLinha.data)}
-        </div>
-        {isEntrada && (
-          <div>
-            <Label>Categoria</Label>
-            <Select value={categoria} onValueChange={setCategoria}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(CATEGORIA_LABEL).map(([v, l]) => (
-                  <SelectItem key={v} value={v}>
-                    {l}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {brl(ofxLinha.valor)} — {fmtDate(ofxLinha.data)}
           </div>
-        )}
-        {isEntrada && (
-          <div>
-            <Label>Irmão (opcional)</Label>
-            <Select
-              value={irmaoId || "__nenhum__"}
-              onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setModo(modo === "simples" ? "rateio" : "simples")}
+          >
+            {modo === "simples" ? "Ratear em mais de uma conta" : "Voltar pro modo simples"}
+          </Button>
+        </div>
+
+        {modo === "simples" ? (
+          <>
+            {isEntrada && (
+              <div>
+                <Label>Categoria</Label>
+                <Select value={categoria} onValueChange={setCategoria}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(CATEGORIA_LABEL).map(([v, l]) => (
+                      <SelectItem key={v} value={v}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {isEntrada && (
+              <div>
+                <Label>Irmão (opcional)</Label>
+                <Select
+                  value={irmaoId || "__nenhum__"}
+                  onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__nenhum__">
+                      Nenhum (ex.: tronco de solidariedade)
+                    </SelectItem>
+                    {irmaos.map((i) => (
+                      <SelectItem key={i.id} value={i.id}>
+                        {i.nome_civil}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <Label>Categoria contábil ({isEntrada ? "receita" : "despesa"})</Label>
+              <Select value={planoContaId} onValueChange={setPlanoContaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planos.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.codigo} — {p.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Desdobra o valor da linha em mais de um lançamento — ex.: mensalidade + juros
+              recebidos juntos. A soma dos itens precisa fechar com {brl(valorOfxAbs)}.
+            </p>
+            {itensRateio.map((it, idx) => (
+              <div key={it.chave} className="grid gap-2 rounded-md border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Item {idx + 1}</span>
+                  {itensRateio.length > 2 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setItensRateio((atual) => atual.filter((x) => x.chave !== it.chave))
+                      }
+                    >
+                      Remover
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label>Categoria contábil ({isEntrada ? "receita" : "despesa"})</Label>
+                    <Select
+                      value={it.planoContaId}
+                      onValueChange={(v) => atualizarItem(it.chave, { planoContaId: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {planos.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.codigo} — {p.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Valor</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={it.valor}
+                      onChange={(e) => atualizarItem(it.chave, { valor: e.target.value })}
+                    />
+                  </div>
+                </div>
+                {isEntrada && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Categoria</Label>
+                      <Select
+                        value={it.categoria}
+                        onValueChange={(v) => atualizarItem(it.chave, { categoria: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(CATEGORIA_LABEL).map(([v, l]) => (
+                            <SelectItem key={v} value={v}>
+                              {l}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Irmão (opcional)</Label>
+                      <Select
+                        value={it.irmaoId || "__nenhum__"}
+                        onValueChange={(v) =>
+                          atualizarItem(it.chave, { irmaoId: v === "__nenhum__" ? "" : v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__nenhum__">Nenhum</SelectItem>
+                          {irmaos.map((i) => (
+                            <SelectItem key={i.id} value={i.id}>
+                              {i.nome_civil}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <Label>Descrição (opcional)</Label>
+                  <Input
+                    value={it.descricao}
+                    onChange={(e) => atualizarItem(it.chave, { descricao: e.target.value })}
+                  />
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setItensRateio((atual) => [...atual, novoItemRateio()])}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__nenhum__">Nenhum (ex.: tronco de solidariedade)</SelectItem>
-                {irmaos.map((i) => (
-                  <SelectItem key={i.id} value={i.id}>
-                    {i.nome_civil}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <Plus className="h-4 w-4 mr-1" /> Adicionar item
+            </Button>
+            <div
+              className={`text-sm font-medium ${diferencaRateio !== 0 ? "text-destructive" : "text-emerald-600"}`}
+            >
+              Total: {brl(totalRateio)} de {brl(valorOfxAbs)}
+              {diferencaRateio !== 0 &&
+                ` — falta ${brl(Math.abs(diferencaRateio))} ${diferencaRateio > 0 ? "alocar" : "sobrando"}`}
+            </div>
+          </>
         )}
-        <div>
-          <Label>Categoria contábil ({isEntrada ? "receita" : "despesa"})</Label>
-          <Select value={planoContaId} onValueChange={setPlanoContaId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione…" />
-            </SelectTrigger>
-            <SelectContent>
-              {planos.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.codigo} — {p.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Descrição</Label>
-          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-        </div>
       </div>
       <DialogFooter>
         <DialogClose asChild>
@@ -656,9 +860,15 @@ function CriarLancamentoDialog({
             Cancelar
           </Button>
         </DialogClose>
-        <Button onClick={salvar} disabled={saving || !planoContaId}>
-          Criar
-        </Button>
+        {modo === "simples" ? (
+          <Button onClick={salvar} disabled={saving || !planoContaId}>
+            Criar
+          </Button>
+        ) : (
+          <Button onClick={salvarRateio} disabled={saving || diferencaRateio !== 0}>
+            Criar {itensRateio.length} lançamentos
+          </Button>
+        )}
       </DialogFooter>
     </DialogContent>
   );
