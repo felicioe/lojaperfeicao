@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { relatorioExtratoBancario } from "@/lib/backend/relatorios";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
@@ -59,14 +60,20 @@ function ExtratoBancario() {
   const [ate, setAte] = useState("");
   const [tipo, setTipo] = useState("todos");
   const [categoria, setCategoria] = useState("todas");
+  const [irmaoId, setIrmaoId] = useState("todos");
+  const [modo, setModo] = useState<"compensado" | "creditado">("creditado");
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
     queryFn: () => listarContasFinanceiras(),
   });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
 
   const { data: itens = [] } = useQuery({
-    queryKey: ["relatorio_extrato_bancario", contaId, de, ate, tipo, categoria],
+    queryKey: ["relatorio_extrato_bancario", contaId, de, ate, tipo, categoria, irmaoId, modo],
     enabled: !!contaId,
     queryFn: () =>
       relatorioExtratoBancario({
@@ -76,6 +83,8 @@ function ExtratoBancario() {
           ate: ate || null,
           tipo: tipo !== "todos" ? (tipo as "entrada" | "saida" | "transferencia") : null,
           categoria: categoria !== "todas" ? categoria : null,
+          irmaoId: irmaoId !== "todos" ? irmaoId : null,
+          modo,
         },
       }),
   });
@@ -95,7 +104,10 @@ function ExtratoBancario() {
 
   const linhasExportacao = itens.map((i) => ({
     data: fmtDate(i.data),
-    descricao: i.descricao,
+    descricao:
+      i.faturas && i.faturas.length > 1
+        ? `${i.descricao} (${i.faturas.map((f) => f.descricao).join("; ")})`
+        : i.descricao,
     irmao: i.irmao_nome ?? "",
     conta_contabil: i.plano_conta_nome ?? "",
     tipo: TIPO_LABEL[i.tipo],
@@ -184,6 +196,34 @@ function ExtratoBancario() {
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <Label className="text-xs">Irmão</Label>
+          <Select value={irmaoId} onValueChange={setIrmaoId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Valores exibidos</Label>
+          <Select value={modo} onValueChange={(v) => setModo(v as "compensado" | "creditado")}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="creditado">Creditado em conta (extrato real)</SelectItem>
+              <SelectItem value="compensado">Compensado (com as faturas)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </Card>
 
       {!contaId && (
@@ -254,7 +294,19 @@ function ExtratoBancario() {
                   {pag.itensPagina.map((i) => (
                     <TableRow key={i.id}>
                       <TableCell>{fmtDate(i.data)}</TableCell>
-                      <TableCell>{i.descricao}</TableCell>
+                      <TableCell>
+                        {i.descricao}
+                        {i.faturas && i.faturas.length > 1 && (
+                          <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                            {i.faturas.map((f) => (
+                              <div key={f.id} className="flex justify-between gap-2">
+                                <span>{f.descricao}</span>
+                                <span>{brl(f.valor)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>{i.irmao_nome ?? "—"}</TableCell>
                       <TableCell>{i.plano_conta_nome ?? "—"}</TableCell>
                       <TableCell>
