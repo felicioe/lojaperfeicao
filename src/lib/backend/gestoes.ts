@@ -125,7 +125,7 @@ export const criarGestao = createServerFn({ method: "POST" })
 export const ativarGestao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ gestaoId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comSessao(async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query("CALL ativar_gestao(?)", [data.gestaoId]);
     });
   });
