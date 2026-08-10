@@ -197,7 +197,14 @@ export const marcarLancamentoPago = createServerFn({ method: "POST" })
   });
 
 // Desfaz a baixa — volta o lançamento pra "aberto", pra corrigir uma
-// marcação de pago feita por engano (sem apagar o lançamento em si).
+// marcação de pago feita por engano (sem apagar o lançamento em si). Só se
+// aplica à baixa "simples" feita por marcarLancamentoPago: um lançamento
+// quitado via recibo (baixar_faturas) ou conciliação bancária tem recibo/
+// lançamento contábil/OFX vinculados que isso NÃO reverte — zerar
+// valor_pago aqui deixaria esses vínculos órfãos e, se depois alguém usar
+// "Desfazer conciliação" por cima, valor_pago vai a negativo (subtrai de
+// novo o que essa baixa "simples" já tinha zerado), dobrando a dívida do
+// irmão. Pra esses casos a reversão correta é "Desfazer conciliação".
 export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
@@ -206,6 +213,24 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
         "SELECT pago, data_pagamento FROM lancamentos WHERE id = ?",
         [data.id],
       );
+      const [[vinculo]] = await conn.query<RowDataPacket[]>(
+        `SELECT
+           EXISTS(SELECT 1 FROM recibo_itens WHERE lancamento_id = ?) AS tem_recibo,
+           EXISTS(SELECT 1 FROM conciliacao_lancamentos WHERE lancamento_id = ?) AS tem_conciliacao,
+           EXISTS(SELECT 1 FROM ofx_lancamentos WHERE lancamento_id = ? AND conciliado = TRUE)
+             AS tem_ofx_legado`,
+        [data.id, data.id, data.id],
+      );
+      if (vinculo.tem_recibo) {
+        throw new Error(
+          'Este lançamento foi baixado com recibo — "Desmarcar pago" não desfaz o recibo nem o lançamento contábil por trás. Não é possível reverter por aqui.',
+        );
+      }
+      if (vinculo.tem_conciliacao || vinculo.tem_ofx_legado) {
+        throw new Error(
+          'Este lançamento foi quitado por conciliação bancária — use "Desfazer conciliação" (Conciliação Bancária ou Extrato da Conciliação), não "Desmarcar pago".',
+        );
+      }
       await conn.query(
         "UPDATE lancamentos SET pago = FALSE, data_pagamento = NULL, valor_pago = 0 WHERE id = ?",
         [data.id],
