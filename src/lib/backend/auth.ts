@@ -136,29 +136,58 @@ export const registrarConsentimentoLgpd = createServerFn({ method: "POST" }).han
   });
 });
 
-const trocarMinhaSenhaSchema = z.object({ novaSenha: z.string().min(3) });
+const trocarMinhaSenhaSchema = z.object({
+  novaSenha: z.string().min(3),
+  // Só null no fluxo de primeiro acesso (/trocar-senha, deve_trocar_senha
+  // ativo) — a pessoa acabou de digitar a senha padrão pra entrar, pedir
+  // de novo não agrega segurança. Fora desse fluxo, é obrigatório (achado
+  // #184): sem isso, uma sessão válida em dispositivo destravado/vazada
+  // bastava pra trocar a senha e travar o dono legítimo fora.
+  senhaAtual: z.string().min(1).nullable(),
+});
 
 // Self-service — usado tanto pelo gate obrigatório de primeiro acesso
-// (/trocar-senha) quanto por uma troca voluntária futura. Sempre limpa
-// deve_trocar_senha, mesmo numa troca voluntária (a pessoa já resolveu
-// o que a flag pedia).
+// (/trocar-senha) quanto pela troca voluntária em /conta/seguranca. Sempre
+// limpa deve_trocar_senha, mesmo numa troca voluntária (a pessoa já
+// resolveu o que a flag pedia).
 export const trocarMinhaSenha = createServerFn({ method: "POST" })
   .validator((data: unknown) => trocarMinhaSenhaSchema.parse(data))
   .handler(async ({ data }) => {
     return comSessao(
       async (conn, usuarioId) => {
+        const [[usuario]] = await conn.query<RowDataPacket[]>(
+          "SELECT senha_hash, deve_trocar_senha FROM usuarios WHERE id = ?",
+          [usuarioId],
+        );
+        if (!usuario.deve_trocar_senha) {
+          if (!data.senhaAtual || !(await bcrypt.compare(data.senhaAtual, usuario.senha_hash))) {
+            throw new Error("Senha atual incorreta.");
+          }
+        }
         const hash = await bcrypt.hash(data.novaSenha, 10);
         await conn.query(
-          "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = FALSE WHERE id = ?",
+          "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = FALSE, senha_alterada_em = NOW() WHERE id = ?",
           [hash, usuarioId],
         );
         // nunca loga a senha em si, só o fato de ter sido trocada.
         await registrarAuditoria(conn, usuarioId, "trocar_senha", "usuario", usuarioId);
+
+        // Todas as OUTRAS sessões (outros dispositivos/abas) ficam
+        // inválidas a partir de agora — ver sessaoDesatualizada em
+        // authz.ts. Sem isso, a própria sessão atual também cairia no
+        // próximo request, já que seu criadaEm é anterior ao
+        // senha_alterada_em que acabou de ser gravado; renovamos com o
+        // timestamp exato do banco (não Date.now() do Node, pra não
+        // arriscar um relógio ligeiramente atrasado invalidar a si mesma).
+        const [[{ agora }]] = await conn.query<RowDataPacket[]>("SELECT NOW() AS agora");
+        await criarSessao(usuarioId, new Date(agora).getTime());
       },
-      // Precisa ignorar o próprio gate que essa função existe pra satisfazer
-      // — senão quem está com deve_trocar_senha=true nunca conseguiria
-      // trocar a senha e destravar a própria conta.
-      { ignorarTrocaSenhaObrigatoria: true },
+      // Precisa ignorar os próprios gates que essa função existe pra
+      // satisfazer — senão quem está com deve_trocar_senha=true nunca
+      // conseguiria destravar a própria conta, e uma segunda troca
+      // voluntária na mesma sessão sempre falharia (a primeira troca já
+      // atualizou senha_alterada_em pra depois do início da sessão atual).
+      { ignorarTrocaSenhaObrigatoria: true, ignorarSessaoDesatualizada: true },
     );
   });
 

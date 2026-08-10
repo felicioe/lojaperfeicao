@@ -39,7 +39,7 @@ function TrocarSenha() {
     if (novaSenha !== confirmacao) return toast.error("As senhas não conferem.");
     setEnviando(true);
     try {
-      await trocarMinhaSenha({ data: { novaSenha } });
+      await trocarMinhaSenha({ data: { novaSenha, senhaAtual: null } });
       const sessao = await getSessao();
       queryClient.setQueryData(SESSAO_QUERY_KEY, sessao);
       toast.success("Senha atualizada.");

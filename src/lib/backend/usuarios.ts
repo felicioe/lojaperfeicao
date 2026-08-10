@@ -301,11 +301,10 @@ export const redefinirSenhaUsuario = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const hash = await bcrypt.hash(data.novaSenha, 10);
-      await conn.query("UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = ? WHERE id = ?", [
-        hash,
-        data.obrigarTrocaSenha,
-        data.usuarioId,
-      ]);
+      await conn.query(
+        "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = ?, senha_alterada_em = NOW() WHERE id = ?",
+        [hash, data.obrigarTrocaSenha, data.usuarioId],
+      );
       // nunca loga a senha em si, só o fato de ter sido redefinida.
       await registrarAuditoria(
         conn,

@@ -633,17 +633,20 @@ function CodigosBackupConteudo({
 }
 
 function TrocarSenhaCard() {
+  const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
   const [salvando, setSalvando] = useState(false);
 
   const salvar = async () => {
+    if (!senhaAtual) return toast.error("Informe a senha atual.");
     if (novaSenha.length < 3) return toast.error("Senha muito curta.");
     if (novaSenha !== confirmacao) return toast.error("As senhas não conferem.");
     setSalvando(true);
     try {
-      await trocarMinhaSenha({ data: { novaSenha } });
+      await trocarMinhaSenha({ data: { novaSenha, senhaAtual } });
       toast.success("Senha alterada.");
+      setSenhaAtual("");
       setNovaSenha("");
       setConfirmacao("");
     } catch (err) {
@@ -665,6 +668,14 @@ function TrocarSenhaCard() {
       </CardHeader>
       <CardContent className="grid gap-3">
         <div>
+          <Label>Senha atual</Label>
+          <Input
+            type="password"
+            value={senhaAtual}
+            onChange={(e) => setSenhaAtual(e.target.value)}
+          />
+        </div>
+        <div>
           <Label>Nova senha</Label>
           <Input type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
         </div>
@@ -676,7 +687,7 @@ function TrocarSenhaCard() {
             onChange={(e) => setConfirmacao(e.target.value)}
           />
         </div>
-        <Button onClick={salvar} disabled={salvando || !novaSenha} className="w-fit">
+        <Button onClick={salvar} disabled={salvando || !novaSenha || !senhaAtual} className="w-fit">
           {salvando ? "Salvando…" : "Alterar senha"}
         </Button>
       </CardContent>
