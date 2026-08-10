@@ -1,0 +1,12 @@
+-- =========================================
+-- CORRIGIR NATUREZA INVÁLIDA EM ORGS (bug relatado pelo usuário).
+-- orgs.natureza é um ENUM NOT NULL, mas pelo menos um corpo existente
+-- estava com o valor vazio ('') — o próprio MySQL grava '' quando uma
+-- string fora da lista do ENUM é atribuída fora do modo estrito (dado
+-- legado, de antes da coluna virar obrigatória/validada na aplicação).
+-- Isso travava a edição de QUALQUER campo do corpo: o formulário carregava
+-- a natureza inválida, o Select ficava sem seleção visível, e salvarOrg
+-- (que exige um valor do enum) rejeitava a gravação inteira.
+-- Ver também o fix defensivo em src/routes/_authenticated/orgs/index.tsx.
+-- =========================================
+UPDATE orgs SET natureza = 'loja' WHERE natureza = '';

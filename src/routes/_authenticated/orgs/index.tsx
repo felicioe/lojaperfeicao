@@ -147,7 +147,11 @@ function Orgs() {
       potencia_id: o.potencia_id ?? "none",
       nome: o.nome,
       sigla: o.sigla ?? "",
-      natureza: o.natureza,
+      // Dado legado: algum corpo antigo pode ter natureza vazia/inválida no
+      // banco (não passa mais por aqui desde que salvarOrg exige um valor
+      // do enum) — sem essa checagem, o Select ficava sem nada selecionado
+      // e salvar QUALQUER campo do corpo falhava, travando a edição.
+      natureza: o.natureza in NATUREZA_LABEL ? o.natureza : "loja",
       numero: o.numero ?? "",
       rito: o.rito ?? "",
       grau_min: o.grau_min,
