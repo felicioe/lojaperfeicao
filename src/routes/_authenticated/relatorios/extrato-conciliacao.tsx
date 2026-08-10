@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
 import { DesfazerConciliacaoDialog } from "@/components/app/DesfazerConciliacaoDialog";
+import { AtribuirIrmaoDialog } from "@/components/app/LancamentoAcoes";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -191,9 +192,35 @@ function ExtratoConciliacao() {
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {i.lancamentos_vinculados.length > 0
-                          ? i.lancamentos_vinculados.map((l) => l.descricao).join("; ")
-                          : "—"}
+                        {i.lancamentos_vinculados.length > 0 ? (
+                          <div className="grid gap-1">
+                            {i.lancamentos_vinculados.map((l) => (
+                              <div key={l.id} className="flex items-center gap-1">
+                                <span>
+                                  {l.descricao}
+                                  {l.tipo === "entrada" && (
+                                    <span className="text-xs">
+                                      {" — "}
+                                      {l.irmao_nome ?? "sem irmão vinculado"}
+                                    </span>
+                                  )}
+                                </span>
+                                {l.tipo === "entrada" && can.canManageFinancas && (
+                                  <AtribuirIrmaoDialog
+                                    lancamento={l}
+                                    onDone={() =>
+                                      qc.invalidateQueries({
+                                        queryKey: ["relatorio_extrato_conciliacao"],
+                                      })
+                                    }
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {can.canManageFinancas && i.conciliado && i.conciliacao_id && (

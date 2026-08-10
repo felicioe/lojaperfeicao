@@ -226,6 +226,15 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
 // O relatório precisa juntar os dois casos pra mostrar o vínculo correto
 // nos dois.
 
+export type LancamentoVinculado = {
+  id: string;
+  descricao: string;
+  valor: number;
+  tipo: "entrada" | "saida" | "transferencia";
+  irmao_id: string | null;
+  irmao_nome: string | null;
+};
+
 export type ItemExtratoConciliacao = {
   id: string;
   data: string;
@@ -234,7 +243,7 @@ export type ItemExtratoConciliacao = {
   descricao: string | null;
   conciliado: boolean;
   conciliacao_id: string | null;
-  lancamentos_vinculados: { id: string; descricao: string; valor: number }[];
+  lancamentos_vinculados: LancamentoVinculado[];
 };
 
 const filtroExtratoConciliacaoSchema = z.object({
@@ -270,25 +279,43 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
       const idsLegado = [...new Set(linhas.map((l) => l.lancamento_id).filter(Boolean))];
       const idsConciliacao = [...new Set(linhas.map((l) => l.conciliacao_id).filter(Boolean))];
 
-      const legadoMap = new Map<string, { id: string; descricao: string; valor: number }>();
+      const legadoMap = new Map<string, LancamentoVinculado>();
       if (idsLegado.length > 0) {
         const [rows] = await conn.query<RowDataPacket[]>(
-          `SELECT id, descricao, valor FROM lancamentos WHERE id IN (?)`,
+          `SELECT l.id, l.descricao, l.valor, l.tipo, l.irmao_id, i.nome_civil AS irmao_nome
+           FROM lancamentos l LEFT JOIN irmaos i ON i.id = l.irmao_id
+           WHERE l.id IN (?)`,
           [idsLegado],
         );
         for (const r of rows)
-          legadoMap.set(r.id, { id: r.id, descricao: r.descricao, valor: r.valor });
+          legadoMap.set(r.id, {
+            id: r.id,
+            descricao: r.descricao,
+            valor: r.valor,
+            tipo: r.tipo,
+            irmao_id: r.irmao_id,
+            irmao_nome: r.irmao_nome,
+          });
       }
 
-      const loteMap = new Map<string, { id: string; descricao: string; valor: number }[]>();
+      const loteMap = new Map<string, LancamentoVinculado[]>();
       if (idsConciliacao.length > 0) {
         const [rows] = await conn.query<RowDataPacket[]>(
-          `SELECT id, descricao, valor, conciliacao_id FROM lancamentos WHERE conciliacao_id IN (?)`,
+          `SELECT l.id, l.descricao, l.valor, l.tipo, l.irmao_id, l.conciliacao_id, i.nome_civil AS irmao_nome
+           FROM lancamentos l LEFT JOIN irmaos i ON i.id = l.irmao_id
+           WHERE l.conciliacao_id IN (?)`,
           [idsConciliacao],
         );
         for (const r of rows) {
           const lista = loteMap.get(r.conciliacao_id) ?? [];
-          lista.push({ id: r.id, descricao: r.descricao, valor: r.valor });
+          lista.push({
+            id: r.id,
+            descricao: r.descricao,
+            valor: r.valor,
+            tipo: r.tipo,
+            irmao_id: r.irmao_id,
+            irmao_nome: r.irmao_nome,
+          });
           loteMap.set(r.conciliacao_id, lista);
         }
       }
