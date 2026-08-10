@@ -157,12 +157,15 @@ function EditarLancamentoDialog({
 // independente do status pago, já que é só metadado de quem pagou. Caso de
 // uso principal: lançamento avulso criado a partir do OFX, onde a
 // atribuição pode não ter sido feita na hora (ex.: precisou identificar o
-// depositante depois) ou precisar de correção.
-function AtribuirIrmaoDialog({
+// depositante depois) ou precisar de correção. Também usada de fora deste
+// arquivo (Extrato da Conciliação, issue #197) pra corrigir o irmão de um
+// lançamento já conciliado — por isso o tipo aceito é só os campos que o
+// diálogo realmente usa, não o Lancamento completo.
+export function AtribuirIrmaoDialog({
   lancamento,
   onDone,
 }: {
-  lancamento: Lancamento;
+  lancamento: Pick<Lancamento, "id" | "irmao_id" | "descricao">;
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
