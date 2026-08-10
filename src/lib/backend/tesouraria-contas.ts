@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original: SELECT livre; escrita admin OU tesoureiro.
 const PAPEIS_ESCRITA = ["admin", "tesoureiro"];
@@ -118,7 +119,7 @@ const chavePixSchema = z.object({
 export const criarChavePix = createServerFn({ method: "POST" })
   .validator((d: unknown) => chavePixSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       if (data.principal) {
         await conn.query(
           "UPDATE contas_financeiras_pix SET principal = FALSE WHERE conta_financeira_id = ?",
@@ -138,13 +139,30 @@ export const criarChavePix = createServerFn({ method: "POST" })
           data.principal,
         ],
       );
+      // id é UUID gerado por DEFAULT (UUID()) no MySQL, não auto_increment —
+      // insertId não reflete o id real, então não dá pra usar como
+      // entidade_id aqui (mesmo padrão de tabela_valores.criarValorVigente).
+      await registrarAuditoria(conn, usuarioIdAtual, "criar", "chave_pix", null, null, data);
     });
   });
 
 export const removerChavePix = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[chave]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM contas_financeiras_pix WHERE id = ?",
+        [data.id],
+      );
       await conn.query("DELETE FROM contas_financeiras_pix WHERE id = ?", [data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "excluir",
+        "chave_pix",
+        data.id,
+        chave ?? null,
+        null,
+      );
     });
   });
