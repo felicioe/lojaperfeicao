@@ -222,6 +222,40 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
     });
   });
 
+const atribuirIrmaoLancamentoSchema = z.object({
+  id: z.string().uuid(),
+  irmaoId: z.string().uuid().nullable(),
+});
+
+// Atribuição/correção do irmão vinculado — diferente de atualizarLancamento
+// (que mexe em data/vencimento/descrição/valor e por isso é bloqueado pra
+// lançamento já pago), aqui é só metadado de quem pagou, não afeta valor
+// nem contabilização, então funciona independente do status. Caso de uso
+// principal: lançamento avulso criado a partir de uma linha do OFX (issue
+// #136) — a atribuição pode não ter sido feita na hora, ou precisar de
+// correção depois.
+export const atribuirIrmaoLancamento = createServerFn({ method: "POST" })
+  .validator((d: unknown) => atribuirIrmaoLancamentoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT irmao_id FROM lancamentos WHERE id = ?",
+        [data.id],
+      );
+      if (!antes) throw new Error("Lançamento não encontrado.");
+      await conn.query("UPDATE lancamentos SET irmao_id = ? WHERE id = ?", [data.irmaoId, data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "atribuir_irmao",
+        "lancamentos",
+        data.id,
+        { irmao_id: antes.irmao_id },
+        { irmao_id: data.irmaoId },
+      );
+    });
+  });
+
 const atualizarLancamentoSchema = z.object({
   id: z.string().uuid(),
   data: z.string(),

@@ -1,13 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Pencil, Printer, Trash2 } from "lucide-react";
+import { CheckCircle2, Pencil, Printer, Trash2, UserCog } from "lucide-react";
 import {
+  atribuirIrmaoLancamento,
   atualizarLancamento,
   estornarLancamento,
   marcarLancamentoPago,
   type Lancamento,
 } from "@/lib/backend/tesouraria-lancamentos";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import {
   calcularMultaJuros,
   baixarFaturas,
@@ -142,6 +145,88 @@ function EditarLancamentoDialog({
         </div>
         <DialogFooter>
           <Button onClick={salvar} disabled={salvando || !descricao.trim() || !valor}>
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Atribuição/correção do irmão vinculado (issue #136) — funciona
+// independente do status pago, já que é só metadado de quem pagou. Caso de
+// uso principal: lançamento avulso criado a partir do OFX, onde a
+// atribuição pode não ter sido feita na hora (ex.: precisou identificar o
+// depositante depois) ou precisar de correção.
+function AtribuirIrmaoDialog({
+  lancamento,
+  onDone,
+}: {
+  lancamento: Lancamento;
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [irmaoId, setIrmaoId] = useState(lancamento.irmao_id ?? "");
+  const [salvando, setSalvando] = useState(false);
+
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+    enabled: open,
+  });
+
+  const salvar = async () => {
+    setSalvando(true);
+    try {
+      await atribuirIrmaoLancamento({ data: { id: lancamento.id, irmaoId: irmaoId || null } });
+      toast.success("Irmão atualizado.");
+      setOpen(false);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atribuir irmão.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setIrmaoId(lancamento.irmao_id ?? "");
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button size="sm" variant="ghost" title="Atribuir irmão">
+          <UserCog className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Atribuir irmão — "{lancamento.descricao}"</DialogTitle>
+        </DialogHeader>
+        <div>
+          <Label>Irmão</Label>
+          <Select
+            value={irmaoId || "__nenhum__"}
+            onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__nenhum__">Nenhum (ex.: tronco de solidariedade)</SelectItem>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button onClick={salvar} disabled={salvando}>
             Salvar
           </Button>
         </DialogFooter>
@@ -461,6 +546,9 @@ export function AcoesLancamento({
           <Printer className="h-4 w-4" />
         </Button>
       </Link>
+      {lancamento.tipo === "entrada" && (
+        <AtribuirIrmaoDialog lancamento={lancamento} onDone={onDone} />
+      )}
       {!lancamento.pago && (
         <>
           {Number(lancamento.valor_pago ?? 0) === 0 && (
