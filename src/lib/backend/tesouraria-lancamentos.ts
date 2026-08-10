@@ -402,11 +402,14 @@ const novoLancamentoSchema = z.object({
 });
 
 // Lançamento manual — igual ao original, é INSERT direto (sem stored
-// procedure), não gera lançamento contábil de partida dobrada.
+// procedure), não gera lançamento contábil de partida dobrada (achado #157
+// da revisão de segurança — a contrapartida contábil em si ficou como
+// decisão em aberto na issue, é mudança estrutural maior; aqui só a
+// auditoria, que é o gap claro e sem ambiguidade).
 export const criarLancamentoManual = createServerFn({ method: "POST" })
   .validator((d: unknown) => novoLancamentoSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query(
         `INSERT INTO lancamentos (data, data_vencimento, descricao, valor, tipo, conta_id, plano_conta_id, pago, data_pagamento, observacoes)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -422,6 +425,15 @@ export const criarLancamentoManual = createServerFn({ method: "POST" })
           data.data_pagamento,
           data.observacoes,
         ],
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "criar",
+        "lancamento_manual",
+        null,
+        null,
+        data,
       );
     });
   });
