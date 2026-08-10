@@ -15,10 +15,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+
+const FRASE_CONFIRMACAO = "RESETAR";
 
 export const Route = createFileRoute("/_authenticated/administracao/resetar-financeiro")({
   head: () => ({ meta: [{ title: "Resetar Financeiro — Gestão Maçônica" }] }),
@@ -29,6 +33,7 @@ function ResetarFinanceiroPage() {
   const can = useCan();
   const qc = useQueryClient();
   const [zerando, setZerando] = useState(false);
+  const [confirmacao, setConfirmacao] = useState("");
 
   const { data } = useQuery({
     queryKey: ["movimento_financeiro_total"],
@@ -51,6 +56,7 @@ function ResetarFinanceiroPage() {
       const { total: apagados } = await resetarFinanceiro();
       toast.success(`${apagados} lançamento(s) apagado(s). Financeiro resetado.`);
       qc.invalidateQueries({ queryKey: ["movimento_financeiro_total"] });
+      setConfirmacao("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao resetar o financeiro.");
     } finally {
@@ -70,7 +76,11 @@ function ResetarFinanceiroPage() {
           <CardDescription>{total} lançamento(s) no total, de todos os tipos.</CardDescription>
         </CardHeader>
         <CardContent>
-          <AlertDialog>
+          <AlertDialog
+            onOpenChange={(aberto) => {
+              if (!aberto) setConfirmacao("");
+            }}
+          >
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={total === 0}>
                 <Trash2 className="h-4 w-4 mr-1" /> Resetar financeiro
@@ -89,9 +99,23 @@ function ResetarFinanceiroPage() {
                   despesas recorrentes) não são afetados. Essa ação não pode ser desfeita.
                 </AlertDialogDescription>
               </AlertDialogHeader>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmacao-reset">
+                  Digite <strong>{FRASE_CONFIRMACAO}</strong> para confirmar
+                </Label>
+                <Input
+                  id="confirmacao-reset"
+                  value={confirmacao}
+                  onChange={(e) => setConfirmacao(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmar} disabled={zerando}>
+                <AlertDialogAction
+                  onClick={confirmar}
+                  disabled={zerando || confirmacao !== FRASE_CONFIRMACAO}
+                >
                   {zerando ? "Resetando…" : "Resetar financeiro"}
                 </AlertDialogAction>
               </AlertDialogFooter>
