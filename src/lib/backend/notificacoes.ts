@@ -133,7 +133,14 @@ export const salvarInscricaoPush = createServerFn({ method: "POST" })
 export const removerInscricaoPush = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ endpoint: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
-    return comSessao(async (conn) => {
-      await conn.query("DELETE FROM push_subscriptions WHERE endpoint = ?", [data.endpoint]);
+    return comSessao(async (conn, usuarioIdAtual) => {
+      // Restrito ao dono da inscrição (achado #186) — antes o DELETE era só
+      // pelo endpoint, sem comparar com o usuário logado; quem
+      // descobrisse/adivinhasse o endpoint de outra pessoa conseguia
+      // cancelar a inscrição dela.
+      await conn.query("DELETE FROM push_subscriptions WHERE endpoint = ? AND usuario_id = ?", [
+        data.endpoint,
+        usuarioIdAtual,
+      ]);
     });
   });
