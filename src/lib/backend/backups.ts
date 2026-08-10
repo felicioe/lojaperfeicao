@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 const PAPEIS = ["admin"];
 
@@ -27,9 +28,11 @@ export const listarBackupsGerados = createServerFn({ method: "GET" }).handler(
 );
 
 export const gerarBackupAgora = createServerFn({ method: "POST" }).handler(async () => {
-  return comPapel(PAPEIS, async () => {
+  return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
     const { executarBackupAgendado } = await import("../backup-dispatch");
-    return executarBackupAgendado("manual");
+    const resultado = await executarBackupAgendado("manual");
+    await registrarAuditoria(conn, usuarioIdAtual, "gerar", "backup", null, null, resultado);
+    return resultado;
   });
 });
 
@@ -38,7 +41,7 @@ const baixarSchema = z.object({ id: z.string().uuid() });
 export const baixarBackup = createServerFn({ method: "POST" })
   .validator((d: unknown) => baixarSchema.parse(d))
   .handler(async ({ data }): Promise<{ nomeArquivo: string; conteudo: string }> => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       const [[registro]] = await conn.query<RowDataPacket[]>(
         "SELECT nome_arquivo FROM backups_gerados WHERE id = ?",
         [data.id],
@@ -48,6 +51,9 @@ export const baixarBackup = createServerFn({ method: "POST" })
       // path traversal apontando pra fora de BACKUPS_DIR.
       const { lerConteudoBackup } = await import("../backup-dispatch");
       const conteudo = await lerConteudoBackup(registro.nome_arquivo);
+      await registrarAuditoria(conn, usuarioIdAtual, "baixar", "backup", data.id, null, {
+        nome_arquivo: registro.nome_arquivo,
+      });
       return { nomeArquivo: registro.nome_arquivo, conteudo };
     });
   });
