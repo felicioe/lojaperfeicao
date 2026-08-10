@@ -140,15 +140,21 @@ const trocarMinhaSenhaSchema = z.object({ novaSenha: z.string().min(3) });
 export const trocarMinhaSenha = createServerFn({ method: "POST" })
   .validator((data: unknown) => trocarMinhaSenhaSchema.parse(data))
   .handler(async ({ data }) => {
-    return comSessao(async (conn, usuarioId) => {
-      const hash = await bcrypt.hash(data.novaSenha, 10);
-      await conn.query(
-        "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = FALSE WHERE id = ?",
-        [hash, usuarioId],
-      );
-      // nunca loga a senha em si, só o fato de ter sido trocada.
-      await registrarAuditoria(conn, usuarioId, "trocar_senha", "usuario", usuarioId);
-    });
+    return comSessao(
+      async (conn, usuarioId) => {
+        const hash = await bcrypt.hash(data.novaSenha, 10);
+        await conn.query(
+          "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = FALSE WHERE id = ?",
+          [hash, usuarioId],
+        );
+        // nunca loga a senha em si, só o fato de ter sido trocada.
+        await registrarAuditoria(conn, usuarioId, "trocar_senha", "usuario", usuarioId);
+      },
+      // Precisa ignorar o próprio gate que essa função existe pra satisfazer
+      // — senão quem está com deve_trocar_senha=true nunca conseguiria
+      // trocar a senha e destravar a própria conta.
+      { ignorarTrocaSenhaObrigatoria: true },
+    );
   });
 
 export const contarUsuarios = createServerFn({ method: "GET" }).handler(
