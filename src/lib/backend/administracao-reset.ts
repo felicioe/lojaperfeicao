@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
@@ -19,8 +20,11 @@ export const contarMovimentoFinanceiro = createServerFn({ method: "GET" }).handl
   },
 );
 
-export const resetarFinanceiro = createServerFn({ method: "POST" }).handler(
-  async (): Promise<{ total: number }> => {
+const resetarFinanceiroSchema = z.object({ motivo: z.string().min(1) });
+
+export const resetarFinanceiro = createServerFn({ method: "POST" })
+  .validator((d: unknown) => resetarFinanceiroSchema.parse(d))
+  .handler(async ({ data }): Promise<{ total: number }> => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL resetar_financeiro(@total)");
       const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT @total AS total");
@@ -35,9 +39,9 @@ export const resetarFinanceiro = createServerFn({ method: "POST" }).handler(
         null,
         {
           lancamentos_apagados: total,
+          motivo: data.motivo,
         },
       );
       return { total };
     });
-  },
-);
+  });

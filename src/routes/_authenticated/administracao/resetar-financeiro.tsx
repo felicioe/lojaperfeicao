@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
@@ -34,6 +35,7 @@ function ResetarFinanceiroPage() {
   const qc = useQueryClient();
   const [zerando, setZerando] = useState(false);
   const [confirmacao, setConfirmacao] = useState("");
+  const [motivo, setMotivo] = useState("");
 
   const { data } = useQuery({
     queryKey: ["movimento_financeiro_total"],
@@ -53,10 +55,11 @@ function ResetarFinanceiroPage() {
   const confirmar = async () => {
     setZerando(true);
     try {
-      const { total: apagados } = await resetarFinanceiro();
+      const { total: apagados } = await resetarFinanceiro({ data: { motivo } });
       toast.success(`${apagados} lançamento(s) apagado(s). Financeiro resetado.`);
       qc.invalidateQueries({ queryKey: ["movimento_financeiro_total"] });
       setConfirmacao("");
+      setMotivo("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao resetar o financeiro.");
     } finally {
@@ -78,7 +81,10 @@ function ResetarFinanceiroPage() {
         <CardContent>
           <AlertDialog
             onOpenChange={(aberto) => {
-              if (!aberto) setConfirmacao("");
+              if (!aberto) {
+                setConfirmacao("");
+                setMotivo("");
+              }
             }}
           >
             <AlertDialogTrigger asChild>
@@ -100,6 +106,15 @@ function ResetarFinanceiroPage() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <div className="space-y-1.5">
+                <Label htmlFor="motivo-reset">Motivo (obrigatório)</Label>
+                <Textarea
+                  id="motivo-reset"
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor="confirmacao-reset">
                   Digite <strong>{FRASE_CONFIRMACAO}</strong> para confirmar
                 </Label>
@@ -114,7 +129,7 @@ function ResetarFinanceiroPage() {
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={confirmar}
-                  disabled={zerando || confirmacao !== FRASE_CONFIRMACAO}
+                  disabled={zerando || confirmacao !== FRASE_CONFIRMACAO || !motivo.trim()}
                 >
                   {zerando ? "Resetando…" : "Resetar financeiro"}
                 </AlertDialogAction>
