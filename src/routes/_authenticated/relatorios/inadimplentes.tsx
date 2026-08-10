@@ -1,9 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { relatorioInadimplentes, type ItemInadimplente } from "@/lib/backend/relatorios";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -24,6 +34,11 @@ export const Route = createFileRoute("/_authenticated/relatorios/inadimplentes")
 });
 
 function Inadimplentes() {
+  const [irmaoId, setIrmaoId] = useState("todos");
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
   const { data } = useQuery({
     queryKey: ["inadimplentes"],
     queryFn: async () => {
@@ -33,6 +48,7 @@ function Inadimplentes() {
       const grupos = new Map<
         string,
         {
+          irmao_id: string;
           irmao: { nome_civil: string; nome_simbolico: string | null };
           itens: ItemInadimplente[];
           total: number;
@@ -42,6 +58,7 @@ function Inadimplentes() {
         const key = l.irmao_id;
         if (!key) return;
         const cur = grupos.get(key) ?? {
+          irmao_id: key,
           irmao: { nome_civil: l.nome_civil, nome_simbolico: l.nome_simbolico },
           itens: [],
           total: 0,
@@ -53,7 +70,8 @@ function Inadimplentes() {
       return Array.from(grupos.values()).filter((g) => g.itens.length >= 3);
     },
   });
-  const ord = useOrdenacao(data ?? [], {
+  const dataFiltrada = (data ?? []).filter((g) => irmaoId === "todos" || g.irmao_id === irmaoId);
+  const ord = useOrdenacao(dataFiltrada, {
     irmao: (g) => g.irmao?.nome_civil,
     mensalidades: (g) => g.itens.length,
     total: (g) => g.total,
@@ -69,6 +87,26 @@ function Inadimplentes() {
         title="Relatório de Inadimplentes"
         description="Irmãos com 3 ou mais mensalidades em atraso."
       />
+
+      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
+        <div>
+          <Label className="text-xs">Irmão</Label>
+          <Select value={irmaoId} onValueChange={setIrmaoId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+
       <Card>
         <Table>
           <TableHeader>
@@ -88,15 +126,15 @@ function Inadimplentes() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(data ?? []).length === 0 && (
+            {dataFiltrada.length === 0 && (
               <TableRow>
                 <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
                   Nenhum inadimplente.
                 </TableCell>
               </TableRow>
             )}
-            {itensPagina.map((g: any) => (
-              <TableRow key={g.irmao?.nome_civil}>
+            {itensPagina.map((g) => (
+              <TableRow key={g.irmao_id}>
                 <TableCell>
                   {g.irmao?.nome_civil}
                   {g.irmao?.nome_simbolico ? ` (${g.irmao.nome_simbolico})` : ""}

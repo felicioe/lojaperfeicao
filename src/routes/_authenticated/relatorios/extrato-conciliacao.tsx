@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { relatorioExtratoConciliacao } from "@/lib/backend/relatorios";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { desfazerConciliacao, desfazerLancamentoOfx } from "@/lib/backend/tesouraria-conciliacao";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -55,13 +56,18 @@ function ExtratoConciliacao() {
   const [contaId, setContaId] = useState("");
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
+  const [irmaoId, setIrmaoId] = useState("todos");
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
     queryFn: () => listarContasFinanceiras(),
   });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
 
-  const { data: itens = [] } = useQuery({
+  const { data: todosItens = [] } = useQuery({
     queryKey: ["relatorio_extrato_conciliacao", contaId, de, ate],
     enabled: !!contaId,
     queryFn: () =>
@@ -69,6 +75,9 @@ function ExtratoConciliacao() {
         data: { contaId, de: de || null, ate: ate || null },
       }),
   });
+  const itens = todosItens.filter(
+    (i) => irmaoId === "todos" || i.lancamentos_vinculados.some((l) => l.irmao_id === irmaoId),
+  );
 
   const desfazerMutation = useMutation({
     mutationFn: (vars: { conciliacaoId: string; motivo: string }) =>
@@ -151,6 +160,22 @@ function ExtratoConciliacao() {
         <div>
           <Label className="text-xs">Até</Label>
           <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+        </div>
+        <div>
+          <Label className="text-xs">Irmão</Label>
+          <Select value={irmaoId} onValueChange={setIrmaoId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 

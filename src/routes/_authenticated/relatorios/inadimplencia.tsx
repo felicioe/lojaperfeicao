@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { relatorioInadimplenciaDetalhado, gerarCobrancaLote } from "@/lib/backend/relatorios";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
@@ -8,6 +9,15 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -48,11 +58,23 @@ function InadimplenciaDetalhada() {
   const [ordenacao, setOrdenacao] = useState<Ordenacao>("dias_atraso");
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
+  const [irmaoId, setIrmaoId] = useState("todos");
+  const [vencimentoDe, setVencimentoDe] = useState("");
+  const [vencimentoAte, setVencimentoAte] = useState("");
 
-  const { data: itens = [] } = useQuery({
+  const { data: todosItens = [] } = useQuery({
     queryKey: ["relatorio_inadimplencia_detalhado"],
     queryFn: () => relatorioInadimplenciaDetalhado(),
   });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
+
+  const itens = todosItens
+    .filter((i) => irmaoId === "todos" || i.irmao_id === irmaoId)
+    .filter((i) => !vencimentoDe || i.data_vencimento >= vencimentoDe)
+    .filter((i) => !vencimentoAte || i.data_vencimento <= vencimentoAte);
 
   const itensOrdenadosManual = [...itens].sort((a, b) =>
     ordenacao === "dias_atraso" ? b.dias_atraso - a.dias_atraso : b.valor_total - a.valor_total,
@@ -125,6 +147,41 @@ function InadimplenciaDetalhada() {
           />
         }
       />
+
+      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3">
+        <div>
+          <Label className="text-xs">Irmão</Label>
+          <Select value={irmaoId} onValueChange={setIrmaoId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Vencimento de</Label>
+          <Input
+            type="date"
+            value={vencimentoDe}
+            onChange={(e) => setVencimentoDe(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label className="text-xs">Vencimento até</Label>
+          <Input
+            type="date"
+            value={vencimentoAte}
+            onChange={(e) => setVencimentoAte(e.target.value)}
+          />
+        </div>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 mb-4">
         <Card className="p-4">
