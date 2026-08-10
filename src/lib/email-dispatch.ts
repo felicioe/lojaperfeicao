@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
 import { withUserConnection } from "./backend/db";
+import { SENHA_PADRAO } from "./backend/usuarios";
 
 // Envio de e-mail (issue #103) — SMTP da própria Hostinger via nodemailer,
 // decisão confirmada (sem custo extra, sem cadastro em serviço terceiro).
@@ -143,6 +144,45 @@ export async function enviarEmailFaturaEmitida(lancamentoId: string): Promise<vo
       chave,
       destinatario: fatura.email,
       assunto: `Fatura emitida — ${fatura.descricao}`,
+      html,
+      texto,
+    });
+  });
+}
+
+// ---------- Boas-vindas / primeiro acesso (issue #105) ----------
+// Alternativa opcional ao fluxo já existente de admin comunicar login/senha
+// manualmente (decisão explícita do cliente — fica como alternativa, não
+// substitui). Só dispara se o irmão tiver e-mail de contato cadastrado
+// (irmaos.email); sem dedup por chave já que é uma ação pontual disparada
+// no momento da criação do acesso.
+
+export async function enviarEmailBoasVindas(usuarioId: string): Promise<boolean> {
+  return withUserConnection(null, async (conn) => {
+    const [[dados]] = await conn.query<RowDataPacket[]>(
+      `SELECT u.email AS login, i.nome_civil, i.email AS email_contato
+       FROM usuarios u JOIN irmaos i ON i.usuario_id = u.id
+       WHERE u.id = ?`,
+      [usuarioId],
+    );
+    if (!dados || !dados.email_contato) return false;
+
+    const linkAcesso = `${origemPublica()}/auth`;
+    const html = `
+      <p>Olá, ${dados.nome_civil}!</p>
+      <p>Seu acesso ao sistema de gestão da loja foi criado. Use os dados abaixo para o primeiro acesso:</p>
+      <ul>
+        <li><strong>Login:</strong> ${dados.login}</li>
+        <li><strong>Senha:</strong> ${SENHA_PADRAO}</li>
+      </ul>
+      <p>Acesse em <a href="${linkAcesso}">${linkAcesso}</a>.</p>
+    `;
+    const texto = `Olá, ${dados.nome_civil}! Seu acesso foi criado. Login: ${dados.login}, senha: ${SENHA_PADRAO}. Acesse ${linkAcesso}.`;
+
+    return enviarEGravar(conn, {
+      chave: `boas_vindas:${usuarioId}:${randomUUID()}`,
+      destinatario: dados.email_contato,
+      assunto: "Seu acesso ao sistema de gestão da loja",
       html,
       texto,
     });

@@ -68,6 +68,7 @@ export const Route = createFileRoute("/_authenticated/usuarios/")({
 function UsuariosPage() {
   const qc = useQueryClient();
   const [obrigarTrocaNovosAcessos, setObrigarTrocaNovosAcessos] = useState(true);
+  const [enviarBoasVindasNovosAcessos, setEnviarBoasVindasNovosAcessos] = useState(false);
 
   const usuarios = useQuery({ queryKey: ["usuarios"], queryFn: () => listarUsuarios() });
   const semAcesso = useQuery({
@@ -87,7 +88,11 @@ function UsuariosPage() {
   const criarUm = async (irmaoId: string) => {
     try {
       const { login } = await criarAcessoIrmao({
-        data: { irmaoId, obrigarTrocaSenha: obrigarTrocaNovosAcessos },
+        data: {
+          irmaoId,
+          obrigarTrocaSenha: obrigarTrocaNovosAcessos,
+          enviarBoasVindas: enviarBoasVindasNovosAcessos,
+        },
       });
       toast.success(`Acesso criado — login: ${login}`);
       invalidate();
@@ -99,7 +104,10 @@ function UsuariosPage() {
   const criarTodos = async () => {
     try {
       const relatorio = await criarAcessosEmLote({
-        data: { obrigarTrocaSenha: obrigarTrocaNovosAcessos },
+        data: {
+          obrigarTrocaSenha: obrigarTrocaNovosAcessos,
+          enviarBoasVindas: enviarBoasVindasNovosAcessos,
+        },
       });
       if (relatorio.criados.length > 0)
         toast.success(`${relatorio.criados.length} acesso(s) criado(s).`);
@@ -151,6 +159,13 @@ function UsuariosPage() {
                 />
                 Obrigar troca de senha no primeiro acesso
               </label>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={enviarBoasVindasNovosAcessos}
+                  onCheckedChange={(v) => setEnviarBoasVindasNovosAcessos(v === true)}
+                />
+                Enviar e-mail de boas-vindas (login e senha)
+              </label>
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -166,7 +181,10 @@ function UsuariosPage() {
                   <AlertDialogDescription>
                     Vai criar um login (nome.sobrenome) para cada irmão da lista abaixo, com a senha
                     padrão {"“123”"}
-                    {obrigarTrocaNovosAcessos ? ", com troca obrigatória no primeiro acesso." : "."}
+                    {obrigarTrocaNovosAcessos ? ", com troca obrigatória no primeiro acesso" : ""}
+                    {enviarBoasVindasNovosAcessos
+                      ? ". Um e-mail de boas-vindas será enviado para quem tiver e-mail cadastrado."
+                      : "."}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
