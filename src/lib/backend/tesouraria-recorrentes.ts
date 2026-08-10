@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original: SELECT e escrita ambos restritos a admin/tesoureiro (não
 // é leitura livre como a maioria das tabelas de tesouraria).
@@ -77,7 +78,7 @@ const recorrenteSchema = z.object({
 export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
   .validator((d: unknown) => recorrenteSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       const valores = [
         data.descricao,
         data.valor,
@@ -94,11 +95,29 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
            data_inicio=?, data_fim=?, observacoes=? WHERE id=?`,
           [...valores, data.id],
         );
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          "atualizar",
+          "despesa_recorrente",
+          data.id,
+          null,
+          data,
+        );
       } else {
         await conn.query(
           `INSERT INTO despesas_recorrentes (descricao, valor, dia_vencimento, plano_conta_id, terceiro_id, data_inicio, data_fim, observacoes)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           valores,
+        );
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          "criar",
+          "despesa_recorrente",
+          null,
+          null,
+          data,
         );
       }
     });
@@ -107,8 +126,17 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
 export const alternarAtivoRecorrente = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("UPDATE despesas_recorrentes SET ativo=? WHERE id=?", [data.ativo, data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "alternar_ativo",
+        "despesa_recorrente",
+        data.id,
+        null,
+        { ativo: data.ativo },
+      );
     });
   });
 

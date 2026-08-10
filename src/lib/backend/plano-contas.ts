@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original (mysql/migrations/0003_contabil_tesouraria.sql): SELECT
 // livre para autenticados; escrita admin OU tesoureiro (checada de novo,
@@ -64,7 +65,7 @@ const salvarContaSchema = z.object({
 export const salvarConta = createServerFn({ method: "POST" })
   .validator((d: unknown) => salvarContaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query("CALL salvar_conta(?, ?, ?, ?, ?, ?, @out_id)", [
         data.id,
         data.codigo,
@@ -74,6 +75,15 @@ export const salvarConta = createServerFn({ method: "POST" })
         data.analitica,
       ]);
       const [[{ out_id }]] = await conn.query<RowDataPacket[]>("SELECT @out_id AS out_id");
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        data.id ? "atualizar" : "criar",
+        "plano_conta",
+        out_id,
+        null,
+        data,
+      );
       return { id: out_id };
     });
   });
@@ -81,7 +91,16 @@ export const salvarConta = createServerFn({ method: "POST" })
 export const alternarAtivoConta = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query("UPDATE plano_contas SET ativo=? WHERE id=?", [data.ativo, data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "alternar_ativo",
+        "plano_conta",
+        data.id,
+        null,
+        { ativo: data.ativo },
+      );
     });
   });
