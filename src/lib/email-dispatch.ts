@@ -240,24 +240,58 @@ export async function enviarEmailComunicado(
 
 type FaturaLembrete = {
   descricao: string;
-  valor: number;
   data_vencimento: string;
   nome_civil: string;
+  valor_original: number;
+  valor_pago: number;
 };
 
-function montarLembreteFatura(fatura: FaturaLembrete, hojeISO: string) {
+// Mesmo cálculo usado por relatorioInadimplenciaDetalhado (relatorios.ts):
+// multa/juros incidem sobre o SALDO ainda devido (valor - valor_pago), não
+// sobre o valor de face da fatura — senão um irmão que já pagou parte é
+// cobrado a mais. calcular_multa_juros devolve multa=juros=0 e total=saldo
+// quando ainda não venceu, então é seguro chamar sempre.
+async function calcularSaldoDevido(
+  conn: PoolConnection,
+  saldoPrincipal: number,
+  vencimento: string,
+  hojeISO: string,
+): Promise<{ multa: number; juros: number; total: number }> {
+  await conn.query("CALL calcular_multa_juros(?, ?, ?, @multa, @juros, @dias, @total)", [
+    saldoPrincipal,
+    vencimento,
+    hojeISO,
+  ]);
+  const [[out]] = await conn.query<RowDataPacket[]>(
+    "SELECT @multa AS multa, @juros AS juros, @total AS total",
+  );
+  return { multa: Number(out.multa), juros: Number(out.juros), total: Number(out.total) };
+}
+
+function montarLembreteFatura(
+  fatura: FaturaLembrete,
+  saldo: { multa: number; juros: number; total: number },
+  hojeISO: string,
+) {
   const vencida = new Date(fatura.data_vencimento) < new Date(hojeISO);
+  const linhasExtra = [
+    fatura.valor_pago > 0 ? `<li><strong>Já pago:</strong> ${brl(fatura.valor_pago)}</li>` : "",
+    saldo.multa > 0 ? `<li><strong>Multa:</strong> ${brl(saldo.multa)}</li>` : "",
+    saldo.juros > 0 ? `<li><strong>Juros:</strong> ${brl(saldo.juros)}</li>` : "",
+  ].join("");
   const html = `
     <p>Olá, ${fatura.nome_civil}!</p>
     <p>${vencida ? "Você tem uma fatura vencida" : "Sua fatura está próxima do vencimento"}:</p>
     <ul>
       <li><strong>Descrição:</strong> ${fatura.descricao}</li>
-      <li><strong>Valor:</strong> ${brl(fatura.valor)}</li>
+      <li><strong>Valor original:</strong> ${brl(fatura.valor_original)}</li>
+      ${linhasExtra}
       <li><strong>Vencimento:</strong> ${fmtDate(fatura.data_vencimento)}</li>
+      <li><strong>Valor devido:</strong> ${brl(saldo.total)}</li>
     </ul>
     <p>Acesse o sistema em <a href="${origemPublica()}/painel/financeiro">${origemPublica()}/painel/financeiro</a> para regularizar.</p>
   `;
-  const texto = `${vencida ? "Fatura vencida" : "Fatura próxima do vencimento"}: ${fatura.descricao}, valor ${brl(fatura.valor)}, vencimento ${fmtDate(fatura.data_vencimento)}. Acesse ${origemPublica()}/painel/financeiro.`;
+  const texto = `${vencida ? "Fatura vencida" : "Fatura próxima do vencimento"}: ${fatura.descricao}, valor devido ${brl(saldo.total)}, vencimento ${fmtDate(fatura.data_vencimento)}. Acesse ${origemPublica()}/painel/financeiro.`;
   const assunto = vencida
     ? `Fatura vencida — ${fatura.descricao}`
     : `Lembrete de fatura — ${fatura.descricao}`;
@@ -273,7 +307,7 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
     // dias (o sino só avisa admin/secretaria de já vencidas; aqui o
     // objetivo é lembrar o próprio irmão antes de vencer).
     const [faturas] = await conn.query<RowDataPacket[]>(
-      `SELECT l.id, l.descricao, l.valor, l.data_vencimento, i.nome_civil, i.email
+      `SELECT l.id, l.descricao, l.valor, l.valor_pago, l.data_vencimento, i.nome_civil, i.email
        FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id
        WHERE l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE
          AND l.data_vencimento <= DATE_ADD(CURRENT_DATE, INTERVAL 3 DAY)
@@ -289,8 +323,22 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
       const chave = `lembrete_fatura:${fatura.id}:${anoSemana}`;
       if (await jaEnviadoComSucesso(conn, chave)) continue;
 
+      const saldoPrincipal = Number(fatura.valor) - Number(fatura.valor_pago);
+      const saldo = await calcularSaldoDevido(
+        conn,
+        saldoPrincipal,
+        fatura.data_vencimento,
+        hojeISO,
+      );
       const { assunto, html, texto } = montarLembreteFatura(
-        fatura as unknown as FaturaLembrete,
+        {
+          descricao: fatura.descricao,
+          data_vencimento: fatura.data_vencimento,
+          nome_civil: fatura.nome_civil,
+          valor_original: Number(fatura.valor),
+          valor_pago: Number(fatura.valor_pago),
+        },
+        saldo,
         hojeISO,
       );
       const ok = await enviarEGravar(conn, {
@@ -317,7 +365,7 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
 export async function enviarCobrancaManual(lancamentoId: string): Promise<boolean> {
   return withUserConnection(null, async (conn) => {
     const [[fatura]] = await conn.query<RowDataPacket[]>(
-      `SELECT l.descricao, l.valor, l.data_vencimento, i.nome_civil, i.email
+      `SELECT l.descricao, l.valor, l.valor_pago, l.data_vencimento, i.nome_civil, i.email
        FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id
        WHERE l.id = ?`,
       [lancamentoId],
@@ -325,8 +373,17 @@ export async function enviarCobrancaManual(lancamentoId: string): Promise<boolea
     if (!fatura || !fatura.email) return false;
 
     const hojeISO = new Date().toISOString().slice(0, 10);
+    const saldoPrincipal = Number(fatura.valor) - Number(fatura.valor_pago);
+    const saldo = await calcularSaldoDevido(conn, saldoPrincipal, fatura.data_vencimento, hojeISO);
     const { assunto, html, texto } = montarLembreteFatura(
-      fatura as unknown as FaturaLembrete,
+      {
+        descricao: fatura.descricao,
+        data_vencimento: fatura.data_vencimento,
+        nome_civil: fatura.nome_civil,
+        valor_original: Number(fatura.valor),
+        valor_pago: Number(fatura.valor_pago),
+      },
+      saldo,
       hojeISO,
     );
     return enviarEGravar(conn, {
