@@ -217,12 +217,29 @@ const perfilSchema = z.object({
 export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => perfilSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const campos = CAMPOS_PERFIL.filter((c) => c in data.perfil);
       if (campos.length === 0) return;
+      // Só o estado ANTERIOR dos campos que de fato vão ser alterados — sem
+      // isso, uma mudança indevida de grau/situação/mensalidade não deixava
+      // rastro nenhum de quem fez nem do valor anterior.
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        `SELECT ${campos.join(", ")} FROM irmaos WHERE id = ?`,
+        [data.id],
+      );
       const set = campos.map((c) => `${c} = ?`).join(", ");
       const valores = campos.map((c) => data.perfil[c] ?? null);
       await conn.query(`UPDATE irmaos SET ${set} WHERE id = ?`, [...valores, data.id]);
+      const depois = Object.fromEntries(campos.map((c) => [c, data.perfil[c] ?? null]));
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "atualizar_perfil",
+        "irmao",
+        data.id,
+        antes ?? null,
+        depois,
+      );
     });
   });
 
