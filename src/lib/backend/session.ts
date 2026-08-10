@@ -7,6 +7,13 @@ import {
 
 type SessaoData = {
   usuarioId?: string;
+  // Timestamp (epoch ms) de quando essa sessão foi criada — comSessao/
+  // comPapel (authz.ts) comparam com usuarios.senha_alterada_em pra tratar
+  // como inválida qualquer sessão mais velha que a última troca de senha
+  // (issue #184). Só existe em sessões criadas depois dessa mudança;
+  // sessões antigas (sem o campo) são tratadas como válidas até expirarem
+  // naturalmente pelo maxAge do cookie.
+  criadaEm?: number;
   // Desafio WebAuthn (cadastro ou login de passkey) em andamento — vive só
   // durante a cerimônia (challenge gerado -> resposta do navegador chega
   // em segundos), guardado no cookie de sessão assinado pra não precisar
@@ -48,8 +55,15 @@ export async function usuarioIdDaSessao(): Promise<string | null> {
   return session.data.usuarioId ?? null;
 }
 
-export async function criarSessao(usuarioId: string): Promise<void> {
-  await updateSession<SessaoData>(sessionConfig(), { usuarioId });
+/** Timestamp (epoch ms) de criação da sessão atual — null se a sessão for
+ * anterior à introdução desse campo, ou se não houver sessão. */
+export async function criadaEmDaSessao(): Promise<number | null> {
+  const session = await getSession<SessaoData>(sessionConfig());
+  return session.data.criadaEm ?? null;
+}
+
+export async function criarSessao(usuarioId: string, criadaEm: number = Date.now()): Promise<void> {
+  await updateSession<SessaoData>(sessionConfig(), { usuarioId, criadaEm });
 }
 
 export async function encerrarSessao(): Promise<void> {
