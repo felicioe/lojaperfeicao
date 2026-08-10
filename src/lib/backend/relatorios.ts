@@ -324,10 +324,19 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
 
       const loteMap = new Map<string, LancamentoVinculado[]>();
       if (idsConciliacao.length > 0) {
+        // cl.valor_aplicado (não l.valor): o valor de face da fatura só bate
+        // com o que essa conciliação aplicou quando ela fechou a fatura
+        // inteira — numa alocação parcial diverge, e a linha nem apareceria
+        // usando l.conciliacao_id (só gravado no lançamento quando
+        // fechou_fatura=TRUE; conciliacao_lancamentos é a fonte completa,
+        // mesma correção já aplicada em relatorioExtratoBancario).
         const [rows] = await conn.query<RowDataPacket[]>(
-          `SELECT l.id, l.descricao, l.valor, l.tipo, l.irmao_id, l.conciliacao_id, i.nome_civil AS irmao_nome
-           FROM lancamentos l LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE l.conciliacao_id IN (?)`,
+          `SELECT l.id, l.descricao, cl.valor_aplicado AS valor, l.tipo, l.irmao_id,
+                  cl.conciliacao_id, i.nome_civil AS irmao_nome
+           FROM conciliacao_lancamentos cl
+           JOIN lancamentos l ON l.id = cl.lancamento_id
+           LEFT JOIN irmaos i ON i.id = l.irmao_id
+           WHERE cl.conciliacao_id IN (?)`,
           [idsConciliacao],
         );
         for (const r of rows) {
