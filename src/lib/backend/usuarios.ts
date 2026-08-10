@@ -7,7 +7,7 @@ import { comPapel } from "./authz";
 import type { Papel } from "./auth";
 import { registrarAuditoria } from "./auditoria";
 
-const SENHA_PADRAO = "123";
+export const SENHA_PADRAO = "123";
 
 // Login = nome.sobrenome (decisão explícita do cliente, fase de testes —
 // trocar para algo mais rígido depois). Gerado a partir de nome_civil, sem
@@ -113,6 +113,10 @@ const criarAcessoSchema = z.object({
   // redefinir de novo (não recomendado, mas admin pode preferir em casos
   // pontuais).
   obrigarTrocaSenha: z.boolean().default(true),
+  // Dispara e-mail de boas-vindas com login/senha (issue #105) — alternativa
+  // opcional ao fluxo já existente de admin comunicar a senha manualmente,
+  // decisão explícita do cliente (fica como alternativa, não substitui).
+  enviarBoasVindas: z.boolean().default(false),
 });
 
 export const criarAcessoIrmao = createServerFn({ method: "POST" })
@@ -147,6 +151,12 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
         nome_civil: irmao.nome_civil,
         obrigar_troca_senha: data.obrigarTrocaSenha,
       });
+      if (data.enviarBoasVindas) {
+        const { enviarEmailBoasVindas } = await import("../email-dispatch");
+        enviarEmailBoasVindas(novo_id as string).catch((err) =>
+          console.error("Falha ao enviar e-mail de boas-vindas:", err),
+        );
+      }
       return { usuarioId: novo_id as string, login };
     });
   });
@@ -160,7 +170,12 @@ export type RelatorioAcessosLote = {
 // usuario_id — é a ação que substitui ter que rodar SQL manual no phpMyAdmin.
 export const criarAcessosEmLote = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
-    z.object({ obrigarTrocaSenha: z.boolean().default(true) }).parse(d ?? {}),
+    z
+      .object({
+        obrigarTrocaSenha: z.boolean().default(true),
+        enviarBoasVindas: z.boolean().default(false),
+      })
+      .parse(d ?? {}),
   )
   .handler(async ({ data }): Promise<RelatorioAcessosLote> => {
     return comPapel(["admin"], async (conn, usuarioIdAtual) => {
@@ -191,6 +206,12 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" })
             nome_civil: irmao.nome_civil,
             obrigar_troca_senha: data.obrigarTrocaSenha,
           });
+          if (data.enviarBoasVindas) {
+            const { enviarEmailBoasVindas } = await import("../email-dispatch");
+            enviarEmailBoasVindas(novo_id as string).catch((err) =>
+              console.error("Falha ao enviar e-mail de boas-vindas:", err),
+            );
+          }
           criados.push({ nome: irmao.nome_civil, login });
         } catch (err: any) {
           falhas.push({ nome: irmao.nome_civil, motivo: err.sqlMessage || err.message });
