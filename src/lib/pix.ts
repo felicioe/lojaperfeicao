@@ -4,6 +4,55 @@
 // Especificação: https://www.bcb.gov.br/estabilidadefinanceira/pix (manual
 // de padrões para iniciação do Pix).
 
+function validarCPF(valor: string): boolean {
+  const digitos = valor.replace(/\D/g, "");
+  if (digitos.length !== 11 || /^(\d)\1{10}$/.test(digitos)) return false;
+  let soma = 0;
+  for (let i = 0; i < 9; i++) soma += Number(digitos[i]) * (10 - i);
+  let resto = (soma * 10) % 11;
+  if (resto >= 10) resto = 0;
+  if (resto !== Number(digitos[9])) return false;
+  soma = 0;
+  for (let i = 0; i < 10; i++) soma += Number(digitos[i]) * (11 - i);
+  resto = (soma * 10) % 11;
+  if (resto >= 10) resto = 0;
+  return resto === Number(digitos[10]);
+}
+
+function validarCNPJ(valor: string): boolean {
+  const digitos = valor.replace(/\D/g, "");
+  if (digitos.length !== 14 || /^(\d)\1{13}$/.test(digitos)) return false;
+  const digitoVerificador = (base: string, pesos: number[]): number => {
+    const soma = pesos.reduce((acc, peso, i) => acc + Number(base[i]) * peso, 0);
+    const resto = soma % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  };
+  const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  if (digitoVerificador(digitos, pesos1) !== Number(digitos[12])) return false;
+  return digitoVerificador(digitos, pesos2) === Number(digitos[13]);
+}
+
+// Regras de formato por tipo de chave, conforme o manual de padrões do
+// Pix (BACEN): e-mail RFC-simplificado, CPF/CNPJ com dígito verificador,
+// telefone em E.164 e chave aleatória como UUID.
+export function chavePixValida(tipo: string, chave: string): boolean {
+  switch (tipo) {
+    case "email":
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(chave);
+    case "cpf":
+      return validarCPF(chave);
+    case "cnpj":
+      return validarCNPJ(chave);
+    case "telefone":
+      return /^\+[1-9]\d{7,14}$/.test(chave);
+    case "aleatoria":
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chave);
+    default:
+      return false;
+  }
+}
+
 function tlv(id: string, value: string): string {
   return `${id}${String(value.length).padStart(2, "0")}${value}`;
 }
