@@ -73,6 +73,17 @@ export const signup = createServerFn({ method: "POST" })
     const senhaHash = await bcrypt.hash(data.senha, 10);
 
     const usuarioId = await withUserConnection(null, async (conn) => {
+      // A tela só esconde a aba de cadastro depois do primeiro usuário
+      // existir — proteção cosmética. A trava real (achado #155 da revisão
+      // de segurança) tem que estar aqui: signup só pode criar o primeiro
+      // admin do sistema, nunca mais depois disso — contas seguintes são
+      // sempre criadas pelo administrador via painel de usuários.
+      const [[{ total }]] = await conn.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM usuarios",
+      );
+      if (Number(total) > 0) {
+        throw new Error("Cadastro encerrado. Novas contas são criadas pelo administrador.");
+      }
       await conn.query("CALL criar_usuario(?, ?, ?, @novo_usuario_id)", [
         data.email,
         senhaHash,
