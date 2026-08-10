@@ -187,7 +187,7 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
           // auditoria financeira: recebimento em dobro).
           "l.parcelado = FALSE",
           "NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)",
-          "NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)",
+          "NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id)",
         ],
         "l.conta_id",
         "l.forma_pagamento",
@@ -636,7 +636,7 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
              WHERE l.pago = TRUE
                AND (l.conta_id = ? OR l.conta_destino_id = ?)
                AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
-               AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)
+               AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id)
                AND NOT EXISTS (
                  SELECT 1 FROM ofx_lancamentos o WHERE o.lancamento_id = l.id AND o.conciliacao_id IS NULL
                )`;

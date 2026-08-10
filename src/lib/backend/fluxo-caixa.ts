@@ -68,7 +68,7 @@ export const obterFluxoAnteriores = createServerFn({ method: "GET" })
              -- parcela fosse paga, dobrando o valor recebido no relatório).
              AND l.parcelado = FALSE
              AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
-             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)
+             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id)
              ${condicaoIrmao}
          ) mov
          WHERE data_pagamento < ?`,
@@ -127,7 +127,7 @@ export const listarMovimentosRealizados = createServerFn({ method: "GET" })
              -- parcela fosse paga, dobrando o valor recebido no relatório).
              AND l.parcelado = FALSE
              AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
-             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)
+             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id)
              ${condicaoIrmao}
          ) mov
          WHERE data_pagamento >= ? AND data_pagamento <= ?
