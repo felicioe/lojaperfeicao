@@ -452,7 +452,7 @@ const recebimentoAvulsoSchema = z.object({
 export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
   .validator((d: unknown) => recebimentoAvulsoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query(
         "CALL registrar_recebimento_avulso(?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, @lanc_id)",
         [
@@ -467,6 +467,15 @@ export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
         ],
       );
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "criar",
+        "recebimento_avulso",
+        lanc_id,
+        null,
+        data,
+      );
       return { id: lanc_id };
     });
   });
@@ -482,7 +491,7 @@ const transferenciaSchema = z.object({
 export const criarTransferencia = createServerFn({ method: "POST" })
   .validator((d: unknown) => transferenciaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query("CALL criar_transferencia(?, ?, ?, ?, ?, @lanc_id)", [
         data.contaOrigemId,
         data.contaDestinoId,
@@ -491,6 +500,7 @@ export const criarTransferencia = createServerFn({ method: "POST" })
         data.descricao,
       ]);
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+      await registrarAuditoria(conn, usuarioIdAtual, "criar", "transferencia", lanc_id, null, data);
       return { id: lanc_id };
     });
   });
@@ -510,13 +520,17 @@ export const gerarMensalidades = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }): Promise<number> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query("CALL gerar_mensalidades(?, ?, NULL, ?, @total)", [
         data.competencia,
         data.dataVencimento ?? null,
         data.rateio ? JSON.stringify(data.rateio) : null,
       ]);
       const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT @total AS total");
+      await registrarAuditoria(conn, usuarioIdAtual, "gerar_lote", "mensalidades", null, null, {
+        ...data,
+        total_gerado: total,
+      });
 
       // Dispara e-mail de "fatura emitida" (issue #103) pra cada mensalidade
       // gerada — dedup por lancamento_id em email-dispatch.ts garante que
