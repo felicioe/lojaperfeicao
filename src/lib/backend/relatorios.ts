@@ -131,36 +131,60 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
   .validator((d: unknown) => filtroRecebimentosSchema.parse(d))
   .handler(async ({ data }): Promise<ItemRecebimento[]> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
-      const condicoes = ["l.tipo = 'entrada'"];
-      const valoresBase: unknown[] = [];
+      // Filtros que são atributo da fatura em si (não do evento de
+      // recebimento) — batem igual nos 3 ramos da UNION.
+      const condicoesComuns = ["l.tipo = 'entrada'"];
+      const valoresComuns: unknown[] = [];
       if (data.competenciaMes) {
-        condicoes.push("l.competencia_mes = ?");
-        valoresBase.push(data.competenciaMes);
-      }
-      if (data.contaId) {
-        condicoes.push("l.conta_id = ?");
-        valoresBase.push(data.contaId);
+        condicoesComuns.push("l.competencia_mes = ?");
+        valoresComuns.push(data.competenciaMes);
       }
       if (data.categoria) {
-        condicoes.push("l.categoria_recebimento = ?");
-        valoresBase.push(data.categoria);
+        condicoesComuns.push("l.categoria_recebimento = ?");
+        valoresComuns.push(data.categoria);
       }
       if (data.irmaoId) {
-        condicoes.push("l.irmao_id = ?");
-        valoresBase.push(data.irmaoId);
+        condicoesComuns.push("l.irmao_id = ?");
+        valoresComuns.push(data.irmaoId);
       }
-      if (data.formaPagamento) {
-        condicoes.push("l.forma_pagamento LIKE ?");
-        valoresBase.push(`%${data.formaPagamento}%`);
-      }
-      const whereLancamento = condicoes.join(" AND ");
 
-      const condicoesFora = [
-        ...condicoes,
-        "l.pago = TRUE",
-        "NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)",
-        "NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)",
-      ].join(" AND ");
+      // Conta e forma de pagamento são atributos do EVENTO de recebimento,
+      // que pode divergir do que está gravado na fatura (l.conta_id/
+      // l.forma_pagamento refletem só o fechamento final — uma fatura paga
+      // em mais de uma leva pode ter usado contas/formas diferentes em
+      // cada evento). Filtrar pela coluna errada excluía recebimentos que
+      // deveriam aparecer. Cada ramo usa a coluna que de fato representa
+      // "onde/como esse evento específico entrou".
+      function comFiltroEvento(condicoesBase: string[], colConta: string, colForma: string) {
+        const condicoes = [...condicoesBase];
+        const valores = [...valoresComuns];
+        if (data.contaId) {
+          condicoes.push(`${colConta} = ?`);
+          valores.push(data.contaId);
+        }
+        if (data.formaPagamento) {
+          condicoes.push(`${colForma} LIKE ?`);
+          valores.push(`%${data.formaPagamento}%`);
+        }
+        return { where: condicoes.join(" AND "), valores };
+      }
+
+      const recibo = comFiltroEvento(condicoesComuns, "r.conta_financeira_id", "r.forma_pagamento");
+      const conciliacao = comFiltroEvento(
+        condicoesComuns,
+        "c.conta_financeira_id",
+        "l.forma_pagamento",
+      );
+      const fora = comFiltroEvento(
+        [
+          ...condicoesComuns,
+          "l.pago = TRUE",
+          "NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)",
+          "NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)",
+        ],
+        "l.conta_id",
+        "l.forma_pagamento",
+      );
 
       const condicoesData: string[] = [];
       const valoresData: unknown[] = [];
@@ -185,7 +209,7 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
            JOIN lancamentos l ON l.id = ri.lancamento_id
            LEFT JOIN contas_financeiras cf ON cf.id = r.conta_financeira_id
            LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE ${whereLancamento}
+           WHERE ${recibo.where}
            UNION ALL
            SELECT cl.id, l.data, c.data_conciliacao AS data_pagamento, l.descricao,
                   cl.valor_aplicado AS valor,
@@ -196,7 +220,7 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
            JOIN lancamentos l ON l.id = cl.lancamento_id
            LEFT JOIN contas_financeiras cf ON cf.id = c.conta_financeira_id
            LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE ${whereLancamento}
+           WHERE ${conciliacao.where}
            UNION ALL
            SELECT l.id, l.data, l.data_pagamento, l.descricao, l.valor,
                   l.forma_pagamento, l.categoria_recebimento,
@@ -204,12 +228,12 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
            FROM lancamentos l
            LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
            LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE ${condicoesFora}
+           WHERE ${fora.where}
          ) rec
          ${havingData}
          ORDER BY data_pagamento DESC
          LIMIT 2000`,
-        [...valoresBase, ...valoresBase, ...valoresBase, ...valoresData],
+        [...recibo.valores, ...conciliacao.valores, ...fora.valores, ...valoresData],
       );
       return rows as ItemRecebimento[];
     });

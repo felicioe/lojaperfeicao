@@ -57,6 +57,8 @@ import {
 import { fmtDate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Library, Plus, Download, Pencil, Trash2, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/biblioteca/")({
@@ -130,8 +132,16 @@ function BibliotecaPage() {
       p.autor_nome.toLowerCase().includes(q.toLowerCase()) ||
       p.tema?.toLowerCase().includes(q.toLowerCase()),
   );
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(filtered);
+  const ord = useOrdenacao(filtered, {
+    titulo: (p) => p.titulo,
+    autor: (p) => p.autor_nome,
+    tema: (p) => p.tema,
+    sessao: (p) => p.sessao_data,
+    cadastrada: (p) => p.criado_em,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const podeEditar = (p: PecaArquitetura) => podeGerenciarTudo || p.autor_id === meuIrmao?.id;
 
@@ -359,11 +369,21 @@ function BibliotecaPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Título</TableHead>
-                <TableHead>Autor</TableHead>
-                <TableHead>Tema</TableHead>
-                <TableHead>Sessão</TableHead>
-                <TableHead>Cadastrada em</TableHead>
+                <TableHeadOrdenavel campo="titulo" ord={ord}>
+                  Título
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="autor" ord={ord}>
+                  Autor
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tema" ord={ord}>
+                  Tema
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="sessao" ord={ord}>
+                  Sessão
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="cadastrada" ord={ord}>
+                  Cadastrada em
+                </TableHeadOrdenavel>
                 <TableHead className="w-32"></TableHead>
               </TableRow>
             </TableHeader>

@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import { ArrowUpDown, Loader2, Mail } from "lucide-react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/relatorios/inadimplencia")({
@@ -52,9 +54,20 @@ function InadimplenciaDetalhada() {
     queryFn: () => relatorioInadimplenciaDetalhado(),
   });
 
-  const itensOrdenados = [...itens].sort((a, b) =>
+  const itensOrdenadosManual = [...itens].sort((a, b) =>
     ordenacao === "dias_atraso" ? b.dias_atraso - a.dias_atraso : b.valor_total - a.valor_total,
   );
+
+  const ord = useOrdenacao(itensOrdenadosManual, {
+    irmao: (i) => i.nome_civil,
+    descricao: (i) => i.descricao,
+    vencimento: (i) => i.data_vencimento,
+    dias_atraso: (i) => i.dias_atraso,
+    valor_original: (i) => Number(i.valor_original),
+    valor_multa: (i) => Number(i.valor_multa),
+    valor_juros: (i) => Number(i.valor_juros),
+    valor_total: (i) => Number(i.valor_total),
+  });
 
   const toggleOrdenacao = (campo: Ordenacao) => setOrdenacao(campo);
 
@@ -86,7 +99,7 @@ function InadimplenciaDetalhada() {
 
   const totalAtualizado = itens.reduce((s, i) => s + Number(i.valor_total), 0);
 
-  const linhasExportacao = itensOrdenados.map((i) => ({
+  const linhasExportacao = itensOrdenadosManual.map((i) => ({
     nome_civil: i.nome_civil,
     descricao: i.descricao,
     vencimento: fmtDate(i.data_vencimento),
@@ -97,7 +110,7 @@ function InadimplenciaDetalhada() {
     valor_total: Number(i.valor_total),
   }));
 
-  const pag = usePaginacao(itensOrdenados);
+  const pag = usePaginacao(ord.itensOrdenados);
 
   return (
     <>
@@ -155,14 +168,30 @@ function InadimplenciaDetalhada() {
             <TableHeader>
               <TableRow>
                 <TableHead></TableHead>
-                <TableHead>Irmão</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead className="text-right">Dias de atraso</TableHead>
-                <TableHead className="text-right">Valor original</TableHead>
-                <TableHead className="text-right">Multa</TableHead>
-                <TableHead className="text-right">Juros</TableHead>
-                <TableHead className="text-right">Total atualizado</TableHead>
+                <TableHeadOrdenavel campo="irmao" ord={ord}>
+                  Irmão
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="descricao" ord={ord}>
+                  Descrição
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="vencimento" ord={ord}>
+                  Vencimento
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="dias_atraso" ord={ord} className="text-right">
+                  Dias de atraso
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor_original" ord={ord} className="text-right">
+                  Valor original
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor_multa" ord={ord} className="text-right">
+                  Multa
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor_juros" ord={ord} className="text-right">
+                  Juros
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor_total" ord={ord} className="text-right">
+                  Total atualizado
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -19,11 +19,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Pencil, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/orgs/potencias")({
   head: () => ({ meta: [{ title: "Potência — Gestão Maçônica" }] }),
@@ -43,6 +45,13 @@ function Potencias() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["potencias_all"] });
+
+  const ord = useOrdenacao(data, {
+    nome: (p) => p.nome,
+    sigla: (p) => p.sigla,
+    jurisdicao: (p) => p.jurisdicao,
+    ativa: (p) => (p.ativo ? 1 : 0),
+  });
 
   const salvar = async () => {
     if (!form.nome.trim()) return;
@@ -134,10 +143,18 @@ function Potencias() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Sigla</TableHead>
-              <TableHead>Jurisdição</TableHead>
-              <TableHead>Ativa</TableHead>
+              <TableHeadOrdenavel campo="nome" ord={ord}>
+                Nome
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="sigla" ord={ord}>
+                Sigla
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="jurisdicao" ord={ord}>
+                Jurisdição
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="ativa" ord={ord}>
+                Ativa
+              </TableHeadOrdenavel>
               {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
@@ -149,7 +166,7 @@ function Potencias() {
                 </TableCell>
               </TableRow>
             )}
-            {data.map((p) => (
+            {ord.itensOrdenados.map((p) => (
               <TableRow key={p.id} className={!p.ativo ? "opacity-50" : undefined}>
                 <TableCell className="font-medium">{p.nome}</TableCell>
                 <TableCell>{p.sigla ?? "—"}</TableCell>

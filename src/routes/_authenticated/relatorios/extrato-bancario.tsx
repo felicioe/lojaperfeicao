@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/table";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/relatorios/extrato-bancario")({
@@ -101,7 +103,16 @@ function ExtratoBancario() {
     saldo: i.saldo_corrente,
   }));
 
-  const pag = usePaginacao([...itens].reverse());
+  const ord = useOrdenacao([...itens].reverse(), {
+    data: (i) => i.data,
+    descricao: (i) => i.descricao,
+    irmao: (i) => i.irmao_nome,
+    conta_contabil: (i) => i.plano_conta_nome,
+    tipo: (i) => i.tipo,
+    valor: (i) => i.valor_sinal,
+    saldo: (i) => i.saldo_corrente,
+  });
+  const pag = usePaginacao(ord.itensOrdenados);
 
   return (
     <>
@@ -209,13 +220,27 @@ function ExtratoBancario() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Irmão</TableHead>
-                    <TableHead>Conta contábil</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-right">Saldo corrente</TableHead>
+                    <TableHeadOrdenavel campo="data" ord={ord}>
+                      Data
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="descricao" ord={ord}>
+                      Descrição
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="irmao" ord={ord}>
+                      Irmão
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="conta_contabil" ord={ord}>
+                      Conta contábil
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="tipo" ord={ord}>
+                      Tipo
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                      Valor
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="saldo" ord={ord} className="text-right">
+                      Saldo corrente
+                    </TableHeadOrdenavel>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

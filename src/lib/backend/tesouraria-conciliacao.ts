@@ -156,6 +156,31 @@ export const desfazerConciliacao = createServerFn({ method: "POST" })
     });
   });
 
+// Desfaz o vínculo "legado" de uma linha do OFX (issue de usuário — linhas
+// conciliadas fora de um evento em lote, ex.: via criar_lancamento_de_ofx,
+// não apareciam com opção de "Desfazer" no relatório porque não têm
+// conciliacao_id). A validação de qual caso é (lançamento criado pela
+// própria linha vs. só vinculado a um já existente) é feita dentro da
+// procedure; aqui só repassa e grava a auditoria.
+export const desfazerLancamentoOfx = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z.object({ ofxId: z.string().uuid(), motivo: z.string().min(1) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn, usuarioId) => {
+      await conn.query("CALL desfazer_lancamento_ofx(?, ?)", [data.ofxId, data.motivo]);
+      await registrarAuditoria(
+        conn,
+        usuarioId,
+        "desfazer_lancamento_ofx",
+        "ofx_lancamento",
+        data.ofxId,
+        null,
+        { motivo: data.motivo },
+      );
+    });
+  });
+
 export type ConciliacaoRecente = {
   id: string;
   data_conciliacao: string;

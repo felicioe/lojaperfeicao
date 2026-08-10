@@ -48,6 +48,8 @@ import { CheckCircle2, Plus } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/contas-pagar")({
   head: () => ({ meta: [{ title: "Contas a Pagar — Gestão Maçônica" }] }),
@@ -70,15 +72,31 @@ function ContasPagar() {
     queryFn: () => listarContasPagarPagas(),
   });
 
-  const abertasPag = usePaginacao(abertas);
-  const pagasPag = usePaginacao(pagas);
+  const hoje = toISODate(new Date());
+  const ordAbertas = useOrdenacao(abertas, {
+    vencimento: (l) => l.data_vencimento,
+    descricao: (l) => l.descricao,
+    categoria: (l) => l.plano_contas?.nome,
+    fornecedor: (l) => l.terceiros?.nome,
+    valor: (l) => Number(l.valor) - Number(l.valor_pago),
+    status: (l) => (l.data_vencimento && l.data_vencimento < hoje ? 1 : 0),
+  });
+  const ordPagas = useOrdenacao(pagas, {
+    pagamento: (l) => l.data_pagamento,
+    descricao: (l) => l.descricao,
+    categoria: (l) => l.plano_contas?.nome,
+    conta: (l) => l.contas_financeiras?.nome,
+    forma: (l) => l.forma_pagamento,
+    valor: (l) => Number(l.valor),
+  });
+  const abertasPag = usePaginacao(ordAbertas.itensOrdenados);
+  const pagasPag = usePaginacao(ordPagas.itensOrdenados);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["contas_pagar_abertas"] });
     qc.invalidateQueries({ queryKey: ["contas_pagar_pagas"] });
   };
 
-  const hoje = toISODate(new Date());
   const totalAberto = abertas.reduce((s, l) => s + Number(l.valor) - Number(l.valor_pago), 0);
 
   return (
@@ -121,12 +139,24 @@ function ContasPagar() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHeadOrdenavel campo="vencimento" ord={ordAbertas}>
+                    Vencimento
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="descricao" ord={ordAbertas}>
+                    Descrição
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="categoria" ord={ordAbertas}>
+                    Categoria
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="fornecedor" ord={ordAbertas}>
+                    Fornecedor
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="valor" ord={ordAbertas} className="text-right">
+                    Valor
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="status" ord={ordAbertas}>
+                    Status
+                  </TableHeadOrdenavel>
                   {podeEditar && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -197,12 +227,24 @@ function ContasPagar() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Conta</TableHead>
-                  <TableHead>Forma</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHeadOrdenavel campo="pagamento" ord={ordPagas}>
+                    Pagamento
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="descricao" ord={ordPagas}>
+                    Descrição
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="categoria" ord={ordPagas}>
+                    Categoria
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="conta" ord={ordPagas}>
+                    Conta
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="forma" ord={ordPagas}>
+                    Forma
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="valor" ord={ordPagas} className="text-right">
+                    Valor
+                  </TableHeadOrdenavel>
                 </TableRow>
               </TableHeader>
               <TableBody>

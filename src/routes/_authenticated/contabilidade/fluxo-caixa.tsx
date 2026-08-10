@@ -30,10 +30,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/fluxo-caixa")({
   head: () => ({ meta: [{ title: "Fluxo de Caixa — Gestão Maçônica" }] }),
@@ -234,8 +236,15 @@ function FluxoProjetado() {
     queryKey: ["fluxo_pendentes", dataLimite],
     queryFn: () => listarMovimentosPendentes({ data: { hoje, dataLimite } }),
   });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(pendentes);
+  const ordPendentes = useOrdenacao(pendentes, {
+    vencimento: (p) => p.data_vencimento,
+    descricao: (p) => p.descricao,
+    tipo: (p) => (p.tipo === "entrada" ? 1 : 0),
+    valor: (p) => Number(p.valor),
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ordPendentes.itensOrdenados,
+  );
 
   const porDia = useMemo(() => {
     const m = new Map<string, { entradas: number; saidas: number }>();
@@ -344,10 +353,18 @@ function FluxoProjetado() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHeadOrdenavel campo="vencimento" ord={ordPendentes}>
+                  Vencimento
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="descricao" ord={ordPendentes}>
+                  Descrição
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tipo" ord={ordPendentes}>
+                  Tipo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor" ord={ordPendentes} className="text-right">
+                  Valor
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>

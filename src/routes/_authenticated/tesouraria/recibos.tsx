@@ -17,6 +17,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/recibos")({
   head: () => ({ meta: [{ title: "Recibos — Gestão Maçônica" }] }),
@@ -30,8 +32,19 @@ function Recibos() {
     queryKey: ["recibos_all"],
     queryFn: () => listarRecibos(),
   });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(recibos);
+  const ord = useOrdenacao(recibos, {
+    data: (r) => r.data,
+    irmao: (r) => r.irmaos?.nome_civil,
+    conta: (r) => r.contas_financeiras?.nome,
+    forma: (r) => r.forma_pagamento,
+    original: (r) => Number(r.valor_original),
+    multaJuros: (r) => Number(r.valor_multa) + Number(r.valor_juros),
+    desconto: (r) => Number(r.desconto),
+    total: (r) => Number(r.valor_total),
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   return (
     <>
@@ -44,14 +57,30 @@ function Recibos() {
           <TableHeader>
             <TableRow>
               <TableHead></TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Irmão</TableHead>
-              <TableHead>Conta</TableHead>
-              <TableHead>Forma</TableHead>
-              <TableHead className="text-right">Original</TableHead>
-              <TableHead className="text-right">Multa+Juros</TableHead>
-              <TableHead className="text-right">Desconto</TableHead>
-              <TableHead className="text-right">Total</TableHead>
+              <TableHeadOrdenavel campo="data" ord={ord}>
+                Data
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="irmao" ord={ord}>
+                Irmão
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="conta" ord={ord}>
+                Conta
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="forma" ord={ord}>
+                Forma
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
+                Original
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="multaJuros" ord={ord} className="text-right">
+                Multa+Juros
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="desconto" ord={ord} className="text-right">
+                Desconto
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="total" ord={ord} className="text-right">
+                Total
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -121,6 +150,13 @@ function ReciboItensPanel({ reciboId }: { reciboId: string }) {
     queryKey: ["recibo_itens", reciboId],
     queryFn: () => listarReciboItens({ data: { reciboId } }),
   });
+  const ord = useOrdenacao(itens, {
+    descricao: (it) => it.lancamentos?.descricao,
+    vencimento: (it) => it.lancamentos?.data_vencimento,
+    original: (it) => Number(it.valor_original),
+    multa: (it) => Number(it.valor_multa),
+    juros: (it) => Number(it.valor_juros),
+  });
 
   return (
     <div className="py-2">
@@ -128,15 +164,25 @@ function ReciboItensPanel({ reciboId }: { reciboId: string }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Vencimento</TableHead>
-            <TableHead className="text-right">Original</TableHead>
-            <TableHead className="text-right">Multa</TableHead>
-            <TableHead className="text-right">Juros</TableHead>
+            <TableHeadOrdenavel campo="descricao" ord={ord}>
+              Descrição
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="vencimento" ord={ord}>
+              Vencimento
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
+              Original
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="multa" ord={ord} className="text-right">
+              Multa
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="juros" ord={ord} className="text-right">
+              Juros
+            </TableHeadOrdenavel>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {itens.map((it) => (
+          {ord.itensOrdenados.map((it) => (
             <TableRow key={it.id}>
               <TableCell>{it.lancamentos?.descricao}</TableCell>
               <TableCell>{fmtDate(it.lancamentos?.data_vencimento)}</TableCell>

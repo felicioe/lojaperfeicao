@@ -25,8 +25,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { useMemo, useState } from "react";
 import { brl } from "@/lib/format";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/dre-orcado")({
   head: () => ({ meta: [{ title: "DRE Orçado — Gestão Maçônica" }] }),
@@ -115,6 +117,18 @@ function DreOrcado() {
 
   const receitas = linhas.filter((l) => l.tipo === "receita");
   const despesas = linhas.filter((l) => l.tipo === "despesa");
+  const ordReceitas = useOrdenacao(receitas, {
+    conta: (l) => l.codigo,
+    orcado: (l) => l.orcado,
+    realizado: (l) => l.realizado,
+    diferenca: (l) => l.realizado - l.orcado,
+  });
+  const ordDespesas = useOrdenacao(despesas, {
+    conta: (l) => l.codigo,
+    orcado: (l) => l.orcado,
+    realizado: (l) => l.realizado,
+    diferenca: (l) => l.realizado - l.orcado,
+  });
   const totalReceitaOrcado = receitas.reduce((s, l) => s + l.orcado, 0);
   const totalReceitaReal = receitas.reduce((s, l) => s + l.realizado, 0);
   const totalDespesaOrcado = despesas.reduce((s, l) => s + l.orcado, 0);
@@ -167,10 +181,18 @@ function DreOrcado() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Conta</TableHead>
-                  <TableHead className="text-right">Orçado</TableHead>
-                  <TableHead className="text-right">Realizado</TableHead>
-                  <TableHead className="text-right">Diferença</TableHead>
+                  <TableHeadOrdenavel campo="conta" ord={ordReceitas}>
+                    Conta
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="orcado" ord={ordReceitas} className="text-right">
+                    Orçado
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="realizado" ord={ordReceitas} className="text-right">
+                    Realizado
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="diferenca" ord={ordReceitas} className="text-right">
+                    Diferença
+                  </TableHeadOrdenavel>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -181,7 +203,7 @@ function DreOrcado() {
                     </TableCell>
                   </TableRow>
                 )}
-                {receitas.map((l) => (
+                {ordReceitas.itensOrdenados.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="font-mono text-xs">
                       {l.codigo} {l.nome}
@@ -214,10 +236,18 @@ function DreOrcado() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Conta</TableHead>
-                  <TableHead className="text-right">Orçado</TableHead>
-                  <TableHead className="text-right">Realizado</TableHead>
-                  <TableHead className="text-right">Diferença</TableHead>
+                  <TableHeadOrdenavel campo="conta" ord={ordDespesas}>
+                    Conta
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="orcado" ord={ordDespesas} className="text-right">
+                    Orçado
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="realizado" ord={ordDespesas} className="text-right">
+                    Realizado
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="diferenca" ord={ordDespesas} className="text-right">
+                    Diferença
+                  </TableHeadOrdenavel>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -228,7 +258,7 @@ function DreOrcado() {
                     </TableCell>
                   </TableRow>
                 )}
-                {despesas.map((l) => (
+                {ordDespesas.itensOrdenados.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell className="font-mono text-xs">
                       {l.codigo} {l.nome}

@@ -39,6 +39,8 @@ import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/gestoes/")({
   head: () => ({ meta: [{ title: "Gestões — Gestão Maçônica" }] }),
@@ -66,8 +68,6 @@ function Gestoes() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["gestoes_all"] });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(gestoes);
 
   const salvar = async () => {
     if (!form.org_id || !form.nome.trim() || !form.data_inicio || !form.data_fim) return;
@@ -91,6 +91,16 @@ function Gestoes() {
 
   const nomeOrg = (id: string) =>
     orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? "—";
+
+  const ord = useOrdenacao(gestoes, {
+    corpo: (g) => nomeOrg(g.org_id),
+    gestao: (g) => g.nome,
+    periodo: (g) => g.data_inicio,
+    status: (g) => (g.ativo ? 1 : 0),
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   return (
     <>
@@ -167,10 +177,18 @@ function Gestoes() {
           <TableHeader>
             <TableRow>
               <TableHead></TableHead>
-              <TableHead>Corpo</TableHead>
-              <TableHead>Gestão</TableHead>
-              <TableHead>Período</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHeadOrdenavel campo="corpo" ord={ord}>
+                Corpo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="gestao" ord={ord}>
+                Gestão
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="periodo" ord={ord}>
+                Período
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ord}>
+                Status
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -250,6 +268,11 @@ function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: 
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["gestao_cargos", gestao.id] });
 
+  const ordOcupantes = useOrdenacao(ocupantes, {
+    cargo: (o) => o.cargos?.nome,
+    irmao: (o) => o.irmaos?.nome_civil,
+  });
+
   const adicionar = async () => {
     if (!novo.cargo_id || !novo.irmao_id) return;
     try {
@@ -278,8 +301,12 @@ function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: 
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Cargo</TableHead>
-            <TableHead>Irmão</TableHead>
+            <TableHeadOrdenavel campo="cargo" ord={ordOcupantes}>
+              Cargo
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="irmao" ord={ordOcupantes}>
+              Irmão
+            </TableHeadOrdenavel>
             {podeEditar && <TableHead className="w-10"></TableHead>}
           </TableRow>
         </TableHeader>
@@ -291,7 +318,7 @@ function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: 
               </TableCell>
             </TableRow>
           )}
-          {ocupantes.map((o) => (
+          {ordOcupantes.itensOrdenados.map((o) => (
             <TableRow key={o.id}>
               <TableCell>{o.cargos?.nome}</TableCell>
               <TableCell>{o.irmaos?.nome_civil}</TableCell>

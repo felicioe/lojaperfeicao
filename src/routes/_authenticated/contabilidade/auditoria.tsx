@@ -12,10 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/auditoria")({
   head: () => ({ meta: [{ title: "Auditoria Contábil — Gestão Maçônica" }] }),
@@ -33,8 +35,26 @@ function AuditoriaContabil() {
     queryFn: () => listarSaldoPlanoContas(),
   });
 
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(saldos);
+  const ordDesbalanceados = useOrdenacao(desbalanceados, {
+    data: (d) => d.data,
+    descricao: (d) => d.descricao,
+    origem: (d) => d.origem_tipo,
+    debito: (d) => Number(d.total_debito),
+    credito: (d) => Number(d.total_credito),
+    diferenca: (d) => Number(d.diferenca),
+  });
+
+  const ordSaldos = useOrdenacao(saldos, {
+    codigo: (c) => c.codigo,
+    conta: (c) => c.nome,
+    tipo: (c) => c.tipo,
+    debito: (c) => Number(c.total_debito),
+    credito: (c) => Number(c.total_credito),
+    saldo: (c) => Number(c.saldo_devedor),
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ordSaldos.itensOrdenados,
+  );
 
   const totalDebito = saldos.reduce((s, c) => s + Number(c.total_debito), 0);
   const totalCredito = saldos.reduce((s, c) => s + Number(c.total_credito), 0);
@@ -88,16 +108,36 @@ function AuditoriaContabil() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead className="text-right">Débito</TableHead>
-                  <TableHead className="text-right">Crédito</TableHead>
-                  <TableHead className="text-right">Diferença</TableHead>
+                  <TableHeadOrdenavel campo="data" ord={ordDesbalanceados}>
+                    Data
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="descricao" ord={ordDesbalanceados}>
+                    Descrição
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="origem" ord={ordDesbalanceados}>
+                    Origem
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="debito" ord={ordDesbalanceados} className="text-right">
+                    Débito
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel
+                    campo="credito"
+                    ord={ordDesbalanceados}
+                    className="text-right"
+                  >
+                    Crédito
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel
+                    campo="diferenca"
+                    ord={ordDesbalanceados}
+                    className="text-right"
+                  >
+                    Diferença
+                  </TableHeadOrdenavel>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {desbalanceados.map((d) => (
+                {ordDesbalanceados.itensOrdenados.map((d) => (
                   <TableRow key={d.lancamento_id}>
                     <TableCell>{fmtDate(d.data)}</TableCell>
                     <TableCell>{d.descricao}</TableCell>
@@ -123,12 +163,24 @@ function AuditoriaContabil() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Código</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Débito</TableHead>
-                <TableHead className="text-right">Crédito</TableHead>
-                <TableHead className="text-right">Saldo devedor</TableHead>
+                <TableHeadOrdenavel campo="codigo" ord={ordSaldos}>
+                  Código
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="conta" ord={ordSaldos}>
+                  Conta
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tipo" ord={ordSaldos}>
+                  Tipo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="debito" ord={ordSaldos} className="text-right">
+                  Débito
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="credito" ord={ordSaldos} className="text-right">
+                  Crédito
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="saldo" ord={ordSaldos} className="text-right">
+                  Saldo devedor
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -46,6 +46,8 @@ import { brl } from "@/lib/format";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/contas")({
   head: () => ({ meta: [{ title: "Contas — Gestão Maçônica" }] }),
@@ -73,6 +75,12 @@ function Contas() {
   const saldos = useQuery({
     queryKey: ["saldos"],
     queryFn: () => listarSaldoContas(),
+  });
+  const ord = useOrdenacao(saldos.data ?? [], {
+    nome: (c) => c.nome,
+    tipo: (c) => c.tipo,
+    saldo_inicial: (c) => Number(c.saldo_inicial),
+    saldo_atual: (c) => Number(c.saldo_atual),
   });
 
   const criar = async () => {
@@ -144,14 +152,22 @@ function Contas() {
             <TableHeader>
               <TableRow>
                 <TableHead></TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Saldo inicial</TableHead>
-                <TableHead className="text-right">Saldo atual</TableHead>
+                <TableHeadOrdenavel campo="nome" ord={ord}>
+                  Nome
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tipo" ord={ord}>
+                  Tipo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="saldo_inicial" ord={ord} className="text-right">
+                  Saldo inicial
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="saldo_atual" ord={ord} className="text-right">
+                  Saldo atual
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(saldos.data ?? []).map((c: any) => (
+              {ord.itensOrdenados.map((c: any) => (
                 <Fragment key={c.id}>
                   <TableRow>
                     <TableCell>
@@ -206,6 +222,12 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
     queryKey: ["chaves_pix", contaId],
     queryFn: () => listarChavesPix({ data: { contaId } }),
   });
+  const ordChaves = useOrdenacao(chaves, {
+    tipo: (c) => TIPO_PIX_LABEL[c.tipo],
+    chave: (c) => c.chave,
+    beneficiario: (c) => c.nome_beneficiario,
+    cidade: (c) => c.cidade,
+  });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["chaves_pix", contaId] });
 
@@ -249,10 +271,18 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Chave</TableHead>
-              <TableHead>Beneficiário</TableHead>
-              <TableHead>Cidade</TableHead>
+              <TableHeadOrdenavel campo="tipo" ord={ordChaves}>
+                Tipo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="chave" ord={ordChaves}>
+                Chave
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="beneficiario" ord={ordChaves}>
+                Beneficiário
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="cidade" ord={ordChaves}>
+                Cidade
+              </TableHeadOrdenavel>
               <TableHead></TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
@@ -265,7 +295,7 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
                 </TableCell>
               </TableRow>
             )}
-            {chaves.map((c) => (
+            {ordChaves.itensOrdenados.map((c) => (
               <TableRow key={c.id}>
                 <TableCell>{TIPO_PIX_LABEL[c.tipo]}</TableCell>
                 <TableCell className="font-mono text-sm">{c.chave}</TableCell>

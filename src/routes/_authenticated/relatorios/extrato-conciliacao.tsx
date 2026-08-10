@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { relatorioExtratoConciliacao } from "@/lib/backend/relatorios";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
-import { desfazerConciliacao } from "@/lib/backend/tesouraria-conciliacao";
+import { desfazerConciliacao, desfazerLancamentoOfx } from "@/lib/backend/tesouraria-conciliacao";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
@@ -32,6 +32,8 @@ import { toast } from "sonner";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/relatorios/extrato-conciliacao")({
@@ -78,6 +80,15 @@ function ExtratoConciliacao() {
     onError: (err: Error) => toast.error(err.message ?? "Erro ao desfazer conciliação."),
   });
 
+  const desfazerLegadoMutation = useMutation({
+    mutationFn: (vars: { ofxId: string; motivo: string }) => desfazerLancamentoOfx({ data: vars }),
+    onSuccess: () => {
+      toast.success("Conciliação desfeita — linha voltou a pendente/em aberto.");
+      qc.invalidateQueries({ queryKey: ["relatorio_extrato_conciliacao"] });
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao desfazer conciliação."),
+  });
+
   const totalConciliado = itens
     .filter((i) => i.conciliado)
     .reduce((s, i) => s + Number(i.valor), 0);
@@ -93,7 +104,13 @@ function ExtratoConciliacao() {
     vinculados: i.lancamentos_vinculados.map((l) => l.descricao).join("; ") || "—",
   }));
 
-  const pag = usePaginacao(itens);
+  const ord = useOrdenacao(itens, {
+    data: (i) => i.data,
+    descricao: (i) => i.descricao,
+    valor: (i) => Number(i.valor),
+    status: (i) => (i.conciliado ? 1 : 0),
+  });
+  const pag = usePaginacao(ord.itensOrdenados);
 
   return (
     <>
@@ -163,10 +180,18 @@ function ExtratoConciliacao() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Descrição (OFX)</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHeadOrdenavel campo="data" ord={ord}>
+                      Data
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="descricao" ord={ord}>
+                      Descrição (OFX)
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                      Valor
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="status" ord={ord}>
+                      Status
+                    </TableHeadOrdenavel>
                     <TableHead>Lançamento(s) vinculado(s)</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -223,13 +248,24 @@ function ExtratoConciliacao() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {can.canManageFinancas && i.conciliado && i.conciliacao_id && (
-                          <DesfazerConciliacaoDialog
-                            onConfirm={(motivo) =>
-                              desfazerMutation.mutate({ conciliacaoId: i.conciliacao_id!, motivo })
-                            }
-                          />
-                        )}
+                        {can.canManageFinancas &&
+                          i.conciliado &&
+                          (i.conciliacao_id ? (
+                            <DesfazerConciliacaoDialog
+                              onConfirm={(motivo) =>
+                                desfazerMutation.mutate({
+                                  conciliacaoId: i.conciliacao_id!,
+                                  motivo,
+                                })
+                              }
+                            />
+                          ) : (
+                            <DesfazerConciliacaoDialog
+                              onConfirm={(motivo) =>
+                                desfazerLegadoMutation.mutate({ ofxId: i.id, motivo })
+                              }
+                            />
+                          ))}
                       </TableCell>
                     </TableRow>
                   ))}

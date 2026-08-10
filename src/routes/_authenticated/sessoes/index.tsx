@@ -28,6 +28,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/sessoes/")({
   head: () => ({ meta: [{ title: "Sessões — Gestão Maçônica" }] }),
@@ -49,8 +51,15 @@ function SessoesList() {
     queryKey: ["sessoes"],
     queryFn: () => listarSessoes(),
   });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(data);
+  const ord = useOrdenacao(data, {
+    data: (s) => s.data,
+    tipo: (s) => s.tipo,
+    corpo: (s) => s.org_nome,
+    grau: (s) => s.grau,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const { data: orgs = [] } = useQuery({ queryKey: ["orgs_all"], queryFn: () => listarOrgs() });
 
@@ -166,10 +175,18 @@ function SessoesList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Corpo</TableHead>
-              <TableHead>Grau</TableHead>
+              <TableHeadOrdenavel campo="data" ord={ord}>
+                Data
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="tipo" ord={ord}>
+                Tipo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="corpo" ord={ord}>
+                Corpo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="grau" ord={ord}>
+                Grau
+              </TableHeadOrdenavel>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>

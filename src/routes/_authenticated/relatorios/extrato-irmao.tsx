@@ -27,6 +27,8 @@ import {
 import { useState } from "react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/relatorios/extrato-irmao")({
@@ -42,7 +44,6 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "valor", titulo: "Valor" },
   { chave: "status", titulo: "Status" },
   { chave: "pago_em", titulo: "Pago em" },
-  { chave: "forma_pagamento", titulo: "Forma de pagamento" },
 ];
 
 function ExtratoIrmao() {
@@ -70,18 +71,33 @@ function ExtratoIrmao() {
   const statusLabel = (i: (typeof itens)[number]) =>
     i.pago ? "Pago" : i.valor_pago > 0 ? "Parcial" : "Aberto";
 
+  // Pra título pago (ou parcialmente pago), mostrar o saldo em aberto (que
+  // fica 0 quando quitado) não diz nada útil — o que importa aqui é quanto
+  // o irmão efetivamente pagou. Só pra título ainda totalmente em aberto
+  // (valor_pago = 0) o valor devido faz sentido como número principal.
+  const valorExibido = (i: (typeof itens)[number]) =>
+    Number(i.valor_pago) > 0 ? Number(i.valor_pago) : Number(i.valor);
+
   const linhasExportacao = itens.map((i) => ({
     data: fmtDate(i.data),
     vencimento: i.data_vencimento ? fmtDate(i.data_vencimento) : "—",
     descricao: i.descricao,
     tipo: i.tipo,
-    valor: Number(i.valor) - Number(i.valor_pago),
+    valor: valorExibido(i),
     status: statusLabel(i),
     pago_em: i.data_pagamento ? fmtDate(i.data_pagamento) : "—",
-    forma_pagamento: i.forma_pagamento ?? "—",
   }));
 
-  const pag = usePaginacao(itens);
+  const ord = useOrdenacao(itens, {
+    emissao: (i) => i.data,
+    vencimento: (i) => i.data_vencimento,
+    descricao: (i) => i.descricao,
+    tipo: (i) => i.tipo,
+    valor: (i) => valorExibido(i),
+    status: (i) => statusLabel(i),
+    pago_em: (i) => i.data_pagamento,
+  });
+  const pag = usePaginacao(ord.itensOrdenados);
 
   return (
     <>
@@ -149,20 +165,33 @@ function ExtratoIrmao() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Emissão</TableHead>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Pago em</TableHead>
-                    <TableHead>Forma de pagamento</TableHead>
+                    <TableHeadOrdenavel campo="emissao" ord={ord}>
+                      Emissão
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="vencimento" ord={ord}>
+                      Vencimento
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="descricao" ord={ord}>
+                      Descrição
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="tipo" ord={ord}>
+                      Tipo
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                      Valor
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="status" ord={ord}>
+                      Status
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="pago_em" ord={ord}>
+                      Pago em
+                    </TableHeadOrdenavel>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {itens.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                         Nenhum lançamento encontrado.
                       </TableCell>
                     </TableRow>
@@ -174,8 +203,8 @@ function ExtratoIrmao() {
                       <TableCell>{i.descricao}</TableCell>
                       <TableCell className="text-muted-foreground">{i.tipo}</TableCell>
                       <TableCell className="text-right font-medium">
-                        {brl(i.valor - i.valor_pago)}
-                        {!i.pago && i.valor_pago > 0 && (
+                        {brl(valorExibido(i))}
+                        {Number(i.valor_pago) > 0 && Number(i.valor_pago) !== Number(i.valor) && (
                           <div className="text-xs font-normal text-muted-foreground">
                             de {brl(i.valor)}
                           </div>
@@ -188,9 +217,6 @@ function ExtratoIrmao() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {i.data_pagamento ? fmtDate(i.data_pagamento) : "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {i.forma_pagamento ?? "—"}
                       </TableCell>
                     </TableRow>
                   ))}

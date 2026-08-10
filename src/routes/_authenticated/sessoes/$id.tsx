@@ -20,6 +20,8 @@ import {
 import { TIPO_SESSAO_LABEL, fmtDate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { toast } from "sonner";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/sessoes/$id")({
   head: () => ({ meta: [{ title: "Frequência da Sessão — Gestão Maçônica" }] }),
@@ -62,6 +64,12 @@ function SessaoDetail() {
 
   const elegiveis = (membros.data ?? []).filter((m) => !s || (m.grau_atual ?? 0) >= s.grau);
 
+  const ord = useOrdenacao(elegiveis, {
+    nome_civil: (m) => m.nome_civil,
+    nome_simbolico: (m) => m.nome_simbolico,
+    grau: (m) => m.grau_atual,
+  });
+
   return (
     <>
       <PageHeader
@@ -87,13 +95,19 @@ function SessaoDetail() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">Presente</TableHead>
-                  <TableHead>Nome civil</TableHead>
-                  <TableHead>Nome simbólico</TableHead>
-                  <TableHead>Grau no corpo</TableHead>
+                  <TableHeadOrdenavel campo="nome_civil" ord={ord}>
+                    Nome civil
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="nome_simbolico" ord={ord}>
+                    Nome simbólico
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="grau" ord={ord}>
+                    Grau no corpo
+                  </TableHeadOrdenavel>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {elegiveis.map((m) => {
+                {ord.itensOrdenados.map((m) => {
                   const p = map.get(m.irmao_id);
                   return (
                     <TableRow key={m.irmao_id}>

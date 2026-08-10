@@ -33,6 +33,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { fmtDate } from "@/lib/format";
 import { CheckCircle2, FileUp, Upload } from "lucide-react";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/ensino/importar-calendario")({
   head: () => ({ meta: [{ title: "Importar Calendário — Gestão Maçônica" }] }),
@@ -91,6 +93,14 @@ function ImportarCalendarioPage() {
 
   const novos = preview?.filter((p) => !p.duplicado).length ?? 0;
   const duplicados = preview?.filter((p) => p.duplicado).length ?? 0;
+
+  const ord = useOrdenacao(preview ?? [], {
+    data: (item) => item.data,
+    titulo: (item) => item.titulo,
+    tipo: (item) => item.tipo,
+    grau: (item) => item.grau,
+    status: (item) => (item.duplicado ? 1 : 0),
+  });
 
   return (
     <>
@@ -159,15 +169,25 @@ function ImportarCalendarioPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Título</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Grau</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHeadOrdenavel campo="data" ord={ord}>
+                  Data
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="titulo" ord={ord}>
+                  Título
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tipo" ord={ord}>
+                  Tipo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="grau" ord={ord}>
+                  Grau
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="status" ord={ord}>
+                  Status
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {preview.map((item, i) => (
+              {ord.itensOrdenados.map((item, i) => (
                 <TableRow key={i} className={item.duplicado ? "opacity-50" : undefined}>
                   <TableCell className="text-sm text-muted-foreground">
                     {fmtDate(item.data)}

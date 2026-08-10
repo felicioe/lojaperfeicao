@@ -35,12 +35,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, Wand2, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/orgs/")({
   head: () => ({ meta: [{ title: "Corpos Maçônicos — Gestão Maçônica" }] }),
@@ -92,6 +94,14 @@ function Orgs() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["orgs_all"] });
+
+  const ord = useOrdenacao(orgs, {
+    nome: (o) => o.nome,
+    natureza: (o) => o.natureza,
+    graus: (o) => o.grau_min,
+    potencia: (o) => potencias.find((p) => p.id === o.potencia_id)?.sigla ?? null,
+    ativo: (o) => (o.ativo ? 1 : 0),
+  });
 
   const salvar = async () => {
     if (!form.nome.trim()) return;
@@ -349,11 +359,21 @@ function Orgs() {
           <TableHeader>
             <TableRow>
               <TableHead></TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Natureza</TableHead>
-              <TableHead>Graus</TableHead>
-              <TableHead>Potência</TableHead>
-              <TableHead>Ativo</TableHead>
+              <TableHeadOrdenavel campo="nome" ord={ord}>
+                Nome
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="natureza" ord={ord}>
+                Natureza
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="graus" ord={ord}>
+                Graus
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="potencia" ord={ord}>
+                Potência
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="ativo" ord={ord}>
+                Ativo
+              </TableHeadOrdenavel>
               {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
@@ -365,7 +385,7 @@ function Orgs() {
                 </TableCell>
               </TableRow>
             )}
-            {orgs.map((o) => (
+            {ord.itensOrdenados.map((o) => (
               <Fragment key={o.id}>
                 <TableRow className={!o.ativo ? "opacity-50" : undefined}>
                   <TableCell>
@@ -436,6 +456,12 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["orgs_graus", org.id] });
 
+  const ordGraus = useOrdenacao(graus, {
+    grau: (g) => g.grau,
+    nome: (g) => g.nome,
+    intersticio: (g) => g.interstico_minimo_meses,
+  });
+
   const gerarPadrao = async () => {
     try {
       await gerarGrausPadraoOrg({ data: { orgId: org.id } });
@@ -502,9 +528,15 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-20">Grau</TableHead>
-            <TableHead>Nome</TableHead>
-            <TableHead className="w-44">Interstício (meses)</TableHead>
+            <TableHeadOrdenavel campo="grau" ord={ordGraus} className="w-20">
+              Grau
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="nome" ord={ordGraus}>
+              Nome
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="intersticio" ord={ordGraus} className="w-44">
+              Interstício (meses)
+            </TableHeadOrdenavel>
             {podeEditar && <TableHead className="w-10"></TableHead>}
           </TableRow>
         </TableHeader>
@@ -516,7 +548,7 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
               </TableCell>
             </TableRow>
           )}
-          {graus.map((g) => (
+          {ordGraus.itensOrdenados.map((g) => (
             <TableRow key={g.id}>
               <TableCell className="font-mono">{g.grau}</TableCell>
               <TableCell>

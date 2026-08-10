@@ -21,6 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   // quem só tem o papel "irmao" (sem admin/tesoureiro/secretario) usa o
@@ -87,6 +89,13 @@ function Dashboard() {
     .map((a) => a.nome_civil.split(" ")[0])
     .join(", ");
 
+  const ordContasPagar = useOrdenacao(contasPagar.data ?? [], {
+    vencimento: (l) => l.data_vencimento,
+    descricao: (l) => l.descricao,
+    valor: (l) => Number(l.valor),
+    status: (l) => (new Date(l.data_vencimento) < new Date(today) ? 1 : 0),
+  });
+
   return (
     <>
       <PageHeader title="Dashboard" description="Visão geral da loja e dos próximos 30 dias." />
@@ -145,10 +154,18 @@ function Dashboard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHeadOrdenavel campo="vencimento" ord={ordContasPagar}>
+                  Vencimento
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="descricao" ord={ordContasPagar}>
+                  Descrição
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor" ord={ordContasPagar} className="text-right">
+                  Valor
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="status" ord={ordContasPagar}>
+                  Status
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -159,7 +176,7 @@ function Dashboard() {
                   </TableCell>
                 </TableRow>
               )}
-              {(contasPagar.data ?? []).map((l: any) => {
+              {ordContasPagar.itensOrdenados.map((l: any) => {
                 const overdue = new Date(l.data_vencimento) < new Date(today);
                 return (
                   <TableRow key={l.id}>

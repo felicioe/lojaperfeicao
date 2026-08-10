@@ -54,6 +54,8 @@ import {
 import { ROLE_LABEL } from "@/lib/format";
 import { ShieldAlert, KeyRound, UserPlus, ShieldCheck, UserX, UserCheck } from "lucide-react";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/usuarios/")({
   beforeLoad: ({ context }) => {
@@ -81,8 +83,20 @@ function UsuariosPage() {
     qc.invalidateQueries({ queryKey: ["irmaos_sem_acesso"] });
   };
 
+  const ordSemAcesso = useOrdenacao(semAcesso.data ?? [], {
+    nome: (i) => i.nome_civil,
+    login: (i) => i.loginSugerido,
+  });
+
+  const ord = useOrdenacao(usuarios.data ?? [], {
+    usuario: (u) => u.email,
+    nome: (u) => u.nome_completo,
+    papeis: (u) => u.papeis.slice().sort().join(","),
+    irmao: (u) => u.irmao?.nome_civil,
+    status: (u) => (u.ativo ? 1 : 0),
+  });
   const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
-    usuarios.data ?? [],
+    ord.itensOrdenados,
   );
 
   const criarUm = async (irmaoId: string) => {
@@ -198,13 +212,17 @@ function UsuariosPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Login sugerido</TableHead>
+                  <TableHeadOrdenavel campo="nome" ord={ordSemAcesso}>
+                    Nome
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="login" ord={ordSemAcesso}>
+                    Login sugerido
+                  </TableHeadOrdenavel>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(semAcesso.data ?? []).map((i) => (
+                {ordSemAcesso.itensOrdenados.map((i) => (
                   <TableRow key={i.id}>
                     <TableCell className="font-medium">{i.nome_civil}</TableCell>
                     <TableCell className="font-mono text-sm text-muted-foreground">
@@ -233,11 +251,21 @@ function UsuariosPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Usuário</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Papéis</TableHead>
-                <TableHead>Irmão vinculado</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHeadOrdenavel campo="usuario" ord={ord}>
+                  Usuário
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="nome" ord={ord}>
+                  Nome
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="papeis" ord={ord}>
+                  Papéis
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="irmao" ord={ord}>
+                  Irmão vinculado
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="status" ord={ord}>
+                  Status
+                </TableHeadOrdenavel>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>

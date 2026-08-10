@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { useState } from "react";
@@ -36,6 +37,7 @@ import {
   useMovimentosFiltrados,
 } from "@/components/app/RecebimentoAvulso";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/movimentos")({
   head: () => ({ meta: [{ title: "Movimento Financeiro — Gestão Maçônica" }] }),
@@ -59,7 +61,16 @@ function Movimentos() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
-  const movPag = usePaginacao(f.movimentos);
+  const ord = useOrdenacao(f.movimentos, {
+    emissao: (m) => m.data,
+    vencimento: (m) => m.data_vencimento,
+    descricao: (m) => m.descricao,
+    irmao: (m) => m.irmao_nome,
+    tipo: (m) => m.tipo,
+    valor: (m) => Number(m.valor),
+    status: (m) => (m.pago ? 1 : 0),
+  });
+  const movPag = usePaginacao(ord.itensOrdenados);
 
   const totalEntradas = f.movimentos
     .filter((m) => m.tipo === "entrada")
@@ -166,13 +177,27 @@ function Movimentos() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-2">Emissão</TableHead>
-                <TableHead className="px-2">Vencimento</TableHead>
-                <TableHead className="px-2">Descrição</TableHead>
-                <TableHead className="px-2">Irmão</TableHead>
-                <TableHead className="px-2">Tipo</TableHead>
-                <TableHead className="px-2 text-right">Valor</TableHead>
-                <TableHead className="px-2">Status</TableHead>
+                <TableHeadOrdenavel campo="emissao" ord={ord} className="px-2">
+                  Emissão
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="vencimento" ord={ord} className="px-2">
+                  Vencimento
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="descricao" ord={ord} className="px-2">
+                  Descrição
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="irmao" ord={ord} className="px-2">
+                  Irmão
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tipo" ord={ord} className="px-2">
+                  Tipo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor" ord={ord} className="px-2 text-right">
+                  Valor
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="status" ord={ord} className="px-2">
+                  Status
+                </TableHeadOrdenavel>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
