@@ -1,9 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { relatorioFrequencia } from "@/lib/backend/relatorios";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -22,12 +32,20 @@ export const Route = createFileRoute("/_authenticated/relatorios/frequencia")({
 });
 
 function RelatorioFreq() {
+  const [irmaoId, setIrmaoId] = useState("todos");
   const { data } = useQuery({
     queryKey: ["rel_freq"],
     queryFn: () => relatorioFrequencia(),
   });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
   const totalSessoes = data?.totalSessoes ?? 0;
-  const ord = useOrdenacao(data?.irmaos ?? [], {
+  const irmaosFiltrados = (data?.irmaos ?? []).filter(
+    (i) => irmaoId === "todos" || i.id === irmaoId,
+  );
+  const ord = useOrdenacao(irmaosFiltrados, {
     irmao: (i) => i.nome_civil,
     presencas: (i) => i.presencas,
     faltas: (i) => Math.max(0, totalSessoes - i.presencas),
@@ -43,6 +61,26 @@ function RelatorioFreq() {
         title="Relatório de Frequência"
         description={`Total de sessões registradas: ${data?.totalSessoes ?? 0}`}
       />
+
+      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
+        <div>
+          <Label className="text-xs">Irmão</Label>
+          <Select value={irmaoId} onValueChange={setIrmaoId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+
       <Card>
         <Table>
           <TableHeader>
