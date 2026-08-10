@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // Toda esta área (emissão/baixa de faturas) é admin/tesoureiro apenas —
 // mesma regra de lancamentos_write.
@@ -84,7 +85,7 @@ const baixarFaturasSchema = z.object({
 export const baixarFaturas = createServerFn({ method: "POST" })
   .validator((d: unknown) => baixarFaturasSchema.parse(d))
   .handler(async ({ data }): Promise<{ reciboId: string }> => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL baixar_faturas(?, ?, ?, ?, ?, ?, ?, ?, ?, @recibo_id)", [
         JSON.stringify(data.lancamentoIds),
         data.contaFinanceiraId,
@@ -97,6 +98,7 @@ export const baixarFaturas = createServerFn({ method: "POST" })
         data.planoContaExtraId,
       ]);
       const [[{ recibo_id }]] = await conn.query<RowDataPacket[]>("SELECT @recibo_id AS recibo_id");
+      await registrarAuditoria(conn, usuarioIdAtual, "baixar", "recibo", recibo_id, null, data);
       return { reciboId: recibo_id };
     });
   });
@@ -121,7 +123,7 @@ const baixarPagamentoParcialSchema = z.object({
 export const baixarPagamentoParcial = createServerFn({ method: "POST" })
   .validator((d: unknown) => baixarPagamentoParcialSchema.parse(d))
   .handler(async ({ data }): Promise<{ reciboId: string }> => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL baixar_pagamento_parcial(?, ?, ?, ?, ?, @recibo_id)", [
         JSON.stringify(
           data.alocacao.map((a) => ({ lancamento_id: a.lancamentoId, valor: a.valor })),
@@ -132,6 +134,15 @@ export const baixarPagamentoParcial = createServerFn({ method: "POST" })
         data.observacoes,
       ]);
       const [[{ recibo_id }]] = await conn.query<RowDataPacket[]>("SELECT @recibo_id AS recibo_id");
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "baixar_parcial",
+        "recibo",
+        recibo_id,
+        null,
+        data,
+      );
       return { reciboId: recibo_id };
     });
   });
@@ -179,7 +190,7 @@ const faturaAvulsaSchema = z.object({
 export const criarFaturaAvulsa = createServerFn({ method: "POST" })
   .validator((d: unknown) => faturaAvulsaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS, async (conn) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("CALL criar_fatura_avulsa(?, ?, ?, ?, ?, ?, @lanc_id)", [
         data.irmaoId,
         data.valor,
@@ -189,6 +200,7 @@ export const criarFaturaAvulsa = createServerFn({ method: "POST" })
         data.rateio ? JSON.stringify(data.rateio) : null,
       ]);
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+      await registrarAuditoria(conn, usuarioIdAtual, "criar", "fatura_avulsa", lanc_id, null, data);
 
       const { enviarEmailFaturaEmitida } = await import("../email-dispatch");
       enviarEmailFaturaEmitida(lanc_id as string).catch((err) =>
