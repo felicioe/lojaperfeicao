@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 const PAPEIS_ESCRITA = ["admin", "secretario"];
 
@@ -88,18 +89,20 @@ const criarComissaoMembroSchema = z.object({
 export const criarComissaoMembro = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarComissaoMembroSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query(
         "INSERT INTO comissao_membros (comissao_id, papel, irmao_id) VALUES (?, ?, ?)",
         [data.comissaoId, data.papel, data.irmaoId],
       );
+      await registrarAuditoria(conn, usuarioIdAtual, "criar", "comissao_membro", null, null, data);
     });
   });
 
 export const removerComissaoMembro = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query("DELETE FROM comissao_membros WHERE id=?", [data.id]);
+      await registrarAuditoria(conn, usuarioIdAtual, "remover", "comissao_membro", data.id);
     });
   });

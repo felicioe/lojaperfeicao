@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original (mysql/migrations/0002_cadastros.sql): SELECT livre para
 // autenticados; escrita (cargos/gestoes/gestao_cargos) admin OU secretario.
@@ -163,18 +164,20 @@ export const criarGestaoCargo = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query(
         "INSERT INTO gestao_cargos (gestao_id, cargo_id, irmao_id) VALUES (?, ?, ?)",
         [data.gestaoId, data.cargoId, data.irmaoId],
       );
+      await registrarAuditoria(conn, usuarioIdAtual, "criar", "gestao_cargo", null, null, data);
     });
   });
 
 export const removerGestaoCargo = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query("DELETE FROM gestao_cargos WHERE id=?", [data.id]);
+      await registrarAuditoria(conn, usuarioIdAtual, "remover", "gestao_cargo", data.id);
     });
   });
