@@ -452,7 +452,7 @@ const recebimentoAvulsoSchema = z.object({
 export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
   .validator((d: unknown) => recebimentoAvulsoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comSessao(async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query(
         "CALL registrar_recebimento_avulso(?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, @lanc_id)",
         [
@@ -482,7 +482,7 @@ const transferenciaSchema = z.object({
 export const criarTransferencia = createServerFn({ method: "POST" })
   .validator((d: unknown) => transferenciaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comSessao(async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query("CALL criar_transferencia(?, ?, ?, ?, ?, @lanc_id)", [
         data.contaOrigemId,
         data.contaDestinoId,
@@ -510,7 +510,7 @@ export const gerarMensalidades = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }): Promise<number> => {
-    return comSessao(async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query("CALL gerar_mensalidades(?, ?, NULL, ?, @total)", [
         data.competencia,
         data.dataVencimento ?? null,
