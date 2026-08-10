@@ -9,6 +9,7 @@ import {
   type OfxLancamento,
 } from "@/lib/backend/tesouraria-conciliacao";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -544,12 +545,18 @@ function CriarLancamentoDialog({
   const isEntrada = Number(ofxLinha.valor) >= 0;
   const [categoria, setCategoria] = useState("outros");
   const [planoContaId, setPlanoContaId] = useState("");
+  const [irmaoId, setIrmaoId] = useState("");
   const [descricao, setDescricao] = useState(ofxLinha.descricao ?? "");
   const [saving, setSaving] = useState(false);
 
   const { data: planos = [] } = useQuery({
     queryKey: ["planos_por_tipo", isEntrada],
     queryFn: () => listarPlanoContasPorTipo({ data: { tipo: isEntrada ? "receita" : "despesa" } }),
+  });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+    enabled: isEntrada,
   });
 
   const salvar = async () => {
@@ -563,6 +570,7 @@ function CriarLancamentoDialog({
           categoria: isEntrada
             ? (categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros")
             : null,
+          irmaoId: irmaoId || null,
           descricao: descricao || null,
         },
       });
@@ -595,6 +603,27 @@ function CriarLancamentoDialog({
                 {Object.entries(CATEGORIA_LABEL).map(([v, l]) => (
                   <SelectItem key={v} value={v}>
                     {l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {isEntrada && (
+          <div>
+            <Label>Irmão (opcional)</Label>
+            <Select
+              value={irmaoId || "__nenhum__"}
+              onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__nenhum__">Nenhum (ex.: tronco de solidariedade)</SelectItem>
+                {irmaos.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>
+                    {i.nome_civil}
                   </SelectItem>
                 ))}
               </SelectContent>

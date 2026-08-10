@@ -142,6 +142,9 @@ const criarLancamentoOfxSchema = z.object({
   ofxId: z.string().uuid(),
   planoContaId: z.string().uuid(),
   categoria: z.enum(["mensalidade", "taxa_grau", "tronco", "doacao", "outros"]).nullable(),
+  // Opcional (issue #136) — nem todo lançamento avulso tem um irmão
+  // associado (ex.: tronco de solidariedade, que é institucional).
+  irmaoId: z.string().uuid().nullable(),
   descricao: z.string().nullable(),
 });
 
@@ -149,10 +152,11 @@ export const criarLancamentoDeOfx = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarLancamentoOfxSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn) => {
-      await conn.query("CALL criar_lancamento_de_ofx(?, ?, ?, NULL, NULL, ?, @lanc_id)", [
+      await conn.query("CALL criar_lancamento_de_ofx(?, ?, ?, ?, NULL, ?, @lanc_id)", [
         data.ofxId,
         data.planoContaId,
         data.categoria,
+        data.irmaoId,
         data.descricao,
       ]);
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
