@@ -353,6 +353,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
         { to: "/documentos", label: "Documentos", icon: FileSignature, show: true },
+        { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
       ],
     },
     {
@@ -383,6 +384,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/tesouraria/tabela-valores",
           label: "Tabela de Valores",
           icon: TrendingUp,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/plano-contas",
+          label: "Plano de Contas",
+          icon: FileBarChart,
           show: can.canManageFinancas,
         },
         {
@@ -429,6 +436,56 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: RefreshCw,
           show: can.canManageFinancas,
         },
+        {
+          to: "/relatorios/recebimentos",
+          label: "Recebimentos no Mês",
+          icon: Wallet,
+          show: can.canManageFinancas,
+          section: "Relatórios",
+        },
+        {
+          to: "/relatorios/extrato-conciliacao",
+          label: "Extrato da Conciliação",
+          icon: ArrowLeftRight,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/relatorios/extrato-bancario",
+          label: "Extrato Bancário",
+          icon: Landmark,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/relatorios/extrato-irmao",
+          label: "Extrato do Irmão",
+          icon: UserRound,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/relatorios/inadimplentes",
+          label: "Inadimplentes",
+          icon: AlertTriangle,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/relatorios/inadimplencia",
+          label: "Inadimplência Detalhada",
+          icon: AlertTriangle,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/administracao/fechamento-periodo",
+          label: "Fechamento de Período",
+          icon: Lock,
+          show: can.isAdmin,
+          section: "Encerramento",
+        },
+        {
+          to: "/administracao/resetar-financeiro",
+          label: "Resetar Financeiro",
+          icon: Trash2,
+          show: can.isAdmin,
+        },
       ],
     },
     {
@@ -436,13 +493,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       label: "Contabilidade",
       icon: BookMarked,
       items: [
-        {
-          to: "/tesouraria/plano-contas",
-          label: "Plano de Contas",
-          icon: FileBarChart,
-          show: can.canManageFinancas,
-          section: "Registros",
-        },
         {
           to: "/contabilidade/razao",
           label: "Razão Contábil",
@@ -502,61 +552,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       ],
     },
     {
-      id: "relatorios",
-      label: "Relatórios",
-      icon: FileBarChart,
-      items: [
-        { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
-        {
-          to: "/relatorios/inadimplentes",
-          label: "Inadimplentes",
-          icon: AlertTriangle,
-          show: can.canManageFinancas,
-        },
-        {
-          to: "/relatorios/recebimentos",
-          label: "Recebimentos no Mês",
-          icon: Wallet,
-          show: can.canManageFinancas,
-        },
-        {
-          to: "/relatorios/extrato-conciliacao",
-          label: "Extrato da Conciliação",
-          icon: ArrowLeftRight,
-          show: can.canManageFinancas,
-        },
-        {
-          to: "/relatorios/extrato-bancario",
-          label: "Extrato Bancário",
-          icon: Landmark,
-          show: can.canManageFinancas,
-        },
-        {
-          to: "/relatorios/extrato-irmao",
-          label: "Extrato do Irmão",
-          icon: UserRound,
-          show: can.canManageFinancas,
-        },
-        {
-          to: "/relatorios/inadimplencia",
-          label: "Inadimplência Detalhada",
-          icon: AlertTriangle,
-          show: can.canManageFinancas,
-        },
-      ],
-    },
-    {
       id: "administracao",
       label: "Administração",
       icon: ShieldCheck,
       items: [
         { to: "/usuarios", label: "Usuários", icon: UsersRound, show: can.isAdmin },
-        {
-          to: "/administracao/resetar-financeiro",
-          label: "Resetar Financeiro",
-          icon: Trash2,
-          show: can.isAdmin,
-        },
         {
           to: "/administracao/auditoria",
           label: "Auditoria",
@@ -573,12 +573,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/administracao/backups",
           label: "Backups",
           icon: Archive,
-          show: can.isAdmin,
-        },
-        {
-          to: "/administracao/fechamento-periodo",
-          label: "Fechamento de Período",
-          icon: Lock,
           show: can.isAdmin,
         },
       ],
