@@ -436,6 +436,9 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
 // só decide QUAIS linhas aparecem na lista, nunca recalcula o saldo a
 // partir de um subconjunto (isso daria um saldo corrente fictício,
 // diferente do saldo real do banco).
+// A data exibida/ordenadora é data_pagamento (quando é fatura emitida numa
+// data e paga só em outra) — é a data em que o dinheiro de fato
+// entrou/saiu, que é o que um extrato bancário mostra (issue #196).
 
 export type ItemExtratoBancario = {
   id: string;
@@ -466,7 +469,8 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
                 (SELECT saldo_inicial FROM contas_financeiras WHERE id = ?)
                   + SUM(valor_sinal) OVER (ORDER BY data, criado_em, id) AS saldo_corrente
          FROM (
-           SELECT l.id, l.data, l.descricao, l.tipo, l.categoria_recebimento, l.criado_em,
+           SELECT l.id, COALESCE(l.data_pagamento, l.data) AS data, l.descricao, l.tipo,
+                  l.categoria_recebimento, l.criado_em,
                   i.nome_civil AS irmao_nome, pc.nome AS plano_conta_nome,
                   CASE
                     WHEN l.conta_destino_id = ? THEN l.valor
@@ -478,7 +482,7 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
            LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
            WHERE l.pago = TRUE
              AND (l.conta_id = ? OR l.conta_destino_id = ?)
-             AND (? IS NULL OR l.data <= ?)
+             AND (? IS NULL OR COALESCE(l.data_pagamento, l.data) <= ?)
          ) movimentos
          ORDER BY data, criado_em, id`,
         [data.contaId, data.contaId, data.contaId, data.contaId, data.ate, data.ate],
