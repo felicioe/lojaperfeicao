@@ -6,12 +6,11 @@ import { desfazerConciliacao } from "@/lib/backend/tesouraria-conciliacao";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
+import { DesfazerConciliacaoDialog } from "@/components/app/DesfazerConciliacaoDialog";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -27,18 +26,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Undo2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
@@ -208,7 +197,7 @@ function ExtratoConciliacao() {
                       </TableCell>
                       <TableCell className="text-right">
                         {can.canManageFinancas && i.conciliado && i.conciliacao_id && (
-                          <DesfazerDialog
+                          <DesfazerConciliacaoDialog
                             onConfirm={(motivo) =>
                               desfazerMutation.mutate({ conciliacaoId: i.conciliacao_id!, motivo })
                             }
@@ -231,52 +220,5 @@ function ExtratoConciliacao() {
         </>
       )}
     </>
-  );
-}
-
-function DesfazerDialog({ onConfirm }: { onConfirm: (motivo: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [motivo, setMotivo] = useState("");
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Undo2 className="h-3.5 w-3.5 mr-1" /> Desfazer
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Desfazer conciliação</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Volta a(s) linha(s) do OFX pra pendente e o(s) lançamento(s) pra em aberto, estornando a
-            contrapartida contábil gerada. Se esta linha fez parte de uma conciliação em lote, todas
-            as outras linhas do mesmo evento também serão desfeitas. Informe o motivo.
-          </p>
-          <div>
-            <Label>Motivo</Label>
-            <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} required />
-          </div>
-        </div>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancelar</Button>
-          </DialogClose>
-          <Button
-            variant="destructive"
-            disabled={!motivo.trim()}
-            onClick={() => {
-              onConfirm(motivo);
-              setOpen(false);
-              setMotivo("");
-            }}
-          >
-            Confirmar desfazimento
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listarLancamentosParaConciliar,
   listarOfxPendentes,
+  listarConciliacoesRecentes,
   conciliarOfxLote,
   criarLancamentoDeOfx,
   criarLancamentosDeOfxRateado,
+  desfazerConciliacao,
   importarOfx,
   type OfxLancamento,
 } from "@/lib/backend/tesouraria-conciliacao";
@@ -13,6 +15,7 @@ import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
+import { DesfazerConciliacaoDialog } from "@/components/app/DesfazerConciliacaoDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -532,7 +535,56 @@ function Conciliacao() {
           </div>
         </Card>
       )}
+
+      {contaId && podeEditar && <ConciliacoesRecentes contaId={contaId} />}
     </>
+  );
+}
+
+// Desfazer direto na tela de operação (issue #141) — antes só dava pra
+// desfazer um vínculo feito por engano indo até Relatórios > Extrato da
+// Conciliação, uma tela separada de onde o tesoureiro realmente trabalha.
+function ConciliacoesRecentes({ contaId }: { contaId: string }) {
+  const qc = useQueryClient();
+
+  const { data: eventos = [] } = useQuery({
+    queryKey: ["conciliacoes_recentes", contaId],
+    queryFn: () => listarConciliacoesRecentes({ data: { contaId } }),
+  });
+
+  const desfazerMutation = useMutation({
+    mutationFn: (vars: { conciliacaoId: string; motivo: string }) =>
+      desfazerConciliacao({ data: vars }),
+    onSuccess: () => {
+      toast.success("Conciliação desfeita — linhas voltaram a pendente/em aberto.");
+      qc.invalidateQueries({ queryKey: ["conciliacoes_recentes"] });
+      qc.invalidateQueries({ queryKey: ["conciliacao_sistema"] });
+      qc.invalidateQueries({ queryKey: ["conciliacao_ofx"] });
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao desfazer conciliação."),
+  });
+
+  if (eventos.length === 0) return null;
+
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="text-base">Conciliações recentes</CardTitle>
+      </CardHeader>
+      <CardContent className="divide-y">
+        {eventos.map((e) => (
+          <div key={e.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+            <div>
+              <span className="font-medium">{brl(e.valor_total)}</span>{" "}
+              <span className="text-muted-foreground">— {fmtDate(e.data_conciliacao)}</span>
+            </div>
+            <DesfazerConciliacaoDialog
+              onConfirm={(motivo) => desfazerMutation.mutate({ conciliacaoId: e.id, motivo })}
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
