@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel, SemPermissaoError } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 const PAPEIS_ESCRITA = ["admin", "secretario"];
 
@@ -112,6 +113,11 @@ export const criarDocumento = createServerFn({ method: "POST" })
           usuarioId,
         ],
       );
+      await registrarAuditoria(conn, usuarioId, "criar", "documento", id, null, {
+        titulo: data.titulo,
+        hash_conteudo: hash,
+        arquivo_nome_original: data.arquivoNomeOriginal || null,
+      });
       return { id };
     });
   });
@@ -143,7 +149,7 @@ export const assinarDocumento = createServerFn({ method: "POST" })
 export const excluirDocumento = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(["admin"], async (conn) => {
+    return comPapel(["admin"], async (conn, usuarioId) => {
       const [[{ total }]] = await conn.query<RowDataPacket[]>(
         "SELECT COUNT(*) AS total FROM documento_assinaturas WHERE documento_id = ?",
         [data.id],
@@ -153,7 +159,12 @@ export const excluirDocumento = createServerFn({ method: "POST" })
           "Este documento já tem assinaturas registradas e não pode mais ser excluído.",
         );
       }
+      const [[documento]] = await conn.query<RowDataPacket[]>(
+        "SELECT titulo, hash_conteudo, criado_por FROM documentos WHERE id = ?",
+        [data.id],
+      );
       await conn.query("DELETE FROM documentos WHERE id = ?", [data.id]);
+      await registrarAuditoria(conn, usuarioId, "excluir", "documento", data.id, documento);
     });
   });
 
