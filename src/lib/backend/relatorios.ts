@@ -179,6 +179,13 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
         [
           ...condicoesComuns,
           "l.pago = TRUE",
+          // criar_parcelamento marca as faturas originais como pago=TRUE
+          // (parcelado=TRUE) sem nenhum evento de caixa de verdade — a
+          // dívida foi restruturada em parcelas, não recebida. Contar essa
+          // linha aqui somava o valor de face inteiro na data do acordo,
+          // e de novo quando cada parcela fosse paga (achado #7 da
+          // auditoria financeira: recebimento em dobro).
+          "l.parcelado = FALSE",
           "NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)",
           "NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)",
         ],

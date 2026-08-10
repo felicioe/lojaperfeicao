@@ -61,6 +61,12 @@ export const obterFluxoAnteriores = createServerFn({ method: "GET" })
            SELECT l.valor, l.tipo, l.data_pagamento
            FROM lancamentos l
            WHERE l.pago = TRUE AND l.tipo IN ('entrada','saida')
+             -- criar_parcelamento marca as faturas originais como pago=TRUE
+             -- (parcelado=TRUE) sem nenhum evento de caixa — a dívida foi
+             -- restruturada em parcelas, não recebida (achado #7 da
+             -- auditoria financeira: entrava aqui E de novo quando cada
+             -- parcela fosse paga, dobrando o valor recebido no relatório).
+             AND l.parcelado = FALSE
              AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
              AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)
              ${condicaoIrmao}
@@ -114,6 +120,12 @@ export const listarMovimentosRealizados = createServerFn({ method: "GET" })
            SELECT l.valor, l.tipo, l.data_pagamento
            FROM lancamentos l
            WHERE l.pago = TRUE AND l.tipo IN ('entrada','saida')
+             -- criar_parcelamento marca as faturas originais como pago=TRUE
+             -- (parcelado=TRUE) sem nenhum evento de caixa — a dívida foi
+             -- restruturada em parcelas, não recebida (achado #7 da
+             -- auditoria financeira: entrava aqui E de novo quando cada
+             -- parcela fosse paga, dobrando o valor recebido no relatório).
+             AND l.parcelado = FALSE
              AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
              AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl WHERE cl.lancamento_id = l.id)
              ${condicaoIrmao}
