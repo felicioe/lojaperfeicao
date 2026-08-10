@@ -207,7 +207,7 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
 
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT * FROM (
-           SELECT ri.recibo_id AS id, l.data, r.data AS data_pagamento, l.descricao,
+           SELECT ri.id, l.data, r.data AS data_pagamento, l.descricao,
                   (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor,
                   r.forma_pagamento, l.categoria_recebimento,
                   cf.nome AS conta_nome, i.nome_civil AS irmao_nome

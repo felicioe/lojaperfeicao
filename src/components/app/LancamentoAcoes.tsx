@@ -281,19 +281,23 @@ function BaixarLancamentoDialog({
 
   useEffect(() => {
     if (!open || !ehFatura || !lancamento.data_vencimento) return;
+    // Multa/juros incidem sobre o saldo ainda devido (valor - valor_pago),
+    // não sobre o valor de face — senão, numa fatura já paga parcialmente,
+    // a prévia mostrava um total maior do que o servidor de fato cobra
+    // (que já usa o saldo, calcularMultaJuros/baixar_faturas).
     calcularMultaJuros({
       data: {
-        valor: Number(lancamento.valor),
+        valor: saldo,
         vencimento: lancamento.data_vencimento,
         dataReferencia: dataPagamento,
       },
     })
       .then(setCalculo)
       .catch(() => setCalculo({ multa: 0, juros: 0, dias_atraso: 0 }));
-  }, [open, ehFatura, lancamento.data_vencimento, lancamento.valor, dataPagamento]);
+  }, [open, ehFatura, lancamento.data_vencimento, saldo, dataPagamento]);
 
   const total =
-    Number(lancamento.valor) +
+    saldo +
     calculo.multa +
     calculo.juros +
     Number(jurosAdicional || 0) +
