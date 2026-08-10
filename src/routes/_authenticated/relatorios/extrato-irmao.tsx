@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { relatorioExtratoIrmao } from "@/lib/backend/relatorios";
+import { relatorioExtratoIrmao, type ItemExtratoIrmao } from "@/lib/backend/relatorios";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -40,11 +40,23 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "data", titulo: "Emissão" },
   { chave: "vencimento", titulo: "Vencimento" },
   { chave: "descricao", titulo: "Descrição" },
-  { chave: "tipo", titulo: "Tipo" },
   { chave: "valor", titulo: "Valor" },
   { chave: "status", titulo: "Status" },
   { chave: "pago_em", titulo: "Pago em" },
 ];
+
+const TIPO_LABEL: Record<string, string> = {
+  saida: "Saída/Estorno",
+  transferencia: "Transferência",
+};
+
+const hoje = new Date().toISOString().slice(0, 10);
+
+function diasAtraso(vencimento: string | null): number {
+  if (!vencimento) return 0;
+  const ms = new Date(hoje).getTime() - new Date(vencimento).getTime();
+  return Math.max(0, Math.round(ms / 86_400_000));
+}
 
 function ExtratoIrmao() {
   const [irmaoId, setIrmaoId] = useState("");
@@ -62,48 +74,81 @@ function ExtratoIrmao() {
     queryFn: () => relatorioExtratoIrmao({ data: { irmaoId, de: de || null, ate: ate || null } }),
   });
 
-  const totalPago = itens.reduce((s, i) => s + Number(i.valor_pago), 0);
-  const totalAberto = itens
-    .filter((i) => !i.pago)
-    .reduce((s, i) => s + (Number(i.valor) - Number(i.valor_pago)), 0);
   const irmaoNome = irmaos.find((i) => i.id === irmaoId)?.nome_civil ?? "";
 
-  const statusLabel = (i: (typeof itens)[number]) =>
-    i.pago ? "Pago" : i.valor_pago > 0 ? "Parcial" : "Aberto";
+  const emAberto = itens.filter((i) => !i.pago);
+  const historico = itens.filter((i) => i.pago || Number(i.valor_pago) > 0);
 
-  // Pra título pago (ou parcialmente pago), mostrar o saldo em aberto (que
-  // fica 0 quando quitado) não diz nada útil — o que importa aqui é quanto
-  // o irmão efetivamente pagou. Só pra título ainda totalmente em aberto
-  // (valor_pago = 0) o valor devido faz sentido como número principal.
-  const valorExibido = (i: (typeof itens)[number]) =>
+  const totalPago = itens.reduce((s, i) => s + Number(i.valor_pago), 0);
+  const totalAberto = emAberto.reduce((s, i) => s + (Number(i.valor) - Number(i.valor_pago)), 0);
+  const atrasadas = emAberto.filter((i) => diasAtraso(i.data_vencimento) > 0);
+  const totalAtrasado = atrasadas.reduce((s, i) => s + (Number(i.valor) - Number(i.valor_pago)), 0);
+
+  const statusLabel = (i: ItemExtratoIrmao) => {
+    if (i.pago) return "Pago";
+    const atrasado = diasAtraso(i.data_vencimento) > 0;
+    if (Number(i.valor_pago) > 0) return atrasado ? "Parcial (atrasado)" : "Parcial";
+    return atrasado ? "Atrasado" : "A vencer";
+  };
+
+  const statusBadgeVariant = (status: string) =>
+    status === "Atrasado" || status === "Parcial (atrasado)"
+      ? ("destructive" as const)
+      : status === "Pago"
+        ? ("secondary" as const)
+        : ("outline" as const);
+
+  const valorExibido = (i: ItemExtratoIrmao) =>
     Number(i.valor_pago) > 0 ? Number(i.valor_pago) : Number(i.valor);
 
   const linhasExportacao = itens.map((i) => ({
     data: fmtDate(i.data),
     vencimento: i.data_vencimento ? fmtDate(i.data_vencimento) : "—",
     descricao: i.descricao,
-    tipo: i.tipo,
     valor: valorExibido(i),
     status: statusLabel(i),
     pago_em: i.data_pagamento ? fmtDate(i.data_pagamento) : "—",
   }));
 
-  const ord = useOrdenacao(itens, {
-    emissao: (i) => i.data,
+  const ordAberto = useOrdenacao(emAberto, {
     vencimento: (i) => i.data_vencimento,
     descricao: (i) => i.descricao,
-    tipo: (i) => i.tipo,
-    valor: (i) => valorExibido(i),
+    valor: (i) => Number(i.valor) - Number(i.valor_pago),
     status: (i) => statusLabel(i),
-    pago_em: (i) => i.data_pagamento,
+    dias_atraso: (i) => diasAtraso(i.data_vencimento),
   });
-  const pag = usePaginacao(ord.itensOrdenados);
+  // Padrão: vencimento mais próximo (ou mais atrasado) primeiro — é o que
+  // importa pro irmão decidir o que pagar antes.
+  const abertoOrdenado =
+    ordAberto.coluna === null
+      ? [...emAberto].sort(
+          (a, b) =>
+            new Date(a.data_vencimento ?? a.data).getTime() -
+            new Date(b.data_vencimento ?? b.data).getTime(),
+        )
+      : ordAberto.itensOrdenados;
+
+  const ordHistorico = useOrdenacao(historico, {
+    pago_em: (i) => i.data_pagamento ?? i.data,
+    descricao: (i) => i.descricao,
+    valor: (i) => valorExibido(i),
+  });
+  const historicoOrdenado =
+    ordHistorico.coluna === null
+      ? [...historico].sort(
+          (a, b) =>
+            new Date(b.data_pagamento ?? b.data).getTime() -
+            new Date(a.data_pagamento ?? a.data).getTime(),
+        )
+      : ordHistorico.itensOrdenados;
+
+  const pagHistorico = usePaginacao(historicoOrdenado);
 
   return (
     <>
       <PageHeader
         title="Relatório de Extrato do Irmão"
-        description="Histórico de faturas e lançamentos de um irmão específico, com status e período."
+        description="O que está em aberto (com vencimento e atraso em destaque) e o histórico do que já foi pago."
         actions={
           irmaoId && (
             <ExportarRelatorio
@@ -149,7 +194,7 @@ function ExtratoIrmao() {
 
       {irmaoId && (
         <>
-          <div className="grid gap-4 md:grid-cols-2 mb-4">
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
             <Card className="p-4">
               <div className="text-sm text-muted-foreground">Total pago</div>
               <div className="text-2xl font-semibold">{brl(totalPago)}</div>
@@ -158,77 +203,154 @@ function ExtratoIrmao() {
               <div className="text-sm text-muted-foreground">Total em aberto</div>
               <div className="text-2xl font-semibold">{brl(totalAberto)}</div>
             </Card>
+            <Card className={`p-4 ${totalAtrasado > 0 ? "border-destructive" : ""}`}>
+              <div className="text-sm text-muted-foreground">Total atrasado</div>
+              <div
+                className={`text-2xl font-semibold ${totalAtrasado > 0 ? "text-destructive" : ""}`}
+              >
+                {brl(totalAtrasado)}
+              </div>
+              {atrasadas.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  {atrasadas.length} fatura(s) vencida(s)
+                </div>
+              )}
+            </Card>
           </div>
 
+          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
+            Em aberto ({emAberto.length})
+          </h3>
+          <Card className="mb-6">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeadOrdenavel campo="vencimento" ord={ordAberto}>
+                      Vencimento
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="descricao" ord={ordAberto}>
+                      Descrição
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="valor" ord={ordAberto} className="text-right">
+                      Valor devido
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="status" ord={ordAberto}>
+                      Situação
+                    </TableHeadOrdenavel>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {abertoOrdenado.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                        Nada em aberto — tudo pago.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {abertoOrdenado.map((i) => {
+                    const status = statusLabel(i);
+                    const dias = diasAtraso(i.data_vencimento);
+                    return (
+                      <TableRow key={i.id}>
+                        <TableCell>
+                          {i.data_vencimento ? fmtDate(i.data_vencimento) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {i.descricao}
+                          {i.tipo !== "entrada" && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              ({TIPO_LABEL[i.tipo] ?? i.tipo})
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {brl(Number(i.valor) - Number(i.valor_pago))}
+                          {Number(i.valor_pago) > 0 && (
+                            <div className="text-xs font-normal text-muted-foreground">
+                              já pago {brl(i.valor_pago)} de {brl(i.valor)}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusBadgeVariant(status)}>
+                            {status === "Atrasado" ? `Atrasado (${dias}d)` : status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+
+          <h3 className="mb-2 text-sm font-semibold text-muted-foreground">
+            Histórico de pagamentos ({historico.length})
+          </h3>
           <Card>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHeadOrdenavel campo="emissao" ord={ord}>
-                      Emissão
-                    </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="vencimento" ord={ord}>
-                      Vencimento
-                    </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="descricao" ord={ord}>
-                      Descrição
-                    </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="tipo" ord={ord}>
-                      Tipo
-                    </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
-                      Valor
-                    </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="status" ord={ord}>
-                      Status
-                    </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="pago_em" ord={ord}>
+                    <TableHeadOrdenavel campo="pago_em" ord={ordHistorico}>
                       Pago em
                     </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="descricao" ord={ordHistorico}>
+                      Descrição
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="valor" ord={ordHistorico} className="text-right">
+                      Valor pago
+                    </TableHeadOrdenavel>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {itens.length === 0 && (
+                  {pagHistorico.itensPagina.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                        Nenhum lançamento encontrado.
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                        Nenhum pagamento no período.
                       </TableCell>
                     </TableRow>
                   )}
-                  {pag.itensPagina.map((i) => (
-                    <TableRow key={i.id}>
-                      <TableCell>{fmtDate(i.data)}</TableCell>
-                      <TableCell>{i.data_vencimento ? fmtDate(i.data_vencimento) : "—"}</TableCell>
-                      <TableCell>{i.descricao}</TableCell>
-                      <TableCell className="text-muted-foreground">{i.tipo}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {brl(valorExibido(i))}
-                        {Number(i.valor_pago) > 0 && Number(i.valor_pago) !== Number(i.valor) && (
-                          <div className="text-xs font-normal text-muted-foreground">
-                            de {brl(i.valor)}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusLabel(i) === "Aberto" ? "outline" : "secondary"}>
-                          {statusLabel(i)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {i.data_pagamento ? fmtDate(i.data_pagamento) : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {pagHistorico.itensPagina.map((i) => {
+                    const status = statusLabel(i);
+                    return (
+                      <TableRow key={i.id}>
+                        <TableCell className="text-muted-foreground">
+                          {i.data_pagamento ? fmtDate(i.data_pagamento) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {i.descricao}
+                          {i.tipo !== "entrada" && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              ({TIPO_LABEL[i.tipo] ?? i.tipo})
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {brl(valorExibido(i))}
+                          {status === "Parcial" && (
+                            <div className="text-xs font-normal text-muted-foreground">
+                              de {brl(i.valor)}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusBadgeVariant(status)}>{status}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
             <TabelaPaginacao
-              pagina={pag.pagina}
-              totalPaginas={pag.totalPaginas}
-              totalItens={pag.totalItens}
-              tamanhoPagina={pag.tamanhoPagina}
-              setPagina={pag.setPagina}
+              pagina={pagHistorico.pagina}
+              totalPaginas={pagHistorico.totalPaginas}
+              totalItens={pagHistorico.totalItens}
+              tamanhoPagina={pagHistorico.tamanhoPagina}
+              setPagina={pagHistorico.setPagina}
             />
           </Card>
         </>
