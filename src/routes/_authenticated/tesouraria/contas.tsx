@@ -31,6 +31,17 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { brl } from "@/lib/format";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -262,9 +273,27 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
                 <TableCell>{c.cidade}</TableCell>
                 <TableCell>{c.principal && <Badge variant="secondary">Principal</Badge>}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="sm" onClick={() => remover(c.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir chave PIX?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          A chave "{c.chave}" ({TIPO_PIX_LABEL[c.tipo]}) será removida
+                          permanentemente. Faturas que já usam essa chave para gerar o QR code
+                          deixarão de funcionar.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => remover(c.id)}>Excluir</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </TableCell>
               </TableRow>
             ))}
