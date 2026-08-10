@@ -66,6 +66,8 @@ import { brl, fmtDate, toISODate } from "@/lib/format";
 import { Pencil, Plus, Trash2, TrendingUp, Wand2, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/tabela-valores")({
   head: () => ({ meta: [{ title: "Tabela de Valores — Gestão Maçônica" }] }),
@@ -133,8 +135,16 @@ function TaxasCorpoPanel() {
     queryFn: () => listarTabelaValores(),
   });
   const { data: orgs = [] } = useQuery({ queryKey: ["orgs_all"], queryFn: () => listarOrgs() });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(itens);
+  const ord = useOrdenacao(itens, {
+    tipo: (item) => rotuloTipo(item.tipo),
+    corpo: (item) => item.org_nome ?? "Global",
+    valor: (item) => Number(item.valor),
+    vigencia: (item) => item.vigencia_inicio,
+    observacoes: (item) => item.observacoes,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["tabela_valores"] });
 
@@ -261,11 +271,21 @@ function TaxasCorpoPanel() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Corpo</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead>Vigência</TableHead>
-              <TableHead>Observações</TableHead>
+              <TableHeadOrdenavel campo="tipo" ord={ord}>
+                Tipo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="corpo" ord={ord}>
+                Corpo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="valor" ord={ord}>
+                Valor
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="vigencia" ord={ord}>
+                Vigência
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="observacoes" ord={ord}>
+                Observações
+              </TableHeadOrdenavel>
               <TableHead></TableHead>
               {podeEditar && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
@@ -477,6 +497,14 @@ function TaxasPotenciaPanel() {
     queryFn: () => listarTaxasGrau({ data: { orgId, ano } }),
     enabled: !!orgId,
   });
+  const ordTaxas = useOrdenacao(taxas, {
+    grau: (t) => t.grau,
+    sgcab: (t) => Number(t.sgcab),
+    ritual: (t) => Number(t.ritual),
+    diploma: (t) => Number(t.diploma),
+    taxaPropria: (t) => Number(t.taxa_propria),
+    status: (t) => (t.ativo ? 1 : 0),
+  });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["taxas_grau", orgId, ano] });
 
@@ -665,12 +693,24 @@ function TaxasPotenciaPanel() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Grau</TableHead>
-                  <TableHead>SGCAB</TableHead>
-                  <TableHead>Ritual</TableHead>
-                  <TableHead>Diploma</TableHead>
-                  <TableHead>Taxa própria</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHeadOrdenavel campo="grau" ord={ordTaxas}>
+                    Grau
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="sgcab" ord={ordTaxas}>
+                    SGCAB
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="ritual" ord={ordTaxas}>
+                    Ritual
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="diploma" ord={ordTaxas}>
+                    Diploma
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="taxaPropria" ord={ordTaxas}>
+                    Taxa própria
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="status" ord={ordTaxas}>
+                    Status
+                  </TableHeadOrdenavel>
                   {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -682,7 +722,7 @@ function TaxasPotenciaPanel() {
                     </TableCell>
                   </TableRow>
                 )}
-                {taxas.map((t) => (
+                {ordTaxas.itensOrdenados.map((t) => (
                   <TableRow key={t.id} className={!t.ativo ? "opacity-50" : undefined}>
                     <TableCell className="font-mono">
                       {t.grau} {t.nome_grau ? `— ${t.nome_grau}` : ""}

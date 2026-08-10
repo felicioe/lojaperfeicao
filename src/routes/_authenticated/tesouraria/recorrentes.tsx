@@ -40,6 +40,8 @@ import { Pencil, RefreshCw, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/recorrentes")({
   head: () => ({ meta: [{ title: "Despesas Recorrentes — Gestão Maçônica" }] }),
@@ -106,8 +108,17 @@ function Recorrentes() {
     queryFn: () => listarRecorrentesEfetivadasNoMes({ data: { inicioMes } }),
   });
   const efetivadasSet = new Set(efetivadasIds);
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(recorrentes);
+  const ord = useOrdenacao(recorrentes, {
+    descricao: (r) => r.descricao,
+    categoria: (r) => r.plano_contas?.nome,
+    dia: (r) => r.dia_vencimento,
+    valor: (r) => Number(r.valor),
+    vigencia: (r) => r.data_inicio,
+    status: (r) => statusCompetencia(r, efetivadasSet),
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const { data: planos = [] } = useQuery({
     queryKey: ["planos_despesa"],
@@ -314,12 +325,24 @@ function Recorrentes() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Dia</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead>Vigência</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHeadOrdenavel campo="descricao" ord={ord}>
+                Descrição
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="categoria" ord={ord}>
+                Categoria
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="dia" ord={ord}>
+                Dia
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                Valor
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="vigencia" ord={ord}>
+                Vigência
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ord}>
+                Status
+              </TableHeadOrdenavel>
               <TableHead>Ativa</TableHead>
               {podeEditar && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>

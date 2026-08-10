@@ -15,6 +15,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/relatorios/inadimplentes")({
   head: () => ({ meta: [{ title: "Inadimplentes — Gestão Maçônica" }] }),
@@ -51,8 +53,14 @@ function Inadimplentes() {
       return Array.from(grupos.values()).filter((g) => g.itens.length >= 3);
     },
   });
+  const ord = useOrdenacao(data ?? [], {
+    irmao: (g) => g.irmao?.nome_civil,
+    mensalidades: (g) => g.itens.length,
+    total: (g) => g.total,
+    vencimento: (g) => g.itens[0]?.data_vencimento,
+  });
   const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
-    data ?? [],
+    ord.itensOrdenados,
   );
 
   return (
@@ -65,10 +73,18 @@ function Inadimplentes() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Irmão</TableHead>
-              <TableHead className="text-right">Mensalidades em atraso</TableHead>
-              <TableHead className="text-right">Total devido</TableHead>
-              <TableHead>Vencimento mais antigo</TableHead>
+              <TableHeadOrdenavel campo="irmao" ord={ord}>
+                Irmão
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="mensalidades" ord={ord} className="text-right">
+                Mensalidades em atraso
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="total" ord={ord} className="text-right">
+                Total devido
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="vencimento" ord={ord}>
+                Vencimento mais antigo
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>

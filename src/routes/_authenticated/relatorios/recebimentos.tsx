@@ -28,6 +28,8 @@ import {
 import { useState } from "react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/relatorios/recebimentos")({
@@ -105,7 +107,16 @@ function Recebimentos() {
     valor: Number(i.valor),
   }));
 
-  const pag = usePaginacao(itens);
+  const ord = useOrdenacao(itens, {
+    data_pagamento: (i) => i.data_pagamento,
+    descricao: (i) => i.descricao,
+    irmao_nome: (i) => i.irmao_nome,
+    categoria: (i) => i.categoria_recebimento,
+    forma_pagamento: (i) => i.forma_pagamento,
+    conta_nome: (i) => i.conta_nome,
+    valor: (i) => Number(i.valor),
+  });
+  const pag = usePaginacao(ord.itensOrdenados);
 
   return (
     <>
@@ -219,13 +230,27 @@ function Recebimentos() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Irmão</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Forma de pagamento</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
+                <TableHeadOrdenavel campo="data_pagamento" ord={ord}>
+                  Data
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="descricao" ord={ord}>
+                  Descrição
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="irmao_nome" ord={ord}>
+                  Irmão
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="categoria" ord={ord}>
+                  Categoria
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="forma_pagamento" ord={ord}>
+                  Forma de pagamento
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="conta_nome" ord={ord}>
+                  Conta
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                  Valor
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>

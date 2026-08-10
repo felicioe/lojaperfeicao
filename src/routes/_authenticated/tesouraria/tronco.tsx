@@ -23,6 +23,8 @@ import {
   useMovimentosFiltrados,
 } from "@/components/app/RecebimentoAvulso";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/tronco")({
   head: () => ({ meta: [{ title: "Tronco de Beneficência — Gestão Maçônica" }] }),
@@ -43,7 +45,13 @@ function Tronco() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
   const total = f.movimentos.reduce((s, m) => s + Number(m.valor), 0);
-  const movPag = usePaginacao(f.movimentos);
+  const ord = useOrdenacao(f.movimentos, {
+    data: (m) => m.data,
+    descricao: (m) => m.descricao,
+    conta: (m) => m.contas_financeiras?.nome,
+    valor: (m) => Number(m.valor),
+  });
+  const movPag = usePaginacao(ord.itensOrdenados);
 
   return (
     <>
@@ -85,10 +93,18 @@ function Tronco() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Conta</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
+              <TableHeadOrdenavel campo="data" ord={ord}>
+                Data
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="descricao" ord={ord}>
+                Descrição
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="conta" ord={ord}>
+                Conta
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                Valor
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>

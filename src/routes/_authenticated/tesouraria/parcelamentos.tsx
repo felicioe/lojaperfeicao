@@ -35,6 +35,8 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/parcelamentos")({
   head: () => ({ meta: [{ title: "Parcelamentos — Gestão Maçônica" }] }),
@@ -106,6 +108,12 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],
     queryFn: () => listarContasFinanceiras(),
+  });
+
+  const ordFaturasIrmao = useOrdenacao(faturasIrmao, {
+    descricao: (f) => f.descricao,
+    vencimento: (f) => f.data_vencimento,
+    valor: (f) => Number(f.valor),
   });
 
   useEffect(() => {
@@ -204,9 +212,15 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"></TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHeadOrdenavel campo="descricao" ord={ordFaturasIrmao}>
+                    Descrição
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="vencimento" ord={ordFaturasIrmao}>
+                    Vencimento
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="valor" ord={ordFaturasIrmao} className="text-right">
+                    Valor
+                  </TableHeadOrdenavel>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -217,7 +231,7 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
                     </TableCell>
                   </TableRow>
                 )}
-                {faturasIrmao.map((f: any) => (
+                {ordFaturasIrmao.itensOrdenados.map((f: any) => (
                   <TableRow key={f.id}>
                     <TableCell>
                       <Checkbox
@@ -327,8 +341,17 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
 
 function ListaAcordos({ acordos }: { acordos: Parcelamento[] }) {
   const [expandido, setExpandido] = useState<string | null>(null);
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(acordos);
+  const ord = useOrdenacao(acordos, {
+    data: (a) => a.data,
+    irmao: (a) => a.irmaos?.nome_civil,
+    original: (a) => Number(a.valor_original),
+    entrada: (a) => Number(a.entrada),
+    parcelado: (a) => Number(a.valor_parcelado),
+    parcelas: (a) => a.numero_parcelas,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   return (
     <Card>
@@ -336,12 +359,24 @@ function ListaAcordos({ acordos }: { acordos: Parcelamento[] }) {
         <TableHeader>
           <TableRow>
             <TableHead></TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead>Irmão</TableHead>
-            <TableHead className="text-right">Original</TableHead>
-            <TableHead className="text-right">Entrada</TableHead>
-            <TableHead className="text-right">Parcelado</TableHead>
-            <TableHead>Parcelas</TableHead>
+            <TableHeadOrdenavel campo="data" ord={ord}>
+              Data
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="irmao" ord={ord}>
+              Irmão
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
+              Original
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="entrada" ord={ord} className="text-right">
+              Entrada
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="parcelado" ord={ord} className="text-right">
+              Parcelado
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="parcelas" ord={ord}>
+              Parcelas
+            </TableHeadOrdenavel>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -402,20 +437,34 @@ function AcordoDetalhe({ parcelamentoId }: { parcelamentoId: string }) {
     queryKey: ["parcelamento_lancamentos", parcelamentoId],
     queryFn: () => listarLancamentosDoParcelamento({ data: { parcelamentoId } }),
   });
+  const ord = useOrdenacao(itens, {
+    descricao: (it) => it.descricao,
+    vencimento: (it) => it.data_vencimento,
+    valor: (it) => Number(it.valor),
+    status: (it) => (it.parcelado ? 2 : it.pago ? 1 : 0),
+  });
 
   return (
     <div className="py-2">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Vencimento</TableHead>
-            <TableHead className="text-right">Valor</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHeadOrdenavel campo="descricao" ord={ord}>
+              Descrição
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="vencimento" ord={ord}>
+              Vencimento
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+              Valor
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="status" ord={ord}>
+              Status
+            </TableHeadOrdenavel>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {itens.map((it) => (
+          {ord.itensOrdenados.map((it) => (
             <TableRow key={it.id}>
               <TableCell>{it.descricao}</TableCell>
               <TableCell>{fmtDate(it.data_vencimento)}</TableCell>

@@ -41,6 +41,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 import {
   Dialog,
   DialogContent,
@@ -264,6 +266,12 @@ function PasskeysCard() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["minhas_passkeys"] });
 
+  const ord = useOrdenacao(passkeys, {
+    dispositivo: (p) => p.nome_dispositivo,
+    cadastrado: (p) => p.criado_em,
+    ultimo_uso: (p) => p.usado_em,
+  });
+
   const cadastrar = async () => {
     setCadastrando(true);
     try {
@@ -357,14 +365,20 @@ function PasskeysCard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Dispositivo</TableHead>
-                <TableHead>Cadastrado em</TableHead>
-                <TableHead>Último uso</TableHead>
+                <TableHeadOrdenavel campo="dispositivo" ord={ord}>
+                  Dispositivo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="cadastrado" ord={ord}>
+                  Cadastrado em
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="ultimo_uso" ord={ord}>
+                  Último uso
+                </TableHeadOrdenavel>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {passkeys.map((p) => (
+              {ord.itensOrdenados.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>{p.nome_dispositivo ?? "Sem nome"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">

@@ -39,6 +39,8 @@ import { fmtDate } from "@/lib/format";
 import { ChevronDown, ChevronRight, Pencil, Trash2, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/eventos/")({
   head: () => ({ meta: [{ title: "Eventos — Gestão Maçônica" }] }),
@@ -126,8 +128,15 @@ function EventosPage() {
   };
 
   const itens = [...eventos].sort((a, b) => b.data.localeCompare(a.data));
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(itens);
+  const ord = useOrdenacao(itens, {
+    titulo: (e) => e.titulo,
+    data: (e) => e.data,
+    publico: (e) => e.publico,
+    status: (e) => (statusEvento(e) === "agendado" ? 1 : 0),
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   return (
     <>
@@ -234,10 +243,18 @@ function EventosPage() {
           <TableHeader>
             <TableRow>
               <TableHead></TableHead>
-              <TableHead>Título</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Público</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHeadOrdenavel campo="titulo" ord={ord}>
+                Título
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="data" ord={ord}>
+                Data
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="publico" ord={ord}>
+                Público
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ord}>
+                Status
+              </TableHeadOrdenavel>
               {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
@@ -334,6 +351,12 @@ function RsvpPanel({ eventoId }: { eventoId: string }) {
     if (r.agape) contagem.agape++;
   }
 
+  const ord = useOrdenacao(rsvps, {
+    irmao: (r) => r.irmao_nome,
+    resposta: (r) => r.participa,
+    agape: (r) => (r.agape ? 1 : 0),
+  });
+
   return (
     <div className="space-y-2 py-2">
       <div className="flex gap-4 text-sm">
@@ -356,13 +379,19 @@ function RsvpPanel({ eventoId }: { eventoId: string }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Irmão</TableHead>
-              <TableHead>Resposta</TableHead>
-              <TableHead>Ágape</TableHead>
+              <TableHeadOrdenavel campo="irmao" ord={ord}>
+                Irmão
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="resposta" ord={ord}>
+                Resposta
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="agape" ord={ord}>
+                Ágape
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rsvps.map((r) => (
+            {ord.itensOrdenados.map((r) => (
               <TableRow key={r.irmao_id}>
                 <TableCell>{r.irmao_nome}</TableCell>
                 <TableCell>{PARTICIPA_LABEL[r.participa]}</TableCell>

@@ -49,9 +49,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { useCan } from "@/lib/auth-hooks";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 import { brl, fmtDate, GRAU_LABEL, SITUACAO_LABEL } from "@/lib/format";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import {
@@ -669,6 +671,12 @@ function CorposPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_orgs", irmaoId] });
 
+  const ord = useOrdenacao(vinculos, {
+    corpo: (v) => v.orgs?.sigla ?? v.orgs?.nome,
+    grau: (v) => v.grau_atual,
+    principal: (v) => (v.principal ? 1 : 0),
+  });
+
   const adicionar = async () => {
     if (!novo.org_id) return;
     try {
@@ -705,9 +713,15 @@ function CorposPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Corpo</TableHead>
-              <TableHead>Grau</TableHead>
-              <TableHead>Principal</TableHead>
+              <TableHeadOrdenavel campo="corpo" ord={ord}>
+                Corpo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="grau" ord={ord}>
+                Grau
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="principal" ord={ord}>
+                Principal
+              </TableHeadOrdenavel>
               {podeEditar && <TableHead></TableHead>}
             </TableRow>
           </TableHeader>
@@ -719,7 +733,7 @@ function CorposPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
                 </TableCell>
               </TableRow>
             )}
-            {vinculos.map((v) => (
+            {ord.itensOrdenados.map((v) => (
               <TableRow key={v.id}>
                 <TableCell>{v.orgs?.sigla ?? v.orgs?.nome}</TableCell>
                 <TableCell>{v.grau_atual ?? "—"}</TableCell>
@@ -792,6 +806,11 @@ function ElevacoesPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: 
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_elevacoes", irmaoId] });
 
+  const ord = useOrdenacao(elevacoes, {
+    grau: (e) => e.grau,
+    data: (e) => e.data,
+  });
+
   const adicionar = async () => {
     const g = Number(novo.grau);
     if (!g) return;
@@ -822,8 +841,12 @@ function ElevacoesPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Grau</TableHead>
-              <TableHead>Data</TableHead>
+              <TableHeadOrdenavel campo="grau" ord={ord}>
+                Grau
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="data" ord={ord}>
+                Data
+              </TableHeadOrdenavel>
               {podeEditar && <TableHead></TableHead>}
             </TableRow>
           </TableHeader>
@@ -835,7 +858,7 @@ function ElevacoesPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: 
                 </TableCell>
               </TableRow>
             )}
-            {elevacoes.map((e) => (
+            {ord.itensOrdenados.map((e) => (
               <TableRow key={e.id}>
                 <TableCell className="font-mono">{e.grau}</TableCell>
                 <TableCell>{fmtDate(e.data)}</TableCell>
@@ -894,6 +917,13 @@ function FormacaoPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: b
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_formacao", irmaoId] });
 
+  const ord = useOrdenacao(itens, {
+    curso: (f) => f.curso,
+    instituicao: (f) => f.instituicao,
+    nivel: (f) => f.nivel,
+    conclusao: (f) => f.ano_conclusao,
+  });
+
   const adicionar = async () => {
     if (!novo.curso.trim()) return;
     try {
@@ -931,10 +961,18 @@ function FormacaoPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: b
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Curso</TableHead>
-              <TableHead>Instituição</TableHead>
-              <TableHead>Nível</TableHead>
-              <TableHead>Conclusão</TableHead>
+              <TableHeadOrdenavel campo="curso" ord={ord}>
+                Curso
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="instituicao" ord={ord}>
+                Instituição
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="nivel" ord={ord}>
+                Nível
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="conclusao" ord={ord}>
+                Conclusão
+              </TableHeadOrdenavel>
               {podeEditar && <TableHead></TableHead>}
             </TableRow>
           </TableHeader>
@@ -946,7 +984,7 @@ function FormacaoPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: b
                 </TableCell>
               </TableRow>
             )}
-            {itens.map((f) => (
+            {ord.itensOrdenados.map((f) => (
               <TableRow key={f.id}>
                 <TableCell>{f.curso}</TableCell>
                 <TableCell>{f.instituicao ?? "—"}</TableCell>
@@ -1022,6 +1060,11 @@ function FilhosPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_filhos", irmaoId] });
 
+  const ord = useOrdenacao(itens, {
+    nome: (f) => f.nome,
+    nascimento: (f) => f.data_nascimento,
+  });
+
   const adicionar = async () => {
     if (!novo.nome.trim()) return;
     try {
@@ -1053,8 +1096,12 @@ function FilhosPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Nascimento</TableHead>
+              <TableHeadOrdenavel campo="nome" ord={ord}>
+                Nome
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="nascimento" ord={ord}>
+                Nascimento
+              </TableHeadOrdenavel>
               {podeEditar && <TableHead></TableHead>}
             </TableRow>
           </TableHeader>
@@ -1066,7 +1113,7 @@ function FilhosPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
                 </TableCell>
               </TableRow>
             )}
-            {itens.map((f) => (
+            {ord.itensOrdenados.map((f) => (
               <TableRow key={f.id}>
                 <TableCell>{f.nome}</TableCell>
                 <TableCell>{fmtDate(f.data_nascimento)}</TableCell>
@@ -1145,6 +1192,12 @@ function ParentesPanel({
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["irmao_parentes", irmaoId, tipo] });
 
+  const ord = useOrdenacao(itens, {
+    nome: (p) => p.nome,
+    nascimento: (p) => p.data_nascimento,
+    telefone: (p) => p.telefone,
+  });
+
   const adicionar = async () => {
     if (!novo.nome.trim()) return;
     try {
@@ -1186,9 +1239,15 @@ function ParentesPanel({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Nascimento</TableHead>
-              <TableHead>Telefone</TableHead>
+              <TableHeadOrdenavel campo="nome" ord={ord}>
+                Nome
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="nascimento" ord={ord}>
+                Nascimento
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="telefone" ord={ord}>
+                Telefone
+              </TableHeadOrdenavel>
               {podeEditar && <TableHead></TableHead>}
             </TableRow>
           </TableHeader>
@@ -1200,7 +1259,7 @@ function ParentesPanel({
                 </TableCell>
               </TableRow>
             )}
-            {itens.map((p) => (
+            {ord.itensOrdenados.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>{p.nome}</TableCell>
                 <TableCell>{fmtDate(p.data_nascimento)}</TableCell>
@@ -1262,6 +1321,14 @@ function FinanceiroPanel({ irmaoId }: { irmaoId: string }) {
     queryFn: () => listarLancamentosIrmao({ data: { irmaoId } }),
   });
 
+  const ord = useOrdenacao(itens, {
+    data: (l) => l.data,
+    descricao: (l) => l.descricao,
+    tipo: (l) => l.tipo,
+    valor: (l) => Number(l.valor),
+    status: (l) => (l.pago ? 1 : 0),
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -1271,11 +1338,21 @@ function FinanceiroPanel({ irmaoId }: { irmaoId: string }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHeadOrdenavel campo="data" ord={ord}>
+                Data
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="descricao" ord={ord}>
+                Descrição
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="tipo" ord={ord}>
+                Tipo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                Valor
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ord}>
+                Status
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1286,7 +1363,7 @@ function FinanceiroPanel({ irmaoId }: { irmaoId: string }) {
                 </TableCell>
               </TableRow>
             )}
-            {itens.map((l) => (
+            {ord.itensOrdenados.map((l) => (
               <TableRow key={l.id}>
                 <TableCell>{fmtDate(l.data)}</TableCell>
                 <TableCell>{l.descricao}</TableCell>
@@ -1323,6 +1400,13 @@ function CargosHistoricoPanel({ irmaoId }: { irmaoId: string }) {
     queryFn: () => listarCargosHistoricoIrmao({ data: { irmaoId } }),
   });
 
+  const ord = useOrdenacao(itens, {
+    cargo: (o) => o.cargos?.nome,
+    gestao: (o) => o.gestoes?.nome,
+    corpo: (o) => o.gestoes?.orgs?.sigla ?? o.gestoes?.orgs?.nome,
+    status: (o) => (o.gestoes?.ativo ? 1 : 0),
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -1332,10 +1416,18 @@ function CargosHistoricoPanel({ irmaoId }: { irmaoId: string }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Cargo</TableHead>
-              <TableHead>Gestão</TableHead>
-              <TableHead>Corpo</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHeadOrdenavel campo="cargo" ord={ord}>
+                Cargo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="gestao" ord={ord}>
+                Gestão
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="corpo" ord={ord}>
+                Corpo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ord}>
+                Status
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1346,7 +1438,7 @@ function CargosHistoricoPanel({ irmaoId }: { irmaoId: string }) {
                 </TableCell>
               </TableRow>
             )}
-            {itens.map((o) => (
+            {ord.itensOrdenados.map((o) => (
               <TableRow key={o.id}>
                 <TableCell>{o.cargos?.nome}</TableCell>
                 <TableCell>{o.gestoes?.nome}</TableCell>

@@ -59,6 +59,8 @@ import { toast } from "sonner";
 import { useCan } from "@/lib/auth-hooks";
 import { Plus, Repeat } from "lucide-react";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/")({
   head: () => ({ meta: [{ title: "Tesouraria — Gestão Maçônica" }] }),
@@ -92,8 +94,18 @@ function Tesouraria() {
     queryKey: ["lancamentos"],
     queryFn: () => listarLancamentos({ data: { limite: 500 } }),
   });
+  const ord = useOrdenacao(lancamentos.data ?? [], {
+    emissao: (l) => l.data,
+    vencimento: (l) => l.data_vencimento,
+    descricao: (l) => l.descricao,
+    conta: (l) => l.contas_financeiras?.nome,
+    categoria: (l) => l.plano_contas?.nome,
+    tipo: (l) => l.tipo,
+    valor: (l) => Number(l.valor),
+    status: (l) => (l.pago ? 1 : 0),
+  });
   const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
-    lancamentos.data ?? [],
+    ord.itensOrdenados,
   );
 
   const invalidateLancamentos = () => qc.invalidateQueries({ queryKey: ["lancamentos"] });
@@ -186,14 +198,30 @@ function Tesouraria() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="hidden sm:table-cell">Emissão</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Conta</TableHead>
-                  <TableHead className="hidden lg:table-cell">Categoria</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHeadOrdenavel campo="emissao" ord={ord} className="hidden sm:table-cell">
+                    Emissão
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="vencimento" ord={ord}>
+                    Vencimento
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="descricao" ord={ord}>
+                    Descrição
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="conta" ord={ord}>
+                    Conta
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="categoria" ord={ord} className="hidden lg:table-cell">
+                    Categoria
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="tipo" ord={ord}>
+                    Tipo
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                    Valor
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="status" ord={ord}>
+                    Status
+                  </TableHeadOrdenavel>
                   <TableHead aria-label="Ações"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -502,9 +530,10 @@ function TransferenciaDialog({ contas, onDone }: any) {
           <Select
             value={d.conta_id}
             onValueChange={(v) => {
-              const destino = d.conta_destino_id === v
-                ? contas.find((c: any) => c.id !== v)?.id ?? ""
-                : d.conta_destino_id;
+              const destino =
+                d.conta_destino_id === v
+                  ? (contas.find((c: any) => c.id !== v)?.id ?? "")
+                  : d.conta_destino_id;
               setD({ ...d, conta_id: v, conta_destino_id: destino });
             }}
           >
@@ -530,11 +559,13 @@ function TransferenciaDialog({ contas, onDone }: any) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {contas.filter((c: any) => c.id !== d.conta_id).map((c: any) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nome}
-                </SelectItem>
-              ))}
+              {contas
+                .filter((c: any) => c.id !== d.conta_id)
+                .map((c: any) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>

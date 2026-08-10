@@ -55,6 +55,8 @@ import { brl, fmtDate } from "@/lib/format";
 import { Ban, CheckCircle2, Paperclip, ScrollText } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/sgcab/cobrancas")({
   head: () => ({ meta: [{ title: "Cobranças SGCAB — Gestão Maçônica" }] }),
@@ -103,8 +105,18 @@ function CobrancasSgcabPage() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["sgcab_cobrancas"] });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(cobrancas);
+  const ord = useOrdenacao(cobrancas, {
+    irmao: (c) => c.irmao_nome,
+    corpo: (c) => c.org_nome,
+    grau: (c) => c.grau,
+    tipo: (c) => TIPO_LABEL[c.tipo],
+    valor: (c) => Number(c.valor),
+    status: (c) => c.status,
+    pagamento: (c) => c.data_pagamento,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const totalPendente = cobrancas
     .filter((c) => c.status === "pendente")
@@ -175,13 +187,27 @@ function CobrancasSgcabPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Irmão</TableHead>
-                <TableHead>Corpo</TableHead>
-                <TableHead>Grau</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Pagamento</TableHead>
+                <TableHeadOrdenavel campo="irmao" ord={ord}>
+                  Irmão
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="corpo" ord={ord}>
+                  Corpo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="grau" ord={ord}>
+                  Grau
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tipo" ord={ord}>
+                  Tipo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor" ord={ord}>
+                  Valor
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="status" ord={ord}>
+                  Status
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="pagamento" ord={ord}>
+                  Pagamento
+                </TableHeadOrdenavel>
                 {can.isTesoureiro && <TableHead className="text-right">Ações</TableHead>}
               </TableRow>
             </TableHeader>

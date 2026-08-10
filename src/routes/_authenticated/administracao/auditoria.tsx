@@ -18,6 +18,8 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment } from "react";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/administracao/auditoria")({
   head: () => ({ meta: [{ title: "Auditoria — Gestão Maçônica" }] }),
@@ -38,8 +40,15 @@ function AuditoriaPage() {
     queryFn: () => listarAuditoria({ data: { limite: 500 } }),
     enabled: can.isAdmin,
   });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(entradas);
+  const ord = useOrdenacao(entradas, {
+    quando: (e) => e.criado_em,
+    quem: (e) => e.usuario_email,
+    acao: (e) => e.acao,
+    entidade: (e) => e.entidade_tipo,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   if (!can.isAdmin) {
     return (
@@ -61,10 +70,18 @@ function AuditoriaPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8"></TableHead>
-                <TableHead>Quando</TableHead>
-                <TableHead>Quem</TableHead>
-                <TableHead>Ação</TableHead>
-                <TableHead>Entidade</TableHead>
+                <TableHeadOrdenavel campo="quando" ord={ord}>
+                  Quando
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="quem" ord={ord}>
+                  Quem
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="acao" ord={ord}>
+                  Ação
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="entidade" ord={ord}>
+                  Entidade
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>

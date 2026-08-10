@@ -41,6 +41,8 @@ import {
   FileUp,
   Upload,
 } from "lucide-react";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/ensino/importar-pdf-sessoes")({
   head: () => ({ meta: [{ title: "Importar Cronograma (PDF) — Gestão Maçônica" }] }),
@@ -148,6 +150,18 @@ function ImportarPdfSessoesPage() {
   const importaveis = preview?.filter((p) => p.importavel).length ?? 0;
   const bloqueados = preview?.filter((p) => !p.importavel).length ?? 0;
 
+  // A ordenação reordena a lista exibida, mas o índice usado por
+  // `expandido`/`atualizarResponsavel` é sempre o da posição original em
+  // `preview` (via indexOf abaixo) — assim a edição de responsáveis continua
+  // agindo sobre o item certo mesmo com a tabela ordenada por outra coluna.
+  const ord = useOrdenacao(preview ?? [], {
+    data: (item) => item.data,
+    categoria: (item) => item.categoria,
+    grau: (item) => item.grau,
+    resumo: (item) => item.titulo ?? item.resumo,
+    status: (item) => (item.importavel ? 2 : item.duplicado ? 1 : 0),
+  });
+
   return (
     <>
       <PageHeader
@@ -219,15 +233,26 @@ function ImportarPdfSessoesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead></TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Grau</TableHead>
-                <TableHead>Resumo</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHeadOrdenavel campo="data" ord={ord}>
+                  Data
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="categoria" ord={ord}>
+                  Categoria
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="grau" ord={ord}>
+                  Grau
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="resumo" ord={ord}>
+                  Resumo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="status" ord={ord}>
+                  Status
+                </TableHeadOrdenavel>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {preview.map((item, idx) => {
+              {ord.itensOrdenados.map((item) => {
+                const idx = preview.indexOf(item);
                 const podeExpandir = item.responsaveis.length > 0;
                 const aberto = expandido === idx;
                 return (

@@ -34,6 +34,8 @@ import {
 import { Pencil, Trash2, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/ensino/planos")({
   head: () => ({ meta: [{ title: "Planos de Ensino — Gestão Maçônica" }] }),
@@ -113,8 +115,15 @@ function PlanosEnsinoPage() {
   };
 
   const itens = planos.filter((p) => filtroOrgId === "todos" || p.org_id === filtroOrgId);
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(itens);
+  const ord = useOrdenacao(itens, {
+    grau: (p) => p.grau,
+    corpo: (p) => p.org_nome,
+    ordem: (p) => p.ordem,
+    titulo: (p) => p.titulo,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   return (
     <>
@@ -231,10 +240,18 @@ function PlanosEnsinoPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Grau</TableHead>
-              <TableHead>Corpo</TableHead>
-              <TableHead>Ordem</TableHead>
-              <TableHead>Título</TableHead>
+              <TableHeadOrdenavel campo="grau" ord={ord}>
+                Grau
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="corpo" ord={ord}>
+                Corpo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="ordem" ord={ord}>
+                Ordem
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="titulo" ord={ord}>
+                Título
+              </TableHeadOrdenavel>
               {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>

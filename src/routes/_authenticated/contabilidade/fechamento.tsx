@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Lock, Plus, Unlock } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/fechamento")({
   head: () => ({ meta: [{ title: "Fechamento de Exercício — Gestão Maçônica" }] }),
@@ -73,6 +75,22 @@ function Fechamento() {
     return m;
   }, [fechamentos]);
 
+  const ordFechamentos = useOrdenacao(fechamentos, {
+    exercicio: (f) => f.exercicio,
+    corte: (f) => f.data_corte,
+    status: (f) => (f.status === "fechado" ? 1 : 0),
+    resultado: (f) => (f.resultado_apurado != null ? Number(f.resultado_apurado) : null),
+    fechadoPor: (f) => nomePorId.get(f.fechado_por ?? "") ?? "—",
+  });
+
+  const ordEventos = useOrdenacao(eventos, {
+    dataHora: (e) => e.realizado_em,
+    exercicio: (e) => exercicioPorFechamentoId.get(e.fechamento_id) ?? null,
+    acao: (e) => (e.acao === "fechamento" ? 1 : 0),
+    responsavel: (e) => nomePorId.get(e.realizado_por ?? "") ?? "—",
+    motivo: (e) => e.motivo,
+  });
+
   const ultimoFechado = fechamentos.find((f) => f.status === "fechado");
   const proximoExercicio = ultimoFechado ? ultimoFechado.exercicio + 1 : new Date().getFullYear();
 
@@ -106,11 +124,21 @@ function Fechamento() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Exercício</TableHead>
-              <TableHead>Data de corte</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Resultado apurado</TableHead>
-              <TableHead>Fechado por</TableHead>
+              <TableHeadOrdenavel campo="exercicio" ord={ordFechamentos}>
+                Exercício
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="corte" ord={ordFechamentos}>
+                Data de corte
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ordFechamentos}>
+                Status
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="resultado" ord={ordFechamentos} className="text-right">
+                Resultado apurado
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="fechadoPor" ord={ordFechamentos}>
+                Fechado por
+              </TableHeadOrdenavel>
               <TableHead>Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -122,7 +150,7 @@ function Fechamento() {
                 </TableCell>
               </TableRow>
             )}
-            {fechamentos.map((f) => (
+            {ordFechamentos.itensOrdenados.map((f) => (
               <TableRow key={f.id}>
                 <TableCell className="font-medium">{f.exercicio}</TableCell>
                 <TableCell>{fmtDate(f.data_corte)}</TableCell>
@@ -168,11 +196,21 @@ function Fechamento() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data/hora</TableHead>
-              <TableHead>Exercício</TableHead>
-              <TableHead>Ação</TableHead>
-              <TableHead>Responsável</TableHead>
-              <TableHead>Motivo/Observações</TableHead>
+              <TableHeadOrdenavel campo="dataHora" ord={ordEventos}>
+                Data/hora
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="exercicio" ord={ordEventos}>
+                Exercício
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="acao" ord={ordEventos}>
+                Ação
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="responsavel" ord={ordEventos}>
+                Responsável
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="motivo" ord={ordEventos}>
+                Motivo/Observações
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -183,7 +221,7 @@ function Fechamento() {
                 </TableCell>
               </TableRow>
             )}
-            {eventos.map((e) => (
+            {ordEventos.itensOrdenados.map((e) => (
               <TableRow key={e.id}>
                 <TableCell>{fmtDate(e.realizado_em)}</TableCell>
                 <TableCell>{exercicioPorFechamentoId.get(e.fechamento_id) ?? "—"}</TableCell>

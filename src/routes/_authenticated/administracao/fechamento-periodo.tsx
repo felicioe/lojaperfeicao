@@ -35,6 +35,8 @@ import { toast } from "sonner";
 import { AlertTriangle, Lock, Plus, Unlock } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { fmtDate, toISODate } from "@/lib/format";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/administracao/fechamento-periodo")({
   head: () => ({ meta: [{ title: "Fechamento de Período — Gestão Maçônica" }] }),
@@ -109,6 +111,21 @@ function FechamentoPeriodo() {
     onError: (e: Error) => toast.error(e.message ?? "Erro ao reabrir período"),
   });
 
+  const ordPeriodos = useOrdenacao(periodos, {
+    competencia: (p) => p.competencia,
+    status: (p) => p.status,
+    fechado_por: (p) => nomePorId.get(p.fechado_por ?? "") ?? "",
+    observacoes: (p) => p.observacoes,
+  });
+
+  const ordEventos = useOrdenacao(eventos, {
+    realizado_em: (e) => e.realizado_em,
+    competencia: (e) => competenciaPorPeriodoId.get(e.periodo_id) ?? "",
+    acao: (e) => e.acao,
+    responsavel: (e) => nomePorId.get(e.realizado_por ?? "") ?? "",
+    motivo: (e) => e.motivo,
+  });
+
   return (
     <>
       <PageHeader
@@ -128,10 +145,18 @@ function FechamentoPeriodo() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Competência</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Fechado por</TableHead>
-              <TableHead>Observações</TableHead>
+              <TableHeadOrdenavel campo="competencia" ord={ordPeriodos}>
+                Competência
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ordPeriodos}>
+                Status
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="fechado_por" ord={ordPeriodos}>
+                Fechado por
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="observacoes" ord={ordPeriodos}>
+                Observações
+              </TableHeadOrdenavel>
               <TableHead>Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -143,7 +168,7 @@ function FechamentoPeriodo() {
                 </TableCell>
               </TableRow>
             )}
-            {periodos.map((p) => (
+            {ordPeriodos.itensOrdenados.map((p) => (
               <TableRow key={p.id}>
                 <TableCell className="font-medium capitalize">
                   {competenciaLabel(p.competencia)}
@@ -186,11 +211,21 @@ function FechamentoPeriodo() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data/hora</TableHead>
-              <TableHead>Competência</TableHead>
-              <TableHead>Ação</TableHead>
-              <TableHead>Responsável</TableHead>
-              <TableHead>Motivo/Observações</TableHead>
+              <TableHeadOrdenavel campo="realizado_em" ord={ordEventos}>
+                Data/hora
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="competencia" ord={ordEventos}>
+                Competência
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="acao" ord={ordEventos}>
+                Ação
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="responsavel" ord={ordEventos}>
+                Responsável
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="motivo" ord={ordEventos}>
+                Motivo/Observações
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -201,7 +236,7 @@ function FechamentoPeriodo() {
                 </TableCell>
               </TableRow>
             )}
-            {eventos.map((e) => (
+            {ordEventos.itensOrdenados.map((e) => (
               <TableRow key={e.id}>
                 <TableCell>{fmtDate(e.realizado_em)}</TableCell>
                 <TableCell className="capitalize">

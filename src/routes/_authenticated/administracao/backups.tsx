@@ -18,6 +18,8 @@ import {
 import { fmtDate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { Archive, Download, RefreshCw } from "lucide-react";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/administracao/backups")({
   head: () => ({ meta: [{ title: "Backups — Gestão Maçônica" }] }),
@@ -52,6 +54,13 @@ function BackupsPage() {
     queryKey: ["backups_gerados"],
     queryFn: () => listarBackupsGerados(),
     enabled: can.isAdmin,
+  });
+  const ord = useOrdenacao(backups, {
+    criado_em: (b) => b.criado_em,
+    origem: (b) => b.origem,
+    tabelas: (b) => b.total_tabelas,
+    linhas: (b) => b.total_linhas,
+    tamanho: (b) => b.tamanho_bytes,
   });
 
   if (!can.isAdmin) {
@@ -109,11 +118,21 @@ function BackupsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Gerado em</TableHead>
-                <TableHead>Origem</TableHead>
-                <TableHead>Tabelas</TableHead>
-                <TableHead>Linhas</TableHead>
-                <TableHead>Tamanho</TableHead>
+                <TableHeadOrdenavel campo="criado_em" ord={ord}>
+                  Gerado em
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="origem" ord={ord}>
+                  Origem
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tabelas" ord={ord}>
+                  Tabelas
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="linhas" ord={ord}>
+                  Linhas
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="tamanho" ord={ord}>
+                  Tamanho
+                </TableHeadOrdenavel>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -125,7 +144,7 @@ function BackupsPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {backups.map((b) => (
+              {ord.itensOrdenados.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell>{fmtDate(b.criado_em)}</TableCell>
                   <TableCell>

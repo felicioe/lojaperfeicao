@@ -13,8 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { fmtDate } from "@/lib/format";
 import { TrendingUp } from "lucide-react";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/interstico/")({
   head: () => ({
@@ -30,6 +32,15 @@ function IntersticioPage() {
   const { data = [], isLoading } = useQuery({
     queryKey: ["elegibilidade_interstico"],
     queryFn: () => listarElegibilidadeInterstico(),
+  });
+
+  const ord = useOrdenacao(data, {
+    irmao: (e) => e.nome_civil,
+    corpo: (e) => e.org_nome,
+    grau: (e) => e.grau_atual,
+    elevado: (e) => e.data_elevacao,
+    elegivel: (e) => e.data_elegivel,
+    situacao: (e) => e.dias_restantes,
   });
 
   return (
@@ -49,12 +60,24 @@ function IntersticioPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Irmão</TableHead>
-                <TableHead>Corpo</TableHead>
-                <TableHead>Grau atual</TableHead>
-                <TableHead>Elevado em</TableHead>
-                <TableHead>Elegível a partir de</TableHead>
-                <TableHead>Situação</TableHead>
+                <TableHeadOrdenavel campo="irmao" ord={ord}>
+                  Irmão
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="corpo" ord={ord}>
+                  Corpo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="grau" ord={ord}>
+                  Grau atual
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="elevado" ord={ord}>
+                  Elevado em
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="elegivel" ord={ord}>
+                  Elegível a partir de
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="situacao" ord={ord}>
+                  Situação
+                </TableHeadOrdenavel>
                 <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
@@ -66,7 +89,7 @@ function IntersticioPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {data.map((e) => (
+              {ord.itensOrdenados.map((e) => (
                 <TableRow key={`${e.irmao_id}-${e.grau_atual}`}>
                   <TableCell className="font-medium">{e.nome_civil}</TableCell>
                   <TableCell>{e.org_nome}</TableCell>

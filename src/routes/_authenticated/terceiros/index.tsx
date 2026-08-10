@@ -35,6 +35,8 @@ import { toast } from "sonner";
 import { Loader2, Pencil, Search, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/terceiros/")({
   head: () => ({ meta: [{ title: "Fornecedores e Clientes — Gestão Maçônica" }] }),
@@ -91,8 +93,16 @@ function Terceiros() {
       return false;
     return true;
   });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(filtrados);
+  const ord = useOrdenacao(filtrados, {
+    nome: (t) => t.nome,
+    tipo: (t) => t.tipo,
+    documento: (t) => t.cnpj ?? t.cpf,
+    categoria: (t) => t.categoria,
+    ativo: (t) => (t.ativo ? 1 : 0),
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["terceiros_all"] });
 
@@ -359,11 +369,21 @@ function Terceiros() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>CNPJ/CPF</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Ativo</TableHead>
+              <TableHeadOrdenavel campo="nome" ord={ord}>
+                Nome
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="tipo" ord={ord}>
+                Tipo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="documento" ord={ord}>
+                CNPJ/CPF
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="categoria" ord={ord}>
+                Categoria
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="ativo" ord={ord}>
+                Ativo
+              </TableHeadOrdenavel>
               {podeEditar && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>

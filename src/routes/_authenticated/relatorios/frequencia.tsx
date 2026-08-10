@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/relatorios/frequencia")({
   head: () => ({ meta: [{ title: "Relatório de Frequência — Gestão Maçônica" }] }),
@@ -24,8 +26,15 @@ function RelatorioFreq() {
     queryKey: ["rel_freq"],
     queryFn: () => relatorioFrequencia(),
   });
+  const totalSessoes = data?.totalSessoes ?? 0;
+  const ord = useOrdenacao(data?.irmaos ?? [], {
+    irmao: (i) => i.nome_civil,
+    presencas: (i) => i.presencas,
+    faltas: (i) => Math.max(0, totalSessoes - i.presencas),
+    frequencia: (i) => (totalSessoes ? Math.round((i.presencas / totalSessoes) * 100) : 0),
+  });
   const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
-    data?.irmaos ?? [],
+    ord.itensOrdenados,
   );
 
   return (
@@ -38,10 +47,18 @@ function RelatorioFreq() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Irmão</TableHead>
-              <TableHead className="text-right">Presenças</TableHead>
-              <TableHead className="text-right">Faltas</TableHead>
-              <TableHead className="text-right">Frequência</TableHead>
+              <TableHeadOrdenavel campo="irmao" ord={ord}>
+                Irmão
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="presencas" ord={ord} className="text-right">
+                Presenças
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="faltas" ord={ord} className="text-right">
+                Faltas
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="frequencia" ord={ord} className="text-right">
+                Frequência
+              </TableHeadOrdenavel>
             </TableRow>
           </TableHeader>
           <TableBody>

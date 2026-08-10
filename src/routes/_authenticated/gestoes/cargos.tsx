@@ -22,11 +22,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Pencil, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { useOrdenacao } from "@/lib/use-ordenacao";
 
 export const Route = createFileRoute("/_authenticated/gestoes/cargos")({
   head: () => ({ meta: [{ title: "Cargos — Gestão Maçônica" }] }),
@@ -82,6 +84,13 @@ function Cargos() {
 
   const nomeOrg = (id: string | null) =>
     orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? null;
+
+  const ord = useOrdenacao(cargos, {
+    ordem: (c) => c.ordem,
+    nome: (c) => c.nome,
+    corpo: (c) => nomeOrg(c.org_id),
+    ativo: (c) => (c.ativo ? 1 : 0),
+  });
 
   return (
     <>
@@ -145,10 +154,18 @@ function Cargos() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Ordem</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Corpo</TableHead>
-              <TableHead>Ativo</TableHead>
+              <TableHeadOrdenavel campo="ordem" ord={ord}>
+                Ordem
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="nome" ord={ord}>
+                Nome
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="corpo" ord={ord}>
+                Corpo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="ativo" ord={ord}>
+                Ativo
+              </TableHeadOrdenavel>
               {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
@@ -160,7 +177,7 @@ function Cargos() {
                 </TableCell>
               </TableRow>
             )}
-            {cargos.map((c) => (
+            {ord.itensOrdenados.map((c) => (
               <TableRow key={c.id} className={!c.ativo ? "opacity-50" : undefined}>
                 <TableCell className="font-mono">{c.ordem}</TableCell>
                 <TableCell className="font-medium">{c.nome}</TableCell>

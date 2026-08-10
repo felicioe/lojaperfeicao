@@ -38,6 +38,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/comissoes/")({
   head: () => ({ meta: [{ title: "Comissões — Gestão Maçônica" }] }),
@@ -62,6 +64,12 @@ function Comissoes() {
 
   const nomeOrg = (id: string) =>
     orgs.find((o) => o.id === id)?.sigla ?? orgs.find((o) => o.id === id)?.nome ?? "—";
+
+  const ord = useOrdenacao(comissoes, {
+    corpo: (c) => nomeOrg(c.org_id),
+    comissao: (c) => c.nome,
+    status: (c) => (c.ativo ? 1 : 0),
+  });
 
   const salvar = async () => {
     if (!form.org_id || !form.nome.trim()) return;
@@ -143,9 +151,15 @@ function Comissoes() {
           <TableHeader>
             <TableRow>
               <TableHead></TableHead>
-              <TableHead>Corpo</TableHead>
-              <TableHead>Comissão</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHeadOrdenavel campo="corpo" ord={ord}>
+                Corpo
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="comissao" ord={ord}>
+                Comissão
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ord}>
+                Status
+              </TableHeadOrdenavel>
               {can.canManageIrmaos && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
@@ -157,7 +171,7 @@ function Comissoes() {
                 </TableCell>
               </TableRow>
             )}
-            {comissoes.map((c) => (
+            {ord.itensOrdenados.map((c) => (
               <Fragment key={c.id}>
                 <TableRow>
                   <TableCell>
@@ -221,6 +235,11 @@ function MembrosPanel({ comissao, podeEditar }: { comissao: Comissao; podeEditar
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["comissao_membros", comissao.id] });
 
+  const ordMembros = useOrdenacao(membros, {
+    papel: (m) => m.papel,
+    irmao: (m) => m.nome_civil,
+  });
+
   const adicionar = async () => {
     if (!novo.papel.trim() || !novo.irmao_id) return;
     try {
@@ -249,8 +268,12 @@ function MembrosPanel({ comissao, podeEditar }: { comissao: Comissao; podeEditar
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Papel</TableHead>
-            <TableHead>Irmão</TableHead>
+            <TableHeadOrdenavel campo="papel" ord={ordMembros}>
+              Papel
+            </TableHeadOrdenavel>
+            <TableHeadOrdenavel campo="irmao" ord={ordMembros}>
+              Irmão
+            </TableHeadOrdenavel>
             {podeEditar && <TableHead className="w-10"></TableHead>}
           </TableRow>
         </TableHeader>
@@ -262,7 +285,7 @@ function MembrosPanel({ comissao, podeEditar }: { comissao: Comissao; podeEditar
               </TableCell>
             </TableRow>
           )}
-          {membros.map((m) => (
+          {ordMembros.itensOrdenados.map((m) => (
             <TableRow key={m.id}>
               <TableCell>{m.papel}</TableCell>
               <TableCell>{m.nome_civil}</TableCell>

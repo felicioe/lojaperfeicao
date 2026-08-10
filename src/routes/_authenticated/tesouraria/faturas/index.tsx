@@ -68,6 +68,8 @@ import { CheckCircle2, MessageCircle, Pencil, Plus, Printer, Trash2 } from "luci
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/faturas/")({
   head: () => ({ meta: [{ title: "Faturas — Gestão Maçônica" }] }),
@@ -151,8 +153,16 @@ function Faturas() {
     queryKey: ["faturas_abertas"],
     queryFn: () => listarFaturasAbertas(),
   });
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(abertas);
+  const ord = useOrdenacao(abertas, {
+    irmao: (f) => f.irmaos?.nome_civil,
+    descricao: (f) => f.descricao,
+    competencia: (f) => f.competencia_mes,
+    vencimento: (f) => f.data_vencimento,
+    valor: (f) => Number(f.valor) - Number(f.valor_pago),
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [openBaixa, setOpenBaixa] = useState(false);
@@ -232,11 +242,21 @@ function Faturas() {
               <TableHeader>
                 <TableRow>
                   {podeEditar && <TableHead className="w-10"></TableHead>}
-                  <TableHead>Irmão</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Competência</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHeadOrdenavel campo="irmao" ord={ord}>
+                    Irmão
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="descricao" ord={ord}>
+                    Descrição
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="competencia" ord={ord}>
+                    Competência
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="vencimento" ord={ord}>
+                    Vencimento
+                  </TableHeadOrdenavel>
+                  <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                    Valor
+                  </TableHeadOrdenavel>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>

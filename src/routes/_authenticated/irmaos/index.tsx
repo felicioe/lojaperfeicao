@@ -20,6 +20,8 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/irmaos/")({
   head: () => ({
@@ -46,8 +48,16 @@ function IrmaosList() {
       i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
       i.cim?.toLowerCase().includes(q.toLowerCase()),
   );
-  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
-    usePaginacao(filtered);
+  const ord = useOrdenacao(filtered, {
+    nome_civil: (i) => i.nome_civil,
+    nome_simbolico: (i) => i.nome_simbolico,
+    cim: (i) => i.cim,
+    grau: (i) => i.grau,
+    situacao: (i) => i.situacao,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const situacaoVariant = (s: string) =>
     (
@@ -86,11 +96,21 @@ function IrmaosList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome civil</TableHead>
-              <TableHead>Nome simbólico</TableHead>
-              <TableHead>CIM</TableHead>
-              <TableHead>Grau</TableHead>
-              <TableHead>Situação</TableHead>
+              <TableHeadOrdenavel campo="nome_civil" ord={ord}>
+                Nome civil
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="nome_simbolico" ord={ord}>
+                Nome simbólico
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="cim" ord={ord}>
+                CIM
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="grau" ord={ord}>
+                Grau
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="situacao" ord={ord}>
+                Situação
+              </TableHeadOrdenavel>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
