@@ -28,8 +28,12 @@ function GoogleConcluirPage() {
     }
 
     concluirLoginGoogle({ data: { ticket } })
-      .then((sessao) => {
-        queryClient.setQueryData(SESSAO_QUERY_KEY, sessao);
+      .then((resultado) => {
+        if ("requerTotp" in resultado) {
+          window.location.href = "/auth?totpPendente=1";
+          return;
+        }
+        queryClient.setQueryData(SESSAO_QUERY_KEY, resultado);
         toast.success("Bem-vindo!");
         navigate({ to: "/dashboard" });
       })

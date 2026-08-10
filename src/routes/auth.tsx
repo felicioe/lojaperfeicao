@@ -77,6 +77,12 @@ function AuthPage() {
     if (erroFacebook) {
       toast.error(ERRO_FACEBOOK_LABEL[erroFacebook] ?? "Erro ao entrar com Facebook.");
     }
+    // Login por Google/Facebook com 2FA ativo (mesmo gate do login por
+    // senha) — o próprio servidor já guardou o login pendente, só falta
+    // mostrar o formulário de código aqui.
+    if (params.get("totpPendente") === "1") {
+      setAguardando2FA(true);
+    }
   }, [navigate]);
 
   const handleGoogleLogin = async () => {

@@ -3,9 +3,11 @@ import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao } from "./authz";
 import { withUserConnection } from "./db";
-import { criarSessao } from "./session";
-import { carregarUsuarioComPapeis, type UsuarioSessao } from "./usuario-sessao";
+import { criarSessao, salvarLoginPendente2FA } from "./session";
+import { carregarUsuarioComPapeis } from "./usuario-sessao";
 import { registrarAuditoria } from "./auditoria";
+import { usuarioTemTotpAtivo } from "./totp";
+import type { LoginResultado } from "./auth";
 
 // Login com Facebook (issue #99) — espelha google-auth.ts (issue #98) quase
 // exatamente. Mesma decisão de vinculação manual, logado.
@@ -32,7 +34,7 @@ const concluirLoginSchema = z.object({ ticket: z.string().uuid() });
 
 export const concluirLoginFacebook = createServerFn({ method: "POST" })
   .validator((d: unknown) => concluirLoginSchema.parse(d))
-  .handler(async ({ data }): Promise<UsuarioSessao> => {
+  .handler(async ({ data }): Promise<LoginResultado> => {
     const usuarioId = await withUserConnection(null, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         "SELECT usuario_id FROM facebook_login_tickets WHERE id = ? AND usado = FALSE AND expira_em > NOW()",
@@ -47,6 +49,16 @@ export const concluirLoginFacebook = createServerFn({ method: "POST" })
     });
     if (!usuarioId) {
       throw new Error("Login expirado — tente novamente.");
+    }
+
+    // Mesmo gate de 2FA do login por senha (auth.ts) — sem isso, TOTP
+    // ativado pelo usuário não se aplicava a este caminho de login.
+    const precisaTotp = await withUserConnection(usuarioId, (conn) =>
+      usuarioTemTotpAtivo(conn, usuarioId),
+    );
+    if (precisaTotp) {
+      await salvarLoginPendente2FA(usuarioId);
+      return { requerTotp: true };
     }
 
     await criarSessao(usuarioId);
