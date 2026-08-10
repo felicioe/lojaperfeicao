@@ -44,6 +44,8 @@ const TIPO_LABEL: Record<string, string> = {
 const COLUNAS: ColunaRelatorio[] = [
   { chave: "data", titulo: "Data" },
   { chave: "descricao", titulo: "Descrição" },
+  { chave: "irmao", titulo: "Irmão" },
+  { chave: "conta_contabil", titulo: "Conta contábil" },
   { chave: "tipo", titulo: "Tipo" },
   { chave: "valor", titulo: "Valor" },
   { chave: "saldo", titulo: "Saldo corrente" },
@@ -77,10 +79,23 @@ function ExtratoBancario() {
   });
 
   const saldoFinal = itens.length > 0 ? itens[itens.length - 1].saldo_corrente : null;
+  // Saldo inicial do recorte exibido: o saldo corrente já reflete o
+  // histórico completo até "ate" (ver comentário no backend), então o
+  // saldo logo antes da primeira linha filtrada é o saldo dela menos o
+  // próprio valor que ela aplicou — dá pra derivar tudo sem nova consulta.
+  const saldoInicial = itens.length > 0 ? itens[0].saldo_corrente - itens[0].valor_sinal : null;
+  const totalEntradas = itens
+    .filter((i) => i.valor_sinal > 0)
+    .reduce((soma, i) => soma + i.valor_sinal, 0);
+  const totalSaidas = itens
+    .filter((i) => i.valor_sinal < 0)
+    .reduce((soma, i) => soma - i.valor_sinal, 0);
 
   const linhasExportacao = itens.map((i) => ({
     data: fmtDate(i.data),
     descricao: i.descricao,
+    irmao: i.irmao_nome ?? "",
+    conta_contabil: i.plano_conta_nome ?? "",
     tipo: TIPO_LABEL[i.tipo],
     valor: i.valor_sinal,
     saldo: i.saldo_corrente,
@@ -168,10 +183,18 @@ function ExtratoBancario() {
 
       {contaId && (
         <>
-          {saldoFinal !== null && (
+          {saldoFinal !== null && saldoInicial !== null && (
             <Card className="mb-4 p-4">
-              <div className="text-sm text-muted-foreground">Saldo corrente (última linha)</div>
-              <div className="text-2xl font-semibold">{brl(saldoFinal)}</div>
+              <div className="flex flex-wrap items-baseline gap-2 text-sm">
+                <span className="text-muted-foreground">Saldo inicial</span>
+                <span className="font-medium">{brl(saldoInicial)}</span>
+                <span className="text-muted-foreground">+ Entradas</span>
+                <span className="font-medium text-emerald-600">{brl(totalEntradas)}</span>
+                <span className="text-muted-foreground">− Saídas</span>
+                <span className="font-medium text-destructive">{brl(totalSaidas)}</span>
+                <span className="text-muted-foreground">= Saldo final</span>
+                <span className="text-2xl font-semibold">{brl(saldoFinal)}</span>
+              </div>
             </Card>
           )}
 
@@ -182,6 +205,8 @@ function ExtratoBancario() {
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Descrição</TableHead>
+                    <TableHead>Irmão</TableHead>
+                    <TableHead>Conta contábil</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="text-right">Saldo corrente</TableHead>
@@ -190,7 +215,7 @@ function ExtratoBancario() {
                 <TableBody>
                   {itens.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                         Nenhum lançamento encontrado nesse período.
                       </TableCell>
                     </TableRow>
@@ -199,6 +224,8 @@ function ExtratoBancario() {
                     <TableRow key={i.id}>
                       <TableCell>{fmtDate(i.data)}</TableCell>
                       <TableCell>{i.descricao}</TableCell>
+                      <TableCell>{i.irmao_nome ?? "—"}</TableCell>
+                      <TableCell>{i.plano_conta_nome ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{TIPO_LABEL[i.tipo]}</Badge>
                       </TableCell>
