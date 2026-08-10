@@ -392,7 +392,7 @@ const novoLancamentoSchema = z.object({
   data: z.string(),
   data_vencimento: z.string().nullable(),
   descricao: z.string().min(1),
-  valor: z.number(),
+  valor: z.number().positive(),
   tipo: z.enum(["entrada", "saida"]),
   conta_id: z.string().uuid(),
   plano_conta_id: z.string().uuid().nullable(),
