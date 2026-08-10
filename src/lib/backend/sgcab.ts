@@ -224,13 +224,27 @@ const uploadComprovanteSchema = z.object({
   dataUrl: z.string().startsWith("data:"),
 });
 
+// O atributo accept="image/*,application/pdf" do <input> no cliente
+// (sgcab/cobrancas.tsx) é só cosmético — a validação real de tipo/tamanho
+// tem que acontecer aqui, senão qualquer arquivo de qualquer tamanho pode
+// ser gravado no servidor por quem chamar a função direto (achado #154 da
+// revisão de segurança).
+const TAMANHO_MAXIMO_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export const uploadComprovanteSgcab = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadComprovanteSchema.parse(d))
   .handler(async ({ data }): Promise<{ url: string }> => {
     return comPapel(PAPEIS_LEITURA, async () => {
       const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (!match) throw new Error("Arquivo inválido.");
+      const mime = match[1];
+      if (!(mime.startsWith("image/") || mime === "application/pdf")) {
+        throw new Error("Tipo de arquivo não permitido. Envie uma imagem ou PDF.");
+      }
       const buffer = Buffer.from(match[2], "base64");
+      if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {
+        throw new Error("Arquivo maior que o limite de 10 MB.");
+      }
       const nomeSeguro = data.nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
       const dir = join(process.cwd(), "public", "uploads", "sgcab", data.cobrancaId);
       await mkdir(dir, { recursive: true });
