@@ -2,10 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Pencil, Printer, Trash2, UserCog } from "lucide-react";
+import { CheckCircle2, Pencil, Printer, Trash2, Undo2, UserCog } from "lucide-react";
 import {
   atribuirIrmaoLancamento,
   atualizarLancamento,
+  desmarcarLancamentoPago,
   estornarLancamento,
   marcarLancamentoPago,
   type Lancamento,
@@ -599,6 +600,40 @@ export function AcoesLancamento({
             </AlertDialog>
           )}
         </>
+      )}
+      {lancamento.pago && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="ghost" title="Desmarcar pago">
+              <Undo2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Desmarcar "{lancamento.descricao}" como pago?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Volta o lançamento pra "em aberto", desfazendo a baixa (data de pagamento e valor
+                pago são zerados). Use pra corrigir uma marcação feita por engano.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Voltar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  try {
+                    await desmarcarLancamentoPago({ data: { id: lancamento.id } });
+                    toast.success("Baixa desfeita.");
+                    onDone();
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Erro ao desmarcar.");
+                  }
+                }}
+              >
+                Desmarcar pago
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );
