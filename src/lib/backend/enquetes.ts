@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel, SemPermissaoError } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 const PAPEIS_ESCRITA = ["admin", "secretario"];
 
@@ -103,6 +104,7 @@ export const criarEnquete = createServerFn({ method: "POST" })
           [crypto.randomUUID(), enqueteId, texto, indice],
         );
       }
+      await registrarAuditoria(conn, usuarioId, "criar", "enquete", enqueteId, null, data);
       return { id: enqueteId };
     });
   });
@@ -110,16 +112,34 @@ export const criarEnquete = createServerFn({ method: "POST" })
 export const encerrarEnquete = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
       await conn.query("UPDATE enquetes SET encerrada = TRUE WHERE id = ?", [data.id]);
+      await registrarAuditoria(conn, usuarioId, "encerrar", "enquete", data.id);
     });
   });
 
 export const excluirEnquete = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
-    return comPapel(["admin"], async (conn) => {
+    return comPapel(["admin"], async (conn, usuarioId) => {
+      const [[enquete]] = await conn.query<RowDataPacket[]>(
+        "SELECT titulo, descricao, nominal, encerrada, criado_por FROM enquetes WHERE id = ?",
+        [data.id],
+      );
+      const [resumoVotos] = await conn.query<RowDataPacket[]>(
+        `SELECT eo.texto, COUNT(ev.id) AS votos
+         FROM enquete_opcoes eo
+         LEFT JOIN enquete_votos ev ON ev.opcao_id = eo.id
+         WHERE eo.enquete_id = ?
+         GROUP BY eo.id, eo.texto
+         ORDER BY eo.ordem`,
+        [data.id],
+      );
       await conn.query("DELETE FROM enquetes WHERE id = ?", [data.id]);
+      await registrarAuditoria(conn, usuarioId, "excluir", "enquete", data.id, {
+        ...enquete,
+        resumo_votos: resumoVotos,
+      });
     });
   });
 
