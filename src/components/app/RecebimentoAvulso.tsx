@@ -34,9 +34,13 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
   const [contaId, setContaId] = useState("todas");
   const [tipo, setTipo] = useState("todos");
   const [categoria, setCategoria] = useState(filtrosIniciais?.categoria ?? "todas");
+  const [irmaoId, setIrmaoId] = useState("todos");
+  // Padrão "não pago": é o que mais importa acompanhar no dia a dia
+  // (cobrar quem ainda deve) — "Todos"/"Pago" ficam a um clique.
+  const [status, setStatus] = useState<"todos" | "pago" | "nao_pago">("nao_pago");
 
   const { data: movimentos = [] } = useQuery({
-    queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria],
+    queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria, irmaoId, status],
     queryFn: () =>
       listarLancamentos({
         data: {
@@ -45,6 +49,8 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
           contaId: contaId !== "todas" ? contaId : null,
           tipo: tipo !== "todos" ? (tipo as "entrada" | "saida" | "transferencia") : null,
           categoria: categoria !== "todas" ? categoria : null,
+          irmaoId: irmaoId !== "todos" ? irmaoId : null,
+          pago: status === "todos" ? null : status === "pago",
           limite: 500,
         },
       }),
@@ -62,6 +68,10 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
     setTipo,
     categoria,
     setCategoria,
+    irmaoId,
+    setIrmaoId,
+    status,
+    setStatus,
   };
 }
 

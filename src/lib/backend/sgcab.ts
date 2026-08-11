@@ -145,6 +145,7 @@ const listarCobrancasSchema = z.object({
   orgId: z.string().uuid().nullable(),
   ano: z.number().int().nullable(),
   status: z.enum(["pendente", "pago", "cancelado"]).nullable(),
+  irmaoId: z.string().uuid().nullable(),
 });
 
 export const listarCobrancasSgcab = createServerFn({ method: "POST" })
@@ -164,6 +165,10 @@ export const listarCobrancasSgcab = createServerFn({ method: "POST" })
       if (data.status) {
         condicoes.push("sc.status = ?");
         valores.push(data.status);
+      }
+      if (data.irmaoId) {
+        condicoes.push("sc.irmao_id = ?");
+        valores.push(data.irmaoId);
       }
       const where = condicoes.length ? `WHERE ${condicoes.join(" AND ")}` : "";
       const [rows] = await conn.query<RowDataPacket[]>(

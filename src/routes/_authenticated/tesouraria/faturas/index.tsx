@@ -153,7 +153,14 @@ function Faturas() {
     queryKey: ["faturas_abertas"],
     queryFn: () => listarFaturasAbertas(),
   });
-  const ord = useOrdenacao(abertas, {
+  const { data: irmaosFiltro = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
+  const [irmaoFiltroId, setIrmaoFiltroId] = useState("todos");
+  const abertasFiltradas =
+    irmaoFiltroId === "todos" ? abertas : abertas.filter((f) => f.irmao_id === irmaoFiltroId);
+  const ord = useOrdenacao(abertasFiltradas, {
     irmao: (f) => f.irmaos?.nome_civil,
     descricao: (f) => f.descricao,
     competencia: (f) => f.competencia_mes,
@@ -214,6 +221,22 @@ function Faturas() {
         </TabsContent>
 
         <TabsContent value="abertas">
+          <Card className="mb-4 p-4 max-w-xs">
+            <Label className="text-xs">Irmão</Label>
+            <Select value={irmaoFiltroId} onValueChange={setIrmaoFiltroId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {irmaosFiltro.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>
+                    {i.nome_civil}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Card>
           {podeEditar && selecionadas.length > 0 && (
             <Card className="mb-4 p-4 flex items-center justify-between">
               <div className="text-sm">
@@ -261,7 +284,7 @@ function Faturas() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {abertas.length === 0 && (
+                {abertasFiltradas.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                       Nenhuma fatura em aberto.

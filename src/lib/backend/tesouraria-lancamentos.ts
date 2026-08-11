@@ -45,6 +45,8 @@ const filtrosSchema = z.object({
   contaId: z.string().uuid().nullable().optional(),
   tipo: z.enum(["entrada", "saida", "transferencia"]).nullable().optional(),
   categoria: z.string().nullable().optional(),
+  irmaoId: z.string().uuid().nullable().optional(),
+  pago: z.boolean().nullable().optional(),
   limite: z.number().int().positive().max(1000).optional(),
 });
 
@@ -78,6 +80,14 @@ export const listarLancamentos = createServerFn({ method: "GET" })
       if (data.categoria) {
         condicoes.push("l.categoria_recebimento = ?");
         valores.push(data.categoria);
+      }
+      if (data.irmaoId) {
+        condicoes.push("l.irmao_id = ?");
+        valores.push(data.irmaoId);
+      }
+      if (data.pago !== null && data.pago !== undefined) {
+        condicoes.push("l.pago = ?");
+        valores.push(data.pago);
       }
       const where = condicoes.length > 0 ? `WHERE ${condicoes.join(" AND ")}` : "";
       const limite = data.limite ?? 200;
