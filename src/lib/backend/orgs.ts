@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original (mysql/migrations/0002_cadastros.sql): SELECT livre para
 // autenticados; escrita (potencias/orgs/orgs_graus) admin OU secretario.
@@ -158,6 +159,46 @@ export const alternarAtivoOrg = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query("UPDATE orgs SET ativo=? WHERE id=?", [data.ativo, data.id]);
+    });
+  });
+
+// Exclusão real (não é só o "ativo=false" de alternarAtivoOrg) — pensada
+// pra corpo cadastrado errado/duplicado, sem uso de verdade. A maioria das
+// tabelas ligadas a orgs é ON DELETE CASCADE (irmao_orgs, gestoes, cargos,
+// taxas_grau, sgcab_cobrancas, eventos, comunicados, tabela_valores,
+// comissoes — ver mysql/migrations), então excluir sem checar antes
+// apagaria em cascata dados reais (vínculo de irmãos, cobranças, gestões
+// etc.). orgs_graus fica de fora da checagem por ser só nome de grau, sem
+// dado de irmão/financeiro associado.
+export const excluirOrg = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[uso]] = await conn.query<RowDataPacket[]>(
+        `SELECT
+           (SELECT COUNT(*) FROM irmao_orgs WHERE org_id = ?) AS irmaos,
+           (SELECT COUNT(*) FROM gestoes WHERE org_id = ?) AS gestoes,
+           (SELECT COUNT(*) FROM sgcab_cobrancas WHERE org_id = ?) AS cobrancas,
+           (SELECT COUNT(*) FROM eventos WHERE org_id = ?) AS eventos,
+           (SELECT COUNT(*) FROM comissoes WHERE org_id = ?) AS comissoes`,
+        [data.id, data.id, data.id, data.id, data.id],
+      );
+      if (
+        uso.irmaos > 0 ||
+        uso.gestoes > 0 ||
+        uso.cobrancas > 0 ||
+        uso.eventos > 0 ||
+        uso.comissoes > 0
+      ) {
+        throw new Error(
+          "Este corpo tem dados vinculados (irmãos, gestões, cobranças, eventos ou comissões) e não pode ser excluído — desative-o em vez disso.",
+        );
+      }
+      const [[org]] = await conn.query<RowDataPacket[]>("SELECT * FROM orgs WHERE id = ?", [
+        data.id,
+      ]);
+      await conn.query("DELETE FROM orgs WHERE id = ?", [data.id]);
+      await registrarAuditoria(conn, usuarioIdAtual, "excluir", "org", data.id, org, null);
     });
   });
 

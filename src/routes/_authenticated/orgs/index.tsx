@@ -6,6 +6,7 @@ import {
   listarPotencias,
   salvarOrg,
   alternarAtivoOrg,
+  excluirOrg,
   listarOrgsGraus,
   gerarGrausPadraoOrg,
   criarOrgGrau,
@@ -27,6 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -179,6 +191,16 @@ function Orgs() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
+  };
+
+  const excluir = async (o: Org) => {
+    try {
+      await excluirOrg({ data: { id: o.id } });
+      toast.success("Corpo excluído.");
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
     }
   };
 
@@ -426,6 +448,29 @@ function Orgs() {
                       <Button variant="ghost" size="sm" onClick={() => editar(o)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir "{o.nome}"?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Essa ação não pode ser desfeita. Só é possível excluir corpos sem
+                              irmãos, gestões, cobranças, eventos ou comissões vinculados — se
+                              houver, desative o corpo em vez de excluir.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => excluir(o)}>
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   )}
                 </TableRow>
