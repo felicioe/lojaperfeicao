@@ -67,14 +67,22 @@ const PECA_SELECT = `
 // com grau <= o maior grau_atual do irmão em qualquer corpo (peça sem
 // corpo vinculado não tem contra o que comparar além disso — ver
 // migração 0063).
+//
+// COLLATE explícito nas duas comparações "usuario_id = @current_usuario_id":
+// a variável de sessão (SET @current_usuario_id = ?, ver db.ts) herda a
+// collation padrão da conexão (utf8mb4_general_ci), enquanto
+// irmaos.usuario_id é utf8mb4_unicode_ci — sem o COLLATE aqui, MySQL
+// recusa a comparação com "Illegal mix of collations", derrubando a
+// consulta inteira (nunca aparecia como erro visível: o catch do
+// useQuery só deixava a lista vazia, "Nenhuma peça cadastrada").
 const PODE_VER_CONDICAO = `(
   has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'secretario')
-  OR i.usuario_id = @current_usuario_id
+  OR i.usuario_id = @current_usuario_id COLLATE utf8mb4_unicode_ci
   OR (
     pa.situacao = 'aprovado'
     AND pa.grau <= COALESCE(
           (SELECT MAX(io.grau_atual) FROM irmaos me JOIN irmao_orgs io ON io.irmao_id = me.id
-           WHERE me.usuario_id = @current_usuario_id),
+           WHERE me.usuario_id = @current_usuario_id COLLATE utf8mb4_unicode_ci),
           0
         )
   )
