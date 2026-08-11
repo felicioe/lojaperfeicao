@@ -10,7 +10,7 @@ const PAPEIS_ESCRITA = ["admin", "secretario"];
 export type Sessao = {
   id: string;
   data: string;
-  tipo: "ordinaria" | "magna" | "branca" | "administrativa";
+  tipo: "ordinaria" | "magna" | "branca" | "administrativa" | "iniciacao";
   grau: number;
   org_id: string | null;
   org_nome: string | null;
@@ -107,7 +107,7 @@ export const obterSessao = createServerFn({ method: "GET" })
 
 const novaSessaoSchema = z.object({
   data: z.string(),
-  tipo: z.enum(["ordinaria", "magna", "branca", "administrativa"]),
+  tipo: z.enum(["ordinaria", "magna", "branca", "administrativa", "iniciacao"]),
   orgId: z.string().uuid(),
   grau: z.number().int().positive(),
   observacoes: z.string().nullable().optional(),
