@@ -122,7 +122,7 @@ class DOMMatrixPolyfill {
 // .output/server/, que fica dentro do projeto) e PDFParse.setWorker()
 // aponta pdfjs-dist pra lá.
 let pdfParseCarregado: typeof PDFParseType | undefined;
-async function carregarPdfParse(): Promise<typeof PDFParseType> {
+export async function carregarPdfParse(): Promise<typeof PDFParseType> {
   if (pdfParseCarregado) return pdfParseCarregado;
   if (typeof globalThis.DOMMatrix === "undefined") {
     (globalThis as unknown as { DOMMatrix: unknown }).DOMMatrix = DOMMatrixPolyfill;

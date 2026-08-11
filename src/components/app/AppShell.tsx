@@ -348,6 +348,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageIrmaos,
           section: "Importar",
         },
+        {
+          to: "/ensino/importar-planos-ensino",
+          label: "Planos de Ensino (PDF)",
+          icon: FileUp,
+          show: can.canManageIrmaos,
+          section: "Importar",
+        },
         { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
         { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },

@@ -42,6 +42,7 @@ import { Route as AuthenticatedDocumentosIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedEnquetesIndexRouteImport } from './routes/_authenticated/enquetes/index'
 import { Route as AuthenticatedEnsinoImportarCalendarioRouteImport } from './routes/_authenticated/ensino/importar-calendario'
 import { Route as AuthenticatedEnsinoImportarPdfSessoesRouteImport } from './routes/_authenticated/ensino/importar-pdf-sessoes'
+import { Route as AuthenticatedEnsinoImportarPlanosEnsinoRouteImport } from './routes/_authenticated/ensino/importar-planos-ensino'
 import { Route as AuthenticatedEnsinoPlanosRouteImport } from './routes/_authenticated/ensino/planos'
 import { Route as AuthenticatedEventosIndexRouteImport } from './routes/_authenticated/eventos/index'
 import { Route as AuthenticatedGestoesIndexRouteImport } from './routes/_authenticated/gestoes/index'
@@ -273,6 +274,12 @@ const AuthenticatedEnsinoImportarPdfSessoesRoute =
   AuthenticatedEnsinoImportarPdfSessoesRouteImport.update({
     id: '/ensino/importar-pdf-sessoes',
     path: '/ensino/importar-pdf-sessoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEnsinoImportarPlanosEnsinoRoute =
+  AuthenticatedEnsinoImportarPlanosEnsinoRouteImport.update({
+    id: '/ensino/importar-planos-ensino',
+    path: '/ensino/importar-planos-ensino',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedEnsinoPlanosRoute =
@@ -563,6 +570,7 @@ export interface FileRoutesByFullPath {
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
   '/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
+  '/ensino/importar-planos-ensino': typeof AuthenticatedEnsinoImportarPlanosEnsinoRoute
   '/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -640,6 +648,7 @@ export interface FileRoutesByTo {
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
   '/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
+  '/ensino/importar-planos-ensino': typeof AuthenticatedEnsinoImportarPlanosEnsinoRoute
   '/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -720,6 +729,7 @@ export interface FileRoutesById {
   '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/_authenticated/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
   '/_authenticated/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
+  '/_authenticated/ensino/importar-planos-ensino': typeof AuthenticatedEnsinoImportarPlanosEnsinoRoute
   '/_authenticated/ensino/planos': typeof AuthenticatedEnsinoPlanosRoute
   '/_authenticated/gestoes/cargos': typeof AuthenticatedGestoesCargosRoute
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
@@ -800,6 +810,7 @@ export interface FileRouteTypes {
     | '/contabilidade/razao'
     | '/ensino/importar-calendario'
     | '/ensino/importar-pdf-sessoes'
+    | '/ensino/importar-planos-ensino'
     | '/ensino/planos'
     | '/gestoes/cargos'
     | '/irmaos/$id'
@@ -877,6 +888,7 @@ export interface FileRouteTypes {
     | '/contabilidade/razao'
     | '/ensino/importar-calendario'
     | '/ensino/importar-pdf-sessoes'
+    | '/ensino/importar-planos-ensino'
     | '/ensino/planos'
     | '/gestoes/cargos'
     | '/irmaos/$id'
@@ -956,6 +968,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contabilidade/razao'
     | '/_authenticated/ensino/importar-calendario'
     | '/_authenticated/ensino/importar-pdf-sessoes'
+    | '/_authenticated/ensino/importar-planos-ensino'
     | '/_authenticated/ensino/planos'
     | '/_authenticated/gestoes/cargos'
     | '/_authenticated/irmaos/$id'
@@ -1250,6 +1263,13 @@ declare module '@tanstack/react-router' {
       path: '/ensino/importar-pdf-sessoes'
       fullPath: '/ensino/importar-pdf-sessoes'
       preLoaderRoute: typeof AuthenticatedEnsinoImportarPdfSessoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ensino/importar-planos-ensino': {
+      id: '/_authenticated/ensino/importar-planos-ensino'
+      path: '/ensino/importar-planos-ensino'
+      fullPath: '/ensino/importar-planos-ensino'
+      preLoaderRoute: typeof AuthenticatedEnsinoImportarPlanosEnsinoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/ensino/planos': {
@@ -1613,6 +1633,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
   AuthenticatedEnsinoImportarCalendarioRoute: typeof AuthenticatedEnsinoImportarCalendarioRoute
   AuthenticatedEnsinoImportarPdfSessoesRoute: typeof AuthenticatedEnsinoImportarPdfSessoesRoute
+  AuthenticatedEnsinoImportarPlanosEnsinoRoute: typeof AuthenticatedEnsinoImportarPlanosEnsinoRoute
   AuthenticatedEnsinoPlanosRoute: typeof AuthenticatedEnsinoPlanosRoute
   AuthenticatedGestoesCargosRoute: typeof AuthenticatedGestoesCargosRoute
   AuthenticatedIrmaosIdRoute: typeof AuthenticatedIrmaosIdRoute
@@ -1689,6 +1710,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedEnsinoImportarCalendarioRoute,
   AuthenticatedEnsinoImportarPdfSessoesRoute:
     AuthenticatedEnsinoImportarPdfSessoesRoute,
+  AuthenticatedEnsinoImportarPlanosEnsinoRoute:
+    AuthenticatedEnsinoImportarPlanosEnsinoRoute,
   AuthenticatedEnsinoPlanosRoute: AuthenticatedEnsinoPlanosRoute,
   AuthenticatedGestoesCargosRoute: AuthenticatedGestoesCargosRoute,
   AuthenticatedIrmaosIdRoute: AuthenticatedIrmaosIdRoute,
