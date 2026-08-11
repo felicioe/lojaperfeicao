@@ -7,6 +7,7 @@ import {
   salvarOrg,
   alternarAtivoOrg,
   excluirOrg,
+  listarUsoOrgs,
   listarOrgsGraus,
   gerarGrausPadraoOrg,
   criarOrgGrau,
@@ -15,6 +16,7 @@ import {
   removerOrgGrau,
   uploadLogoOrg,
   type Org,
+  type UsoOrg,
 } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -105,6 +107,12 @@ function Orgs() {
     queryFn: () => listarPotencias(),
   });
 
+  const { data: usoOrgs = [] } = useQuery({
+    queryKey: ["orgs_uso"],
+    queryFn: () => listarUsoOrgs(),
+  });
+  const usoPorOrg = new Map(usoOrgs.map((u) => [u.org_id, u]));
+
   const invalidate = () => qc.invalidateQueries({ queryKey: ["orgs_all"] });
 
   const ord = useOrdenacao(orgs, {
@@ -194,11 +202,24 @@ function Orgs() {
     }
   };
 
+  const descreverUso = (uso: UsoOrg | undefined) => {
+    if (!uso) return null;
+    const partes = [
+      uso.irmaos > 0 && `${uso.irmaos} irmão(s) vinculado(s)`,
+      uso.gestoes > 0 && `${uso.gestoes} gestão(ões)`,
+      uso.cobrancas > 0 && `${uso.cobrancas} cobrança(s) SGCAB`,
+      uso.eventos > 0 && `${uso.eventos} evento(s)`,
+      uso.comissoes > 0 && `${uso.comissoes} comissão(ões)`,
+    ].filter(Boolean);
+    return partes.length > 0 ? partes.join(", ") : null;
+  };
+
   const excluir = async (o: Org) => {
     try {
       await excluirOrg({ data: { id: o.id } });
       toast.success("Corpo excluído.");
       invalidate();
+      qc.invalidateQueries({ queryKey: ["orgs_uso"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
     }
@@ -458,14 +479,28 @@ function Orgs() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Excluir "{o.nome}"?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Essa ação não pode ser desfeita. Só é possível excluir corpos sem
-                              irmãos, gestões, cobranças, eventos ou comissões vinculados — se
-                              houver, desative o corpo em vez de excluir.
+                              {(() => {
+                                const usoDesc = descreverUso(usoPorOrg.get(o.id));
+                                return usoDesc ? (
+                                  <>
+                                    Não é possível excluir: este corpo tem {usoDesc}. Desative-o em
+                                    vez de excluir.
+                                  </>
+                                ) : (
+                                  <>
+                                    Essa ação não pode ser desfeita. Nenhum irmão, gestão, cobrança,
+                                    evento ou comissão está vinculado a este corpo.
+                                  </>
+                                );
+                              })()}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => excluir(o)}>
+                            <AlertDialogAction
+                              onClick={() => excluir(o)}
+                              disabled={!!descreverUso(usoPorOrg.get(o.id))}
+                            >
                               Excluir
                             </AlertDialogAction>
                           </AlertDialogFooter>
