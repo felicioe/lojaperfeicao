@@ -112,8 +112,21 @@ function CobrancasSgcabPage() {
     queryKey: ["sgcab_cobrancas", filtro],
     queryFn: () => listarCobrancasSgcab({ data: filtro }),
   });
+  // Totais Pendente/Pago precisam ignorar o filtro de status (senão, com
+  // o padrão "pendente", o card "Pago" sempre mostraria R$ 0,00) — busca
+  // à parte, com os mesmos filtros de corpo/ano/irmão mas sem status.
+  const { data: cobrancasParaTotais = [] } = useQuery({
+    queryKey: ["sgcab_cobrancas_totais", filtro.orgId, filtro.ano, filtro.irmaoId],
+    queryFn: () =>
+      listarCobrancasSgcab({
+        data: { orgId: filtro.orgId, ano: filtro.ano, irmaoId: filtro.irmaoId, status: null },
+      }),
+  });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["sgcab_cobrancas"] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["sgcab_cobrancas"] });
+    qc.invalidateQueries({ queryKey: ["sgcab_cobrancas_totais"] });
+  };
   const ord = useOrdenacao(cobrancas, {
     irmao: (c) => c.irmao_nome,
     corpo: (c) => c.org_nome,
@@ -127,10 +140,10 @@ function CobrancasSgcabPage() {
     ord.itensOrdenados,
   );
 
-  const totalPendente = cobrancas
+  const totalPendente = cobrancasParaTotais
     .filter((c) => c.status === "pendente")
     .reduce((s, c) => s + Number(c.valor), 0);
-  const totalPago = cobrancas
+  const totalPago = cobrancasParaTotais
     .filter((c) => c.status === "pago")
     .reduce((s, c) => s + Number(c.valor), 0);
 

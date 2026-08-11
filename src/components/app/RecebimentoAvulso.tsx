@@ -28,7 +28,10 @@ export const CATEGORIA_LABEL: Record<string, string> = {
   outros: "Outros",
 };
 
-export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string }) {
+export function useMovimentosFiltrados(filtrosIniciais?: {
+  categoria?: string;
+  statusInicial?: "todos" | "pago" | "nao_pago";
+}) {
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [contaId, setContaId] = useState("todas");
@@ -36,8 +39,12 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
   const [categoria, setCategoria] = useState(filtrosIniciais?.categoria ?? "todas");
   const [irmaoId, setIrmaoId] = useState("todos");
   // Padrão "não pago": é o que mais importa acompanhar no dia a dia
-  // (cobrar quem ainda deve) — "Todos"/"Pago" ficam a um clique.
-  const [status, setStatus] = useState<"todos" | "pago" | "nao_pago">("nao_pago");
+  // (cobrar quem ainda deve) — "Todos"/"Pago" ficam a um clique. Telas
+  // como Tronco de Beneficência, onde o lançamento nasce sempre pago,
+  // sobrescrevem via statusInicial pra não ficar com a lista vazia.
+  const [status, setStatus] = useState<"todos" | "pago" | "nao_pago">(
+    filtrosIniciais?.statusInicial ?? "nao_pago",
+  );
 
   const { data: movimentos = [] } = useQuery({
     queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria, irmaoId, status],
