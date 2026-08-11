@@ -14,6 +14,10 @@ const PAPEIS = ["admin"];
 type Modulo = {
   label: string;
   query: string;
+  // Colunas com HTML do RichTextEditor (issue #228) — só relevante pro
+  // export CSV (legível por humano); o JSON de exportarTudo mantém o HTML
+  // cru de propósito, já que é o formato usado como backup pra restore.
+  colunasRicas?: string[];
 };
 
 const MODULOS: Record<string, Modulo> = {
@@ -36,7 +40,8 @@ const MODULOS: Record<string, Modulo> = {
   },
   sessoes: {
     label: "Sessões",
-    query: "SELECT id, data, tipo, grau, observacoes FROM sessoes ORDER BY data DESC",
+    query: "SELECT id, data, tipo, grau, local, observacoes FROM sessoes ORDER BY data DESC",
+    colunasRicas: ["observacoes"],
   },
   presencas: {
     label: "Presenças",
@@ -82,6 +87,22 @@ export const listarModulosExportaveis = createServerFn({ method: "GET" }).handle
   },
 );
 
+// Só pro export CSV (legível por humano) — troca o HTML salvo pelo
+// RichTextEditor por texto simples, já que uma célula de planilha com
+// "<p>Reunião <strong>extraordinária</strong></p>" não serve pra ninguém.
+function textoSimples(html: string): string {
+  return html
+    .replace(/<\/(p|li|div)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .trim();
+}
+
 function paraCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
   const colunas = Object.keys(rows[0]);
@@ -112,7 +133,17 @@ export const exportarModulo = createServerFn({ method: "POST" })
       const data_ = new Date().toISOString().slice(0, 10);
       const conteudo =
         data.formato === "csv"
-          ? paraCsv(rows as Record<string, unknown>[])
+          ? paraCsv(
+              (rows as Record<string, unknown>[]).map((r) => {
+                if (!modulo.colunasRicas) return r;
+                const linha = { ...r };
+                for (const coluna of modulo.colunasRicas) {
+                  if (typeof linha[coluna] === "string")
+                    linha[coluna] = textoSimples(linha[coluna]);
+                }
+                return linha;
+              }),
+            )
           : JSON.stringify(rows, null, 2);
 
       await registrarAuditoria(conn, usuarioIdAtual, "exportar_dados", "exportacao", null, null, {

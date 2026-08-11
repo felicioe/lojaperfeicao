@@ -5,12 +5,8 @@ import { useEffect } from "react";
 import { Bold, Italic, List, ListOrdered, Link as LinkIcon, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-// Classes de tipografia aplicadas tanto no editor (EditorContent) quanto na
-// exibição somente-leitura (RichTextView) — mantém o texto formatado igual
-// nos dois lugares sem depender do plugin @tailwindcss/typography.
-export const RICH_TEXT_CLASSES =
-  "prose-sm max-w-none text-sm [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-primary [&_a]:underline [&_strong]:font-semibold";
+import { normalizarRichText } from "@/lib/rich-text";
+import { RICH_TEXT_CLASSES } from "./rich-text-classes";
 
 type Props = {
   value: string;
@@ -56,7 +52,7 @@ export function RichTextEditor({ value, onChange, disabled }: Props) {
       StarterKit.configure({ heading: false }),
       Link.configure({ openOnClick: false, autolink: true }),
     ],
-    content: value,
+    content: normalizarRichText(value),
     editable: !disabled,
     immediatelyRender: false,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -71,8 +67,9 @@ export function RichTextEditor({ value, onChange, disabled }: Props) {
   });
 
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value, false);
+    const normalizado = normalizarRichText(value);
+    if (editor && normalizado !== editor.getHTML()) {
+      editor.commands.setContent(normalizado, false);
     }
   }, [value, editor]);
 
@@ -84,13 +81,17 @@ export function RichTextEditor({ value, onChange, disabled }: Props) {
 
   const definirLink = () => {
     const atual = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("URL do link:", atual ?? "https://");
-    if (url === null) return;
+    const digitado = window.prompt("URL do link:", atual ?? "https://");
+    if (digitado === null) return;
+    const url = digitado.trim();
     if (url === "") {
       editor.chain().focus().unsetLink().run();
       return;
     }
-    editor.chain().focus().setLink({ href: url }).run();
+    // Sem isso, um domínio digitado sem protocolo ("exemplo.com.br") vira
+    // um link relativo à rota atual do app em vez de externo.
+    const comProtocolo = /^([a-z][a-z0-9+.-]*:|\/)/i.test(url) ? url : `https://${url}`;
+    editor.chain().focus().setLink({ href: comProtocolo }).run();
   };
 
   return (

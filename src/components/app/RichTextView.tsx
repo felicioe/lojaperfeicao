@@ -1,6 +1,7 @@
 import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
-import { RICH_TEXT_CLASSES } from "./RichTextEditor";
+import { normalizarRichText } from "@/lib/rich-text";
+import { RICH_TEXT_CLASSES } from "./rich-text-classes";
 
 // Renderiza HTML salvo pelo RichTextEditor (informações de sessão/evento)
 // já sanitizado — o conteúdo é visto por outros irmãos, então nunca deve
@@ -10,7 +11,7 @@ import { RICH_TEXT_CLASSES } from "./RichTextEditor";
 // jsdom (isomorphic-dompurify) pro bundle do servidor só por causa disso.
 export function RichTextView({ html, className }: { html: string; className?: string }) {
   if (typeof window === "undefined" || !html) return null;
-  const limpo = DOMPurify.sanitize(html, {
+  const limpo = DOMPurify.sanitize(normalizarRichText(html), {
     ALLOWED_TAGS: ["p", "br", "strong", "em", "ul", "ol", "li", "a"],
     ALLOWED_ATTR: ["href", "target", "rel"],
   });
