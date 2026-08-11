@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createRequire } from "node:module";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { PDFParse as PDFParseType } from "pdf-parse";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
@@ -117,10 +119,36 @@ class DOMMatrixPolyfill {
 
 // pdfjs-dist também resolve o worker relativo à URL do próprio módulo
 // bundlado — depois que o Nitro empacota tudo em .output/server/_libs/,
-// esse caminho relativo não existe mais. require.resolve() encontra o
-// arquivo real em node_modules (sobe o diretório a partir de
-// .output/server/, que fica dentro do projeto) e PDFParse.setWorker()
-// aponta pdfjs-dist pra lá.
+// esse caminho relativo não existe mais. A correção anterior usava
+// require.resolve("pdfjs-dist/build/pdf.worker.mjs") pra achar o arquivo
+// via node_modules subindo diretório a partir do módulo atual — funciona
+// em dev (node_modules é irmão do projeto), mas quebra em produção na
+// Hostinger (`Cannot find module 'pdfjs-dist/build/pdf.worker.mjs'`): o
+// Nitro embute o JS do pdfjs-dist inline no bundle (visto em
+// `.output/server/_libs/pdf-parse+pdfjs-dist.mjs`), então não há motivo
+// pro instalador da hospedagem trazer o pacote pdfjs-dist de verdade nos
+// node_modules do servidor publicado — só o arquivo de worker (um script
+// separado, carregado via import() em runtime, nunca importado
+// estaticamente) fica ausente.
+//
+// Por isso o worker vai como asset estático versionado no repo
+// (public/pdf.worker.mjs, copiado de node_modules/pdfjs-dist/build/) —
+// o Nitro sempre publica `public/` como irmão de `server/`,
+// independente de qualquer instalação de node_modules acontecer depois.
+// Sobe os diretórios a partir da URL do próprio módulo (não de
+// process.cwd(), que pode não ser a raiz do app) até achar esse irmão.
+function resolverWorkerAsset(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i++) {
+    const candidato = join(dir, "public", "pdf.worker.mjs");
+    if (existsSync(candidato)) return candidato;
+    const pai = dirname(dir);
+    if (pai === dir) break;
+    dir = pai;
+  }
+  throw new Error("Asset public/pdf.worker.mjs não encontrado.");
+}
+
 let pdfParseCarregado: typeof PDFParseType | undefined;
 export async function carregarPdfParse(): Promise<typeof PDFParseType> {
   if (pdfParseCarregado) return pdfParseCarregado;
@@ -128,8 +156,7 @@ export async function carregarPdfParse(): Promise<typeof PDFParseType> {
     (globalThis as unknown as { DOMMatrix: unknown }).DOMMatrix = DOMMatrixPolyfill;
   }
   const { PDFParse } = await import("pdf-parse");
-  const workerPath = createRequire(import.meta.url).resolve("pdfjs-dist/build/pdf.worker.mjs");
-  PDFParse.setWorker(workerPath);
+  PDFParse.setWorker(resolverWorkerAsset());
   pdfParseCarregado = PDFParse;
   return PDFParse;
 }
