@@ -237,8 +237,12 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
            EXISTS(SELECT 1 FROM recibo_itens WHERE lancamento_id = ?) AS tem_recibo,
            EXISTS(SELECT 1 FROM conciliacao_lancamentos WHERE lancamento_id = ?) AS tem_conciliacao,
            EXISTS(SELECT 1 FROM ofx_lancamentos WHERE lancamento_id = ? AND conciliado = TRUE)
-             AS tem_ofx_legado`,
-        [data.id, data.id, data.id],
+             AS tem_ofx_legado,
+           EXISTS(
+             SELECT 1 FROM lancamentos_contabeis
+             WHERE origem_tipo = 'conta_pagar_baixa' AND origem_id = ?
+           ) AS tem_baixa_conta_pagar`,
+        [data.id, data.id, data.id, data.id],
       );
       if (vinculo.tem_recibo) {
         throw new Error(
@@ -248,6 +252,17 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
       if (vinculo.tem_conciliacao || vinculo.tem_ofx_legado) {
         throw new Error(
           'Este lançamento foi quitado por conciliação bancária — use "Desfazer conciliação" (Conciliação Bancária ou Extrato da Conciliação), não "Desmarcar pago".',
+        );
+      }
+      if (vinculo.tem_baixa_conta_pagar) {
+        // baixar_conta_pagar grava o lançamento contábil (débito Contas a
+        // Pagar / crédito banco) direto em lancamentos_contabeis, sem
+        // nenhuma tabela de vínculo (recibo_itens etc.) — "Desmarcar pago"
+        // reabriria a conta a pagar sem estornar essa contrapartida, e uma
+        // nova baixa depois geraria um SEGUNDO lançamento contábil pro
+        // mesmo pagamento (achado da revisão da metodologia contábil).
+        throw new Error(
+          "Esta conta a pagar foi baixada — desmarcar por aqui deixaria o lançamento contábil da baixa órfão. Não é possível reverter por aqui.",
         );
       }
       if (antes?.parcelado) {
@@ -418,7 +433,9 @@ export const estornarLancamento = createServerFn({ method: "POST" })
       }
 
       const [contabeis] = await conn.query<RowDataPacket[]>(
-        `SELECT id FROM lancamentos_contabeis WHERE origem_id = ? AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso')`,
+        `SELECT id FROM lancamentos_contabeis
+         WHERE origem_id = ?
+           AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso', 'conta_pagar_provisao')`,
         [data.id],
       );
       for (const lc of contabeis) {
