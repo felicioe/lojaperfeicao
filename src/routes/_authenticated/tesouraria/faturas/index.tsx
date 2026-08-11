@@ -174,6 +174,14 @@ function Faturas() {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [openBaixa, setOpenBaixa] = useState(false);
 
+  // Troca de filtro de Irmão precisa limpar a seleção — senão uma fatura
+  // selecionada antes fica escondida (fora do filtro atual) mas continua
+  // valendo pra "Baixar selecionadas", podendo confirmar baixa em algo
+  // que não está mais visível na tela.
+  useEffect(() => {
+    setSelecionadas([]);
+  }, [irmaoFiltroId]);
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["faturas_abertas"] });
     setSelecionadas([]);
