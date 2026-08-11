@@ -93,7 +93,7 @@ function CalendarioPage() {
   const [openNovaSessao, setOpenNovaSessao] = useState(false);
   const [novaSessao, setNovaSessao] = useState<{
     data: string;
-    tipo: "ordinaria" | "magna" | "branca" | "administrativa";
+    tipo: "ordinaria" | "magna" | "branca" | "administrativa" | "iniciacao";
     orgId: string;
     grau: string;
   }>({ data: toISODate(new Date()), tipo: "ordinaria", orgId: "", grau: "" });
