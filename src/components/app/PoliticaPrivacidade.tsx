@@ -1,17 +1,28 @@
+import type { ConfiguracoesLgpd } from "@/lib/backend/configuracoes-lgpd";
+
 // Conteúdo da Política de Privacidade — usado tanto na página pública
 // (/privacidade) quanto na tela de aceite (/aceite-termos). É um modelo
 // genérico alinhado à LGPD (Lei 13.709/2018); antes de publicar oficialmente,
-// revise com um advogado e preencha os dados reais da loja/associação nos
-// campos marcados com [ ].
-export function PoliticaPrivacidadeConteudo() {
+// revise com um advogado. Nome/CNPJ/e-mail do DPO vêm de
+// configuracoes_lgpd (Administração → Dados da Entidade, issue #232) — sem
+// preenchimento, mantém os placeholders "[...]" como aviso.
+export function PoliticaPrivacidadeConteudo({
+  configuracoes,
+}: {
+  configuracoes?: ConfiguracoesLgpd | null;
+}) {
+  const nomeEntidade = configuracoes?.nome_entidade || "[Nome da Loja/Associação]";
+  const cnpj = configuracoes?.cnpj || "[00.000.000/0000-00]";
+  const emailDpo = configuracoes?.email_dpo || "[e-mail do encarregado/DPO ou da secretaria]";
+
   return (
     <div className="space-y-5 text-sm leading-relaxed text-foreground">
       <section>
         <h2 className="mb-1.5 font-semibold">1. Quem trata os seus dados</h2>
         <p>
-          Esta plataforma é operada por <strong>[Nome da Loja/Associação]</strong>, CNPJ{" "}
-          <strong>[00.000.000/0000-00]</strong>, controladora dos dados pessoais tratados aqui, nos
-          termos da Lei Geral de Proteção de Dados (Lei 13.709/2018 — LGPD).
+          Esta plataforma é operada por <strong>{nomeEntidade}</strong>, CNPJ{" "}
+          <strong>{cnpj}</strong>, controladora dos dados pessoais tratados aqui, nos termos da Lei
+          Geral de Proteção de Dados (Lei 13.709/2018 — LGPD).
         </p>
       </section>
 
@@ -81,8 +92,7 @@ export function PoliticaPrivacidadeConteudo() {
       <section>
         <h2 className="mb-1.5 font-semibold">9. Contato</h2>
         <p>
-          Dúvidas ou solicitações sobre seus dados:{" "}
-          <strong>[e-mail do encarregado/DPO ou da secretaria]</strong>.
+          Dúvidas ou solicitações sobre seus dados: <strong>{emailDpo}</strong>.
         </p>
       </section>
     </div>
