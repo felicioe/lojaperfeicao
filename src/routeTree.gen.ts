@@ -67,7 +67,6 @@ import { Route as AuthenticatedRelatoriosFrequenciaRouteImport } from './routes/
 import { Route as AuthenticatedRelatoriosInadimplenciaRouteImport } from './routes/_authenticated/relatorios/inadimplencia'
 import { Route as AuthenticatedRelatoriosInadimplentesRouteImport } from './routes/_authenticated/relatorios/inadimplentes'
 import { Route as AuthenticatedRelatoriosRecebimentosRouteImport } from './routes/_authenticated/relatorios/recebimentos'
-import { Route as AuthenticatedSessoesIndexRouteImport } from './routes/_authenticated/sessoes/index'
 import { Route as AuthenticatedSessoesIdRouteImport } from './routes/_authenticated/sessoes/$id'
 import { Route as AuthenticatedSgcabCobrancasRouteImport } from './routes/_authenticated/sgcab/cobrancas'
 import { Route as AuthenticatedTerceirosIndexRouteImport } from './routes/_authenticated/terceiros/index'
@@ -423,12 +422,6 @@ const AuthenticatedRelatoriosRecebimentosRoute =
     path: '/relatorios/recebimentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedSessoesIndexRoute =
-  AuthenticatedSessoesIndexRouteImport.update({
-    id: '/sessoes/',
-    path: '/sessoes/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedSessoesIdRoute = AuthenticatedSessoesIdRouteImport.update({
   id: '/sessoes/$id',
   path: '/sessoes/$id',
@@ -614,7 +607,6 @@ export interface FileRoutesByFullPath {
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/painel/': typeof AuthenticatedPainelIndexRoute
-  '/sessoes/': typeof AuthenticatedSessoesIndexRoute
   '/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
   '/usuarios/': typeof AuthenticatedUsuariosIndexRoute
@@ -692,7 +684,6 @@ export interface FileRoutesByTo {
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
   '/painel': typeof AuthenticatedPainelIndexRoute
-  '/sessoes': typeof AuthenticatedSessoesIndexRoute
   '/terceiros': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria': typeof AuthenticatedTesourariaIndexRoute
   '/usuarios': typeof AuthenticatedUsuariosIndexRoute
@@ -773,7 +764,6 @@ export interface FileRoutesById {
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/_authenticated/painel/': typeof AuthenticatedPainelIndexRoute
-  '/_authenticated/sessoes/': typeof AuthenticatedSessoesIndexRoute
   '/_authenticated/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/_authenticated/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
   '/_authenticated/usuarios/': typeof AuthenticatedUsuariosIndexRoute
@@ -854,7 +844,6 @@ export interface FileRouteTypes {
     | '/irmaos/'
     | '/orgs/'
     | '/painel/'
-    | '/sessoes/'
     | '/terceiros/'
     | '/tesouraria/'
     | '/usuarios/'
@@ -932,7 +921,6 @@ export interface FileRouteTypes {
     | '/irmaos'
     | '/orgs'
     | '/painel'
-    | '/sessoes'
     | '/terceiros'
     | '/tesouraria'
     | '/usuarios'
@@ -1012,7 +1000,6 @@ export interface FileRouteTypes {
     | '/_authenticated/irmaos/'
     | '/_authenticated/orgs/'
     | '/_authenticated/painel/'
-    | '/_authenticated/sessoes/'
     | '/_authenticated/terceiros/'
     | '/_authenticated/tesouraria/'
     | '/_authenticated/usuarios/'
@@ -1440,13 +1427,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRelatoriosRecebimentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/sessoes/': {
-      id: '/_authenticated/sessoes/'
-      path: '/sessoes'
-      fullPath: '/sessoes/'
-      preLoaderRoute: typeof AuthenticatedSessoesIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/sessoes/$id': {
       id: '/_authenticated/sessoes/$id'
       path: '/sessoes/$id'
@@ -1669,7 +1649,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIntersticoIndexRoute: typeof AuthenticatedIntersticoIndexRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
-  AuthenticatedSessoesIndexRoute: typeof AuthenticatedSessoesIndexRoute
   AuthenticatedTerceirosIndexRoute: typeof AuthenticatedTerceirosIndexRoute
   AuthenticatedTesourariaIndexRoute: typeof AuthenticatedTesourariaIndexRoute
   AuthenticatedUsuariosIndexRoute: typeof AuthenticatedUsuariosIndexRoute
@@ -1761,7 +1740,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIntersticoIndexRoute: AuthenticatedIntersticoIndexRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
   AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,
-  AuthenticatedSessoesIndexRoute: AuthenticatedSessoesIndexRoute,
   AuthenticatedTerceirosIndexRoute: AuthenticatedTerceirosIndexRoute,
   AuthenticatedTesourariaIndexRoute: AuthenticatedTesourariaIndexRoute,
   AuthenticatedUsuariosIndexRoute: AuthenticatedUsuariosIndexRoute,

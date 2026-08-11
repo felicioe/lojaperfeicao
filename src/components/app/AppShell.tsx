@@ -332,7 +332,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       icon: CalendarRange,
       items: [
         { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
-        { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
         { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
         {

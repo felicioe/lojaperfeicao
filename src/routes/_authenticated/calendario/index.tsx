@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   addMonths,
@@ -15,13 +15,15 @@ import {
   subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { listarSessoes, type Sessao } from "@/lib/backend/sessoes";
+import { listarSessoes, criarSessao, type Sessao } from "@/lib/backend/sessoes";
 import { listarEventos, type Evento } from "@/lib/backend/eventos";
 import { listarFaturasAbertas, type FaturaAberta } from "@/lib/backend/tesouraria-faturas";
 import { listarOrgs, listarOrgsGraus } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -35,10 +37,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { TIPO_SESSAO_LABEL, fmtDate } from "@/lib/format";
+import { TIPO_SESSAO_LABEL, fmtDate, toISODate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
-import { ChevronLeft, ChevronRight, Download, CalendarDays } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronLeft, ChevronRight, Download, CalendarDays, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/calendario/")({
   head: () => ({
@@ -75,10 +79,19 @@ const LABEL_TIPO: Record<TipoItem, string> = {
 
 function CalendarioPage() {
   const can = useCan();
+  const qc = useQueryClient();
   const [mesAtual, setMesAtual] = useState(() => new Date());
   const [orgId, setOrgId] = useState<string>("");
   const [grau, setGrau] = useState<string>("");
   const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
+  const [openNovaSessao, setOpenNovaSessao] = useState(false);
+  const [novaSessao, setNovaSessao] = useState<{
+    data: string;
+    tipo: "ordinaria" | "magna" | "branca" | "administrativa";
+    orgId: string;
+    grau: string;
+  }>({ data: toISODate(new Date()), tipo: "ordinaria", orgId: "", grau: "" });
+  const [criandoSessao, setCriandoSessao] = useState(false);
 
   const { data: sessoes = [] } = useQuery({
     queryKey: ["sessoes"],
@@ -99,6 +112,35 @@ function CalendarioPage() {
     queryFn: () => listarOrgsGraus({ data: { orgId } }),
     enabled: !!orgId,
   });
+  const { data: grausNovaSessao = [] } = useQuery({
+    queryKey: ["orgs_graus", novaSessao.orgId],
+    queryFn: () => listarOrgsGraus({ data: { orgId: novaSessao.orgId } }),
+    enabled: !!novaSessao.orgId,
+  });
+
+  const criarNovaSessao = async () => {
+    const grauNum = Number(novaSessao.grau);
+    if (!novaSessao.orgId || !grauNum) return toast.error("Selecione o corpo e o grau.");
+    setCriandoSessao(true);
+    try {
+      await criarSessao({
+        data: {
+          data: novaSessao.data,
+          tipo: novaSessao.tipo,
+          orgId: novaSessao.orgId,
+          grau: grauNum,
+        },
+      });
+      toast.success("Sessão criada.");
+      qc.invalidateQueries({ queryKey: ["sessoes"] });
+      setOpenNovaSessao(false);
+      setNovaSessao({ data: toISODate(new Date()), tipo: "ordinaria", orgId: "", grau: "" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    } finally {
+      setCriandoSessao(false);
+    }
+  };
 
   // Vencimentos de fatura não têm corpo/grau (são por irmão) — o filtro
   // de corpo/grau só se aplica a sessões (têm os dois) e eventos (só têm
@@ -188,9 +230,104 @@ function CalendarioPage() {
         title="Calendário"
         description="Sessões, eventos e vencimentos num só lugar."
         actions={
-          <Button variant="outline" onClick={exportarIcs}>
-            <Download className="mr-1.5 h-4 w-4" /> Exportar .ics
-          </Button>
+          <div className="flex gap-2">
+            {can.isSecretario && (
+              <Dialog open={openNovaSessao} onOpenChange={setOpenNovaSessao}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-1.5 h-4 w-4" /> Nova sessão
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Nova sessão</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-3">
+                    <div>
+                      <Label>Data</Label>
+                      <Input
+                        type="date"
+                        value={novaSessao.data}
+                        onChange={(e) => setNovaSessao({ ...novaSessao, data: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Tipo</Label>
+                      <Select
+                        value={novaSessao.tipo}
+                        onValueChange={(v) =>
+                          setNovaSessao({ ...novaSessao, tipo: v as typeof novaSessao.tipo })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(TIPO_SESSAO_LABEL).map(([k, v]) => (
+                            <SelectItem key={k} value={k}>
+                              {v}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Corpo</Label>
+                      <Select
+                        value={novaSessao.orgId}
+                        onValueChange={(v) => setNovaSessao({ ...novaSessao, orgId: v, grau: "" })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {orgs.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>
+                              {o.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Grau</Label>
+                      {grausNovaSessao.length > 0 ? (
+                        <Select
+                          value={novaSessao.grau}
+                          onValueChange={(v) => setNovaSessao({ ...novaSessao, grau: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Grau…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {grausNovaSessao.map((g) => (
+                              <SelectItem key={g.id} value={String(g.grau)}>
+                                {g.grau} — {g.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          type="number"
+                          min={1}
+                          disabled={!novaSessao.orgId}
+                          value={novaSessao.grau}
+                          onChange={(e) => setNovaSessao({ ...novaSessao, grau: e.target.value })}
+                        />
+                      )}
+                    </div>
+                    <Button onClick={criarNovaSessao} disabled={criandoSessao}>
+                      Criar sessão
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+            <Button variant="outline" onClick={exportarIcs}>
+              <Download className="mr-1.5 h-4 w-4" /> Exportar .ics
+            </Button>
+          </div>
         }
       />
 
