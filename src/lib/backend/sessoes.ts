@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original (mysql/migrations/0002_cadastros.sql): SELECT livre para
 // autenticados (sessoes e presencas); escrita admin OU secretario.
@@ -15,6 +16,7 @@ export type Sessao = {
   org_id: string | null;
   org_nome: string | null;
   nome_grau: string | null;
+  local: string | null;
   observacoes: string | null;
 };
 
@@ -52,7 +54,7 @@ export const listarMembrosOrg = createServerFn({ method: "GET" })
   });
 
 const SESSAO_SELECT = `
-  SELECT s.id, s.data, s.tipo, s.grau, s.org_id, o.nome AS org_nome, og.nome AS nome_grau, s.observacoes
+  SELECT s.id, s.data, s.tipo, s.grau, s.org_id, o.nome AS org_nome, og.nome AS nome_grau, s.local, s.observacoes
   FROM sessoes s
   LEFT JOIN orgs o ON o.id = s.org_id
   LEFT JOIN orgs_graus og ON og.org_id = s.org_id AND og.grau = s.grau
@@ -110,6 +112,7 @@ const novaSessaoSchema = z.object({
   tipo: z.enum(["ordinaria", "magna", "branca", "administrativa", "iniciacao"]),
   orgId: z.string().uuid(),
   grau: z.number().int().positive(),
+  local: z.string().nullable().optional(),
   observacoes: z.string().nullable().optional(),
 });
 
@@ -126,9 +129,34 @@ export const criarSessao = createServerFn({ method: "POST" })
         throw new Error(`Grau fora da faixa deste corpo (${org.grau_min}–${org.grau_max}).`);
       }
       await conn.query(
-        "INSERT INTO sessoes (data, tipo, org_id, grau, observacoes) VALUES (?, ?, ?, ?, ?)",
-        [data.data, data.tipo, data.orgId, data.grau, data.observacoes ?? null],
+        "INSERT INTO sessoes (data, tipo, org_id, grau, local, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
+        [data.data, data.tipo, data.orgId, data.grau, data.local ?? null, data.observacoes ?? null],
       );
+    });
+  });
+
+const detalhesSessaoSchema = z.object({
+  id: z.string().uuid(),
+  local: z.string().nullable().optional(),
+  observacoes: z.string().nullable().optional(),
+});
+
+// Edição do local/informações de uma sessão já cadastrada — separado de
+// criarSessao porque é o único caso de edição de sessão até agora (data,
+// tipo, corpo e grau continuam imutáveis pós-criação).
+export const atualizarDetalhesSessao = createServerFn({ method: "POST" })
+  .validator((d: unknown) => detalhesSessaoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      await conn.query("UPDATE sessoes SET local = ?, observacoes = ? WHERE id = ?", [
+        data.local ?? null,
+        data.observacoes ?? null,
+        data.id,
+      ]);
+      await registrarAuditoria(conn, usuarioIdAtual, "atualizar", "sessao", data.id, null, {
+        local: data.local ?? null,
+        observacoes: data.observacoes ?? null,
+      });
     });
   });
 

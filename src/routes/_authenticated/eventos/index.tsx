@@ -17,8 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RichTextEditor } from "@/components/app/RichTextEditor";
+import { RichTextView } from "@/components/app/RichTextView";
 import {
   Select,
   SelectContent,
@@ -63,6 +64,7 @@ const FORM_VAZIO = {
   titulo: "",
   data: "",
   hora: "",
+  local: "",
   descricao: "",
   publico: "todos" as Evento["publico"],
   orgId: "" as string,
@@ -92,6 +94,7 @@ function EventosPage() {
           titulo: form.titulo.trim(),
           data: form.data,
           hora: form.hora || null,
+          local: form.local || null,
           descricao: form.descricao || null,
           publico: form.publico,
           orgId: form.publico === "org" ? form.orgId || null : null,
@@ -112,6 +115,7 @@ function EventosPage() {
       titulo: e.titulo,
       data: e.data,
       hora: e.hora ? e.hora.slice(0, 5) : "",
+      local: e.local ?? "",
       descricao: e.descricao ?? "",
       publico: e.publico,
       orgId: e.org_id ?? "",
@@ -174,11 +178,19 @@ function EventosPage() {
                 onChange={(e) => setForm({ ...form, hora: e.target.value })}
               />
             </div>
+            <div>
+              <Label>Local</Label>
+              <Input
+                placeholder="Endereço ou local do evento"
+                value={form.local}
+                onChange={(e) => setForm({ ...form, local: e.target.value })}
+              />
+            </div>
             <div className="md:col-span-4">
               <Label>Descrição</Label>
-              <Textarea
+              <RichTextEditor
                 value={form.descricao}
-                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                onChange={(html) => setForm({ ...form, descricao: html })}
               />
             </div>
             <div>
@@ -312,6 +324,12 @@ function EventosPage() {
                   {expandido === e.id && (
                     <TableRow>
                       <TableCell colSpan={6} className="bg-muted/30">
+                        {(e.local || e.descricao) && (
+                          <div className="mb-3 space-y-1">
+                            {e.local && <p className="text-sm font-medium">{e.local}</p>}
+                            {e.descricao && <RichTextView html={e.descricao} />}
+                          </div>
+                        )}
                         <RsvpPanel eventoId={e.id} />
                       </TableCell>
                     </TableRow>
