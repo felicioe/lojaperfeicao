@@ -36,7 +36,9 @@ function Tronco() {
   const qc = useQueryClient();
   const podeEditar = can.canManageFinancas;
   const [open, setOpen] = useState(false);
-  const f = useMovimentosFiltrados({ categoria: "tronco" });
+  // Lançamento de tronco nasce sempre pago=TRUE (registrar_recebimento_avulso) —
+  // "não pago" (padrão do hook) deixaria essa tela permanentemente vazia.
+  const f = useMovimentosFiltrados({ categoria: "tronco", statusInicial: "todos" });
 
   const { data: contas = [] } = useQuery({
     queryKey: ["contas_financeiras_ativas"],

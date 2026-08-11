@@ -45,6 +45,8 @@ const filtrosSchema = z.object({
   contaId: z.string().uuid().nullable().optional(),
   tipo: z.enum(["entrada", "saida", "transferencia"]).nullable().optional(),
   categoria: z.string().nullable().optional(),
+  irmaoId: z.string().uuid().nullable().optional(),
+  pago: z.boolean().nullable().optional(),
   limite: z.number().int().positive().max(1000).optional(),
 });
 
@@ -79,6 +81,14 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         condicoes.push("l.categoria_recebimento = ?");
         valores.push(data.categoria);
       }
+      if (data.irmaoId) {
+        condicoes.push("l.irmao_id = ?");
+        valores.push(data.irmaoId);
+      }
+      if (data.pago !== null && data.pago !== undefined) {
+        condicoes.push("l.pago = ?");
+        valores.push(data.pago);
+      }
       const where = condicoes.length > 0 ? `WHERE ${condicoes.join(" AND ")}` : "";
       const limite = data.limite ?? 200;
 
@@ -97,7 +107,11 @@ export const listarLancamentos = createServerFn({ method: "GET" })
          LIMIT ?`,
         [...valores, limite],
       );
-      return rows.map((r) => ({
+      // DESC+LIMIT busca os mais recentes (sem filtro de data essa tela
+      // puxa o histórico todo — inverter a ordem sem isso faria o cap
+      // esconder justamente os lançamentos mais novos); inverte só na
+      // saída pra exibir sempre do mais antigo pro mais novo.
+      return rows.reverse().map((r) => ({
         id: r.id,
         data: r.data,
         data_vencimento: r.data_vencimento,
@@ -215,7 +229,7 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT pago, data_pagamento FROM lancamentos WHERE id = ?",
+        "SELECT pago, data_pagamento, parcelado FROM lancamentos WHERE id = ?",
         [data.id],
       );
       const [[vinculo]] = await conn.query<RowDataPacket[]>(
@@ -223,8 +237,12 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
            EXISTS(SELECT 1 FROM recibo_itens WHERE lancamento_id = ?) AS tem_recibo,
            EXISTS(SELECT 1 FROM conciliacao_lancamentos WHERE lancamento_id = ?) AS tem_conciliacao,
            EXISTS(SELECT 1 FROM ofx_lancamentos WHERE lancamento_id = ? AND conciliado = TRUE)
-             AS tem_ofx_legado`,
-        [data.id, data.id, data.id],
+             AS tem_ofx_legado,
+           EXISTS(
+             SELECT 1 FROM lancamentos_contabeis
+             WHERE origem_tipo = 'conta_pagar_baixa' AND origem_id = ?
+           ) AS tem_baixa_conta_pagar`,
+        [data.id, data.id, data.id, data.id],
       );
       if (vinculo.tem_recibo) {
         throw new Error(
@@ -234,6 +252,26 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
       if (vinculo.tem_conciliacao || vinculo.tem_ofx_legado) {
         throw new Error(
           'Este lançamento foi quitado por conciliação bancária — use "Desfazer conciliação" (Conciliação Bancária ou Extrato da Conciliação), não "Desmarcar pago".',
+        );
+      }
+      if (vinculo.tem_baixa_conta_pagar) {
+        // baixar_conta_pagar grava o lançamento contábil (débito Contas a
+        // Pagar / crédito banco) direto em lancamentos_contabeis, sem
+        // nenhuma tabela de vínculo (recibo_itens etc.) — "Desmarcar pago"
+        // reabriria a conta a pagar sem estornar essa contrapartida, e uma
+        // nova baixa depois geraria um SEGUNDO lançamento contábil pro
+        // mesmo pagamento (achado da revisão da metodologia contábil).
+        throw new Error(
+          "Esta conta a pagar foi baixada — desmarcar por aqui deixaria o lançamento contábil da baixa órfão. Não é possível reverter por aqui.",
+        );
+      }
+      if (antes?.parcelado) {
+        // criar_parcelamento marca a fatura original como pago/parcelado
+        // sem recibo/conciliação — reabri-la aqui deixaria a fatura original
+        // em aberto de novo enquanto as parcelas geradas pelo acordo
+        // continuam existindo e cobráveis, cobrando o irmão em dobro.
+        throw new Error(
+          "Esta fatura foi absorvida por um acordo de parcelamento — não é possível desmarcar isoladamente.",
         );
       }
       await conn.query(
@@ -395,7 +433,9 @@ export const estornarLancamento = createServerFn({ method: "POST" })
       }
 
       const [contabeis] = await conn.query<RowDataPacket[]>(
-        `SELECT id FROM lancamentos_contabeis WHERE origem_id = ? AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso')`,
+        `SELECT id FROM lancamentos_contabeis
+         WHERE origem_id = ?
+           AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso', 'conta_pagar_provisao')`,
         [data.id],
       );
       for (const lc of contabeis) {

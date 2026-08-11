@@ -9,6 +9,7 @@ import {
   type SgcabCobranca,
 } from "@/lib/backend/sgcab";
 import { listarOrgs } from "@/lib/backend/orgs";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card, CardContent } from "@/components/ui/card";
@@ -89,22 +90,43 @@ function CobrancasSgcabPage() {
   const qc = useQueryClient();
   const [orgId, setOrgId] = useState<string>("todos");
   const [ano, setAno] = useState<number>(ANO_ATUAL);
-  const [status, setStatus] = useState<string>("todos");
+  // Padrão "pendente": é quem ainda deve, o que mais importa cobrar —
+  // mesma lógica de "não pago" aplicada nas outras telas do sistema.
+  const [status, setStatus] = useState<string>("pendente");
+  const [irmaoId, setIrmaoId] = useState<string>("todos");
 
   const { data: orgs = [] } = useQuery({ queryKey: ["orgs_all"], queryFn: () => listarOrgs() });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
 
   const filtro = {
     orgId: orgId === "todos" ? null : orgId,
     ano: ano || null,
     status: status === "todos" ? null : (status as SgcabCobranca["status"]),
+    irmaoId: irmaoId === "todos" ? null : irmaoId,
   };
 
   const { data: cobrancas = [] } = useQuery({
     queryKey: ["sgcab_cobrancas", filtro],
     queryFn: () => listarCobrancasSgcab({ data: filtro }),
   });
+  // Totais Pendente/Pago precisam ignorar o filtro de status (senão, com
+  // o padrão "pendente", o card "Pago" sempre mostraria R$ 0,00) — busca
+  // à parte, com os mesmos filtros de corpo/ano/irmão mas sem status.
+  const { data: cobrancasParaTotais = [] } = useQuery({
+    queryKey: ["sgcab_cobrancas_totais", filtro.orgId, filtro.ano, filtro.irmaoId],
+    queryFn: () =>
+      listarCobrancasSgcab({
+        data: { orgId: filtro.orgId, ano: filtro.ano, irmaoId: filtro.irmaoId, status: null },
+      }),
+  });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["sgcab_cobrancas"] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["sgcab_cobrancas"] });
+    qc.invalidateQueries({ queryKey: ["sgcab_cobrancas_totais"] });
+  };
   const ord = useOrdenacao(cobrancas, {
     irmao: (c) => c.irmao_nome,
     corpo: (c) => c.org_nome,
@@ -118,10 +140,10 @@ function CobrancasSgcabPage() {
     ord.itensOrdenados,
   );
 
-  const totalPendente = cobrancas
+  const totalPendente = cobrancasParaTotais
     .filter((c) => c.status === "pendente")
     .reduce((s, c) => s + Number(c.valor), 0);
-  const totalPago = cobrancas
+  const totalPago = cobrancasParaTotais
     .filter((c) => c.status === "pago")
     .reduce((s, c) => s + Number(c.valor), 0);
 
@@ -133,7 +155,7 @@ function CobrancasSgcabPage() {
       />
 
       <Card className="mb-4">
-        <CardContent className="grid gap-3 pt-6 md:grid-cols-4">
+        <CardContent className="grid gap-3 pt-6 md:grid-cols-5">
           <div>
             <Label>Corpo maçônico</Label>
             <Select value={orgId} onValueChange={setOrgId}>
@@ -166,6 +188,22 @@ function CobrancasSgcabPage() {
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="pago">Pago</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Irmão</Label>
+            <Select value={irmaoId} onValueChange={setIrmaoId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {irmaos.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>
+                    {i.nome_civil}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

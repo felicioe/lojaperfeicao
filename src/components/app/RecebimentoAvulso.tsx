@@ -28,15 +28,26 @@ export const CATEGORIA_LABEL: Record<string, string> = {
   outros: "Outros",
 };
 
-export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string }) {
+export function useMovimentosFiltrados(filtrosIniciais?: {
+  categoria?: string;
+  statusInicial?: "todos" | "pago" | "nao_pago";
+}) {
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [contaId, setContaId] = useState("todas");
   const [tipo, setTipo] = useState("todos");
   const [categoria, setCategoria] = useState(filtrosIniciais?.categoria ?? "todas");
+  const [irmaoId, setIrmaoId] = useState("todos");
+  // Padrão "não pago": é o que mais importa acompanhar no dia a dia
+  // (cobrar quem ainda deve) — "Todos"/"Pago" ficam a um clique. Telas
+  // como Tronco de Beneficência, onde o lançamento nasce sempre pago,
+  // sobrescrevem via statusInicial pra não ficar com a lista vazia.
+  const [status, setStatus] = useState<"todos" | "pago" | "nao_pago">(
+    filtrosIniciais?.statusInicial ?? "nao_pago",
+  );
 
   const { data: movimentos = [] } = useQuery({
-    queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria],
+    queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria, irmaoId, status],
     queryFn: () =>
       listarLancamentos({
         data: {
@@ -45,6 +56,8 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
           contaId: contaId !== "todas" ? contaId : null,
           tipo: tipo !== "todos" ? (tipo as "entrada" | "saida" | "transferencia") : null,
           categoria: categoria !== "todas" ? categoria : null,
+          irmaoId: irmaoId !== "todos" ? irmaoId : null,
+          pago: status === "todos" ? null : status === "pago",
           limite: 500,
         },
       }),
@@ -62,6 +75,10 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
     setTipo,
     categoria,
     setCategoria,
+    irmaoId,
+    setIrmaoId,
+    status,
+    setStatus,
   };
 }
 

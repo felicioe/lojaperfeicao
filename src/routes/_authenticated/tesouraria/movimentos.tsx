@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
+import { listarLancamentos } from "@/lib/backend/tesouraria-lancamentos";
 import { AcoesLancamento } from "@/components/app/LancamentoAcoes";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -59,8 +61,15 @@ function Movimentos() {
     queryKey: ["planos_receita"],
     queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "receita" } }),
   });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
+    qc.invalidateQueries({ queryKey: ["movimentos_financeiros_totais"] });
+  };
   const ord = useOrdenacao(f.movimentos, {
     emissao: (m) => m.data,
     vencimento: (m) => m.data_vencimento,
@@ -72,10 +81,39 @@ function Movimentos() {
   });
   const movPag = usePaginacao(ord.itensOrdenados);
 
-  const totalEntradas = f.movimentos
+  // Total entradas/saídas precisa ignorar o filtro de Status (senão, com
+  // o padrão "Não pago", os cards mostrariam só o que ainda está em
+  // aberto como se fosse o total movimentado — mesmo problema já
+  // corrigido nos cards de Cobranças SGCAB). Busca à parte, com os
+  // mesmos filtros de data/conta/tipo/categoria/irmão mas sem status.
+  const { data: movimentosParaTotais = [] } = useQuery({
+    queryKey: [
+      "movimentos_financeiros_totais",
+      f.de,
+      f.ate,
+      f.contaId,
+      f.tipo,
+      f.categoria,
+      f.irmaoId,
+    ],
+    queryFn: () =>
+      listarLancamentos({
+        data: {
+          de: f.de || null,
+          ate: f.ate || null,
+          contaId: f.contaId !== "todas" ? f.contaId : null,
+          tipo: f.tipo !== "todos" ? (f.tipo as "entrada" | "saida" | "transferencia") : null,
+          categoria: f.categoria !== "todas" ? f.categoria : null,
+          irmaoId: f.irmaoId !== "todos" ? f.irmaoId : null,
+          pago: null,
+          limite: 500,
+        },
+      }),
+  });
+  const totalEntradas = movimentosParaTotais
     .filter((m) => m.tipo === "entrada")
     .reduce((s, m) => s + Number(m.valor), 0);
-  const totalSaidas = f.movimentos
+  const totalSaidas = movimentosParaTotais
     .filter((m) => m.tipo === "saida")
     .reduce((s, m) => s + Number(m.valor), 0);
 
@@ -115,7 +153,7 @@ function Movimentos() {
         </Card>
       </div>
 
-      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-5">
+      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4 lg:grid-cols-7">
         <div>
           <Label className="text-xs">De</Label>
           <Input type="date" value={f.de} onChange={(e) => f.setDe(e.target.value)} />
@@ -167,6 +205,38 @@ function Movimentos() {
                   {l}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Irmão</Label>
+          <Select value={f.irmaoId} onValueChange={f.setIrmaoId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Status</Label>
+          <Select
+            value={f.status}
+            onValueChange={(v) => f.setStatus(v as "todos" | "pago" | "nao_pago")}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nao_pago">Não pago</SelectItem>
+              <SelectItem value="pago">Pago</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
             </SelectContent>
           </Select>
         </div>
