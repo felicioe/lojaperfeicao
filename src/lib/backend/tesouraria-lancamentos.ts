@@ -215,7 +215,7 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT pago, data_pagamento FROM lancamentos WHERE id = ?",
+        "SELECT pago, data_pagamento, parcelado FROM lancamentos WHERE id = ?",
         [data.id],
       );
       const [[vinculo]] = await conn.query<RowDataPacket[]>(
@@ -234,6 +234,15 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
       if (vinculo.tem_conciliacao || vinculo.tem_ofx_legado) {
         throw new Error(
           'Este lançamento foi quitado por conciliação bancária — use "Desfazer conciliação" (Conciliação Bancária ou Extrato da Conciliação), não "Desmarcar pago".',
+        );
+      }
+      if (antes?.parcelado) {
+        // criar_parcelamento marca a fatura original como pago/parcelado
+        // sem recibo/conciliação — reabri-la aqui deixaria a fatura original
+        // em aberto de novo enquanto as parcelas geradas pelo acordo
+        // continuam existindo e cobráveis, cobrando o irmão em dobro.
+        throw new Error(
+          "Esta fatura foi absorvida por um acordo de parcelamento — não é possível desmarcar isoladamente.",
         );
       }
       await conn.query(

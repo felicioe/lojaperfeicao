@@ -50,10 +50,13 @@ const TIPO_LABEL: Record<string, string> = {
   transferencia: "Transferência",
 };
 
-const hoje = new Date().toISOString().slice(0, 10);
-
 function diasAtraso(vencimento: string | null): number {
   if (!vencimento) return 0;
+  // Calculado a cada chamada (não guardado em módulo) — a tela é um SPA
+  // que pode ficar aberta de um dia pro outro sem reload, e "hoje" fixo no
+  // load do bundle deixaria uma fatura vencida ontem à noite ainda
+  // aparecendo como "A vencer" hoje de manhã.
+  const hoje = new Date().toISOString().slice(0, 10);
   const ms = new Date(hoje).getTime() - new Date(vencimento).getTime();
   return Math.max(0, Math.round(ms / 86_400_000));
 }
