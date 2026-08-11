@@ -1,18 +1,26 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   obterSessao,
   listarPresencas,
   listarMembrosOrg,
   listarResponsaveisSessoes,
   togglePresenca as togglePresencaFn,
+  atualizarDetalhesSessao,
 } from "@/lib/backend/sessoes";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/app/RichTextEditor";
+import { RichTextView } from "@/components/app/RichTextView";
 import { TIPO_SESSAO_LABEL, fmtDate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/sessoes/$id")({
   head: () => ({ meta: [{ title: "Frequência da Sessão — Gestão Maçônica" }] }),
@@ -50,6 +58,33 @@ function SessaoDetail() {
   });
   const responsaveisDaSessao = (responsaveis.data ?? []).filter((r) => r.sessao_id === id);
 
+  const [editandoDetalhes, setEditandoDetalhes] = useState(false);
+  const [salvandoDetalhes, setSalvandoDetalhes] = useState(false);
+  const [rascunhoLocal, setRascunhoLocal] = useState("");
+  const [rascunhoObservacoes, setRascunhoObservacoes] = useState("");
+
+  const abrirEdicaoDetalhes = () => {
+    setRascunhoLocal(s?.local ?? "");
+    setRascunhoObservacoes(s?.observacoes ?? "");
+    setEditandoDetalhes(true);
+  };
+
+  const salvarDetalhes = async () => {
+    setSalvandoDetalhes(true);
+    try {
+      await atualizarDetalhesSessao({
+        data: { id, local: rascunhoLocal || null, observacoes: rascunhoObservacoes || null },
+      });
+      qc.invalidateQueries({ queryKey: ["sessao", id] });
+      setEditandoDetalhes(false);
+      toast.success("Informações da sessão atualizadas.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSalvandoDetalhes(false);
+    }
+  };
+
   const map = new Map(presencas.data?.map((p) => [p.irmao_id, p]) ?? []);
 
   const togglePresenca = async (irmaoId: string, presente: boolean) => {
@@ -74,6 +109,55 @@ function SessaoDetail() {
             : ""
         }
       />
+      {s && (
+        <Card className="mb-4">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Informações da sessão</CardTitle>
+            {can.isSecretario && !editandoDetalhes && (
+              <Button variant="ghost" size="sm" onClick={abrirEdicaoDetalhes}>
+                <Pencil className="mr-1 h-4 w-4" /> Editar
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {editandoDetalhes ? (
+              <>
+                <div>
+                  <Label>Local</Label>
+                  <Input
+                    placeholder="Endereço ou local da sessão"
+                    value={rascunhoLocal}
+                    onChange={(e) => setRascunhoLocal(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Informações</Label>
+                  <RichTextEditor value={rascunhoObservacoes} onChange={setRascunhoObservacoes} />
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={salvarDetalhes} disabled={salvandoDetalhes}>
+                    Salvar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditandoDetalhes(false)}
+                    disabled={salvandoDetalhes}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </>
+            ) : s.local || s.observacoes ? (
+              <>
+                {s.local && <p className="text-sm font-medium">{s.local}</p>}
+                {s.observacoes && <RichTextView html={s.observacoes} />}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma informação adicional.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
       {responsaveisDaSessao.length > 0 && (
         <Card className="mb-4">
           <CardHeader>

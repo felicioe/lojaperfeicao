@@ -25,6 +25,7 @@ import { listarEventos, type Evento } from "@/lib/backend/eventos";
 import { listarFaturasAbertas, type FaturaAberta } from "@/lib/backend/tesouraria-faturas";
 import { listarOrgs, listarOrgsGraus } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
+import { RichTextEditor } from "@/components/app/RichTextEditor";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -96,7 +97,16 @@ function CalendarioPage() {
     tipo: "ordinaria" | "magna" | "branca" | "administrativa" | "iniciacao";
     orgId: string;
     grau: string;
-  }>({ data: toISODate(new Date()), tipo: "ordinaria", orgId: "", grau: "" });
+    local: string;
+    observacoes: string;
+  }>({
+    data: toISODate(new Date()),
+    tipo: "ordinaria",
+    orgId: "",
+    grau: "",
+    local: "",
+    observacoes: "",
+  });
   const [criandoSessao, setCriandoSessao] = useState(false);
 
   const { data: sessoes = [] } = useQuery({
@@ -139,12 +149,21 @@ function CalendarioPage() {
           tipo: novaSessao.tipo,
           orgId: novaSessao.orgId,
           grau: grauNum,
+          local: novaSessao.local || null,
+          observacoes: novaSessao.observacoes || null,
         },
       });
       toast.success("Sessão criada.");
       qc.invalidateQueries({ queryKey: ["sessoes"] });
       setOpenNovaSessao(false);
-      setNovaSessao({ data: toISODate(new Date()), tipo: "ordinaria", orgId: "", grau: "" });
+      setNovaSessao({
+        data: toISODate(new Date()),
+        tipo: "ordinaria",
+        orgId: "",
+        grau: "",
+        local: "",
+        observacoes: "",
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar.");
     } finally {
@@ -327,6 +346,21 @@ function CalendarioPage() {
                           onChange={(e) => setNovaSessao({ ...novaSessao, grau: e.target.value })}
                         />
                       )}
+                    </div>
+                    <div>
+                      <Label>Local</Label>
+                      <Input
+                        placeholder="Endereço ou local da sessão"
+                        value={novaSessao.local}
+                        onChange={(e) => setNovaSessao({ ...novaSessao, local: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Informações</Label>
+                      <RichTextEditor
+                        value={novaSessao.observacoes}
+                        onChange={(html) => setNovaSessao({ ...novaSessao, observacoes: html })}
+                      />
                     </div>
                     <Button onClick={criarNovaSessao} disabled={criandoSessao}>
                       Criar sessão
