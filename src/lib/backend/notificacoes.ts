@@ -13,7 +13,12 @@ import { comSessao, comPapel } from "./authz";
 export const PAPEIS_NOTIFICACOES = ["admin", "secretario", "tesoureiro"];
 
 export type NotificacaoItem = {
-  tipo: "aniversario" | "fatura_vencida" | "recorrente_pendente" | "interstico_completo";
+  tipo:
+    | "aniversario"
+    | "fatura_vencida"
+    | "recorrente_pendente"
+    | "interstico_completo"
+    | "peca_pendente_aprovacao";
   chave: string;
   titulo: string;
   mensagem: string;
@@ -94,6 +99,23 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
       chave: `interstico_completo:${irmao.id}:${irmao.grau_atual}`,
       titulo: "Interstício completo",
       mensagem: `${irmao.nome_civil} completou o interstício mínimo do grau ${irmao.grau_atual} (${irmao.nome_grau}) — já pode ser elevado.`,
+    });
+  }
+
+  // Peça de arquitetura pendente de aprovação (#224) — chave estável (sem
+  // data), então só dispara uma vez por peça enquanto ela ficar em análise;
+  // se for aprovada/rejeitada e nunca mais entrar nesse estado, não repete.
+  const [pecasPendentes] = await conn.query<RowDataPacket[]>(
+    `SELECT pa.id, pa.titulo, i.nome_civil AS autor_nome
+     FROM pecas_arquitetura pa JOIN irmaos i ON i.id = pa.autor_id
+     WHERE pa.situacao = 'em_analise'`,
+  );
+  for (const peca of pecasPendentes) {
+    itens.push({
+      tipo: "peca_pendente_aprovacao",
+      chave: `peca_pendente_aprovacao:${peca.id}`,
+      titulo: "Peça aguardando aprovação",
+      mensagem: `"${peca.titulo}" (${peca.autor_nome}) está em análise na Biblioteca de Peças.`,
     });
   }
 

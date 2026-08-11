@@ -7,6 +7,8 @@ import {
   criarPecaArquitetura,
   atualizarPecaArquitetura,
   excluirPecaArquitetura,
+  aprovarPecaArquitetura,
+  rejeitarPecaArquitetura,
   uploadArquivoPeca,
   type PecaArquitetura,
 } from "@/lib/backend/pecas-arquitetura";
@@ -59,7 +61,8 @@ import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
-import { Library, Plus, Download, Pencil, Trash2, FileText } from "lucide-react";
+import { Library, Plus, Download, Pencil, Trash2, FileText, Check, X as XIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/biblioteca/")({
   head: () => ({
@@ -78,6 +81,7 @@ type FormState = {
   titulo: string;
   tema: string;
   resumo: string;
+  grau: string;
   arquivoUrl: string | null;
   arquivoNomeOriginal: string | null;
   arquivoMime: string | null;
@@ -89,6 +93,7 @@ const FORM_VAZIO: FormState = {
   titulo: "",
   tema: "",
   resumo: "",
+  grau: "",
   arquivoUrl: null,
   arquivoNomeOriginal: null,
   arquivoMime: null,
@@ -136,6 +141,8 @@ function BibliotecaPage() {
     titulo: (p) => p.titulo,
     autor: (p) => p.autor_nome,
     tema: (p) => p.tema,
+    grau: (p) => p.grau,
+    situacao: (p) => p.situacao,
     sessao: (p) => p.sessao_data,
     cadastrada: (p) => p.criado_em,
   });
@@ -158,6 +165,7 @@ function BibliotecaPage() {
       titulo: p.titulo,
       tema: p.tema ?? "",
       resumo: p.resumo ?? "",
+      grau: String(p.grau),
       arquivoUrl: p.arquivo_url,
       arquivoNomeOriginal: p.arquivo_nome_original,
       arquivoMime: p.arquivo_mime,
@@ -198,6 +206,8 @@ function BibliotecaPage() {
   const salvar = async () => {
     if (!form.autorId) return toast.error("Selecione o autor.");
     if (!form.titulo.trim()) return toast.error("Título é obrigatório.");
+    const grau = Number(form.grau);
+    if (!grau || grau < 1) return toast.error("Informe o grau da peça.");
     setEnviando(true);
     try {
       const payload = {
@@ -206,6 +216,7 @@ function BibliotecaPage() {
         titulo: form.titulo.trim(),
         tema: form.tema.trim() || null,
         resumo: form.resumo.trim() || null,
+        grau,
         arquivoUrl: form.arquivoUrl,
         arquivoNomeOriginal: form.arquivoNomeOriginal,
         arquivoMime: form.arquivoMime,
@@ -233,6 +244,26 @@ function BibliotecaPage() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
+    }
+  };
+
+  const aprovar = async (id: string) => {
+    try {
+      await aprovarPecaArquitetura({ data: { id } });
+      toast.success("Peça aprovada.");
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao aprovar.");
+    }
+  };
+
+  const rejeitar = async (id: string) => {
+    try {
+      await rejeitarPecaArquitetura({ data: { id } });
+      toast.success("Peça rejeitada.");
+      invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao rejeitar.");
     }
   };
 
@@ -294,6 +325,19 @@ function BibliotecaPage() {
                     />
                   </div>
                   <div>
+                    <Label>Grau</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={form.grau}
+                      onChange={(e) => setForm({ ...form, grau: e.target.value })}
+                      placeholder="Ex.: 4"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Só irmãos deste grau ou superior poderão ver esta peça.
+                    </p>
+                  </div>
+                  <div>
                     <Label>Sessão em que foi apresentada (opcional)</Label>
                     <Select
                       value={form.sessaoId || "nenhuma"}
@@ -323,10 +367,10 @@ function BibliotecaPage() {
                     />
                   </div>
                   <div>
-                    <Label>Arquivo (PDF ou DOCX, até 15 MB — opcional)</Label>
+                    <Label>Arquivo (PDF, até 15 MB — opcional)</Label>
                     <Input
                       type="file"
-                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      accept=".pdf,application/pdf"
                       disabled={enviandoArquivo}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -378,6 +422,12 @@ function BibliotecaPage() {
                 <TableHeadOrdenavel campo="tema" ord={ord}>
                   Tema
                 </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="grau" ord={ord}>
+                  Grau
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="situacao" ord={ord}>
+                  Situação
+                </TableHeadOrdenavel>
                 <TableHeadOrdenavel campo="sessao" ord={ord}>
                   Sessão
                 </TableHeadOrdenavel>
@@ -390,7 +440,7 @@ function BibliotecaPage() {
             <TableBody>
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">
                     Carregando…
                   </TableCell>
                 </TableRow>
@@ -400,12 +450,42 @@ function BibliotecaPage() {
                   <TableCell className="font-medium">{p.titulo}</TableCell>
                   <TableCell>{p.autor_nome}</TableCell>
                   <TableCell>{p.tema ?? "—"}</TableCell>
+                  <TableCell>{p.grau}</TableCell>
+                  <TableCell>
+                    {p.situacao === "aprovado" ? (
+                      <Badge>Aprovada</Badge>
+                    ) : p.situacao === "rejeitado" ? (
+                      <Badge variant="destructive">Rejeitada</Badge>
+                    ) : (
+                      <Badge variant="outline">Em análise</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{p.sessao_data ? fmtDate(p.sessao_data) : "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {fmtDate(p.criado_em)}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      {podeGerenciarTudo && p.situacao === "em_analise" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Aprovar"
+                            onClick={() => aprovar(p.id)}
+                          >
+                            <Check className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Rejeitar"
+                            onClick={() => rejeitar(p.id)}
+                          >
+                            <XIcon className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
                       {p.arquivo_url && (
                         <Button variant="ghost" size="sm" asChild>
                           <a href={p.arquivo_url} download={p.arquivo_nome_original ?? undefined}>
