@@ -140,8 +140,8 @@ function ExtratoIrmao() {
     ordHistorico.coluna === null
       ? [...historico].sort(
           (a, b) =>
-            new Date(b.data_pagamento ?? b.data).getTime() -
-            new Date(a.data_pagamento ?? a.data).getTime(),
+            new Date(a.data_pagamento ?? a.data).getTime() -
+            new Date(b.data_pagamento ?? b.data).getTime(),
         )
       : ordHistorico.itensOrdenados;
 

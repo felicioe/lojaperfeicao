@@ -242,7 +242,11 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
          LIMIT 2000`,
         [...recibo.valores, ...conciliacao.valores, ...fora.valores, ...valoresData],
       );
-      return rows as ItemRecebimento[];
+      // Busca as 2000 mais recentes (LIMIT precisa do DESC pra não cortar
+      // fora justamente os recebimentos mais novos quando há mais de 2000
+      // no filtro) e inverte só na saída — exibição sempre do mais antigo
+      // pro mais novo, sem arriscar sumir com dado recente por causa do cap.
+      return (rows as ItemRecebimento[]).reverse();
     });
   });
 
@@ -297,7 +301,7 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
         condicoes.push("o.data <= ?");
         valores.push(data.ate);
       }
-      const [linhas] = await conn.query<RowDataPacket[]>(
+      const [linhasDesc] = await conn.query<RowDataPacket[]>(
         `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado,
                 o.lancamento_id, o.conciliacao_id
          FROM ofx_lancamentos o
@@ -306,6 +310,10 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
          LIMIT 2000`,
         valores,
       );
+      // Mesmo motivo do relatório de recebimentos: busca as 2000 mais
+      // recentes (DESC) e só inverte na saída, pra exibir do mais antigo
+      // pro mais novo sem arriscar cortar fora dado recente.
+      const linhas = linhasDesc.reverse();
 
       const idsLegado = [...new Set(linhas.map((l) => l.lancamento_id).filter(Boolean))];
       const idsConciliacao = [...new Set(linhas.map((l) => l.conciliacao_id).filter(Boolean))];
@@ -425,7 +433,9 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
          LIMIT 2000`,
         valores,
       );
-      return rows as ItemExtratoIrmao[];
+      // Mesmo motivo do relatório de recebimentos: DESC+LIMIT pra pegar os
+      // 2000 mais recentes desse irmão, invertendo só na saída.
+      return (rows as ItemExtratoIrmao[]).reverse();
     });
   });
 

@@ -97,7 +97,11 @@ export const listarLancamentos = createServerFn({ method: "GET" })
          LIMIT ?`,
         [...valores, limite],
       );
-      return rows.map((r) => ({
+      // DESC+LIMIT busca os mais recentes (sem filtro de data essa tela
+      // puxa o histórico todo — inverter a ordem sem isso faria o cap
+      // esconder justamente os lançamentos mais novos); inverte só na
+      // saída pra exibir sempre do mais antigo pro mais novo.
+      return rows.reverse().map((r) => ({
         id: r.id,
         data: r.data,
         data_vencimento: r.data_vencimento,
