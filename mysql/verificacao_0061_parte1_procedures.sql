@@ -1,35 +1,25 @@
 -- =========================================
 -- VERIFICAÇÃO pós-migração 0061 — PARTE 1 de 2 — não altera nada, só
 -- consulta. Rode este arquivo primeiro no phpMyAdmin (aba SQL/Importar),
--- depois rode verificacao_0061_parte2_dados.sql separadamente — os dois
--- juntos num só import confundem o phpMyAdmin (erro #1109 "Tabela
--- desconhecida em information_schema" na segunda parte).
+-- depois rode verificacao_0061_parte2_dados.sql separadamente.
 --
--- Confirma que desfazer_conciliacao/desfazer_lancamento_ofx foram
--- REDEFINIDAS pela 0061 (elas já existiam desde 0054/0060 — o que
--- importa aqui é checar se é a versão nova).
+-- Usa SHOW CREATE PROCEDURE em vez de INFORMATION_SCHEMA.ROUTINES: em
+-- hospedagem compartilhada (Hostinger etc.) o usuário do phpMyAdmin
+-- costuma não ter permissão pra enxergar metadados de rotinas via
+-- INFORMATION_SCHEMA mesmo sendo o dono/criador delas — a consulta
+-- simplesmente não retorna linha nenhuma, o que NÃO significa que a
+-- procedure esteja faltando. SHOW CREATE PROCEDURE é a forma padrão e
+-- confiável de inspecionar uma rotina que você mesmo criou.
+--
+-- Rode cada SHOW CREATE PROCEDURE abaixo separadamente (clique em cada
+-- um e "Executar", ou rode um de cada vez) e confira a coluna
+-- "Create Procedure" do resultado:
+--   - desfazer_conciliacao: tem que conter o texto "v_criado_pelo_evento"
+--     (só existe na versão 0061). Se não tiver, ainda é a versão 0054.
+--   - desfazer_lancamento_ofx: NÃO pode conter o texto "valor_pago = 0"
+--     (isso indica a versão antiga, 0060). Se tiver, ainda é a versão 0060.
 -- =========================================
 
-SELECT 'desfazer_conciliacao' AS procedure_nome,
-       CASE
-         WHEN r.ROUTINE_NAME IS NULL THEN 'FALTANDO'
-         WHEN r.ROUTINE_DEFINITION LIKE '%v_criado_pelo_evento%' THEN 'OK (versão 0061)'
-         ELSE 'DESATUALIZADA (ainda é a versão 0054) — rode a migração 0061'
-       END AS status
-FROM INFORMATION_SCHEMA.ROUTINES r
-WHERE r.ROUTINE_SCHEMA = DATABASE()
-  AND r.ROUTINE_NAME = 'desfazer_conciliacao'
-  AND r.ROUTINE_TYPE = 'PROCEDURE'
+SHOW CREATE PROCEDURE desfazer_conciliacao;
 
-UNION ALL
-
-SELECT 'desfazer_lancamento_ofx' AS procedure_nome,
-       CASE
-         WHEN r.ROUTINE_NAME IS NULL THEN 'FALTANDO'
-         WHEN r.ROUTINE_DEFINITION LIKE '%valor_pago = 0%' THEN 'DESATUALIZADA (ainda é a versão 0060) — rode a migração 0061'
-         ELSE 'OK (versão 0061)'
-       END AS status
-FROM INFORMATION_SCHEMA.ROUTINES r
-WHERE r.ROUTINE_SCHEMA = DATABASE()
-  AND r.ROUTINE_NAME = 'desfazer_lancamento_ofx'
-  AND r.ROUTINE_TYPE = 'PROCEDURE';
+SHOW CREATE PROCEDURE desfazer_lancamento_ofx;
