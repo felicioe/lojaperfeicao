@@ -1,44 +1,15 @@
 -- =========================================
--- VERIFICAÇÃO pós-migração 0061 — não altera nada, só consulta. Rode no
--- phpMyAdmin (aba SQL) do banco de produção depois de aplicar a 0061.
+-- VERIFICAÇÃO pós-migração 0061 — PARTE 2 de 2 — não altera nada, só
+-- consulta. Rode depois de verificacao_0061_parte1_procedures.sql, como
+-- um import separado (ver comentário lá pra saber o motivo de estarem
+-- em arquivos diferentes).
 --
--- Parte 1: confirma que as procedures foram REDEFINIDAS pela 0061 (não
--- só que existem — elas já existiam desde 0054/0060, o que importa é
--- checar se é a versão nova).
--- Parte 2: checagens gerais de consistência financeira, cobrindo os
--- tipos de bug corrigidos ao longo desta auditoria (valor_pago fora do
--- range, fatura parcelada com status errado, linha de OFX órfã depois
--- de desfazer etc.). Toda linha "OK" (contagem 0) é o esperado; qualquer
--- contagem > 0 merece uma olhada antes de considerar o banco saudável.
+-- Checagens gerais de consistência financeira, cobrindo os tipos de bug
+-- corrigidos ao longo desta auditoria (valor_pago fora do range, fatura
+-- parcelada com status errado, linha de OFX órfã depois de desfazer
+-- etc.). Toda linha "encontrados = 0" é o esperado; qualquer contagem
+-- maior que 0 merece uma olhada antes de considerar o banco saudável.
 -- =========================================
-
--- ---------- Parte 1: versão das procedures ----------
-
-SELECT 'desfazer_conciliacao' AS procedure_nome,
-       CASE
-         WHEN r.ROUTINE_NAME IS NULL THEN 'FALTANDO'
-         WHEN r.ROUTINE_DEFINITION LIKE '%v_criado_pelo_evento%' THEN 'OK (versão 0061)'
-         ELSE 'DESATUALIZADA (ainda é a versão 0054) — rode a migração 0061'
-       END AS status
-FROM INFORMATION_SCHEMA.ROUTINES r
-WHERE r.ROUTINE_SCHEMA = DATABASE()
-  AND r.ROUTINE_NAME = 'desfazer_conciliacao'
-  AND r.ROUTINE_TYPE = 'PROCEDURE'
-
-UNION ALL
-
-SELECT 'desfazer_lancamento_ofx' AS procedure_nome,
-       CASE
-         WHEN r.ROUTINE_NAME IS NULL THEN 'FALTANDO'
-         WHEN r.ROUTINE_DEFINITION LIKE '%valor_pago = 0%' THEN 'DESATUALIZADA (ainda é a versão 0060) — rode a migração 0061'
-         ELSE 'OK (versão 0061)'
-       END AS status
-FROM INFORMATION_SCHEMA.ROUTINES r
-WHERE r.ROUTINE_SCHEMA = DATABASE()
-  AND r.ROUTINE_NAME = 'desfazer_lancamento_ofx'
-  AND r.ROUTINE_TYPE = 'PROCEDURE';
-
--- ---------- Parte 2: consistência financeira geral ----------
 
 -- valor_pago não pode passar do valor de face nem ficar negativo.
 SELECT 'lancamentos com valor_pago fora do range [0, valor]' AS checagem,
