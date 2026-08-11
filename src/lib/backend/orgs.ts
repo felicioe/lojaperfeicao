@@ -170,6 +170,51 @@ export const alternarAtivoOrg = createServerFn({ method: "POST" })
 // apagaria em cascata dados reais (vínculo de irmãos, cobranças, gestões
 // etc.). orgs_graus fica de fora da checagem por ser só nome de grau, sem
 // dado de irmão/financeiro associado.
+export type UsoOrg = {
+  org_id: string;
+  irmaos: number;
+  gestoes: number;
+  cobrancas: number;
+  eventos: number;
+  comissoes: number;
+};
+
+const USO_LABEL: Record<Exclude<keyof UsoOrg, "org_id">, string> = {
+  irmaos: "irmão(s) vinculado(s)",
+  gestoes: "gestão(ões)",
+  cobrancas: "cobrança(s) SGCAB",
+  eventos: "evento(s)",
+  comissoes: "comissão(ões)",
+};
+
+// Quantidade de registros nas tabelas que dependem de cada org (ON DELETE
+// CASCADE) — mostrado na tela antes do usuário tentar excluir, pra não
+// precisar adivinhar o que está bloqueando (issue: "como saber quais dados
+// estão vinculados a este corpo?").
+export const listarUsoOrgs = createServerFn({ method: "GET" }).handler(
+  async (): Promise<UsoOrg[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT o.id AS org_id,
+                (SELECT COUNT(*) FROM irmao_orgs WHERE org_id = o.id) AS irmaos,
+                (SELECT COUNT(*) FROM gestoes WHERE org_id = o.id) AS gestoes,
+                (SELECT COUNT(*) FROM sgcab_cobrancas WHERE org_id = o.id) AS cobrancas,
+                (SELECT COUNT(*) FROM eventos WHERE org_id = o.id) AS eventos,
+                (SELECT COUNT(*) FROM comissoes WHERE org_id = o.id) AS comissoes
+         FROM orgs o`,
+      );
+      return rows as UsoOrg[];
+    });
+  },
+);
+
+function descreverUso(uso: Omit<UsoOrg, "org_id">): string {
+  return (Object.keys(USO_LABEL) as (keyof typeof USO_LABEL)[])
+    .filter((chave) => uso[chave] > 0)
+    .map((chave) => `${uso[chave]} ${USO_LABEL[chave]}`)
+    .join(", ");
+}
+
 export const excluirOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
@@ -183,15 +228,10 @@ export const excluirOrg = createServerFn({ method: "POST" })
            (SELECT COUNT(*) FROM comissoes WHERE org_id = ?) AS comissoes`,
         [data.id, data.id, data.id, data.id, data.id],
       );
-      if (
-        uso.irmaos > 0 ||
-        uso.gestoes > 0 ||
-        uso.cobrancas > 0 ||
-        uso.eventos > 0 ||
-        uso.comissoes > 0
-      ) {
+      const descricao = descreverUso(uso as Omit<UsoOrg, "org_id">);
+      if (descricao) {
         throw new Error(
-          "Este corpo tem dados vinculados (irmãos, gestões, cobranças, eventos ou comissões) e não pode ser excluído — desative-o em vez disso.",
+          `Este corpo tem ${descricao} e não pode ser excluído — desative-o em vez disso.`,
         );
       }
       const [[org]] = await conn.query<RowDataPacket[]>("SELECT * FROM orgs WHERE id = ?", [
