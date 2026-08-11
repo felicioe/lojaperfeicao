@@ -1,8 +1,9 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSessao, registrarConsentimentoLgpd } from "@/lib/backend/auth";
 import { logout } from "@/lib/backend/auth";
+import { obterConfiguracoesLgpd } from "@/lib/backend/configuracoes-lgpd";
 import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import {
   Card,
@@ -34,6 +35,10 @@ function AceiteTermos() {
   const queryClient = useQueryClient();
   const [aceito, setAceito] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const { data: configuracoes } = useQuery({
+    queryKey: ["configuracoes_lgpd"],
+    queryFn: () => obterConfiguracoesLgpd(),
+  });
 
   const aceitar = async () => {
     setEnviando(true);
@@ -69,7 +74,7 @@ function AceiteTermos() {
         </CardHeader>
         <CardContent>
           <div className="max-h-80 overflow-y-auto rounded-lg border p-4">
-            <PoliticaPrivacidadeConteudo />
+            <PoliticaPrivacidadeConteudo configuracoes={configuracoes} />
           </div>
           <label className="mt-4 flex items-start gap-2 text-sm">
             <Checkbox

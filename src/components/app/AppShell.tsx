@@ -61,6 +61,7 @@ import {
   Vote,
   FileSignature,
   Lock,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
@@ -579,6 +580,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/administracao/backups",
           label: "Backups",
           icon: Archive,
+          show: can.isAdmin,
+        },
+        {
+          to: "/administracao/dados-entidade",
+          label: "Dados da Entidade",
+          icon: FileText,
           show: can.isAdmin,
         },
       ],
