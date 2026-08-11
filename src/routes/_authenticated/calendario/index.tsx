@@ -15,7 +15,12 @@ import {
   subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { listarSessoes, criarSessao, type Sessao } from "@/lib/backend/sessoes";
+import {
+  listarSessoes,
+  criarSessao,
+  listarResponsaveisSessoes,
+  type Sessao,
+} from "@/lib/backend/sessoes";
 import { listarEventos, type Evento } from "@/lib/backend/eventos";
 import { listarFaturasAbertas, type FaturaAberta } from "@/lib/backend/tesouraria-faturas";
 import { listarOrgs, listarOrgsGraus } from "@/lib/backend/orgs";
@@ -63,6 +68,7 @@ type ItemCalendario = {
   titulo: string;
   linkTo?: string;
   linkParams?: Record<string, string>;
+  sessaoId?: string;
 };
 
 const COR_TIPO: Record<TipoItem, string> = {
@@ -100,6 +106,10 @@ function CalendarioPage() {
   const { data: eventos = [] } = useQuery({
     queryKey: ["eventos"],
     queryFn: () => listarEventos(),
+  });
+  const { data: responsaveisSessoes = [] } = useQuery({
+    queryKey: ["responsaveis_sessoes"],
+    queryFn: () => listarResponsaveisSessoes(),
   });
   const { data: faturas = [] } = useQuery({
     queryKey: ["faturas_abertas"],
@@ -156,6 +166,7 @@ function CalendarioPage() {
         titulo: `${TIPO_SESSAO_LABEL[s.tipo] ?? s.tipo} — ${s.org_nome ?? "Sessão"} (grau ${s.grau})`,
         linkTo: "/sessoes/$id",
         linkParams: { id: s.id },
+        sessaoId: s.id,
       }));
     const deEventos: ItemCalendario[] = eventos
       .filter((e: Evento) => !orgId || !e.org_id || e.org_id === orgId)
@@ -463,19 +474,41 @@ function CalendarioPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            {itensDoDiaSelecionado.map((item) => (
-              <div key={item.id} className="flex items-center gap-2 rounded-md border p-2 text-sm">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${COR_TIPO[item.tipo]}`} />
-                <span className="flex-1">{item.titulo}</span>
-                {item.linkTo && item.linkParams && (
-                  <Link to={item.linkTo} params={item.linkParams}>
-                    <Button variant="ghost" size="sm">
-                      Abrir
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            ))}
+            {itensDoDiaSelecionado.map((item) => {
+              const responsaveisDoItem = item.sessaoId
+                ? responsaveisSessoes.filter((r) => r.sessao_id === item.sessaoId)
+                : [];
+              return (
+                <div key={item.id} className="rounded-md border p-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${COR_TIPO[item.tipo]}`} />
+                    <span className="flex-1">{item.titulo}</span>
+                    {item.linkTo && item.linkParams && (
+                      <Link to={item.linkTo} params={item.linkParams}>
+                        <Button variant="ghost" size="sm">
+                          Abrir
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                  {responsaveisDoItem.length > 0 && (
+                    <div className="mt-2 space-y-1.5 border-t pt-2 pl-4">
+                      {responsaveisDoItem.map((r, i) => (
+                        <div key={i} className="text-xs">
+                          <span className="font-medium">
+                            {r.irmao_nome ?? r.nome_extraido}
+                            {r.apelido_extraido ? ` (${r.apelido_extraido})` : ""}
+                          </span>
+                          {r.atividade && (
+                            <span className="text-muted-foreground"> — {r.atividade}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>

@@ -67,6 +67,33 @@ export const listarSessoes = createServerFn({ method: "GET" }).handler(
   },
 );
 
+export type ResponsavelSessao = {
+  sessao_id: string;
+  nome_extraido: string;
+  apelido_extraido: string | null;
+  atividade: string | null;
+  irmao_id: string | null;
+  irmao_nome: string | null;
+};
+
+// Preenchido só pelo importador de Cronograma (PDF) — "quem apresenta o
+// quê" de cada sessão. Mesma visibilidade de listarSessoes (leitura
+// livre pra autenticado): é informação de programação, não sigilosa.
+export const listarResponsaveisSessoes = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ResponsavelSessao[]> => {
+    return comSessao(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT sr.sessao_id, sr.nome_extraido, sr.apelido_extraido, sr.atividade, sr.irmao_id,
+                i.nome_civil AS irmao_nome
+         FROM sessao_responsaveis sr
+         LEFT JOIN irmaos i ON i.id = sr.irmao_id
+         ORDER BY sr.criado_em`,
+      );
+      return rows as ResponsavelSessao[];
+    });
+  },
+);
+
 export const obterSessao = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<Sessao | null> => {

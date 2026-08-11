@@ -4,6 +4,7 @@ import {
   obterSessao,
   listarPresencas,
   listarMembrosOrg,
+  listarResponsaveisSessoes,
   togglePresenca as togglePresencaFn,
 } from "@/lib/backend/sessoes";
 import { PageHeader } from "@/components/app/AppShell";
@@ -50,6 +51,15 @@ function SessaoDetail() {
     queryFn: () => listarPresencas({ data: { sessaoId: id } }),
   });
 
+  // Lista todos os responsáveis (todas as sessões) e filtra no client — é
+  // a mesma chamada que o Calendário já usa (cache compartilhado via
+  // queryKey), evita uma segunda rota só pra filtrar por sessão.
+  const responsaveis = useQuery({
+    queryKey: ["responsaveis_sessoes"],
+    queryFn: () => listarResponsaveisSessoes(),
+  });
+  const responsaveisDaSessao = (responsaveis.data ?? []).filter((r) => r.sessao_id === id);
+
   const map = new Map(presencas.data?.map((p) => [p.irmao_id, p]) ?? []);
 
   const togglePresenca = async (irmaoId: string, presente: boolean) => {
@@ -80,6 +90,26 @@ function SessaoDetail() {
             : ""
         }
       />
+      {responsaveisDaSessao.length > 0 && (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle className="text-base">Programação da sessão</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {responsaveisDaSessao.map((r, i) => (
+              <div key={i} className="border-b pb-2 last:border-b-0 last:pb-0">
+                <div className="text-sm font-medium">
+                  {r.irmao_nome ?? r.nome_extraido}
+                  {r.apelido_extraido && (
+                    <span className="text-muted-foreground"> ({r.apelido_extraido})</span>
+                  )}
+                </div>
+                {r.atividade && <div className="text-sm text-muted-foreground">{r.atividade}</div>}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Lista de presença</CardTitle>
