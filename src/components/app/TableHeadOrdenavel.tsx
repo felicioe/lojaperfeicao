@@ -26,12 +26,21 @@ export function TableHeadOrdenavel({
   children: React.ReactNode;
 }) {
   const ativa = ord.coluna === campo;
+  const ariaSort = ativa ? (ord.direcao === "asc" ? "ascending" : "descending") : "none";
   return (
-    <TableHead
-      className={cn("cursor-pointer select-none hover:text-foreground", className)}
-      onClick={() => ord.alternar(campo)}
-    >
-      <span className="inline-flex items-center gap-1">
+    <TableHead className={cn("select-none", className)} aria-sort={ariaSort}>
+      <button
+        type="button"
+        className={cn(
+          "inline-flex min-h-9 items-center gap-1 rounded-sm text-left transition-colors hover:text-foreground",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          className?.includes("text-right") && "ml-auto",
+        )}
+        onClick={() => ord.alternar(campo)}
+        aria-label={`${ativa ? "Alterar" : "Ordenar"} por ${String(children)}${
+          ativa ? `, ordem ${ord.direcao === "asc" ? "crescente" : "decrescente"}` : ""
+        }`}
+      >
         {children}
         {ativa ? (
           ord.direcao === "asc" ? (
@@ -42,7 +51,7 @@ export function TableHeadOrdenavel({
         ) : (
           <ArrowUpDown className="h-3 w-3 opacity-30" />
         )}
-      </span>
+      </button>
     </TableHead>
   );
 }
