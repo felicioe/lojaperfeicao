@@ -426,22 +426,22 @@ function BibliotecaPage() {
                 <TableHeadOrdenavel campo="titulo" ord={ord}>
                   Título
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="autor" ord={ord}>
+                <TableHeadOrdenavel campo="autor" ord={ord} className="hidden sm:table-cell">
                   Autor
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="tema" ord={ord}>
+                <TableHeadOrdenavel campo="tema" ord={ord} className="hidden lg:table-cell">
                   Tema
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="grau" ord={ord}>
+                <TableHeadOrdenavel campo="grau" ord={ord} className="hidden sm:table-cell">
                   Grau
                 </TableHeadOrdenavel>
                 <TableHeadOrdenavel campo="situacao" ord={ord}>
                   Situação
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="sessao" ord={ord}>
+                <TableHeadOrdenavel campo="sessao" ord={ord} className="hidden lg:table-cell">
                   Sessão
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="cadastrada" ord={ord}>
+                <TableHeadOrdenavel campo="cadastrada" ord={ord} className="hidden lg:table-cell">
                   Cadastrada em
                 </TableHeadOrdenavel>
                 <TableHead className="w-32"></TableHead>
@@ -457,10 +457,13 @@ function BibliotecaPage() {
               )}
               {itensPagina.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.titulo}</TableCell>
-                  <TableCell>{p.autor_nome}</TableCell>
-                  <TableCell>{p.tema ?? "—"}</TableCell>
-                  <TableCell>{p.grau}</TableCell>
+                  <TableCell className="font-medium">
+                    {p.titulo}
+                    <div className="text-xs text-muted-foreground sm:hidden">{p.autor_nome}</div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">{p.autor_nome}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{p.tema ?? "—"}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{p.grau}</TableCell>
                   <TableCell>
                     {p.situacao === "aprovado" ? (
                       <Badge>Aprovada</Badge>
@@ -470,12 +473,14 @@ function BibliotecaPage() {
                       <Badge variant="outline">Em análise</Badge>
                     )}
                   </TableCell>
-                  <TableCell>{p.sessao_data ? fmtDate(p.sessao_data) : "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden lg:table-cell">
+                    {p.sessao_data ? fmtDate(p.sessao_data) : "—"}
+                  </TableCell>
+                  <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
                     {fmtDate(p.criado_em)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex flex-wrap justify-end gap-1">
                       {podeGerenciarTudo && p.situacao === "em_analise" && (
                         <>
                           <Button
