@@ -165,6 +165,20 @@ export const atualizarPecaArquitetura = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeEditarPeca(conn, usuarioId, data.id))) throw new SemPermissaoError();
+      // Mesma regra de criarPecaArquitetura: reatribuir a autoria pra outra
+      // pessoa só é permitido pra admin/secretário — sem isso, um autor comum
+      // com permissão de editar a própria peça podia trocar o autorId
+      // enviado pra qualquer UUID sem checagem nenhuma.
+      const condicoesAutor = PAPEIS_PRIVILEGIADOS.map(
+        () => "has_role(@current_usuario_id, ?)",
+      ).join(" OR ");
+      const [[linhaAutor]] = await conn.query<RowDataPacket[]>(
+        `SELECT (${condicoesAutor} OR EXISTS(SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ?)) AS ok`,
+        [...PAPEIS_PRIVILEGIADOS, data.autorId, usuarioId],
+      );
+      if (!linhaAutor.ok) {
+        throw new SemPermissaoError("Você só pode atribuir a peça a si mesmo.");
+      }
       // Edição de uma peça já aprovada volta pra "em análise" — sem isso o
       // autor poderia trocar o PDF/título/grau depois da aprovação e o
       // conteúdo novo ficaria visível sem nenhuma revisão (#224).
