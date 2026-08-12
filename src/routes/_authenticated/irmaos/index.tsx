@@ -36,7 +36,11 @@ export const Route = createFileRoute("/_authenticated/irmaos/")({
 function IrmaosList() {
   const [q, setQ] = useState("");
   const can = useCan();
-  const { data = [], isLoading } = useQuery({
+  const {
+    data = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["irmaos"],
     queryFn: () => listarIrmaos(),
   });
@@ -122,10 +126,17 @@ function IrmaosList() {
                 </TableCell>
               </TableRow>
             )}
-            {!isLoading && filtered.length === 0 && (
+            {isError && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-6 text-destructive">
+                  Erro ao carregar os irmãos. Tente novamente.
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && !isError && filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                  Nenhum irmão cadastrado.
+                  {q ? "Nenhum irmão encontrado para essa busca." : "Nenhum irmão cadastrado."}
                 </TableCell>
               </TableRow>
             )}
