@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
@@ -363,6 +363,18 @@ export const importarOfx = createServerFn({ method: "POST" })
       let jaImportados = 0;
       const erros: string[] = [];
 
+      // Fase 1 (sem ida ao banco): parseia e valida cada bloco, calculando a
+      // chave de dedupe de todo mundo de uma vez — extratos têm 50 a 500+
+      // transações, e essa fase é só processamento em memória.
+      type LinhaOfx = {
+        fitid: string;
+        dataOfx: string;
+        valor: number;
+        trntype: string;
+        descricao: string;
+        chaveDedupe: string;
+      };
+      const linhas: LinhaOfx[] = [];
       for (const bloco of blocos) {
         const trnamt = extrairCampo(bloco, "TRNAMT");
         const dtposted = extrairCampo(bloco, "DTPOSTED");
@@ -386,27 +398,85 @@ export const importarOfx = createServerFn({ method: "POST" })
           trntype,
           normalizarTexto(descricao),
         ].join("|");
+        linhas.push({ fitid, dataOfx, valor, trntype, descricao, chaveDedupe });
+      }
 
+      // Fase 2: uma única consulta pra saber quais chaves já existem pra essa
+      // conta — evita descobrir "já importado" um a um via INSERT IGNORE.
+      const chavesJaExistentes = new Set<string>();
+      if (linhas.length > 0) {
+        const [existentes] = await conn.query<RowDataPacket[]>(
+          `SELECT chave_dedupe FROM ofx_lancamentos
+           WHERE conta_financeira_id = ? AND chave_dedupe IN (?)`,
+          [data.contaFinanceiraId, linhas.map((l) => l.chaveDedupe)],
+        );
+        for (const row of existentes) chavesJaExistentes.add(row.chave_dedupe as string);
+      }
+
+      // Fase 3: separa o que é de fato novo (também dedupe contra
+      // duplicatas dentro do próprio arquivo) e insere em lotes — cai pra
+      // inserção linha a linha só se um lote inteiro falhar, pra isolar
+      // qual linha específica tem o problema (mesma granularidade de erro
+      // de antes).
+      const vistasNoArquivo = new Set<string>();
+      const paraInserir: LinhaOfx[] = [];
+      for (const linha of linhas) {
+        if (chavesJaExistentes.has(linha.chaveDedupe) || vistasNoArquivo.has(linha.chaveDedupe)) {
+          jaImportados++;
+          continue;
+        }
+        vistasNoArquivo.add(linha.chaveDedupe);
+        paraInserir.push(linha);
+      }
+
+      const TAMANHO_LOTE = 200;
+      for (let i = 0; i < paraInserir.length; i += TAMANHO_LOTE) {
+        const lote = paraInserir.slice(i, i + TAMANHO_LOTE);
         try {
-          const [result] = await conn.query<ResultSetHeader>(
+          await conn.query(
             `INSERT IGNORE INTO ofx_lancamentos
                (conta_financeira_id, fitid, data, valor, tipo_ofx, descricao, chave_dedupe, importado_por)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES ?`,
             [
-              data.contaFinanceiraId,
-              fitid || null,
-              dataOfx,
-              valor,
-              trntype || null,
-              descricao,
-              chaveDedupe,
-              usuarioId,
+              lote.map((l) => [
+                data.contaFinanceiraId,
+                l.fitid || null,
+                l.dataOfx,
+                l.valor,
+                l.trntype || null,
+                l.descricao,
+                l.chaveDedupe,
+                usuarioId,
+              ]),
             ],
           );
-          if (result.affectedRows > 0) novos++;
-          else jaImportados++;
-        } catch (e) {
-          erros.push(e instanceof Error ? e.message : String(e));
+          novos += lote.length;
+        } catch {
+          // Lote inteiro falhou (ex.: dado que só o MySQL rejeita) — insere
+          // linha a linha só esse lote, pra não perder o restante do
+          // extrato e pra reportar exatamente qual transação deu erro.
+          for (const l of lote) {
+            try {
+              await conn.query(
+                `INSERT IGNORE INTO ofx_lancamentos
+                   (conta_financeira_id, fitid, data, valor, tipo_ofx, descricao, chave_dedupe, importado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  data.contaFinanceiraId,
+                  l.fitid || null,
+                  l.dataOfx,
+                  l.valor,
+                  l.trntype || null,
+                  l.descricao,
+                  l.chaveDedupe,
+                  usuarioId,
+                ],
+              );
+              novos++;
+            } catch (e) {
+              erros.push(e instanceof Error ? e.message : String(e));
+            }
+          }
         }
       }
 
