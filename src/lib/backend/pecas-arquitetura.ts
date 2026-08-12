@@ -92,7 +92,7 @@ export const listarPecasArquitetura = createServerFn({ method: "GET" }).handler(
   async (): Promise<PecaArquitetura[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `${PECA_SELECT} WHERE ${PODE_VER_CONDICAO} ORDER BY pa.criado_em DESC`,
+        `${PECA_SELECT} WHERE ${PODE_VER_CONDICAO} ORDER BY pa.criado_em DESC LIMIT 5000`,
       );
       return rows as PecaArquitetura[];
     });
