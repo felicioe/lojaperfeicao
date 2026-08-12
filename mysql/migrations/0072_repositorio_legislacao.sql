@@ -1,4 +1,4 @@
-﻿-- Reestrutura Documentos como repositorio de Legislacao, sem assinaturas.
+-- Reestrutura Documentos como repositorio de Legislacao, sem assinaturas.
 ALTER TABLE documentos
   ADD COLUMN IF NOT EXISTS categoria VARCHAR(80) NOT NULL DEFAULT 'documentos_loja' AFTER titulo;
 
