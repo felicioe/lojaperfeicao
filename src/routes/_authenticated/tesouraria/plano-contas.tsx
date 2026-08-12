@@ -180,7 +180,9 @@ function PlanoContas() {
             <Label>Tipo</Label>
             <Select
               value={form.tipo}
-              onValueChange={(v) => setForm({ ...form, tipo: v as TipoConta })}
+              onValueChange={(v) =>
+                setForm({ ...form, tipo: v as TipoConta, parent_id: "none" })
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -206,7 +208,7 @@ function PlanoContas() {
               <SelectContent>
                 <SelectItem value="none">— nenhuma (conta de topo) —</SelectItem>
                 {data
-                  .filter((c) => c.id !== form.id)
+                  .filter((c) => c.id !== form.id && c.tipo === form.tipo && c.ativo)
                   .map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.codigo} — {c.nome}
