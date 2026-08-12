@@ -81,7 +81,7 @@ function Diario() {
     <>
       <PageHeader
         title="Diário Contábil"
-        description="Todos os lançamentos em ordem cronológica, com suas linhas de débito e crédito."
+        description="Lançamentos pelo regime de caixa, ordenados pela data efetiva do recebimento ou pagamento."
         actions={
           <Button variant="outline" onClick={exportarCSV} disabled={lancamentos.length === 0}>
             <Download className="h-4 w-4 mr-1" /> Exportar CSV
