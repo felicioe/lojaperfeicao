@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { logout } from "@/lib/backend/auth";
 import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -177,11 +177,12 @@ function NavTree({
         to={dashboard.to}
         onClick={onNavigate}
         className={cn(
-          "flex items-center gap-2.5 rounded-md px-3 text-sm transition-colors",
-          size === "mobile" ? "py-2.5" : "py-2",
+          buttonVariants({ variant: "outline", size: "sm" }),
+          "w-full justify-start gap-2.5 px-3 text-sm",
+          size === "mobile" ? "h-auto py-2.5" : "h-auto py-2",
           isActive(dashboard.to)
-            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-sm"
-            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+            ? "border-sidebar-accent bg-sidebar-accent font-medium text-sidebar-accent-foreground hover:bg-sidebar-accent"
+            : "border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
         )}
       >
         <dashboard.icon
@@ -204,7 +205,8 @@ function NavTree({
             >
               <CollapsibleTrigger
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors hover:bg-sidebar-accent/40",
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "h-auto w-full justify-start gap-2 border-sidebar-border px-3 text-[11px] font-semibold uppercase tracking-wider hover:bg-sidebar-accent/40",
                   size === "mobile" ? "py-2.5" : "py-2",
                   hasActive
                     ? "text-sidebar-foreground"
@@ -223,7 +225,7 @@ function NavTree({
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-                <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border pb-1 pl-3">
+                <div className="ml-4 mt-1 space-y-1 pb-1 pl-3">
                   {g.items.map((i, idx) => {
                     const active = isActive(i.to);
                     const mostraSecao = i.section && i.section !== g.items[idx - 1]?.section;
@@ -238,11 +240,12 @@ function NavTree({
                           to={i.to}
                           onClick={onNavigate}
                           className={cn(
-                            "flex items-center gap-2.5 rounded-md transition-colors",
+                            buttonVariants({ variant: "outline", size: "sm" }),
+                            "h-auto w-full justify-start gap-2.5",
                             itemPad,
                             active
-                              ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                              : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                              ? "border-sidebar-accent bg-sidebar-accent font-medium text-sidebar-accent-foreground hover:bg-sidebar-accent"
+                              : "border-sidebar-border text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                           )}
                         >
                           <i.icon
@@ -747,13 +750,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button variant="outline" size="sm" className="mt-2 w-full" onClick={signOut}>
                   <LogOut className="mr-1 h-3 w-3" /> Sair
                 </Button>
-                <Link
-                  to="/privacidade"
-                  target="_blank"
-                  className="mt-2 block text-center text-[11px] text-sidebar-foreground/55 underline"
-                >
-                  Política de Privacidade
-                </Link>
+                <Button variant="outline" size="sm" className="mt-2 w-full" asChild>
+                  <Link to="/privacidade" target="_blank">
+                    Política de Privacidade
+                  </Link>
+                </Button>
               </>
             )}
           </div>
@@ -816,13 +817,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Button variant="outline" className="mt-2 h-10 w-full" onClick={signOut}>
                 <LogOut className="mr-1.5 h-4 w-4" /> Sair
               </Button>
-              <Link
-                to="/privacidade"
-                target="_blank"
-                className="mt-2 block text-center text-xs text-sidebar-foreground/55 underline"
-              >
-                Política de Privacidade
-              </Link>
+              <Button variant="outline" className="mt-2 h-10 w-full" asChild>
+                <Link to="/privacidade" target="_blank">
+                  Política de Privacidade
+                </Link>
+              </Button>
             </div>
           </SheetContent>
         </Sheet>
