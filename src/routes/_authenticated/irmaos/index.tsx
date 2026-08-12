@@ -142,7 +142,14 @@ function IrmaosList() {
             )}
             {itensPagina.map((i: any) => (
               <TableRow key={i.id}>
-                <TableCell className="font-medium">{i.nome_civil}</TableCell>
+                <TableCell className="font-medium">
+                  {i.nome_civil}
+                  {(i.nome_simbolico || i.cim) && (
+                    <div className="text-xs text-muted-foreground sm:hidden">
+                      {[i.nome_simbolico, i.cim].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="hidden sm:table-cell">{i.nome_simbolico ?? "—"}</TableCell>
                 <TableCell className="hidden sm:table-cell">{i.cim ?? "—"}</TableCell>
                 <TableCell>{GRAU_LABEL[i.grau]}</TableCell>

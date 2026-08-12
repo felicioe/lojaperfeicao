@@ -463,7 +463,7 @@ function BibliotecaPage() {
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{p.autor_nome}</TableCell>
                   <TableCell className="hidden lg:table-cell">{p.tema ?? "—"}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{p.grau}</TableCell>
+                  <TableCell className="hidden sm:table-cell">Grau {p.grau}</TableCell>
                   <TableCell>
                     {p.situacao === "aprovado" ? (
                       <Badge>Aprovada</Badge>
