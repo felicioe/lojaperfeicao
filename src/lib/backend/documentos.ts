@@ -99,14 +99,7 @@ const uploadArquivoSchema = z.object({
   dataUrl: z.string().startsWith("data:"),
 });
 
-const MIME_AUTORIZADOS = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-  "application/vnd.oasis.opendocument.text",
-  "image/png",
-  "image/jpeg",
-];
+const MIME_AUTORIZADOS = ["application/pdf"];
 const TAMANHO_MAXIMO_BYTES = 15 * 1024 * 1024; // 15 MB — hospedagem compartilhada tem disco limitado.
 
 export const uploadArquivoDocumento = createServerFn({ method: "POST" })
@@ -117,7 +110,7 @@ export const uploadArquivoDocumento = createServerFn({ method: "POST" })
       if (!match) throw new Error("Arquivo inválido.");
       const mime = match[1];
       if (!MIME_AUTORIZADOS.includes(mime)) {
-        throw new Error("Formato não aceito — envie PDF, DOC, DOCX, ODT, PNG ou JPG.");
+        throw new Error("Formato não aceito — envie um arquivo PDF.");
       }
       const buffer = Buffer.from(match[2], "base64");
       if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {
