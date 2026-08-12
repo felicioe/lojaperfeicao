@@ -65,7 +65,7 @@ function Recebimentos() {
     queryFn: () => listarIrmaosNomes(),
   });
 
-  const { data: itens = [] } = useQuery({
+  const { data: itens = [], isError } = useQuery({
     queryKey: [
       "relatorio_recebimentos",
       competenciaMes,
@@ -254,7 +254,14 @@ function Recebimentos() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {itens.length === 0 && (
+              {isError && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-6 text-destructive">
+                    Erro ao carregar o relatório. Tente novamente.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isError && itens.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                     Nenhum recebimento encontrado.
