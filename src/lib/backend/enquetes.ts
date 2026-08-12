@@ -218,19 +218,27 @@ export const listarResultadoEnquete = createServerFn({ method: "GET" })
         "SELECT id, texto FROM enquete_opcoes WHERE enquete_id = ? ORDER BY ordem",
         [data.enqueteId],
       );
-      const resultado: ResultadoOpcao[] = [];
-      for (const opcao of opcoes) {
-        const [votos] = await conn.query<RowDataPacket[]>(
-          "SELECT i.nome_civil FROM enquete_votos ev JOIN irmaos i ON i.id = ev.irmao_id WHERE ev.opcao_id = ?",
-          [opcao.id],
-        );
-        resultado.push({
+      const [votos] = await conn.query<RowDataPacket[]>(
+        `SELECT ev.opcao_id, i.nome_civil FROM enquete_votos ev
+         JOIN irmaos i ON i.id = ev.irmao_id
+         JOIN enquete_opcoes eo ON eo.id = ev.opcao_id
+         WHERE eo.enquete_id = ?`,
+        [data.enqueteId],
+      );
+      const votosPorOpcao = new Map<string, string[]>();
+      for (const v of votos) {
+        const lista = votosPorOpcao.get(v.opcao_id) ?? [];
+        lista.push(v.nome_civil as string);
+        votosPorOpcao.set(v.opcao_id, lista);
+      }
+      return opcoes.map((opcao) => {
+        const nomes = votosPorOpcao.get(opcao.id) ?? [];
+        return {
           opcao_id: opcao.id,
           texto: opcao.texto,
-          votos: votos.length,
-          eleitores: enquete.nominal ? votos.map((v) => v.nome_civil as string) : null,
-        });
-      }
-      return resultado;
+          votos: nomes.length,
+          eleitores: enquete.nominal ? nomes : null,
+        };
+      });
     });
   });

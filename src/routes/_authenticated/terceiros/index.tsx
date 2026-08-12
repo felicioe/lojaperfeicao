@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Pencil, Search, X } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
@@ -84,15 +84,21 @@ function Terceiros() {
     queryFn: () => listarTerceiros(),
   });
 
-  const filtrados = data.filter((t) => {
-    if (tipoFiltro !== "todos" && t.tipo !== tipoFiltro) return false;
-    if (
-      q &&
-      !`${t.nome} ${t.nome_fantasia ?? ""} ${t.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase())
-    )
-      return false;
-    return true;
-  });
+  const filtrados = useMemo(
+    () =>
+      data.filter((t) => {
+        if (tipoFiltro !== "todos" && t.tipo !== tipoFiltro) return false;
+        if (
+          q &&
+          !`${t.nome} ${t.nome_fantasia ?? ""} ${t.cnpj ?? ""}`
+            .toLowerCase()
+            .includes(q.toLowerCase())
+        )
+          return false;
+        return true;
+      }),
+    [data, tipoFiltro, q],
+  );
   const ord = useOrdenacao(filtrados, {
     nome: (t) => t.nome,
     tipo: (t) => t.tipo,

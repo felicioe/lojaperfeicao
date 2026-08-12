@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { GRAU_LABEL, SITUACAO_LABEL } from "@/lib/format";
 import { ChevronRight, Plus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
@@ -45,12 +45,16 @@ function IrmaosList() {
     queryFn: () => listarIrmaos(),
   });
 
-  const filtered = data.filter(
-    (i: any) =>
-      !q ||
-      i.nome_civil?.toLowerCase().includes(q.toLowerCase()) ||
-      i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
-      i.cim?.toLowerCase().includes(q.toLowerCase()),
+  const filtered = useMemo(
+    () =>
+      data.filter(
+        (i: any) =>
+          !q ||
+          i.nome_civil?.toLowerCase().includes(q.toLowerCase()) ||
+          i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
+          i.cim?.toLowerCase().includes(q.toLowerCase()),
+      ),
+    [data, q],
   );
   const ord = useOrdenacao(filtered, {
     nome_civil: (i) => i.nome_civil,
