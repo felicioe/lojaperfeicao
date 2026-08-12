@@ -272,7 +272,14 @@ function Movimentos() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {f.movimentos.length === 0 && (
+              {f.isError && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6 text-destructive">
+                    Erro ao carregar os movimentos. Tente novamente.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!f.isError && f.movimentos.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                     Nenhum movimento encontrado.

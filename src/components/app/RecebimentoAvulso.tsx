@@ -46,7 +46,7 @@ export function useMovimentosFiltrados(filtrosIniciais?: {
     filtrosIniciais?.statusInicial ?? "nao_pago",
   );
 
-  const { data: movimentos = [] } = useQuery({
+  const { data: movimentos = [], isError } = useQuery({
     queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria, irmaoId, status],
     queryFn: () =>
       listarLancamentos({
@@ -65,6 +65,7 @@ export function useMovimentosFiltrados(filtrosIniciais?: {
 
   return {
     movimentos,
+    isError,
     de,
     setDe,
     ate,

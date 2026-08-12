@@ -62,7 +62,7 @@ function InadimplenciaDetalhada() {
   const [vencimentoDe, setVencimentoDe] = useState("");
   const [vencimentoAte, setVencimentoAte] = useState("");
 
-  const { data: todosItens = [] } = useQuery({
+  const { data: todosItens = [], isError } = useQuery({
     queryKey: ["relatorio_inadimplencia_detalhado"],
     queryFn: () => relatorioInadimplenciaDetalhado(),
   });
@@ -252,7 +252,14 @@ function InadimplenciaDetalhada() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {itens.length === 0 && (
+              {isError && (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-6 text-destructive">
+                    Erro ao carregar o relatório. Tente novamente.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isError && itens.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
                     Nenhuma fatura em atraso.
