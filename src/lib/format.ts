@@ -7,7 +7,12 @@ export const fmtDate = (d: string | Date | null | undefined) => {
   return new Intl.DateTimeFormat("pt-BR").format(date);
 };
 
-export const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+export const toISODate = (d: Date) => {
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+};
 
 export const GRAU_LABEL: Record<string, string> = {
   aprendiz: "Aprendiz",
