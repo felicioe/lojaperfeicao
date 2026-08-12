@@ -360,7 +360,27 @@ function BaixarLancamentoDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          // Diálogo não desmonta entre aberturas — sem isso, reabrir a
+          // mesma fatura depois de uma baixa parcial anterior mostrava o
+          // saldo já atualizado no rótulo, mas o campo de valor continuava
+          // com o número da primeira vez que o diálogo montou.
+          setModo("integral");
+          setContaFinanceiraId("");
+          setFormaPagamento("");
+          setDataPagamento(toISODate(new Date()));
+          setDesconto(0);
+          setJurosAdicional(0);
+          setValorExtra(0);
+          setPlanoContaExtraId("");
+          setValorRecebidoParcial(saldo);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" variant="ghost" title="Baixar">
           <CheckCircle2 className="h-4 w-4" />
