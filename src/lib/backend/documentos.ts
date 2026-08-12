@@ -7,6 +7,12 @@ import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
 const PAPEIS_ESCRITA = ["admin", "secretario"];
+const CATEGORIAS_DOCUMENTO = [
+  "documentos_loja",
+  "legislacao",
+  "tratados_corporacoes",
+  "tratados_orientes",
+] as const;
 
 export type Documento = {
   id: string;
@@ -77,6 +83,34 @@ export const criarDocumento = createServerFn({ method: "POST" })
         arquivo_nome_original: data.arquivoNomeOriginal || null,
       });
       return { id };
+    });
+  });
+
+const atualizarDocumentoSchema = z.object({
+  id: z.string().uuid(),
+  titulo: z.string().trim().min(1).max(255),
+  categoria: z.enum(CATEGORIAS_DOCUMENTO),
+});
+
+export const atualizarDocumento = createServerFn({ method: "POST" })
+  .validator((d: unknown) => atualizarDocumentoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
+      const [[documento]] = await conn.query<RowDataPacket[]>(
+        "SELECT titulo, categoria FROM documentos WHERE id = ?",
+        [data.id],
+      );
+      if (!documento) throw new Error("Documento não encontrado.");
+
+      await conn.query("UPDATE documentos SET titulo = ?, categoria = ? WHERE id = ?", [
+        data.titulo,
+        data.categoria,
+        data.id,
+      ]);
+      await registrarAuditoria(conn, usuarioId, "atualizar", "documento", data.id, documento, {
+        titulo: data.titulo,
+        categoria: data.categoria,
+      });
     });
   });
 
