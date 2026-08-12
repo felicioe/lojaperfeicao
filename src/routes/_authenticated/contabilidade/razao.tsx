@@ -82,10 +82,19 @@ function Razao() {
     .reduce((s, i) => s + Number(i.valor), 0);
 
   const exportarCSV = () => {
-    const cabecalho = ["Data", "Descrição", "Origem", "Débito", "Crédito", "Saldo"];
+    const cabecalho = [
+      "Data",
+      "Descrição",
+      "Irmão / contraparte",
+      "Origem",
+      "Débito",
+      "Crédito",
+      "Saldo",
+    ];
     const linhasCsv = linhas.map((l) => [
       fmtDate(l.lancamentos_contabeis.data),
       l.descricao ?? l.lancamentos_contabeis.descricao,
+      l.contraparte ?? "",
       l.lancamentos_contabeis.origem_tipo ?? "",
       l.tipo === "debito" ? l.valor : "",
       l.tipo === "credito" ? l.valor : "",
@@ -168,6 +177,7 @@ function Razao() {
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead>Descrição</TableHead>
+                  <TableHead>Irmão / contraparte</TableHead>
                   <TableHead>Origem</TableHead>
                   <TableHead className="text-right">Débito</TableHead>
                   <TableHead className="text-right">Crédito</TableHead>
@@ -177,7 +187,7 @@ function Razao() {
               <TableBody>
                 {linhas.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                       Nenhum lançamento no período.
                     </TableCell>
                   </TableRow>
@@ -186,6 +196,18 @@ function Razao() {
                   <TableRow key={l.id}>
                     <TableCell>{fmtDate(l.lancamentos_contabeis.data)}</TableCell>
                     <TableCell>{l.descricao ?? l.lancamentos_contabeis.descricao}</TableCell>
+                    <TableCell>
+                      {l.contraparte ? (
+                        <div>
+                          <div className="font-medium">{l.contraparte}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {l.contraparte_tipo === "irmao" ? "Irmão" : "Terceiro"}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {l.lancamentos_contabeis.origem_tipo ?? "—"}
                     </TableCell>

@@ -44,6 +44,8 @@ export type ItemRazao = {
   tipo: "debito" | "credito";
   valor: number;
   descricao: string | null;
+  contraparte: string | null;
+  contraparte_tipo: "irmao" | "terceiro" | null;
   lancamentos_contabeis: { data: string; descricao: string; origem_tipo: string | null };
 };
 
@@ -54,9 +56,24 @@ export const listarItensRazao = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ItemRazao[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT i.id, i.tipo, i.valor, i.descricao, lc.data, lc.descricao AS lc_descricao, lc.origem_tipo
+        `SELECT i.id, i.tipo, i.valor, i.descricao, lc.data, lc.descricao AS lc_descricao,
+                lc.origem_tipo,
+                COALESCE(irm.nome_civil, terc.nome) AS contraparte,
+                CASE
+                  WHEN irm.id IS NOT NULL THEN 'irmao'
+                  WHEN terc.id IS NOT NULL THEN 'terceiro'
+                  ELSE NULL
+                END AS contraparte_tipo
          FROM lancamentos_contabeis_itens i
          JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id
+         LEFT JOIN lancamentos l ON l.id = lc.origem_id
+         LEFT JOIN recibos r
+           ON r.id = lc.origem_id
+          AND lc.origem_tipo IN ('recibo_baixa', 'recibo_baixa_parcial')
+         LEFT JOIN parcelamentos p
+           ON p.id = lc.origem_id AND lc.origem_tipo = 'parcelamento'
+         LEFT JOIN irmaos irm ON irm.id = COALESCE(r.irmao_id, p.irmao_id, l.irmao_id)
+         LEFT JOIN terceiros terc ON terc.id = l.terceiro_id
          WHERE i.conta_id = ? AND lc.data >= ? AND lc.data <= ?
          ORDER BY lc.data, lc.criado_em`,
         [data.contaId, data.de, data.ate],
@@ -66,6 +83,8 @@ export const listarItensRazao = createServerFn({ method: "GET" })
         tipo: r.tipo,
         valor: r.valor,
         descricao: r.descricao,
+        contraparte: r.contraparte,
+        contraparte_tipo: r.contraparte_tipo,
         lancamentos_contabeis: {
           data: r.data,
           descricao: r.lc_descricao,
