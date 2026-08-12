@@ -211,6 +211,10 @@ function Orgs() {
       uso.cobrancas > 0 && `${uso.cobrancas} cobrança(s) SGCAB`,
       uso.eventos > 0 && `${uso.eventos} evento(s)`,
       uso.comissoes > 0 && `${uso.comissoes} comissão(ões)`,
+      uso.cargos > 0 && `${uso.cargos} cargo(s)`,
+      uso.taxasGrau > 0 && `${uso.taxasGrau} taxa(s) de grau`,
+      uso.comunicados > 0 && `${uso.comunicados} comunicado(s)`,
+      uso.tabelaValores > 0 && `${uso.tabelaValores} valor(es) na Tabela de Valores`,
     ].filter(Boolean);
     return partes.length > 0 ? partes.join(", ") : null;
   };
@@ -511,8 +515,9 @@ function Orgs() {
                                     </>
                                   ) : (
                                     <>
-                                      Essa ação não pode ser desfeita. Nenhum irmão, gestão,
-                                      cobrança, evento ou comissão está vinculado a este corpo.
+                                      Essa ação não pode ser desfeita. Nenhum dado (irmão, gestão,
+                                      cobrança, evento, comissão, cargo, taxa, comunicado ou valor
+                                      da Tabela de Valores) está vinculado a este corpo.
                                     </>
                                   )}
                                 </AlertDialogDescription>

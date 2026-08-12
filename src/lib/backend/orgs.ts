@@ -177,6 +177,10 @@ export type UsoOrg = {
   cobrancas: number;
   eventos: number;
   comissoes: number;
+  cargos: number;
+  taxasGrau: number;
+  comunicados: number;
+  tabelaValores: number;
 };
 
 const USO_LABEL: Record<Exclude<keyof UsoOrg, "org_id">, string> = {
@@ -185,6 +189,10 @@ const USO_LABEL: Record<Exclude<keyof UsoOrg, "org_id">, string> = {
   cobrancas: "cobrança(s) SGCAB",
   eventos: "evento(s)",
   comissoes: "comissão(ões)",
+  cargos: "cargo(s)",
+  taxasGrau: "taxa(s) de grau",
+  comunicados: "comunicado(s)",
+  tabelaValores: "valor(es) na Tabela de Valores",
 };
 
 // Quantidade de registros nas tabelas que dependem de cada org (ON DELETE
@@ -200,7 +208,11 @@ export const listarUsoOrgs = createServerFn({ method: "GET" }).handler(
                 (SELECT COUNT(*) FROM gestoes WHERE org_id = o.id) AS gestoes,
                 (SELECT COUNT(*) FROM sgcab_cobrancas WHERE org_id = o.id) AS cobrancas,
                 (SELECT COUNT(*) FROM eventos WHERE org_id = o.id) AS eventos,
-                (SELECT COUNT(*) FROM comissoes WHERE org_id = o.id) AS comissoes
+                (SELECT COUNT(*) FROM comissoes WHERE org_id = o.id) AS comissoes,
+                (SELECT COUNT(*) FROM cargos WHERE org_id = o.id) AS cargos,
+                (SELECT COUNT(*) FROM taxas_grau WHERE org_id = o.id) AS taxasGrau,
+                (SELECT COUNT(*) FROM comunicados WHERE org_id = o.id) AS comunicados,
+                (SELECT COUNT(*) FROM tabela_valores WHERE org_id = o.id) AS tabelaValores
          FROM orgs o`,
       );
       return rows as UsoOrg[];
@@ -272,7 +284,23 @@ export const transferirDadosOrg = createServerFn({ method: "POST" })
         data.destinoId,
         data.origemId,
       ]);
-      for (const tabela of ["gestoes", "sgcab_cobrancas", "eventos", "comissoes", "sessoes"]) {
+      // taxas_grau tem UNIQUE(org_id, ano, grau) — se o destino já tiver uma
+      // taxa pro mesmo ano/grau, IGNORE descarta a linha da origem em vez de
+      // travar a transferência inteira (mesmo raciocínio de irmao_orgs acima).
+      await conn.query("UPDATE IGNORE taxas_grau SET org_id = ? WHERE org_id = ?", [
+        data.destinoId,
+        data.origemId,
+      ]);
+      for (const tabela of [
+        "gestoes",
+        "sgcab_cobrancas",
+        "eventos",
+        "comissoes",
+        "sessoes",
+        "cargos",
+        "comunicados",
+        "tabela_valores",
+      ]) {
         await conn.query(`UPDATE ${tabela} SET org_id = ? WHERE org_id = ?`, [
           data.destinoId,
           data.origemId,
@@ -305,8 +333,12 @@ export const excluirOrg = createServerFn({ method: "POST" })
            (SELECT COUNT(*) FROM gestoes WHERE org_id = ?) AS gestoes,
            (SELECT COUNT(*) FROM sgcab_cobrancas WHERE org_id = ?) AS cobrancas,
            (SELECT COUNT(*) FROM eventos WHERE org_id = ?) AS eventos,
-           (SELECT COUNT(*) FROM comissoes WHERE org_id = ?) AS comissoes`,
-        [data.id, data.id, data.id, data.id, data.id],
+           (SELECT COUNT(*) FROM comissoes WHERE org_id = ?) AS comissoes,
+           (SELECT COUNT(*) FROM cargos WHERE org_id = ?) AS cargos,
+           (SELECT COUNT(*) FROM taxas_grau WHERE org_id = ?) AS taxasGrau,
+           (SELECT COUNT(*) FROM comunicados WHERE org_id = ?) AS comunicados,
+           (SELECT COUNT(*) FROM tabela_valores WHERE org_id = ?) AS tabelaValores`,
+        [data.id, data.id, data.id, data.id, data.id, data.id, data.id, data.id, data.id],
       );
       const descricao = descreverUso(uso as Omit<UsoOrg, "org_id">);
       if (descricao) {
