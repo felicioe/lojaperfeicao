@@ -90,9 +90,9 @@ export const listarIrmaos = createServerFn({ method: "GET" }).handler(
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
       const [rows] = privilegiado
-        ? await conn.query<RowDataPacket[]>("SELECT * FROM irmaos ORDER BY nome_civil")
+        ? await conn.query<RowDataPacket[]>("SELECT * FROM irmaos ORDER BY nome_civil LIMIT 5000")
         : await conn.query<RowDataPacket[]>(
-            "SELECT * FROM irmaos WHERE usuario_id = ? ORDER BY nome_civil",
+            "SELECT * FROM irmaos WHERE usuario_id = ? ORDER BY nome_civil LIMIT 5000",
             [usuarioId],
           );
       return rows as Irmao[];
