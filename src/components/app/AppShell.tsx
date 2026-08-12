@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { logout } from "@/lib/backend/auth";
 import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -135,6 +135,7 @@ function NavTree({
   size = "desktop",
   collapsed = false,
   onExpandGroup,
+  asButtons = false,
 }: {
   dashboard: NavItem;
   groups: NavGroup[];
@@ -145,6 +146,11 @@ function NavTree({
   size?: "desktop" | "mobile";
   collapsed?: boolean;
   onExpandGroup?: (groupId: string) => void;
+  // Menu "Meu Painel" (usuário comum, papel único "irmao") pediu pra cada
+  // item aparecer com cara de botão — o menu admin (Cadastros/Atividades/
+  // Tesouraria/...), que reusa este mesmo NavTree, ficou de fora do pedido
+  // e continua só com hover.
+  asButtons?: boolean;
 }) {
   const itemPad = size === "mobile" ? "px-3 py-2.5 text-sm" : "px-2.5 py-1.5 text-[13px]";
 
@@ -177,11 +183,21 @@ function NavTree({
         to={dashboard.to}
         onClick={onNavigate}
         className={cn(
-          "flex items-center gap-2.5 rounded-md px-3 text-sm transition-colors",
+          asButtons
+            ? buttonVariants({ variant: "outline", size: "sm" })
+            : "rounded-md transition-colors",
+          "flex w-full items-center justify-start gap-2.5 px-3 text-sm",
+          asButtons && "h-auto",
           size === "mobile" ? "py-2.5" : "py-2",
           isActive(dashboard.to)
-            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-sm"
-            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+            ? cn(
+                "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+                asButtons ? "border-sidebar-accent hover:bg-sidebar-accent" : "shadow-sm",
+              )
+            : cn(
+                "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                asButtons && "border-sidebar-border",
+              ),
         )}
       >
         <dashboard.icon
@@ -204,7 +220,11 @@ function NavTree({
             >
               <CollapsibleTrigger
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors hover:bg-sidebar-accent/40",
+                  asButtons
+                    ? buttonVariants({ variant: "outline", size: "sm" })
+                    : "rounded-md transition-colors",
+                  "flex w-full items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-wider hover:bg-sidebar-accent/40",
+                  asButtons && "h-auto border-sidebar-border",
                   size === "mobile" ? "py-2.5" : "py-2",
                   hasActive
                     ? "text-sidebar-foreground"
@@ -223,7 +243,12 @@ function NavTree({
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-                <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border pb-1 pl-3">
+                <div
+                  className={cn(
+                    "ml-4 mt-0.5 space-y-0.5 pb-1 pl-3",
+                    asButtons ? "mt-1 space-y-1" : "border-l border-sidebar-border",
+                  )}
+                >
                   {g.items.map((i, idx) => {
                     const active = isActive(i.to);
                     const mostraSecao = i.section && i.section !== g.items[idx - 1]?.section;
@@ -238,11 +263,21 @@ function NavTree({
                           to={i.to}
                           onClick={onNavigate}
                           className={cn(
-                            "flex items-center gap-2.5 rounded-md transition-colors",
+                            asButtons
+                              ? buttonVariants({ variant: "outline", size: "sm" })
+                              : "rounded-md transition-colors",
+                            "flex w-full items-center justify-start gap-2.5",
+                            asButtons && "h-auto",
                             itemPad,
                             active
-                              ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                              : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                              ? cn(
+                                  "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+                                  asButtons && "border-sidebar-accent hover:bg-sidebar-accent",
+                                )
+                              : cn(
+                                  "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                                  asButtons && "border-sidebar-border",
+                                ),
                           )}
                         >
                           <i.icon
@@ -700,6 +735,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               setOpen={setOpen}
               collapsed={collapsed}
               onExpandGroup={expandGroup}
+              asButtons={can.isMemberOnly}
             />
           </nav>
 
@@ -800,6 +836,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 setOpen={setOpen}
                 onNavigate={() => setMobileOpen(false)}
                 size="mobile"
+                asButtons={can.isMemberOnly}
               />
             </nav>
             <div className="border-t border-sidebar-border p-3">
