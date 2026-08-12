@@ -215,6 +215,58 @@ function descreverUso(uso: Omit<UsoOrg, "org_id">): string {
     .join(", ");
 }
 
+// Move os dados vinculados a um corpo (origem) pra outro (destino) — pensado
+// pra corpo cadastrado duplicado/errado que já tem histórico real preso
+// (issue: "consegue transferir deste corpo para o corpo ativo?"). Depois de
+// transferir, o corpo de origem fica sem uso e passa a poder ser excluído
+// normalmente por excluirOrg. irmao_orgs usa UPDATE IGNORE porque tem
+// UNIQUE(irmao_id, org_id) — se o irmão já estiver no destino, a linha da
+// origem simplesmente é descartada (o vínculo já existe lá) em vez de
+// travar a transferência inteira. sessoes e planos_ensino não entram na
+// checagem de "uso" (a FK é ON DELETE SET NULL, não CASCADE — excluir sem
+// transferir não apaga esses registros, só desvincula o corpo), mas ainda
+// assim são movidos pra manter o histórico correto sob o corpo certo.
+export const transferirDadosOrg = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z.object({ origemId: z.string().uuid(), destinoId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    if (data.origemId === data.destinoId) {
+      throw new Error("Corpo de origem e destino não podem ser o mesmo.");
+    }
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[destino]] = await conn.query<RowDataPacket[]>("SELECT id FROM orgs WHERE id = ?", [
+        data.destinoId,
+      ]);
+      if (!destino) throw new Error("Corpo de destino não encontrado.");
+
+      await conn.query("UPDATE IGNORE irmao_orgs SET org_id = ? WHERE org_id = ?", [
+        data.destinoId,
+        data.origemId,
+      ]);
+      for (const tabela of ["gestoes", "sgcab_cobrancas", "eventos", "comissoes", "sessoes"]) {
+        await conn.query(`UPDATE ${tabela} SET org_id = ? WHERE org_id = ?`, [
+          data.destinoId,
+          data.origemId,
+        ]);
+      }
+      await conn.query("UPDATE planos_ensino SET org_id = ? WHERE org_id = ?", [
+        data.destinoId,
+        data.origemId,
+      ]);
+
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "transferir_dados",
+        "org",
+        data.origemId,
+        null,
+        { destinoId: data.destinoId },
+      );
+    });
+  });
+
 export const excluirOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {

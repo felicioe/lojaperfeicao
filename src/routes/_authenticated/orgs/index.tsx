@@ -7,6 +7,7 @@ import {
   salvarOrg,
   alternarAtivoOrg,
   excluirOrg,
+  transferirDadosOrg,
   listarUsoOrgs,
   listarOrgsGraus,
   gerarGrausPadraoOrg,
@@ -222,6 +223,24 @@ function Orgs() {
       qc.invalidateQueries({ queryKey: ["orgs_uso"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
+    }
+  };
+
+  const [destinoTransferencia, setDestinoTransferencia] = useState<string>("");
+  const [transferindo, setTransferindo] = useState(false);
+
+  const transferir = async (origem: Org) => {
+    if (!destinoTransferencia) return;
+    setTransferindo(true);
+    try {
+      await transferirDadosOrg({ data: { origemId: origem.id, destinoId: destinoTransferencia } });
+      toast.success("Dados transferidos.");
+      setDestinoTransferencia("");
+      qc.invalidateQueries({ queryKey: ["orgs_uso"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao transferir.");
+    } finally {
+      setTransferindo(false);
     }
   };
 
@@ -469,43 +488,75 @@ function Orgs() {
                       <Button variant="ghost" size="sm" onClick={() => editar(o)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir "{o.nome}"?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {(() => {
-                                const usoDesc = descreverUso(usoPorOrg.get(o.id));
-                                return usoDesc ? (
-                                  <>
-                                    Não é possível excluir: este corpo tem {usoDesc}. Desative-o em
-                                    vez de excluir.
-                                  </>
-                                ) : (
-                                  <>
-                                    Essa ação não pode ser desfeita. Nenhum irmão, gestão, cobrança,
-                                    evento ou comissão está vinculado a este corpo.
-                                  </>
-                                );
-                              })()}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => excluir(o)}
-                              disabled={!!descreverUso(usoPorOrg.get(o.id))}
-                            >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      {(() => {
+                        const usoDesc = descreverUso(usoPorOrg.get(o.id));
+                        const outrosCorpos = orgs.filter((outro) => outro.id !== o.id);
+                        return (
+                          <AlertDialog
+                            onOpenChange={(aberto) => !aberto && setDestinoTransferencia("")}
+                          >
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir "{o.nome}"?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {usoDesc ? (
+                                    <>
+                                      Não é possível excluir: este corpo tem {usoDesc}. Transfira
+                                      pra outro corpo abaixo, ou desative-o em vez de excluir.
+                                    </>
+                                  ) : (
+                                    <>
+                                      Essa ação não pode ser desfeita. Nenhum irmão, gestão,
+                                      cobrança, evento ou comissão está vinculado a este corpo.
+                                    </>
+                                  )}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              {usoDesc && (
+                                <div className="flex items-end gap-2">
+                                  <div className="flex-1">
+                                    <Label>Transferir dados para</Label>
+                                    <Select
+                                      value={destinoTransferencia}
+                                      onValueChange={setDestinoTransferencia}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecione o corpo destino…" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {outrosCorpos.map((outro) => (
+                                          <SelectItem key={outro.id} value={outro.id}>
+                                            {outro.nome}
+                                            {!outro.ativo ? " (inativo)" : ""}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    disabled={!destinoTransferencia || transferindo}
+                                    onClick={() => transferir(o)}
+                                  >
+                                    Transferir
+                                  </Button>
+                                </div>
+                              )}
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => excluir(o)} disabled={!!usoDesc}>
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        );
+                      })()}
                     </TableCell>
                   )}
                 </TableRow>
