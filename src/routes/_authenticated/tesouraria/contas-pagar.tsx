@@ -145,19 +145,31 @@ function ContasPagar() {
                   <TableHeadOrdenavel campo="descricao" ord={ordAbertas}>
                     Descrição
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="categoria" ord={ordAbertas}>
+                  <TableHeadOrdenavel
+                    campo="categoria"
+                    ord={ordAbertas}
+                    className="hidden sm:table-cell"
+                  >
                     Categoria
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="fornecedor" ord={ordAbertas}>
+                  <TableHeadOrdenavel
+                    campo="fornecedor"
+                    ord={ordAbertas}
+                    className="hidden sm:table-cell"
+                  >
                     Fornecedor
                   </TableHeadOrdenavel>
                   <TableHeadOrdenavel campo="valor" ord={ordAbertas} className="text-right">
                     Valor
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="status" ord={ordAbertas}>
+                  <TableHeadOrdenavel
+                    campo="status"
+                    ord={ordAbertas}
+                    className="hidden sm:table-cell"
+                  >
                     Status
                   </TableHeadOrdenavel>
-                  {podeEditar && <TableHead className="text-right">Ações</TableHead>}
+                  {podeEditar && <TableHead className="text-right"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -172,12 +184,26 @@ function ContasPagar() {
                   const vencida = l.data_vencimento && l.data_vencimento < hoje;
                   return (
                     <TableRow key={l.id}>
-                      <TableCell>{fmtDate(l.data_vencimento)}</TableCell>
-                      <TableCell>{l.descricao}</TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell>
+                        {fmtDate(l.data_vencimento)}
+                        {vencida && (
+                          <div className="sm:hidden">
+                            <Badge variant="destructive" className="mt-1">
+                              Vencida
+                            </Badge>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {l.descricao}
+                        <div className="text-xs text-muted-foreground sm:hidden">
+                          {[l.plano_contas?.nome, l.terceiros?.nome].filter(Boolean).join(" · ")}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">
                         {l.plano_contas?.nome ?? "—"}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">
                         {l.terceiros?.nome ?? "—"}
                       </TableCell>
                       <TableCell className="text-right font-medium">
@@ -188,7 +214,7 @@ function ContasPagar() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         {vencida ? (
                           <Badge variant="destructive">Vencida</Badge>
                         ) : (
@@ -199,8 +225,9 @@ function ContasPagar() {
                         <TableCell className="text-right">
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button size="sm" variant="ghost">
-                                <CheckCircle2 className="h-4 w-4 mr-1" /> Baixar
+                              <Button size="sm" variant="ghost" className="px-2 sm:px-3">
+                                <CheckCircle2 className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Baixar</span>
                               </Button>
                             </DialogTrigger>
                             <BaixarContaPagarDialog lancamento={l} onDone={invalidate} />
@@ -233,13 +260,17 @@ function ContasPagar() {
                   <TableHeadOrdenavel campo="descricao" ord={ordPagas}>
                     Descrição
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="categoria" ord={ordPagas}>
+                  <TableHeadOrdenavel
+                    campo="categoria"
+                    ord={ordPagas}
+                    className="hidden sm:table-cell"
+                  >
                     Categoria
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="conta" ord={ordPagas}>
+                  <TableHeadOrdenavel campo="conta" ord={ordPagas} className="hidden sm:table-cell">
                     Conta
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="forma" ord={ordPagas}>
+                  <TableHeadOrdenavel campo="forma" ord={ordPagas} className="hidden lg:table-cell">
                     Forma
                   </TableHeadOrdenavel>
                   <TableHeadOrdenavel campo="valor" ord={ordPagas} className="text-right">
@@ -258,14 +289,21 @@ function ContasPagar() {
                 {pagasPag.itensPagina.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>{fmtDate(l.data_pagamento)}</TableCell>
-                    <TableCell>{l.descricao}</TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell>
+                      {l.descricao}
+                      <div className="text-xs text-muted-foreground sm:hidden">
+                        {[l.plano_contas?.nome, l.contas_financeiras?.nome]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">
                       {l.plano_contas?.nome ?? "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">
                       {l.contas_financeiras?.nome ?? "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell text-muted-foreground">
                       {l.forma_pagamento ?? "—"}
                     </TableCell>
                     <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
