@@ -22,6 +22,12 @@ export type NotificacaoItem = {
   chave: string;
   titulo: string;
   mensagem: string;
+  // Papéis que devem receber este item — quando omitido, vale PAPEIS_NOTIFICACOES
+  // inteiro. Peça de arquitetura pendente é o único caso restrito hoje: só
+  // admin/secretario conseguem ver/aprovar a peça (ver PODE_VER_CONDICAO em
+  // pecas-arquitetura.ts), então mandar pro tesoureiro também era notificação
+  // fantasma — o clique caía numa tela onde a peça não aparece.
+  papeis?: string[];
 };
 
 export async function gerarNotificacoes(conn: PoolConnection): Promise<NotificacaoItem[]> {
@@ -116,6 +122,7 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
       chave: `peca_pendente_aprovacao:${peca.id}`,
       titulo: "Peça aguardando aprovação",
       mensagem: `"${peca.titulo}" (${peca.autor_nome}) está em análise na Biblioteca de Peças.`,
+      papeis: ["admin", "secretario"],
     });
   }
 
@@ -124,7 +131,17 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
 
 export const listarNotificacoes = createServerFn({ method: "GET" }).handler(
   async (): Promise<NotificacaoItem[]> => {
-    return comPapel(PAPEIS_NOTIFICACOES, async (conn) => gerarNotificacoes(conn));
+    return comPapel(PAPEIS_NOTIFICACOES, async (conn, usuarioIdAtual) => {
+      const itens = await gerarNotificacoes(conn);
+      const [papeisRows] = await conn.query<RowDataPacket[]>(
+        "SELECT papel FROM usuarios_papeis WHERE usuario_id = ?",
+        [usuarioIdAtual],
+      );
+      const meusPapeis = new Set(papeisRows.map((r) => r.papel as string));
+      return itens.filter((item) =>
+        (item.papeis ?? PAPEIS_NOTIFICACOES).some((p) => meusPapeis.has(p)),
+      );
+    });
   },
 );
 
