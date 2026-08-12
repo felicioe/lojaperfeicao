@@ -353,6 +353,17 @@ async function classificarItensPdf(
   );
   const irmaos = irmaosRows as { id: string; nome_civil: string; nome_simbolico: string | null }[];
 
+  const [sessoesRows] = await conn.query<RowDataPacket[]>(
+    "SELECT data FROM sessoes WHERE org_id = ?",
+    [orgId],
+  );
+  const datasSessoesExistentes = new Set(sessoesRows.map((r) => String(r.data)));
+  const [eventosRows] = await conn.query<RowDataPacket[]>(
+    "SELECT data, titulo FROM eventos WHERE org_id = ?",
+    [orgId],
+  );
+  const eventosExistentes = new Set(eventosRows.map((r) => `${r.data}|${r.titulo}`));
+
   const resultado: ItemPreviewPdf[] = [];
   for (const item of itens) {
     const responsaveis: ResponsavelPreview[] = item.responsaveis.map((r) => ({
@@ -362,10 +373,7 @@ async function classificarItensPdf(
 
     if (item.aviso) {
       const titulo = tituloAviso(item.textoCompleto);
-      const [[dup]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM eventos WHERE data = ? AND org_id = ? AND titulo = ? LIMIT 1",
-        [item.data, orgId, titulo],
-      );
+      const dup = eventosExistentes.has(`${item.data}|${titulo}`);
       resultado.push({
         ...item,
         responsaveis,
@@ -373,7 +381,7 @@ async function classificarItensPdf(
         titulo,
         importavel: !dup,
         motivoBloqueio: null,
-        duplicado: !!dup,
+        duplicado: dup,
       });
       continue;
     }
@@ -401,10 +409,7 @@ async function classificarItensPdf(
       });
       continue;
     }
-    const [[dup]] = await conn.query<RowDataPacket[]>(
-      "SELECT id FROM sessoes WHERE data = ? AND org_id = ? LIMIT 1",
-      [item.data, orgId],
-    );
+    const dup = datasSessoesExistentes.has(item.data);
     resultado.push({
       ...item,
       responsaveis,
@@ -412,7 +417,7 @@ async function classificarItensPdf(
       titulo: null,
       importavel: !dup,
       motivoBloqueio: null,
-      duplicado: !!dup,
+      duplicado: dup,
     });
   }
   return resultado;
@@ -469,29 +474,35 @@ export const confirmarImportacaoPdfSessoes = createServerFn({ method: "POST" })
   .validator((d: unknown) => confirmarSchema.parse(d))
   .handler(async ({ data }): Promise<ResumoImportacaoPdf> => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [sessoesRows] = await conn.query<RowDataPacket[]>(
+        "SELECT data FROM sessoes WHERE org_id = ?",
+        [data.orgId],
+      );
+      const datasSessoesExistentes = new Set(sessoesRows.map((r) => String(r.data)));
+      const [eventosRows] = await conn.query<RowDataPacket[]>(
+        "SELECT data, titulo FROM eventos WHERE org_id = ?",
+        [data.orgId],
+      );
+      const eventosExistentes = new Set(eventosRows.map((r) => `${r.data}|${r.titulo}`));
+
       let sessoesCriadas = 0;
       let eventosCriados = 0;
       for (const item of data.itens) {
         if (item.categoria === "evento") {
-          const [[dup]] = await conn.query<RowDataPacket[]>(
-            "SELECT id FROM eventos WHERE data = ? AND org_id = ? AND titulo = ? LIMIT 1",
-            [item.data, data.orgId, item.titulo],
-          );
-          if (dup) continue;
+          const chave = `${item.data}|${item.titulo}`;
+          if (eventosExistentes.has(chave)) continue;
           await conn.query(
             "INSERT INTO eventos (titulo, data, descricao, publico, org_id) VALUES (?, ?, ?, 'org', ?)",
             [item.titulo, item.data, item.textoCompleto, data.orgId],
           );
+          eventosExistentes.add(chave);
           eventosCriados++;
           continue;
         }
 
         if (!item.grau) continue;
-        const [[dup]] = await conn.query<RowDataPacket[]>(
-          "SELECT id FROM sessoes WHERE data = ? AND org_id = ? LIMIT 1",
-          [item.data, data.orgId],
-        );
-        if (dup) continue;
+        if (datasSessoesExistentes.has(item.data)) continue;
+        datasSessoesExistentes.add(item.data);
 
         const sessaoId = crypto.randomUUID();
         await conn.query(

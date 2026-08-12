@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   listarPecasArquitetura,
@@ -140,12 +140,16 @@ function BibliotecaPage() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["pecas_arquitetura"] });
 
-  const filtered = pecas.filter(
-    (p) =>
-      !q ||
-      p.titulo.toLowerCase().includes(q.toLowerCase()) ||
-      p.autor_nome.toLowerCase().includes(q.toLowerCase()) ||
-      p.tema?.toLowerCase().includes(q.toLowerCase()),
+  const filtered = useMemo(
+    () =>
+      pecas.filter(
+        (p) =>
+          !q ||
+          p.titulo.toLowerCase().includes(q.toLowerCase()) ||
+          p.autor_nome.toLowerCase().includes(q.toLowerCase()) ||
+          p.tema?.toLowerCase().includes(q.toLowerCase()),
+      ),
+    [pecas, q],
   );
   const ord = useOrdenacao(filtered, {
     titulo: (p) => p.titulo,

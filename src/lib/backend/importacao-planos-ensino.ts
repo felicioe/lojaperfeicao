@@ -121,6 +121,19 @@ export const confirmarImportacaoPlanosEnsino = createServerFn({ method: "POST" }
         grauMax = org.grau_max;
       }
 
+      const [existentesRows] = await conn.query<RowDataPacket[]>(
+        "SELECT grau, LOWER(titulo) AS titulo_lower, ordem FROM planos_ensino WHERE org_id <=> ?",
+        [data.orgId],
+      );
+      const existentesPorGrauTitulo = new Set(
+        existentesRows.map((r) => `${r.grau}|${r.titulo_lower}`),
+      );
+      const maxOrdemPorGrau = new Map<number, number>();
+      for (const r of existentesRows) {
+        const atual = maxOrdemPorGrau.get(r.grau) ?? 0;
+        if (r.ordem > atual) maxOrdemPorGrau.set(r.grau, r.ordem);
+      }
+
       let criados = 0;
       let ignorados = 0;
       for (const item of data.itens) {
@@ -128,23 +141,18 @@ export const confirmarImportacaoPlanosEnsino = createServerFn({ method: "POST" }
           ignorados++;
           continue;
         }
-        const [[dup]] = await conn.query<RowDataPacket[]>(
-          "SELECT id FROM planos_ensino WHERE grau = ? AND LOWER(titulo) = LOWER(?) AND org_id <=> ?",
-          [item.grau, item.titulo, data.orgId],
-        );
-        if (dup) {
+        const chave = `${item.grau}|${item.titulo.toLowerCase()}`;
+        if (existentesPorGrauTitulo.has(chave)) {
           ignorados++;
           continue;
         }
-        const [[maxRow]] = await conn.query<RowDataPacket[]>(
-          "SELECT COALESCE(MAX(ordem), 0) AS maxOrdem FROM planos_ensino WHERE grau = ? AND org_id <=> ?",
-          [item.grau, data.orgId],
-        );
-        const ordem = (maxRow?.maxOrdem ?? 0) + 1;
+        const ordem = (maxOrdemPorGrau.get(item.grau) ?? 0) + 1;
         await conn.query(
           "INSERT INTO planos_ensino (grau, org_id, ordem, titulo, conteudo) VALUES (?, ?, ?, ?, NULL)",
           [item.grau, data.orgId, ordem, item.titulo],
         );
+        existentesPorGrauTitulo.add(chave);
+        maxOrdemPorGrau.set(item.grau, ordem);
         criados++;
       }
 
