@@ -235,10 +235,38 @@ export const transferirDadosOrg = createServerFn({ method: "POST" })
       throw new Error("Corpo de origem e destino não podem ser o mesmo.");
     }
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      const [[destino]] = await conn.query<RowDataPacket[]>("SELECT id FROM orgs WHERE id = ?", [
-        data.destinoId,
-      ]);
+      const [[destino]] = await conn.query<RowDataPacket[]>(
+        "SELECT id, grau_min, grau_max FROM orgs WHERE id = ?",
+        [data.destinoId],
+      );
       if (!destino) throw new Error("Corpo de destino não encontrado.");
+
+      // sessoes.grau e irmao_orgs.grau_atual não têm FK pra orgs_graus —
+      // sem essa checagem, transferir pra um corpo com faixa de grau menor
+      // (ex.: Loja grau_max=3) deixaria dados de grau fora da faixa válida
+      // do corpo destino, silenciosamente.
+      const [[faixaUsada]] = await conn.query<RowDataPacket[]>(
+        `SELECT
+           GREATEST(
+             COALESCE((SELECT MAX(grau_atual) FROM irmao_orgs WHERE org_id = ?), 0),
+             COALESCE((SELECT MAX(grau) FROM sessoes WHERE org_id = ?), 0)
+           ) AS grau_max_usado,
+           LEAST(
+             COALESCE((SELECT MIN(grau_atual) FROM irmao_orgs WHERE org_id = ?), 999),
+             COALESCE((SELECT MIN(grau) FROM sessoes WHERE org_id = ?), 999)
+           ) AS grau_min_usado`,
+        [data.origemId, data.origemId, data.origemId, data.origemId],
+      );
+      if (
+        faixaUsada.grau_max_usado > 0 &&
+        (faixaUsada.grau_min_usado < destino.grau_min ||
+          faixaUsada.grau_max_usado > destino.grau_max)
+      ) {
+        throw new Error(
+          `O corpo destino só aceita graus ${destino.grau_min}–${destino.grau_max}, mas a ` +
+            `origem tem dados de grau ${faixaUsada.grau_min_usado}–${faixaUsada.grau_max_usado}.`,
+        );
+      }
 
       await conn.query("UPDATE IGNORE irmao_orgs SET org_id = ? WHERE org_id = ?", [
         data.destinoId,

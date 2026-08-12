@@ -91,15 +91,19 @@ export const listarModulosExportaveis = createServerFn({ method: "GET" }).handle
 // RichTextEditor por texto simples, já que uma célula de planilha com
 // "<p>Reunião <strong>extraordinária</strong></p>" não serve pra ninguém.
 function textoSimples(html: string): string {
+  // &amp; decodifica por último — se viesse antes, um "&amp;lt;" (a
+  // sequência literal "&lt;" digitada como texto pelo usuário) virava
+  // "&lt;" e o passo seguinte decodificava de novo pra "<", um caractere
+  // que ninguém digitou.
   return html
     .replace(/<\/(p|li|div)>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
+    .replace(/&amp;/gi, "&")
     .trim();
 }
 

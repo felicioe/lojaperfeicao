@@ -5,8 +5,14 @@
 // ou "&" nesse texto legado é interpretado como tag/entidade quebrada
 // tanto pelo parser HTML do editor quanto pelo DOMPurify na exibição,
 // corrompendo silenciosamente o conteúdo original.
+//
+// Checa contra as tags que o editor de fato produz (RichTextView.tsx,
+// ALLOWED_TAGS do DOMPurify) — um regex genérico de "qualquer coisa com
+// cara de tag" classificava texto legado como "<Confirmar> horário..."
+// como HTML de verdade, e o DOMPurify descartava a anotação inteira por
+// ser uma tag desconhecida.
 export function pareceHtml(valor: string): boolean {
-  return /^\s*<[a-z][a-z0-9]*(\s|>|\/)/i.test(valor);
+  return /^\s*<(p|br|strong|em|ul|ol|li|a)(\s|>|\/)/i.test(valor);
 }
 
 export function normalizarRichText(valor: string): string {

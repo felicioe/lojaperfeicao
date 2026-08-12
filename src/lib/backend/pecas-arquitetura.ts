@@ -165,10 +165,21 @@ export const atualizarPecaArquitetura = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeEditarPeca(conn, usuarioId, data.id))) throw new SemPermissaoError();
+      // Edição de uma peça já aprovada volta pra "em análise" — sem isso o
+      // autor poderia trocar o PDF/título/grau depois da aprovação e o
+      // conteúdo novo ficaria visível sem nenhuma revisão (#224).
+      // aprovado_por/aprovado_em precisam vir ANTES de situacao no SET: o
+      // MySQL avalia as atribuições da esquerda pra direita dentro do mesmo
+      // UPDATE, então se situacao fosse reatribuída primeiro, as duas
+      // condições seguintes já veriam o valor NOVO ('em_analise') em vez do
+      // original ('aprovado') e nunca zerariam aprovado_por/aprovado_em.
       await conn.query(
         `UPDATE pecas_arquitetura
          SET autor_id=?, sessao_id=?, titulo=?, tema=?, resumo=?, grau=?, arquivo_url=?,
-             arquivo_nome_original=?, arquivo_mime=?
+             arquivo_nome_original=?, arquivo_mime=?,
+             aprovado_por = IF(situacao = 'aprovado', NULL, aprovado_por),
+             aprovado_em = IF(situacao = 'aprovado', NULL, aprovado_em),
+             situacao = IF(situacao = 'aprovado', 'em_analise', situacao)
          WHERE id=?`,
         [
           data.autorId,
