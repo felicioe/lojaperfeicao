@@ -167,7 +167,12 @@ async function tratarCronLembretesEmail(request: Request): Promise<Response | nu
 
   try {
     const resultado = await executarLembretesFaturas();
+    // Todas as tentativas falharam (ex.: SMTP nunca configurado) — responder
+    // 200 aqui deixaria o agendador do painel da Hostinger achar que o job
+    // "rodou com sucesso" pra sempre, mesmo sem enviar um único e-mail.
+    const falhaTotal = resultado.avaliadas > 0 && resultado.enviadas === 0 && resultado.falhas > 0;
     return new Response(JSON.stringify(resultado), {
+      status: falhaTotal ? 500 : 200,
       headers: { "content-type": "application/json" },
     });
   } catch (error) {
