@@ -440,10 +440,13 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
   });
 
 // ---------- Relatório de inadimplência detalhado (issue #115) ----------
-// Multa/juros calculados até hoje via a mesma procedure calcular_multa_juros
-// já usada em baixar_faturas/BaixaDialog — não duplica a fórmula em JS,
-// só chama a procedure por fatura (lista de inadimplentes tende a ser
-// pequena/moderada, LIMIT 500 evita N chamadas descontroladas).
+// Multa/juros calculados até hoje com a MESMA fórmula da procedure
+// calcular_multa_juros (também usada em baixar_faturas/BaixaDialog), só que
+// inline numa única consulta em vez de 1 CALL + 1 SELECT por fatura vencida
+// (até 1000 idas ao banco no pior caso, com até 500 inadimplentes). Inline
+// em SQL — não em JS — porque usa o mesmo ROUND/DATEDIFF do MySQL, sem risco
+// de arredondamento divergir por causa de diferença de ponto flutuante entre
+// linguagens. Se a fórmula da procedure mudar, atualizar aqui também.
 
 export type ItemInadimplenciaDetalhado = {
   id: string;
@@ -464,41 +467,40 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
       const hoje = new Date().toISOString().slice(0, 10);
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.irmao_id, (l.valor - l.valor_pago) AS valor, l.data_vencimento, l.descricao,
-                i.nome_civil, i.nome_simbolico
-         FROM lancamentos l
-         JOIN irmaos i ON i.id = l.irmao_id
-         WHERE l.tipo = 'entrada' AND l.pago = FALSE AND l.data_vencimento < ?
-         ORDER BY l.data_vencimento
-         LIMIT 500`,
-        [hoje],
+        `SELECT id, irmao_id, valor, data_vencimento, descricao, nome_civil, nome_simbolico,
+                dias_atraso,
+                IF(dias_atraso > 0 AND multa_ativa, ROUND(valor * multa_percentual / 100, 2), 0)
+                  AS valor_multa,
+                IF(dias_atraso > 0 AND juros_ativo,
+                   ROUND(valor * juros_diario_percentual / 100 * dias_atraso, 2), 0) AS valor_juros
+         FROM (
+           SELECT l.id, l.irmao_id, (l.valor - l.valor_pago) AS valor, l.data_vencimento, l.descricao,
+                  i.nome_civil, i.nome_simbolico,
+                  GREATEST(0, DATEDIFF(?, l.data_vencimento)) AS dias_atraso,
+                  pf.multa_ativa, pf.multa_percentual, pf.juros_ativo, pf.juros_diario_percentual
+           FROM lancamentos l
+           JOIN irmaos i ON i.id = l.irmao_id
+           CROSS JOIN parametros_financeiros pf
+           WHERE pf.id = 1 AND l.tipo = 'entrada' AND l.pago = FALSE AND l.data_vencimento < ?
+           ORDER BY l.data_vencimento
+           LIMIT 500
+         ) t`,
+        [hoje, hoje],
       );
 
-      const itens: ItemInadimplenciaDetalhado[] = [];
-      for (const r of rows) {
-        await conn.query("CALL calcular_multa_juros(?, ?, ?, @multa, @juros, @dias, @total)", [
-          r.valor,
-          r.data_vencimento,
-          hoje,
-        ]);
-        const [[out]] = await conn.query<RowDataPacket[]>(
-          "SELECT @multa AS multa, @juros AS juros, @dias AS dias, @total AS total",
-        );
-        itens.push({
-          id: r.id,
-          irmao_id: r.irmao_id,
-          nome_civil: r.nome_civil,
-          nome_simbolico: r.nome_simbolico,
-          descricao: r.descricao,
-          data_vencimento: r.data_vencimento,
-          dias_atraso: Number(out.dias),
-          valor_original: Number(r.valor),
-          valor_multa: Number(out.multa),
-          valor_juros: Number(out.juros),
-          valor_total: Number(out.total),
-        });
-      }
-      return itens;
+      return rows.map((r): ItemInadimplenciaDetalhado => ({
+        id: r.id,
+        irmao_id: r.irmao_id,
+        nome_civil: r.nome_civil,
+        nome_simbolico: r.nome_simbolico,
+        descricao: r.descricao,
+        data_vencimento: r.data_vencimento,
+        dias_atraso: Number(r.dias_atraso),
+        valor_original: Number(r.valor),
+        valor_multa: Number(r.valor_multa),
+        valor_juros: Number(r.valor_juros),
+        valor_total: Number(r.valor) + Number(r.valor_multa) + Number(r.valor_juros),
+      }));
     });
   },
 );
