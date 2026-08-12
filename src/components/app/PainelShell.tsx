@@ -141,76 +141,51 @@ export function PainelShell({ children }: { children: ReactNode }) {
               </div>
               <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
             </div>
-            <div className="flex-1 p-3">
-              <Link
-                to="/painel/eventos"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <PartyPopper className="h-4 w-4 text-muted-foreground" /> Eventos
-              </Link>
-              <Link
-                to="/painel/dados"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Meus dados e privacidade
-              </Link>
-              <Link
-                to="/biblioteca"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <Library className="h-4 w-4 text-muted-foreground" /> Biblioteca de Peças
-              </Link>
-              <Link
-                to="/calendario"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <Calendar className="h-4 w-4 text-muted-foreground" /> Calendário
-              </Link>
-              <Link
-                to="/enquetes"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <Vote className="h-4 w-4 text-muted-foreground" /> Enquetes
-              </Link>
-              <Link
-                to="/documentos"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <FileSignature className="h-4 w-4 text-muted-foreground" /> Documentos
-              </Link>
-              <Link
-                to="/conta/seguranca"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <Fingerprint className="h-4 w-4 text-muted-foreground" /> Segurança da conta
-              </Link>
-              <a
-                href="/privacidade"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 block rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-muted"
-              >
-                Política de Privacidade
-              </a>
-              <button
-                type="button"
-                onClick={toggleDark}
-                className="mt-1 flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-sm hover:bg-muted"
-              >
-                {dark ? (
-                  <Sun className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Moon className="h-4 w-4 text-muted-foreground" />
-                )}
+            <div className="flex-1 space-y-1 p-3">
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/painel/eventos" onClick={() => setMenuOpen(false)}>
+                  <PartyPopper className="mr-1.5 h-4 w-4" /> Eventos
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/painel/dados" onClick={() => setMenuOpen(false)}>
+                  <ShieldCheck className="mr-1.5 h-4 w-4" /> Meus dados e privacidade
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/biblioteca" onClick={() => setMenuOpen(false)}>
+                  <Library className="mr-1.5 h-4 w-4" /> Biblioteca de Peças
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/calendario" onClick={() => setMenuOpen(false)}>
+                  <Calendar className="mr-1.5 h-4 w-4" /> Calendário
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/enquetes" onClick={() => setMenuOpen(false)}>
+                  <Vote className="mr-1.5 h-4 w-4" /> Enquetes
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/documentos" onClick={() => setMenuOpen(false)}>
+                  <FileSignature className="mr-1.5 h-4 w-4" /> Documentos
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/conta/seguranca" onClick={() => setMenuOpen(false)}>
+                  <Fingerprint className="mr-1.5 h-4 w-4" /> Segurança da conta
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <a href="/privacidade" target="_blank" rel="noreferrer">
+                  Política de Privacidade
+                </a>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" onClick={toggleDark}>
+                {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}
                 {dark ? "Modo claro" : "Modo escuro"}
-              </button>
+              </Button>
             </div>
             <div className="border-t p-3">
               <Button variant="outline" className="w-full" onClick={sair}>
