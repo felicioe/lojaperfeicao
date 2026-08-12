@@ -108,18 +108,21 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
     });
   }
 
-  // Peça de arquitetura pendente de aprovação (#224) — chave estável (sem
-  // data), então só dispara uma vez por peça enquanto ela ficar em análise;
-  // se for aprovada/rejeitada e nunca mais entrar nesse estado, não repete.
+  // Peça de arquitetura pendente de aprovação (#224) — a chave inclui
+  // atualizado_em, então só dispara uma vez por versão da peça enquanto ela
+  // ficar em análise; se for aprovada/rejeitada e nunca mais entrar nesse
+  // estado, não repete. Sem atualizado_em na chave, reenviar uma peça já
+  // aprovada (que volta pra "em_analise" na edição) nunca gerava aviso de
+  // novo — a chave da primeira submissão já tinha sido usada.
   const [pecasPendentes] = await conn.query<RowDataPacket[]>(
-    `SELECT pa.id, pa.titulo, i.nome_civil AS autor_nome
+    `SELECT pa.id, pa.titulo, i.nome_civil AS autor_nome, pa.atualizado_em
      FROM pecas_arquitetura pa JOIN irmaos i ON i.id = pa.autor_id
      WHERE pa.situacao = 'em_analise'`,
   );
   for (const peca of pecasPendentes) {
     itens.push({
       tipo: "peca_pendente_aprovacao",
-      chave: `peca_pendente_aprovacao:${peca.id}`,
+      chave: `peca_pendente_aprovacao:${peca.id}:${new Date(peca.atualizado_em).getTime()}`,
       titulo: "Peça aguardando aprovação",
       mensagem: `"${peca.titulo}" (${peca.autor_nome}) está em análise na Biblioteca de Peças.`,
       papeis: ["admin", "secretario"],
