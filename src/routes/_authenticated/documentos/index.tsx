@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  atualizarDocumento,
   criarDocumento,
   excluirDocumento,
   listarDocumentos,
@@ -50,6 +51,9 @@ import {
   ExternalLink,
   FileText,
   Folder,
+  FolderInput,
+  MessageCircle,
+  Pencil,
   Printer,
   Plus,
   Search,
@@ -89,6 +93,7 @@ function LegislacaoPage() {
   const [busca, setBusca] = useState("");
   const [dialogAberto, setDialogAberto] = useState(false);
   const [visualizando, setVisualizando] = useState<Documento | null>(null);
+  const [editando, setEditando] = useState<Documento | null>(null);
 
   const { data: documentos = [], isLoading } = useQuery({
     queryKey: ["documentos"],
@@ -144,6 +149,12 @@ function LegislacaoPage() {
       toast.error("Não foi possível compartilhar o documento.");
     }
   };
+
+  const urlDocumento = (documento: Documento) =>
+    documento.arquivo_url ? new URL(documento.arquivo_url, window.location.origin).toString() : "";
+
+  const urlWhatsapp = (documento: Documento) =>
+    `https://wa.me/?text=${encodeURIComponent(`${documento.titulo}\n${urlDocumento(documento)}`)}`;
 
   return (
     <>
@@ -258,7 +269,10 @@ function LegislacaoPage() {
             ) : (
               <div className="divide-y">
                 {itensPagina.map((documento) => (
-                  <div key={documento.id} className="flex items-center gap-3 p-4 hover:bg-muted/30">
+                  <div
+                    key={documento.id}
+                    className="flex flex-wrap items-center gap-3 p-4 hover:bg-muted/30"
+                  >
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                       <FileText className="h-5 w-5 text-primary" />
                     </div>
@@ -274,56 +288,80 @@ function LegislacaoPage() {
                         {documento.conteudo}
                       </p>
                     </div>
-                    {documento.arquivo_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setVisualizando(documento)}
-                      >
-                        <ExternalLink className="mr-1.5 h-4 w-4" />
-                        <span className="hidden sm:inline">Visualizar</span>
-                      </Button>
-                    )}
-                    {documento.arquivo_url && (
-                      <Button variant="ghost" size="sm" asChild>
-                        <a
-                          href={documento.arquivo_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download={documento.arquivo_nome_original ?? undefined}
+                    <div className="ml-auto flex w-full flex-wrap justify-end gap-1 sm:w-auto">
+                      {documento.arquivo_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setVisualizando(documento)}
                         >
-                          <Download className="h-4 w-4" />
-                          <span className="sr-only">Salvar {documento.titulo}</span>
-                        </a>
-                      </Button>
-                    )}
-                    {can.isAdmin && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Excluir ${documento.titulo}`}
+                          <ExternalLink className="mr-1.5 h-4 w-4" />
+                          <span className="hidden sm:inline">Visualizar</span>
+                        </Button>
+                      )}
+                      {documento.arquivo_url && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void compartilhar(documento)}
+                          aria-label={`Compartilhar ${documento.titulo}`}
+                          title="Compartilhar"
+                        >
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {can.canManageIrmaos && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditando(documento)}
+                          aria-label={`Renomear ou mover ${documento.titulo}`}
+                          title="Renomear ou mover"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {documento.arquivo_url && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <a
+                            href={documento.arquivo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download={documento.arquivo_nome_original ?? undefined}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              “{documento.titulo}” será removido do repositório.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => excluir(documento.id)}>
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
+                            <Download className="h-4 w-4" />
+                            <span className="sr-only">Salvar {documento.titulo}</span>
+                          </a>
+                        </Button>
+                      )}
+                      {can.isAdmin && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Excluir ${documento.titulo}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                “{documento.titulo}” será removido do repositório.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => excluir(documento.id)}>
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -353,6 +391,11 @@ function LegislacaoPage() {
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => void compartilhar(visualizando)}>
                   <Share2 className="mr-1.5 h-4 w-4" /> Compartilhar
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={urlWhatsapp(visualizando)} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp
+                  </a>
                 </Button>
                 <Button variant="outline" size="sm" asChild>
                   <a
@@ -392,7 +435,94 @@ function LegislacaoPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={editando !== null} onOpenChange={(aberto) => !aberto && setEditando(null)}>
+        {editando && (
+          <EditarDocumento
+            documento={editando}
+            onSalvo={async () => {
+              setEditando(null);
+              await qc.invalidateQueries({ queryKey: ["documentos"] });
+            }}
+          />
+        )}
+      </Dialog>
     </>
+  );
+}
+
+function EditarDocumento({
+  documento,
+  onSalvo,
+}: {
+  documento: Documento;
+  onSalvo: () => Promise<void>;
+}) {
+  const [titulo, setTitulo] = useState(documento.titulo);
+  const [categoria, setCategoria] = useState(documento.categoria);
+  const [ocupado, setOcupado] = useState(false);
+
+  const salvar = async () => {
+    if (!titulo.trim()) return toast.error("Informe o nome do documento.");
+    setOcupado(true);
+    try {
+      await atualizarDocumento({
+        data: {
+          id: documento.id,
+          titulo: titulo.trim(),
+          categoria: categoria as (typeof CATEGORIAS)[number]["id"],
+        },
+      });
+      toast.success("Documento atualizado.");
+      await onSalvo();
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível atualizar o documento.");
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  return (
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Renomear ou mover</DialogTitle>
+        <DialogDescription>
+          Altere o nome do documento ou escolha outra pasta, como em um explorador de arquivos.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-4">
+        <div>
+          <Label htmlFor="editar-titulo">Nome do documento</Label>
+          <Input
+            id="editar-titulo"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <div>
+          <Label>Pasta de destino</Label>
+          <Select value={categoria} onValueChange={setCategoria}>
+            <SelectTrigger>
+              <FolderInput className="mr-2 h-4 w-4" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIAS.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={() => void salvar()} disabled={ocupado || !titulo.trim()}>
+          {ocupado ? "Salvando…" : "Salvar alterações"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 
