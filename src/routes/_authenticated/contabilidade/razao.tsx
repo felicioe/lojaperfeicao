@@ -107,7 +107,7 @@ function Razao() {
     <>
       <PageHeader
         title="Razão Contábil"
-        description="Movimentação de uma conta analítica ao longo do tempo, com saldo acumulado."
+        description="Movimentação pelo regime de caixa de uma conta analítica, com saldo acumulado."
         actions={
           <Button
             variant="outline"

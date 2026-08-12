@@ -101,7 +101,7 @@ function Balancete() {
     <>
       <PageHeader
         title="Balancete de Verificação"
-        description="Débito e crédito acumulados por conta até a data de corte, agrupados por classe."
+        description="Débitos e créditos pelo regime de caixa, acumulados até a data de corte e agrupados por classe."
         actions={
           <Button variant="outline" onClick={exportarCSV} disabled={linhas.length === 0}>
             <Download className="h-4 w-4 mr-1" /> Exportar CSV
