@@ -62,6 +62,7 @@ import {
   FileSignature,
   Lock,
   FileText,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
@@ -436,6 +437,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/tesouraria/faturas",
           label: "Faturas",
           icon: FileStack,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/tesouraria/parcelamentos",
+          label: "Parcelamentos",
+          icon: Layers,
           show: can.canManageFinancas,
         },
         {
