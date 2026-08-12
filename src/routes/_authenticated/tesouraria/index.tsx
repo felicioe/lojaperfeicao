@@ -403,8 +403,8 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
             value={d.valor}
             onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
           />
-          {!Number(d.valor) && (
-            <p className="mt-1 text-xs text-destructive">O valor não pode ser zero.</p>
+          {!(Number(d.valor) > 0) && (
+            <p className="mt-1 text-xs text-destructive">O valor deve ser maior que zero.</p>
           )}
         </div>
         <div className="md:col-span-2">
@@ -481,7 +481,10 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
             Cancelar
           </Button>
         </DialogClose>
-        <Button onClick={save} disabled={saving || !d.descricao || !d.conta_id || !Number(d.valor)}>
+        <Button
+          onClick={save}
+          disabled={saving || !d.descricao || !d.conta_id || !(Number(d.valor) > 0)}
+        >
           Salvar
         </Button>
       </DialogFooter>
@@ -597,7 +600,7 @@ function TransferenciaDialog({ contas, onDone }: any) {
             Cancelar
           </Button>
         </DialogClose>
-        <Button onClick={save} disabled={saving || !Number(d.valor)}>
+        <Button onClick={save} disabled={saving || !(Number(d.valor) > 0)}>
           Transferir
         </Button>
       </DialogFooter>

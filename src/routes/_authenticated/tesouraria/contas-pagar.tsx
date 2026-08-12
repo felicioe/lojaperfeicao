@@ -310,7 +310,7 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
   });
 
   const salvar = async () => {
-    if (!d.descricao.trim() || !d.valor || !d.plano_conta_id) return;
+    if (!d.descricao.trim() || !(Number(d.valor) > 0) || !d.plano_conta_id) return;
     setSaving(true);
     try {
       await criarContaPagar({
@@ -409,7 +409,10 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={salvar} disabled={saving || !d.descricao || !d.valor || !d.plano_conta_id}>
+        <Button
+          onClick={salvar}
+          disabled={saving || !d.descricao || !(Number(d.valor) > 0) || !d.plano_conta_id}
+        >
           Registrar
         </Button>
       </DialogFooter>
