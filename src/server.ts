@@ -1,5 +1,7 @@
 import "./lib/error-capture";
 
+import { readFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { executarDisparoNotificacoes } from "./lib/push-dispatch";
@@ -46,6 +48,52 @@ function isH3SwallowedErrorBody(body: string): boolean {
     return payload.unhandled === true && payload.message === "HTTPError";
   } catch {
     return false;
+  }
+}
+
+// irmaos.ts, orgs.ts, pecas-arquitetura.ts, documentos.ts e sgcab.ts gravam
+// uploads em disco (node:fs/promises) sob public/uploads/... em tempo de
+// execução, contando que o Nitro sirva esses arquivos como estático — mas
+// o preset "node-server" gera, em build time, um MANIFESTO CONGELADO dos
+// arquivos que existiam em public/ naquele momento (ver
+// .output/server/index.mjs, `public_assets_data_default`) e serve só a
+// partir dele: qualquer arquivo enviado DEPOIS do deploy (ou seja, todo
+// upload feito pelos usuários em produção) não está no manifesto e cai em
+// 404, em qualquer navegador/aparelho — não é um problema de PWA/cache nem
+// específico de celular, é o servidor Node de produção nunca lendo o
+// diretório ao vivo. Intercepta /uploads/* aqui e lê do disco a cada
+// requisição, contornando o manifesto do Nitro.
+const UPLOADS_MIME_POR_EXTENSAO: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
+
+async function tratarUploadEstatico(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (!url.pathname.startsWith("/uploads/")) return null;
+
+  const baseDir = resolve(process.cwd(), "public", "uploads");
+  const caminhoAbsoluto = resolve(process.cwd(), "public", `.${decodeURIComponent(url.pathname)}`);
+  if (!caminhoAbsoluto.startsWith(baseDir)) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
+  try {
+    const conteudo = await readFile(caminhoAbsoluto);
+    const mime =
+      UPLOADS_MIME_POR_EXTENSAO[extname(caminhoAbsoluto).toLowerCase()] ??
+      "application/octet-stream";
+    return new Response(conteudo, {
+      headers: { "content-type": mime, "cache-control": "public, max-age=3600" },
+    });
+  } catch {
+    return new Response("Arquivo não encontrado.", { status: 404 });
   }
 }
 
@@ -150,6 +198,9 @@ async function tratarCallbackFacebookOuNull(request: Request): Promise<Response 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const uploadResponse = await tratarUploadEstatico(request);
+      if (uploadResponse) return uploadResponse;
+
       const cronResponse = await tratarCronNotificacoes(request);
       if (cronResponse) return cronResponse;
 
