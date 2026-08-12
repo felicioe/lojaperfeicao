@@ -61,7 +61,17 @@ import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
-import { Library, Plus, Download, Pencil, Trash2, FileText, Check, X as XIcon } from "lucide-react";
+import {
+  Library,
+  Plus,
+  Download,
+  Eye,
+  Pencil,
+  Trash2,
+  FileText,
+  Check,
+  X as XIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/biblioteca/")({
@@ -487,11 +497,18 @@ function BibliotecaPage() {
                         </>
                       )}
                       {p.arquivo_url && (
-                        <Button variant="ghost" size="sm" asChild>
-                          <a href={p.arquivo_url} download={p.arquivo_nome_original ?? undefined}>
-                            <Download className="h-4 w-4" />
-                          </a>
-                        </Button>
+                        <>
+                          <Button variant="ghost" size="sm" asChild title="Visualizar">
+                            <a href={p.arquivo_url} target="_blank" rel="noopener noreferrer">
+                              <Eye className="h-4 w-4" />
+                            </a>
+                          </Button>
+                          <Button variant="ghost" size="sm" asChild title="Baixar">
+                            <a href={p.arquivo_url} download={p.arquivo_nome_original ?? undefined}>
+                              <Download className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        </>
                       )}
                       {podeEditar(p) && (
                         <>
