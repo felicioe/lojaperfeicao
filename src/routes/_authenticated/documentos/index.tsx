@@ -86,10 +86,19 @@ const CATEGORIAS = [
   },
 ] as const;
 
+const SEM_ANO = "sem_ano";
+
+function extrairAno(documento: Documento) {
+  const texto = `${documento.titulo} ${documento.arquivo_nome_original ?? ""}`;
+  const anos = texto.match(/\b(?:19|20)\d{2}\b/g);
+  return anos?.at(-1) ?? SEM_ANO;
+}
+
 function LegislacaoPage() {
   const can = useCan();
   const qc = useQueryClient();
   const [categoria, setCategoria] = useState<string | null>(null);
+  const [ano, setAno] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [dialogAberto, setDialogAberto] = useState(false);
   const [visualizando, setVisualizando] = useState<Documento | null>(null);
@@ -110,16 +119,37 @@ function LegislacaoPage() {
       ),
     [documentos],
   );
+  const anosLegislacao = useMemo(() => {
+    const contagem = new Map<string, number>();
+    documentos
+      .filter((documento) => documento.categoria === "legislacao")
+      .forEach((documento) => {
+        const anoDocumento = extrairAno(documento);
+        contagem.set(anoDocumento, (contagem.get(anoDocumento) ?? 0) + 1);
+      });
+    return [...contagem.entries()].sort(([anoA], [anoB]) => {
+      if (anoA === SEM_ANO) return 1;
+      if (anoB === SEM_ANO) return -1;
+      return Number(anoB) - Number(anoA);
+    });
+  }, [documentos]);
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
-    return documentos.filter(
+    const resultado = documentos.filter(
       (documento) =>
         (!categoria || documento.categoria === categoria) &&
+        (categoria !== "legislacao" || !ano || extrairAno(documento) === ano) &&
         (!termo ||
           documento.titulo.toLocaleLowerCase("pt-BR").includes(termo) ||
           documento.arquivo_nome_original?.toLocaleLowerCase("pt-BR").includes(termo)),
     );
-  }, [busca, categoria, documentos]);
+    if (categoria === "legislacao") {
+      return resultado.sort((a, b) =>
+        b.titulo.localeCompare(a.titulo, "pt-BR", { numeric: true, sensitivity: "base" }),
+      );
+    }
+    return resultado;
+  }, [ano, busca, categoria, documentos]);
   const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
     usePaginacao(filtrados);
 
@@ -199,6 +229,7 @@ function LegislacaoPage() {
                 type="button"
                 onClick={() => {
                   setCategoria(item.id);
+                  setAno(null);
                   setPagina(1);
                 }}
                 className="group flex min-h-28 items-start gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -217,8 +248,8 @@ function LegislacaoPage() {
             ))}
           </div>
         </section>
-      ) : (
-        <section aria-labelledby="conteudo-pasta">
+      ) : categoria === "legislacao" && !ano ? (
+        <section aria-labelledby="anos-legislacao">
           <div className="mb-4 flex items-center gap-3">
             <Button
               variant="outline"
@@ -231,9 +262,72 @@ function LegislacaoPage() {
             >
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Pastas
             </Button>
+            <div>
+              <h2 id="anos-legislacao" className="text-base font-semibold">
+                Legislação por ano
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Os documentos mais recentes aparecem primeiro.
+              </p>
+            </div>
+          </div>
+          {anosLegislacao.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={Folder}
+                title="Nenhuma legislação cadastrada"
+                description="Adicione um documento com o ano no título ou no nome do arquivo."
+              />
+            </Card>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {anosLegislacao.map(([anoDocumento, quantidade], indice) => (
+                <button
+                  key={anoDocumento}
+                  type="button"
+                  onClick={() => {
+                    setAno(anoDocumento);
+                    setPagina(1);
+                  }}
+                  className="group flex min-h-24 items-center gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Folder className="h-6 w-6 shrink-0 text-primary" />
+                  <span className="min-w-0">
+                    <span className="block text-lg font-semibold tabular-nums">
+                      {anoDocumento === SEM_ANO ? "Sem ano identificado" : anoDocumento}
+                    </span>
+                    <span className="mt-1 block text-xs font-medium text-primary">
+                      {quantidade} documento(s)
+                      {indice === 0 && anoDocumento !== SEM_ANO ? " · Mais recentes" : ""}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        <section aria-labelledby="conteudo-pasta">
+          <div className="mb-4 flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (categoria === "legislacao") setAno(null);
+                else setCategoria(null);
+                setBusca("");
+                setPagina(1);
+              }}
+            >
+              <ArrowLeft className="mr-1.5 h-4 w-4" />
+              {categoria === "legislacao" ? "Anos" : "Pastas"}
+            </Button>
             <div className="min-w-0">
               <h2 id="conteudo-pasta" className="truncate text-base font-semibold">
                 {categoriaAtual?.nome}
+                {categoria === "legislacao" && ano
+                  ? ` · ${ano === SEM_ANO ? "Sem ano identificado" : ano}`
+                  : ""}
               </h2>
               <p className="text-sm text-muted-foreground">{totalItens} documento(s)</p>
             </div>
