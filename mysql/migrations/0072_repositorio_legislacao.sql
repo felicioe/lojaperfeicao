@@ -14,9 +14,9 @@ SET @importador_id := COALESCE(
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
 SELECT '00000000-0000-4000-8000-000000000001', 'Administração e Planejamento 2024 - L. Perfeição Adonhiram e Capitulo Ayres Gevaerd', 'documentos_loja', 'Documento integrante do repositorio de legislacao.',
-       SHA2(CONCAT('Administração e Planejamento 2024 - L. Perfeição Adonhiram e Capitulo Ayres Gevaerd', '/uploads/legislacao/acervo-0001.odt'), 256), '/uploads/legislacao/acervo-0001.odt', 'Administração e Planejamento 2024 - L. Perfeição Adonhiram e Capitulo Ayres Gevaerd.odt', 'application/vnd.oasis.opendocument.text', @importador_id
+       SHA2(CONCAT('Administração e Planejamento 2024 - L. Perfeição Adonhiram e Capitulo Ayres Gevaerd', '/uploads/legislacao/acervo-0001.pdf'), 256), '/uploads/legislacao/acervo-0001.pdf', 'Administração e Planejamento 2024 - L. Perfeição Adonhiram e Capitulo Ayres Gevaerd.pdf', 'application/pdf', @importador_id
 WHERE @importador_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0001.odt');
+  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0001.pdf');
 
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
@@ -28,9 +28,9 @@ WHERE @importador_id IS NOT NULL
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
 SELECT '00000000-0000-4000-8000-000000000003', 'Cadastro para o SGCAB 2024', 'documentos_loja', 'Documento integrante do repositorio de legislacao.',
-       SHA2(CONCAT('Cadastro para o SGCAB 2024', '/uploads/legislacao/acervo-0003.docx'), 256), '/uploads/legislacao/acervo-0003.docx', 'Cadastro para o SGCAB 2024.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', @importador_id
+       SHA2(CONCAT('Cadastro para o SGCAB 2024', '/uploads/legislacao/acervo-0003.pdf'), 256), '/uploads/legislacao/acervo-0003.pdf', 'Cadastro para o SGCAB 2024.pdf', 'application/pdf', @importador_id
 WHERE @importador_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0003.docx');
+  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0003.pdf');
 
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
@@ -49,9 +49,9 @@ WHERE @importador_id IS NOT NULL
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
 SELECT '00000000-0000-4000-8000-000000000006', 'Elevação 4º Grau (1) - Formulário', 'documentos_loja', 'Documento integrante do repositorio de legislacao.',
-       SHA2(CONCAT('Elevação 4º Grau (1) - Formulário', '/uploads/legislacao/acervo-0006.docx'), 256), '/uploads/legislacao/acervo-0006.docx', 'Elevação 4º Grau (1) - Formulário.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', @importador_id
+       SHA2(CONCAT('Elevação 4º Grau (1) - Formulário', '/uploads/legislacao/acervo-0006.pdf'), 256), '/uploads/legislacao/acervo-0006.pdf', 'Elevação 4º Grau (1) - Formulário.pdf', 'application/pdf', @importador_id
 WHERE @importador_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0006.docx');
+  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0006.pdf');
 
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
@@ -1750,9 +1750,9 @@ WHERE @importador_id IS NOT NULL
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
 SELECT '00000000-0000-4000-8000-000000000249', 'download', 'legislacao', 'Documento integrante do repositorio de legislacao.',
-       SHA2(CONCAT('download', '/uploads/legislacao/acervo-0249.png'), 256), '/uploads/legislacao/acervo-0249.png', 'download.png', 'image/png', @importador_id
+       SHA2(CONCAT('download', '/uploads/legislacao/acervo-0249.pdf'), 256), '/uploads/legislacao/acervo-0249.pdf', 'download.pdf', 'application/pdf', @importador_id
 WHERE @importador_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0249.png');
+  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0249.pdf');
 
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
@@ -1792,9 +1792,9 @@ WHERE @importador_id IS NOT NULL
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
 SELECT '00000000-0000-4000-8000-000000000255', 'PROGRAMAÇÃO LP E CAP - ATUALIZADOS', 'documentos_loja', 'Documento integrante do repositorio de legislacao.',
-       SHA2(CONCAT('PROGRAMAÇÃO LP E CAP - ATUALIZADOS', '/uploads/legislacao/acervo-0255.docx'), 256), '/uploads/legislacao/acervo-0255.docx', 'PROGRAMAÇÃO LP E CAP - ATUALIZADOS.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', @importador_id
+       SHA2(CONCAT('PROGRAMAÇÃO LP E CAP - ATUALIZADOS', '/uploads/legislacao/acervo-0255.pdf'), 256), '/uploads/legislacao/acervo-0255.pdf', 'PROGRAMAÇÃO LP E CAP - ATUALIZADOS.pdf', 'application/pdf', @importador_id
 WHERE @importador_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0255.docx');
+  AND NOT EXISTS (SELECT 1 FROM documentos WHERE arquivo_url = '/uploads/legislacao/acervo-0255.pdf');
 
 INSERT INTO documentos
   (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)

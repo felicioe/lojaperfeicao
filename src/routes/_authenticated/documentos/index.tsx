@@ -44,7 +44,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
-import { Download, FileText, Folder, FolderOpen, Plus, Search, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  ExternalLink,
+  FileText,
+  Folder,
+  Printer,
+  Plus,
+  Search,
+  Share2,
+  Trash2,
+} from "lucide-react";
+import type { Documento } from "@/lib/backend/documentos";
 
 export const Route = createFileRoute("/_authenticated/documentos/")({
   head: () => ({ meta: [{ title: "Legislação — Gestão Maçônica" }] }),
@@ -76,6 +88,7 @@ function LegislacaoPage() {
   const [categoria, setCategoria] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [dialogAberto, setDialogAberto] = useState(false);
+  const [visualizando, setVisualizando] = useState<Documento | null>(null);
 
   const { data: documentos = [], isLoading } = useQuery({
     queryKey: ["documentos"],
@@ -115,6 +128,23 @@ function LegislacaoPage() {
     }
   };
 
+  const categoriaAtual = CATEGORIAS.find((item) => item.id === categoria);
+
+  const compartilhar = async (documento: Documento) => {
+    if (!documento.arquivo_url) return;
+    const url = new URL(documento.arquivo_url, window.location.origin).toString();
+    try {
+      if (navigator.share) await navigator.share({ title: documento.titulo, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copiado para compartilhar.");
+      }
+    } catch (erro) {
+      if (erro instanceof DOMException && erro.name === "AbortError") return;
+      toast.error("Não foi possível compartilhar o documento.");
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -139,41 +169,30 @@ function LegislacaoPage() {
         }
       />
 
-      <section aria-labelledby="pastas-legislacao" className="mb-6">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <h2 id="pastas-legislacao" className="text-base font-semibold">
-              Pastas
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Selecione uma área para consultar seus documentos.
-            </p>
+      {!categoria ? (
+        <section aria-labelledby="pastas-legislacao">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <h2 id="pastas-legislacao" className="text-base font-semibold">
+                Pastas
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Selecione uma área para consultar seus documentos.
+              </p>
+            </div>
           </div>
-          {categoria && (
-            <Button variant="ghost" size="sm" onClick={() => setCategoria(null)}>
-              Ver todas
-            </Button>
-          )}
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {CATEGORIAS.map((item) => {
-            const ativa = categoria === item.id;
-            return (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {CATEGORIAS.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  setCategoria(ativa ? null : item.id);
+                  setCategoria(item.id);
                   setPagina(1);
                 }}
-                aria-pressed={ativa}
-                className={`group flex min-h-28 items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${ativa ? "border-primary bg-primary/10" : "bg-card hover:border-primary/50 hover:bg-muted/40"}`}
+                className="group flex min-h-28 items-start gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {ativa ? (
-                  <FolderOpen className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
-                ) : (
-                  <Folder className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
-                )}
+                <Folder className="mt-0.5 h-6 w-6 shrink-0 text-primary" />
                 <span className="min-w-0">
                   <span className="block font-semibold leading-snug">{item.nome}</span>
                   <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
@@ -184,98 +203,195 @@ function LegislacaoPage() {
                   </span>
                 </span>
               </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <Card className="mb-4 p-4">
-        <div className="relative max-w-xl">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            aria-label="Buscar documentos"
-            placeholder="Buscar documento nesta pasta…"
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value);
-              setPagina(1);
-            }}
-            className="pl-9"
-          />
-        </div>
-      </Card>
-
-      <Card className="overflow-hidden">
-        {isLoading ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">Carregando documentos…</p>
-        ) : filtrados.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="Nenhum documento encontrado"
-            description="Escolha outra pasta ou revise os termos da busca."
-          />
-        ) : (
-          <div className="divide-y">
-            {itensPagina.map((documento) => (
-              <div key={documento.id} className="flex items-center gap-3 p-4 hover:bg-muted/30">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <FileText className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{documento.titulo}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {documento.conteudo}
-                  </p>
-                </div>
-                {documento.arquivo_url && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a
-                      href={documento.arquivo_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download={documento.arquivo_nome_original ?? undefined}
-                    >
-                      <Download className="mr-1.5 h-4 w-4" />
-                      <span className="hidden sm:inline">Baixar</span>
-                    </a>
-                  </Button>
-                )}
-                {can.isAdmin && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" aria-label={`Excluir ${documento.titulo}`}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          “{documento.titulo}” será removido do repositório.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => excluir(documento.id)}>
-                          Excluir
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
             ))}
           </div>
-        )}
-        <TabelaPaginacao
-          pagina={pagina}
-          totalPaginas={totalPaginas}
-          totalItens={totalItens}
-          tamanhoPagina={tamanhoPagina}
-          setPagina={setPagina}
-        />
-      </Card>
+        </section>
+      ) : (
+        <section aria-labelledby="conteudo-pasta">
+          <div className="mb-4 flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCategoria(null);
+                setBusca("");
+                setPagina(1);
+              }}
+            >
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Pastas
+            </Button>
+            <div className="min-w-0">
+              <h2 id="conteudo-pasta" className="truncate text-base font-semibold">
+                {categoriaAtual?.nome}
+              </h2>
+              <p className="text-sm text-muted-foreground">{totalItens} documento(s)</p>
+            </div>
+          </div>
+          <Card className="mb-4 p-4">
+            <div className="relative max-w-xl">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                aria-label="Buscar documentos"
+                placeholder="Buscar documento nesta pasta…"
+                value={busca}
+                onChange={(e) => {
+                  setBusca(e.target.value);
+                  setPagina(1);
+                }}
+                className="pl-9"
+              />
+            </div>
+          </Card>
+
+          <Card className="overflow-hidden">
+            {isLoading ? (
+              <p className="p-8 text-center text-sm text-muted-foreground">
+                Carregando documentos…
+              </p>
+            ) : filtrados.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="Nenhum documento encontrado"
+                description="Escolha outra pasta ou revise os termos da busca."
+              />
+            ) : (
+              <div className="divide-y">
+                {itensPagina.map((documento) => (
+                  <div key={documento.id} className="flex items-center gap-3 p-4 hover:bg-muted/30">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setVisualizando(documento)}
+                        className="block max-w-full truncate text-left font-medium hover:text-primary hover:underline hover:underline-offset-4"
+                      >
+                        {documento.titulo}
+                      </button>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {documento.conteudo}
+                      </p>
+                    </div>
+                    {documento.arquivo_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setVisualizando(documento)}
+                      >
+                        <ExternalLink className="mr-1.5 h-4 w-4" />
+                        <span className="hidden sm:inline">Visualizar</span>
+                      </Button>
+                    )}
+                    {documento.arquivo_url && (
+                      <Button variant="ghost" size="sm" asChild>
+                        <a
+                          href={documento.arquivo_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={documento.arquivo_nome_original ?? undefined}
+                        >
+                          <Download className="h-4 w-4" />
+                          <span className="sr-only">Salvar {documento.titulo}</span>
+                        </a>
+                      </Button>
+                    )}
+                    {can.isAdmin && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Excluir ${documento.titulo}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              “{documento.titulo}” será removido do repositório.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => excluir(documento.id)}>
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <TabelaPaginacao
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              totalItens={totalItens}
+              tamanhoPagina={tamanhoPagina}
+              setPagina={setPagina}
+            />
+          </Card>
+        </section>
+      )}
+
+      <Dialog
+        open={visualizando !== null}
+        onOpenChange={(aberto) => !aberto && setVisualizando(null)}
+      >
+        <DialogContent className="flex h-[92vh] max-w-[96vw] flex-col gap-3 p-4 sm:max-w-5xl">
+          {visualizando?.arquivo_url && (
+            <>
+              <DialogHeader className="pr-8">
+                <DialogTitle className="truncate">{visualizando.titulo}</DialogTitle>
+                <DialogDescription>Visualização online do documento em PDF.</DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => void compartilhar(visualizando)}>
+                  <Share2 className="mr-1.5 h-4 w-4" /> Compartilhar
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={visualizando.arquivo_url}
+                    download={visualizando.arquivo_nome_original ?? undefined}
+                  >
+                    <Download className="mr-1.5 h-4 w-4" /> Salvar
+                  </a>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const janela = window.open(
+                      visualizando.arquivo_url!,
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                    if (janela)
+                      janela.addEventListener("load", () => janela.print(), { once: true });
+                  }}
+                >
+                  <Printer className="mr-1.5 h-4 w-4" /> Imprimir
+                </Button>
+                <Button variant="ghost" size="sm" asChild>
+                  <a href={visualizando.arquivo_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-1.5 h-4 w-4" /> Nova aba
+                  </a>
+                </Button>
+              </div>
+              <iframe
+                title={`Visualização de ${visualizando.titulo}`}
+                src={visualizando.arquivo_url}
+                className="min-h-0 flex-1 rounded-lg border bg-white"
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -359,7 +475,7 @@ function NovoDocumento({ onCriado }: { onCriado: () => Promise<void> }) {
           <Label>Arquivo</Label>
           <Input
             type="file"
-            accept=".pdf,.doc,.docx,.odt,.png,.jpg,.jpeg"
+            accept=".pdf,application/pdf"
             disabled={ocupado}
             onChange={(e) => {
               const file = e.target.files?.[0];
