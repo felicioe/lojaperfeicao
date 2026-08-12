@@ -15,6 +15,12 @@ import {
   CalendarDays,
   AlertCircle,
   Megaphone,
+  PartyPopper,
+  Library,
+  Calendar,
+  Vote,
+  FileSignature,
+  Fingerprint,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/")({
@@ -27,6 +33,12 @@ const TILES = [
   { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2 },
   { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays },
   { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone },
+  { to: "/painel/eventos", label: "Eventos", icon: PartyPopper },
+  { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library },
+  { to: "/calendario", label: "Calendário", icon: Calendar },
+  { to: "/enquetes", label: "Enquetes", icon: Vote },
+  { to: "/documentos", label: "Documentos", icon: FileSignature },
+  { to: "/conta/seguranca", label: "Segurança", icon: Fingerprint },
 ] as const;
 
 function PainelInicio() {
@@ -80,8 +92,8 @@ function PainelInicio() {
       <div className="space-y-4">
         <Skeleton className="h-16 rounded-2xl" />
         <div className="grid grid-cols-5 gap-3">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex flex-col items-center gap-1.5">
+          {TILES.map((t) => (
+            <div key={t.to} className="flex flex-col items-center gap-1.5">
               <Skeleton className="aspect-square w-full rounded-2xl" />
               <Skeleton className="h-3 w-10" />
             </div>
