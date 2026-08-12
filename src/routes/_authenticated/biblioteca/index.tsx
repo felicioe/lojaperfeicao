@@ -70,6 +70,10 @@ import {
   Trash2,
   FileText,
   Check,
+  ExternalLink,
+  MessageCircle,
+  Printer,
+  Share2,
   X as XIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +123,7 @@ function BibliotecaPage() {
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
   const [enviando, setEnviando] = useState(false);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+  const [visualizando, setVisualizando] = useState<PecaArquitetura | null>(null);
 
   const { data: pecas = [], isLoading } = useQuery({
     queryKey: ["pecas_arquitetura"],
@@ -280,6 +285,27 @@ function BibliotecaPage() {
       toast.error(err instanceof Error ? err.message : "Erro ao rejeitar.");
     }
   };
+
+  const urlPeca = (peca: PecaArquitetura) =>
+    peca.arquivo_url ? new URL(peca.arquivo_url, window.location.origin).toString() : "";
+
+  const compartilhar = async (peca: PecaArquitetura) => {
+    if (!peca.arquivo_url) return;
+    const url = urlPeca(peca);
+    try {
+      if (navigator.share) await navigator.share({ title: peca.titulo, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copiado para compartilhar.");
+      }
+    } catch (erro) {
+      if (erro instanceof DOMException && erro.name === "AbortError") return;
+      toast.error("Não foi possível compartilhar a peça.");
+    }
+  };
+
+  const urlWhatsapp = (peca: PecaArquitetura) =>
+    `https://wa.me/?text=${encodeURIComponent(`${peca.titulo}\n${urlPeca(peca)}`)}`;
 
   return (
     <>
@@ -507,10 +533,23 @@ function BibliotecaPage() {
                       )}
                       {p.arquivo_url && (
                         <>
-                          <Button variant="ghost" size="sm" asChild title="Visualizar">
-                            <a href={p.arquivo_url} target="_blank" rel="noopener noreferrer">
-                              <Eye className="h-4 w-4" />
-                            </a>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Visualizar"
+                            aria-label={`Visualizar ${p.titulo}`}
+                            onClick={() => setVisualizando(p)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Compartilhar"
+                            aria-label={`Compartilhar ${p.titulo}`}
+                            onClick={() => void compartilhar(p)}
+                          >
+                            <Share2 className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="sm" asChild title="Baixar">
                             <a href={p.arquivo_url} download={p.arquivo_nome_original ?? undefined}>
@@ -523,6 +562,7 @@ function BibliotecaPage() {
                         <>
                           <Button variant="ghost" size="sm" onClick={() => abrirEdicao(p)}>
                             <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Renomear ou editar {p.titulo}</span>
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -569,6 +609,67 @@ function BibliotecaPage() {
           poder cadastrar peças em seu nome.
         </p>
       )}
+
+      <Dialog
+        open={visualizando !== null}
+        onOpenChange={(aberto) => !aberto && setVisualizando(null)}
+      >
+        <DialogContent className="flex h-[92vh] max-w-[96vw] flex-col gap-3 p-4 sm:max-w-5xl">
+          {visualizando?.arquivo_url && (
+            <>
+              <DialogHeader className="pr-8">
+                <DialogTitle className="truncate">{visualizando.titulo}</DialogTitle>
+                <DialogDescription>
+                  Peça de {visualizando.autor_nome} · Grau {visualizando.grau}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => void compartilhar(visualizando)}>
+                  <Share2 className="mr-1.5 h-4 w-4" /> Compartilhar
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={urlWhatsapp(visualizando)} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={visualizando.arquivo_url}
+                    download={visualizando.arquivo_nome_original ?? undefined}
+                  >
+                    <Download className="mr-1.5 h-4 w-4" /> Salvar
+                  </a>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const janela = window.open(
+                      visualizando.arquivo_url!,
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                    if (janela)
+                      janela.addEventListener("load", () => janela.print(), { once: true });
+                  }}
+                >
+                  <Printer className="mr-1.5 h-4 w-4" /> Imprimir
+                </Button>
+                <Button variant="ghost" size="sm" asChild>
+                  <a href={visualizando.arquivo_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="mr-1.5 h-4 w-4" /> Nova aba
+                  </a>
+                </Button>
+              </div>
+              <iframe
+                title={`Visualização de ${visualizando.titulo}`}
+                src={visualizando.arquivo_url}
+                className="min-h-0 flex-1 rounded-lg border bg-white"
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
