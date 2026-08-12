@@ -107,7 +107,7 @@ export function RecebimentoAvulsoDialog({
   });
 
   const salvar = async () => {
-    if (!valor || !planoContaId || !contaFinanceiraId)
+    if (!(Number(valor) > 0) || !planoContaId || !contaFinanceiraId)
       return toast.error("Preencha valor, categoria contábil e conta.");
     setSaving(true);
     try {
@@ -210,7 +210,10 @@ export function RecebimentoAvulsoDialog({
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={salvar} disabled={saving || !valor || !planoContaId || !contaFinanceiraId}>
+        <Button
+          onClick={salvar}
+          disabled={saving || !(Number(valor) > 0) || !planoContaId || !contaFinanceiraId}
+        >
           Registrar
         </Button>
       </DialogFooter>
