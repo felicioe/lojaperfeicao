@@ -24,7 +24,7 @@ import {
   Library,
   Calendar,
   Vote,
-  FileSignature,
+  Scale,
 } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
 
@@ -36,6 +36,7 @@ const TITULOS: Record<string, string> = {
   "/painel/sessoes": "Sessões",
   "/painel/eventos": "Eventos",
   "/painel/comunicacoes": "Comunicações",
+  "/documentos": "Legislação",
 };
 
 const ABAS = [
@@ -169,7 +170,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
               </Button>
               <Button variant="outline" className="w-full justify-start" asChild>
                 <Link to="/documentos" onClick={() => setMenuOpen(false)}>
-                  <FileSignature className="mr-1.5 h-4 w-4" /> Documentos
+                  <Scale className="mr-1.5 h-4 w-4" /> Legislação
                 </Link>
               </Button>
               <Button variant="outline" className="w-full justify-start" asChild>

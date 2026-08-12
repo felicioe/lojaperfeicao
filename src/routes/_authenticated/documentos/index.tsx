@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   listarDocumentos,
@@ -12,12 +12,22 @@ import {
   type Documento,
 } from "@/lib/backend/documentos";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
+import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -39,13 +49,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useCan } from "@/lib/auth-hooks";
-import { FileSignature, Plus, Trash2, CheckCircle2, Paperclip } from "lucide-react";
+import { usePaginacao } from "@/lib/use-paginacao";
+import { useOrdenacao } from "@/lib/use-ordenacao";
+import { Scale, Plus, Trash2, CheckCircle2, Paperclip, Eye, Download } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/documentos/")({
   head: () => ({
     meta: [
-      { title: "Documentos — Gestão Maçônica" },
-      { name: "description", content: "Assinatura digital simples de documentos internos." },
+      { title: "Legislação — Gestão Maçônica" },
+      { name: "description", content: "Biblioteca de documentos legais e normativos da Loja." },
     ],
   }),
   component: DocumentosPage,
@@ -60,6 +72,7 @@ function DocumentosPage() {
   const [novaAberta, setNovaAberta] = useState(false);
   const [novaChave, setNovaChave] = useState(0);
   const [detalheDe, setDetalheDe] = useState<Documento | null>(null);
+  const [q, setQ] = useState("");
 
   const { data: documentos = [], isLoading } = useQuery({
     queryKey: ["documentos"],
@@ -67,6 +80,27 @@ function DocumentosPage() {
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["documentos"] });
+
+  const filtrados = useMemo(() => {
+    const busca = q.trim().toLocaleLowerCase("pt-BR");
+    if (!busca) return documentos;
+    return documentos.filter(
+      (documento) =>
+        documento.titulo.toLocaleLowerCase("pt-BR").includes(busca) ||
+        documento.criador_nome?.toLocaleLowerCase("pt-BR").includes(busca) ||
+        documento.arquivo_nome_original?.toLocaleLowerCase("pt-BR").includes(busca),
+    );
+  }, [documentos, q]);
+
+  const ord = useOrdenacao(filtrados, {
+    titulo: (documento) => documento.titulo,
+    responsavel: (documento) => documento.criador_nome,
+    assinaturas: (documento) => documento.total_assinaturas,
+    cadastrado: (documento) => documento.criado_em,
+  });
+  const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
+    ord.itensOrdenados,
+  );
 
   const excluir = async (id: string) => {
     try {
@@ -81,8 +115,8 @@ function DocumentosPage() {
   return (
     <>
       <PageHeader
-        title="Documentos"
-        description="Registro interno de confirmação/aprovação com hash de integridade — sem validade jurídica ICP-Brasil."
+        title="Legislação"
+        description="Biblioteca de leis, regulamentos, estatutos e demais documentos normativos da Loja."
         actions={
           can.canManageIrmaos && (
             <Dialog
@@ -94,7 +128,7 @@ function DocumentosPage() {
             >
               <DialogTrigger asChild>
                 <Button>
-                  <Plus className="mr-1.5 h-4 w-4" /> Novo documento
+                  <Plus className="mr-1.5 h-4 w-4" /> Adicionar documento
                 </Button>
               </DialogTrigger>
               <NovoDocumentoDialog
@@ -108,78 +142,152 @@ function DocumentosPage() {
           )
         }
       />
+      <Card className="mb-4 p-4">
+        <Input
+          type="search"
+          aria-label="Buscar na legislação"
+          placeholder="Buscar por título, responsável ou arquivo…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="max-w-md"
+        />
+      </Card>
 
-      {!isLoading && documentos.length === 0 ? (
-        <Card>
-          <EmptyState icon={FileSignature} title="Nenhum documento cadastrado ainda" />
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {documentos.map((d) => (
-            <Card key={d.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <FileSignature className="h-4 w-4" /> {d.titulo}
-                    </CardTitle>
-                    <CardDescription>Criado por {d.criador_nome ?? "—"}</CardDescription>
-                  </div>
-                  {d.ja_assinei && (
-                    <Badge variant="default" className="shrink-0 gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Assinado
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  {d.total_assinaturas} assinatura(s) — {fmtDataHora(d.criado_em)}
-                </p>
-                {d.arquivo_url && (
-                  <a
-                    href={d.arquivo_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                  >
-                    <Paperclip className="h-3 w-3" /> {d.arquivo_nome_original ?? "Anexo"}
-                  </a>
-                )}
-                <div className="flex flex-wrap gap-2 border-t pt-3">
-                  <Button variant="outline" size="sm" onClick={() => setDetalheDe(d)}>
-                    Ver e assinar
-                  </Button>
-                  {can.isAdmin && d.total_assinaturas === 0 && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="h-3.5 w-3.5" />
+      <Card>
+        {!isLoading && filtrados.length === 0 ? (
+          <EmptyState
+            icon={Scale}
+            title={q ? "Nenhum documento encontrado" : "Nenhum documento cadastrado ainda"}
+            description={q ? "Revise os termos da busca e tente novamente." : undefined}
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHeadOrdenavel campo="titulo" ord={ord}>
+                  Documento
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="responsavel" ord={ord} className="hidden sm:table-cell">
+                  Responsável
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="assinaturas" ord={ord} className="hidden md:table-cell">
+                  Assinaturas
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="cadastrado" ord={ord} className="hidden lg:table-cell">
+                  Cadastrado em
+                </TableHeadOrdenavel>
+                <TableHead className="w-36">
+                  <span className="sr-only">Ações</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+                    Carregando…
+                  </TableCell>
+                </TableRow>
+              )}
+              {itensPagina.map((documento) => (
+                <TableRow key={documento.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <Scale className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <p className="truncate">{documento.titulo}</p>
+                        <p className="truncate text-xs font-normal text-muted-foreground sm:hidden">
+                          {documento.criador_nome ?? "Responsável não informado"}
+                        </p>
+                        {documento.ja_assinei && (
+                          <Badge variant="outline" className="mt-1 gap-1 sm:hidden">
+                            <CheckCircle2 className="h-3 w-3" /> Assinado
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    {documento.criador_nome ?? "—"}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="flex items-center gap-2">
+                      <span>{documento.total_assinaturas}</span>
+                      {documento.ja_assinei && (
+                        <Badge variant="outline" className="gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> Assinado
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
+                    {fmtDataHora(documento.criado_em)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Ver detalhes e assinaturas"
+                        aria-label={`Ver detalhes de ${documento.titulo}`}
+                        onClick={() => setDetalheDe(documento)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {documento.arquivo_url && (
+                        <Button variant="ghost" size="sm" asChild title="Baixar arquivo">
+                          <a
+                            href={documento.arquivo_url}
+                            download={documento.arquivo_nome_original ?? undefined}
+                            aria-label={`Baixar ${documento.arquivo_nome_original ?? documento.titulo}`}
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            "{d.titulo}" será removido permanentemente. Só é possível excluir
-                            documentos que ainda não têm assinaturas.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => excluir(d.id)}>
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                      )}
+                      {can.isAdmin && documento.total_assinaturas === 0 && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Excluir ${documento.titulo}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                "{documento.titulo}" será removido permanentemente. Só é possível
+                                excluir documentos que ainda não têm assinaturas.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => excluir(documento.id)}>
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
+      </Card>
 
       <Dialog open={detalheDe !== null} onOpenChange={(v) => !v && setDetalheDe(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -277,7 +385,7 @@ function DetalheDocumento({ id, onAssinado }: { id: string; onAssinado: () => vo
           <p className="text-sm text-muted-foreground">Você já assinou este documento.</p>
         ) : (
           <Button onClick={assinar} disabled={assinando}>
-            <FileSignature className="mr-1.5 h-4 w-4" />
+            <Scale className="mr-1.5 h-4 w-4" />
             {assinando ? "Assinando…" : "Assinar documento"}
           </Button>
         )}
@@ -324,7 +432,8 @@ function NovoDocumentoDialog({ onCriado }: { onCriado: () => void }) {
 
   const salvar = async () => {
     if (!titulo.trim()) return toast.error("Título é obrigatório.");
-    if (!conteudo.trim()) return toast.error("Conteúdo é obrigatório.");
+    if (!conteudo.trim()) return toast.error("Descrição ou ementa é obrigatória.");
+    if (!arquivo) return toast.error("Selecione um arquivo PDF ou DOCX.");
     setSalvando(true);
     try {
       await criarDocumento({
@@ -348,25 +457,35 @@ function NovoDocumentoDialog({ onCriado }: { onCriado: () => void }) {
   return (
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Novo documento</DialogTitle>
+        <DialogTitle>Adicionar documento à legislação</DialogTitle>
         <DialogDescription>
-          O texto abaixo é o que fica registrado (com hash) e assinado por quem confirmar.
+          Cadastre o documento e envie o arquivo para disponibilizá-lo a todos os perfis.
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-3">
         <div>
           <Label>Título</Label>
-          <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          <Input
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Ex.: Estatuto Social"
+          />
         </div>
         <div>
-          <Label>Conteúdo</Label>
-          <Textarea value={conteudo} onChange={(e) => setConteudo(e.target.value)} rows={8} />
+          <Label>Descrição ou ementa</Label>
+          <Textarea
+            value={conteudo}
+            onChange={(e) => setConteudo(e.target.value)}
+            placeholder="Informe brevemente o conteúdo e a finalidade do documento."
+            rows={5}
+          />
         </div>
         <div>
-          <Label>Anexo (opcional — PDF ou DOCX)</Label>
+          <Label>Arquivo (PDF ou DOCX, até 15 MB)</Label>
           <Input
             type="file"
             accept=".pdf,.doc,.docx"
+            required
             disabled={enviandoArquivo}
             onChange={(e) => {
               const file = e.target.files?.[0];

@@ -19,7 +19,7 @@ import {
   Library,
   Calendar,
   Vote,
-  FileSignature,
+  Scale,
   Fingerprint,
 } from "lucide-react";
 
@@ -37,7 +37,7 @@ const TILES = [
   { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library },
   { to: "/calendario", label: "Calendário", icon: Calendar },
   { to: "/enquetes", label: "Enquetes", icon: Vote },
-  { to: "/documentos", label: "Documentos", icon: FileSignature },
+  { to: "/documentos", label: "Legislação", icon: Scale },
   { to: "/conta/seguranca", label: "Segurança", icon: Fingerprint },
 ] as const;
 
