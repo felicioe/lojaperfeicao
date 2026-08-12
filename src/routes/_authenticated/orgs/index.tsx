@@ -428,13 +428,13 @@ function Orgs() {
               <TableHeadOrdenavel campo="nome" ord={ord}>
                 Nome
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="natureza" ord={ord}>
+              <TableHeadOrdenavel campo="natureza" ord={ord} className="hidden sm:table-cell">
                 Natureza
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="graus" ord={ord}>
+              <TableHeadOrdenavel campo="graus" ord={ord} className="hidden sm:table-cell">
                 Graus
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="potencia" ord={ord}>
+              <TableHeadOrdenavel campo="potencia" ord={ord} className="hidden lg:table-cell">
                 Potência
               </TableHeadOrdenavel>
               <TableHeadOrdenavel campo="ativo" ord={ord}>
@@ -470,14 +470,17 @@ function Orgs() {
                   <TableCell className="font-medium">
                     {o.nome}
                     {o.sigla ? ` (${o.sigla})` : ""}
+                    <div className="text-xs text-muted-foreground sm:hidden">
+                      {NATUREZA_LABEL[o.natureza]} · Graus {o.grau_min}–{o.grau_max}
+                    </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Badge variant="outline">{NATUREZA_LABEL[o.natureza]}</Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
                     {o.grau_min}–{o.grau_max}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                     {potencias.find((p) => p.id === o.potencia_id)?.sigla ?? "—"}
                   </TableCell>
                   <TableCell>
