@@ -22,31 +22,11 @@ export const Route = createFileRoute("/_authenticated/painel/")({
 });
 
 const TILES = [
-  { to: "/painel/dados", label: "Meus Dados", icon: UserRound, cor: "from-blue-400 to-indigo-600" },
-  {
-    to: "/painel/financeiro",
-    label: "Financeiro",
-    icon: Wallet,
-    cor: "from-emerald-400 to-teal-600",
-  },
-  {
-    to: "/painel/frequencia",
-    label: "Frequência",
-    icon: CalendarCheck2,
-    cor: "from-amber-400 to-orange-600",
-  },
-  {
-    to: "/painel/sessoes",
-    label: "Sessões",
-    icon: CalendarDays,
-    cor: "from-violet-400 to-purple-600",
-  },
-  {
-    to: "/painel/comunicacoes",
-    label: "Comunicações",
-    icon: Megaphone,
-    cor: "from-rose-400 to-pink-600",
-  },
+  { to: "/painel/dados", label: "Meus Dados", icon: UserRound },
+  { to: "/painel/financeiro", label: "Financeiro", icon: Wallet },
+  { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2 },
+  { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays },
+  { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone },
 ] as const;
 
 function PainelInicio() {
@@ -227,10 +207,8 @@ function PainelInicio() {
       <div className="grid grid-cols-5 gap-3">
         {TILES.map((t) => (
           <Link key={t.to} to={t.to} className="flex flex-col items-center gap-1.5 text-center">
-            <div
-              className={`flex aspect-square w-full items-center justify-center rounded-2xl bg-gradient-to-br shadow-sm ${t.cor}`}
-            >
-              <t.icon className="h-7 w-7 text-white" />
+            <div className="flex aspect-square w-full items-center justify-center rounded-2xl border bg-muted/60">
+              <t.icon className="h-6 w-6 text-foreground" />
             </div>
             <span className="text-[11px] leading-tight text-foreground">{t.label}</span>
           </Link>
