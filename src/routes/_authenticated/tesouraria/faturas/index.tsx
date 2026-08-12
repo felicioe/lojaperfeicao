@@ -258,6 +258,7 @@ function Faturas() {
                   </Button>
                 </DialogTrigger>
                 <BaixaDialog
+                  open={openBaixa}
                   faturas={faturasSelecionadas}
                   receitas={receitas}
                   onDone={() => {
@@ -414,10 +415,12 @@ function Faturas() {
 }
 
 function BaixaDialog({
+  open,
   faturas,
   receitas,
   onDone,
 }: {
+  open: boolean;
   faturas: any[];
   receitas: { id: string; codigo: string; nome: string }[];
   onDone: () => void;
@@ -450,6 +453,27 @@ function BaixaDialog({
   const somaSaldos = faturasParaAlocar.reduce((s, f) => s + f.saldo, 0);
   const [valorRecebidoParcial, setValorRecebidoParcial] = useState(somaSaldos);
   const [alocacao, setAlocacao] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    // O diálogo não desmonta entre aberturas (fica dentro de <Dialog> sempre
+    // renderizado) — sem isso, mudar a seleção de faturas com o diálogo
+    // fechado deixava o valor recebido parcial preso na soma da primeira
+    // abertura, mesmo com o teto do campo já ajustado corretamente.
+    if (open) {
+      setModo("integral");
+      setContaFinanceiraId("");
+      setFormaPagamento("");
+      setDataPagamento(toISODate(new Date()));
+      setDesconto(0);
+      setJurosAdicional(0);
+      setValorExtra(0);
+      setPlanoContaExtraId("");
+      setObservacoes("");
+      setValorRecebidoParcial(somaSaldos);
+      setAlocacao({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (modo !== "parcial") return;
