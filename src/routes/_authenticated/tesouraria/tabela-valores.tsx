@@ -322,9 +322,29 @@ function TaxasCorpoPanel() {
                   </TableCell>
                   {podeEditar && (
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => excluir(item.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir este valor?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Remove {rotuloTipo(item.tipo)} de {item.org_nome ?? "Global"} (
+                              {brl(item.valor)}, vigente desde {fmtDate(item.vigencia_inicio)}). Não
+                              afeta cobranças já geradas.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => excluir(item.id)}>
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   )}
                 </TableRow>
