@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download, FileSpreadsheet, FileText, Loader2, Mail } from "lucide-react";
+import {
+  Download,
+  FileDown,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  Mail,
+  MessageCircle,
+  Printer,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -49,10 +58,16 @@ export function ExportarRelatorio({
   titulo,
   colunas,
   linhas,
+  permitirImpressao = false,
+  permitirWhatsapp = false,
+  resumoCompartilhamento,
 }: {
   titulo: string;
   colunas: ColunaRelatorio[];
   linhas: LinhaRelatorio[];
+  permitirImpressao?: boolean;
+  permitirWhatsapp?: boolean;
+  resumoCompartilhamento?: string;
 }) {
   const { user } = useSession();
   const [exportando, setExportando] = useState<FormatoRelatorio | null>(null);
@@ -104,8 +119,30 @@ export function ExportarRelatorio({
     }
   };
 
+  const imprimir = (salvarPdf = false) => {
+    if (salvarPdf) toast.info('Na janela de impressão, escolha "Salvar como PDF".');
+    window.print();
+  };
+
+  const compartilharWhatsapp = async () => {
+    const texto = `${titulo}\n${resumoCompartilhamento ?? `${linhas.length} movimento(s)`}\n${window.location.href}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: titulo, text: texto, url: window.location.href });
+        return;
+      } catch (erro) {
+        if ((erro as { name?: string }).name === "AbortError") return;
+      }
+    }
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(texto)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2 print:hidden">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" disabled={exportando !== null || linhas.length === 0}>
@@ -167,6 +204,23 @@ export function ExportarRelatorio({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {permitirImpressao && (
+        <>
+          <Button variant="outline" onClick={() => imprimir(false)} disabled={linhas.length === 0}>
+            <Printer className="mr-1 h-4 w-4" /> Imprimir
+          </Button>
+          <Button variant="outline" onClick={() => imprimir(true)} disabled={linhas.length === 0}>
+            <FileDown className="mr-1 h-4 w-4" /> PDF
+          </Button>
+        </>
+      )}
+
+      {permitirWhatsapp && (
+        <Button variant="outline" onClick={compartilharWhatsapp} disabled={linhas.length === 0}>
+          <MessageCircle className="mr-1 h-4 w-4" /> WhatsApp
+        </Button>
+      )}
     </div>
   );
 }

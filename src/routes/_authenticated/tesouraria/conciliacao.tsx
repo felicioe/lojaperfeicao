@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listarLancamentosParaConciliar,
   listarOfxPendentes,
+  listarOfxConferencia,
   listarConciliacoesRecentes,
   conciliarOfxLote,
   criarLancamentoDeOfx,
@@ -11,6 +12,7 @@ import {
   importarOfx,
   obterResumoConciliacaoOfx,
   type OfxLancamento,
+  type OfxConferencia,
   type ResumoConciliacaoOfx,
 } from "@/lib/backend/tesouraria-conciliacao";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
@@ -104,10 +106,17 @@ function Conciliacao() {
     queryFn: () => obterResumoConciliacaoOfx({ data: { contaId } }),
   });
 
+  const { data: conferencia = [] } = useQuery({
+    queryKey: ["conciliacao_conferencia", contaId],
+    enabled: !!contaId,
+    queryFn: () => listarOfxConferencia({ data: { contaId } }),
+  });
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["conciliacao_sistema"] });
     qc.invalidateQueries({ queryKey: ["conciliacao_ofx"] });
     qc.invalidateQueries({ queryKey: ["conciliacao_resumo"] });
+    qc.invalidateQueries({ queryKey: ["conciliacao_conferencia"] });
     setSelSistema([]);
     setSelOfx([]);
   };
@@ -331,6 +340,8 @@ function Conciliacao() {
       </Card>
 
       {contaId && resumo && <PainelFechamento resumo={resumo} />}
+
+      {contaId && <ConferenciaOfx itens={conferencia} />}
 
       {contaId && (
         <div className="grid gap-4 md:grid-cols-2">
@@ -559,6 +570,75 @@ function Conciliacao() {
 
       {contaId && podeEditar && <ConciliacoesRecentes contaId={contaId} />}
     </>
+  );
+}
+
+function ConferenciaOfx({ itens }: { itens: OfxConferencia[] }) {
+  const [filtro, setFiltro] = useState<"todos" | "pendentes" | "conciliados">("todos");
+  const visiveis = itens.filter((item) =>
+    filtro === "todos" ? true : filtro === "conciliados" ? item.conciliado : !item.conciliado,
+  );
+
+  return (
+    <section className="mb-6" aria-labelledby="conferencia-ofx">
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 id="conferencia-ofx" className="font-semibold">
+            Conferência do último OFX
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Confira o que já baixou e identifique exatamente o que continua diferente.
+          </p>
+        </div>
+        <Select value={filtro} onValueChange={(valor) => setFiltro(valor as typeof filtro)}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="pendentes">Somente pendentes</SelectItem>
+            <SelectItem value="conciliados">Somente conciliados</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="overflow-hidden rounded-xl border bg-card">
+        {visiveis.length === 0 ? (
+          <p className="p-5 text-sm text-muted-foreground">Nenhuma movimentação neste filtro.</p>
+        ) : (
+          visiveis.map((item) => (
+            <div
+              key={item.id}
+              className="grid gap-2 border-b p-4 last:border-b-0 md:grid-cols-[7rem_1fr_9rem_10rem] md:items-center"
+            >
+              <span className="text-sm tabular-nums text-muted-foreground">
+                {fmtDate(item.data)}
+              </span>
+              <div className="min-w-0">
+                <p className="font-medium">{item.descricao || "Movimentação sem descrição"}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {item.conciliado
+                    ? item.vinculos
+                      ? `Baixado em: ${item.vinculos}`
+                      : "Conciliado por lançamento criado a partir do OFX"
+                    : "Sem fatura ou lançamento vinculado"}
+                </p>
+              </div>
+              <span
+                className={`font-semibold tabular-nums md:text-right ${Number(item.valor) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
+              >
+                {brl(item.valor)}
+              </span>
+              <Badge
+                variant={item.conciliado ? "default" : "secondary"}
+                className="w-fit md:justify-self-end"
+              >
+                {item.conciliado ? "Conciliado" : "Pendente"}
+              </Badge>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
   );
 }
 

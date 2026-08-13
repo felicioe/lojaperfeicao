@@ -8,6 +8,8 @@ import {
 } from "@/lib/backend/tesouraria-tronco";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
+import { CabecalhoInstitucional } from "@/components/app/CabecalhoInstitucional";
+import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -52,11 +54,19 @@ import {
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
+import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/tronco")({
   head: () => ({ meta: [{ title: "Tronco de Beneficência — Gestão Maçônica" }] }),
   component: Tronco,
 });
+
+const COLUNAS_TRONCO: ColunaRelatorio[] = [
+  { chave: "data", titulo: "Data" },
+  { chave: "descricao", titulo: "Descrição" },
+  { chave: "tipo", titulo: "Tipo" },
+  { chave: "valor", titulo: "Valor" },
+];
 
 function Tronco() {
   const can = useCan();
@@ -91,53 +101,79 @@ function Tronco() {
     valor: (m) => Number(m.valor),
   });
   const movPag = usePaginacao(ord.itensOrdenados);
+  const linhasExportacao = f.movimentos.map((movimento) => ({
+    data: fmtDate(movimento.data),
+    descricao: movimento.descricao,
+    tipo: movimento.tipo === "saida" ? "Saída" : "Entrada PIX",
+    valor: movimento.tipo === "saida" ? -Number(movimento.valor) : Number(movimento.valor),
+  }));
 
   return (
     <>
-      <PageHeader
-        title="Tronco de Beneficência"
-        description="Arrecadações do tronco — mesma tabela de recebimentos, filtrada pela categoria."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            {podeEditar && (
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-1" /> Registrar Tronco
-                  </Button>
-                </DialogTrigger>
-                <RecebimentoAvulsoDialog
-                  contas={contas}
-                  categoriaInicial="tronco"
-                  onDone={() => {
-                    setOpen(false);
-                    invalidate();
-                  }}
-                />
-              </Dialog>
-            )}
-            {podeEditar && (
-              <Dialog open={saidaAberta} onOpenChange={setSaidaAberta}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <ArrowDown className="mr-1.5 h-4 w-4" /> Registrar saída
-                  </Button>
-                </DialogTrigger>
-                <SaidaTroncoDialog
-                  contas={contas}
-                  onDone={async () => {
-                    setSaidaAberta(false);
-                    await invalidate();
-                  }}
-                />
-              </Dialog>
-            )}
-            <Link to="/tesouraria/movimentos">
-              <Button variant="outline">Ver todos os movimentos</Button>
-            </Link>
-          </div>
-        }
-      />
+      <div className="print:hidden">
+        <PageHeader
+          title="Tronco de Beneficência"
+          description="Arrecadações do tronco — mesma tabela de recebimentos, filtrada pela categoria."
+          actions={
+            <div className="flex flex-wrap gap-2 print:hidden">
+              <ExportarRelatorio
+                titulo="Relatório do Tronco de Beneficência"
+                colunas={COLUNAS_TRONCO}
+                linhas={linhasExportacao}
+                permitirImpressao
+                permitirWhatsapp
+                resumoCompartilhamento={`Saldo atual: ${brl(resumo.saldoAtual)} · Entradas: ${brl(resumo.entradas)} · Saídas: ${brl(resumo.saidas)}`}
+              />
+              {podeEditar && (
+                <Dialog open={open} onOpenChange={setOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-1" /> Registrar Tronco
+                    </Button>
+                  </DialogTrigger>
+                  <RecebimentoAvulsoDialog
+                    contas={contas}
+                    categoriaInicial="tronco"
+                    onDone={() => {
+                      setOpen(false);
+                      invalidate();
+                    }}
+                  />
+                </Dialog>
+              )}
+              {podeEditar && (
+                <Dialog open={saidaAberta} onOpenChange={setSaidaAberta}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <ArrowDown className="mr-1.5 h-4 w-4" /> Registrar saída
+                    </Button>
+                  </DialogTrigger>
+                  <SaidaTroncoDialog
+                    contas={contas}
+                    onDone={async () => {
+                      setSaidaAberta(false);
+                      await invalidate();
+                    }}
+                  />
+                </Dialog>
+              )}
+              <Link to="/tesouraria/movimentos">
+                <Button variant="outline">Ver todos os movimentos</Button>
+              </Link>
+            </div>
+          }
+        />
+      </div>
+
+      <div className="hidden print:block">
+        <CabecalhoInstitucional compacto />
+        <div className="mb-5 text-center">
+          <h1 className="text-xl font-semibold">Relatório do Tronco de Beneficência</h1>
+          <p className="text-sm text-muted-foreground">
+            Controle gerencial e confidencial · Emitido em {new Date().toLocaleDateString("pt-BR")}
+          </p>
+        </div>
+      </div>
 
       <div className="mb-4 grid overflow-hidden rounded-xl border bg-card sm:grid-cols-2 xl:grid-cols-4">
         <ResumoItem icon={Landmark} label="Saldo inicial" valor={resumo.saldoInicial}>
@@ -168,7 +204,7 @@ function Tronco() {
         />
       </div>
 
-      <Card>
+      <Card className="print:hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -204,14 +240,41 @@ function Tronco() {
             ))}
           </TableBody>
         </Table>
-        <TabelaPaginacao
-          pagina={movPag.pagina}
-          totalPaginas={movPag.totalPaginas}
-          totalItens={movPag.totalItens}
-          tamanhoPagina={movPag.tamanhoPagina}
-          setPagina={movPag.setPagina}
-        />
+        <div className="print:hidden">
+          <TabelaPaginacao
+            pagina={movPag.pagina}
+            totalPaginas={movPag.totalPaginas}
+            totalItens={movPag.totalItens}
+            tamanhoPagina={movPag.tamanhoPagina}
+            setPagina={movPag.setPagina}
+          />
+        </div>
       </Card>
+
+      <div className="hidden print:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {f.movimentos.map((movimento) => (
+              <TableRow key={movimento.id}>
+                <TableCell>{fmtDate(movimento.data)}</TableCell>
+                <TableCell>{movimento.descricao}</TableCell>
+                <TableCell>{movimento.tipo === "saida" ? "Saída" : "Entrada PIX"}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {movimento.tipo === "saida" ? "−" : "+"} {brl(movimento.valor)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </>
   );
 }

@@ -70,6 +70,47 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
     });
   });
 
+export type OfxConferencia = OfxLancamento & {
+  vinculos: string | null;
+};
+
+export const listarOfxConferencia = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<OfxConferencia[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      let periodo: RowDataPacket | undefined;
+      try {
+        const [extratos] = await conn.query<RowDataPacket[]>(
+          `SELECT data_inicial, data_final FROM ofx_extratos
+           WHERE conta_financeira_id = ? ORDER BY importado_em DESC, id DESC LIMIT 1`,
+          [data.contaId],
+        );
+        periodo = extratos[0];
+      } catch (erro) {
+        if ((erro as { code?: string }).code !== "ER_NO_SUCH_TABLE") throw erro;
+      }
+      const periodoSql = periodo ? "AND o.data BETWEEN ? AND ?" : "";
+      const periodoParams = periodo ? [periodo.data_inicial, periodo.data_final] : [];
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado,
+                COALESCE(
+                  GROUP_CONCAT(DISTINCT CONCAT(l_lote.descricao, ' — R$ ',
+                    CAST(cl.valor_aplicado AS CHAR)) SEPARATOR '; '),
+                  l_direto.descricao
+                ) AS vinculos
+         FROM ofx_lancamentos o
+         LEFT JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = o.conciliacao_id
+         LEFT JOIN lancamentos l_lote ON l_lote.id = cl.lancamento_id
+         LEFT JOIN lancamentos l_direto ON l_direto.id = o.lancamento_id
+         WHERE o.conta_financeira_id = ? ${periodoSql}
+         GROUP BY o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado, l_direto.descricao
+         ORDER BY o.data DESC, o.importado_em DESC LIMIT 500`,
+        [data.contaId, ...periodoParams],
+      );
+      return rows as OfxConferencia[];
+    });
+  });
+
 export type ResumoConciliacaoOfx = {
   dataInicial: string | null;
   dataFinal: string | null;
