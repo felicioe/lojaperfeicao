@@ -4,11 +4,11 @@ import {
   listarLancamentosParaConciliar,
   listarOfxPendentes,
   listarOfxConferencia,
-  listarConciliacoesRecentes,
   conciliarOfxLote,
   criarLancamentoDeOfx,
   criarLancamentosDeOfxRateado,
   desfazerConciliacao,
+  desfazerLancamentoOfx,
   importarOfx,
   obterResumoConciliacaoOfx,
   type OfxLancamento,
@@ -341,7 +341,7 @@ function Conciliacao() {
 
       {contaId && resumo && <PainelFechamento resumo={resumo} />}
 
-      {contaId && <ConferenciaOfx itens={conferencia} />}
+      {contaId && <ConferenciaOfx itens={conferencia} podeEditar={podeEditar} />}
 
       {contaId && (
         <div className="grid gap-4 md:grid-cols-2">
@@ -567,14 +567,27 @@ function Conciliacao() {
           </div>
         </Card>
       )}
-
-      {contaId && podeEditar && <ConciliacoesRecentes contaId={contaId} />}
     </>
   );
 }
 
-function ConferenciaOfx({ itens }: { itens: OfxConferencia[] }) {
+function ConferenciaOfx({ itens, podeEditar }: { itens: OfxConferencia[]; podeEditar: boolean }) {
+  const qc = useQueryClient();
   const [filtro, setFiltro] = useState<"todos" | "pendentes" | "conciliados">("todos");
+  const desfazerMutation = useMutation({
+    mutationFn: ({ item, motivo }: { item: OfxConferencia; motivo: string }) =>
+      item.conciliacao_id
+        ? desfazerConciliacao({ data: { conciliacaoId: item.conciliacao_id, motivo } })
+        : desfazerLancamentoOfx({ data: { ofxId: item.id, motivo } }),
+    onSuccess: () => {
+      toast.success("Conciliação desfeita — o OFX e a fatura voltaram a ficar pendentes.");
+      qc.invalidateQueries({ queryKey: ["conciliacao_conferencia"] });
+      qc.invalidateQueries({ queryKey: ["conciliacao_resumo"] });
+      qc.invalidateQueries({ queryKey: ["conciliacao_sistema"] });
+      qc.invalidateQueries({ queryKey: ["conciliacao_ofx"] });
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao desfazer conciliação."),
+  });
   const visiveis = itens.filter((item) =>
     filtro === "todos" ? true : filtro === "conciliados" ? item.conciliado : !item.conciliado,
   );
@@ -608,7 +621,7 @@ function ConferenciaOfx({ itens }: { itens: OfxConferencia[] }) {
           visiveis.map((item) => (
             <div
               key={item.id}
-              className="grid gap-2 border-b p-4 last:border-b-0 md:grid-cols-[7rem_1fr_9rem_10rem] md:items-center"
+              className="grid gap-2 border-b p-4 last:border-b-0 md:grid-cols-[7rem_1fr_9rem_auto] md:items-center"
             >
               <span className="text-sm tabular-nums text-muted-foreground">
                 {fmtDate(item.data)}
@@ -628,12 +641,16 @@ function ConferenciaOfx({ itens }: { itens: OfxConferencia[] }) {
               >
                 {brl(item.valor)}
               </span>
-              <Badge
-                variant={item.conciliado ? "default" : "secondary"}
-                className="w-fit md:justify-self-end"
-              >
-                {item.conciliado ? "Conciliado" : "Pendente"}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2 md:justify-self-end">
+                <Badge variant={item.conciliado ? "default" : "secondary"} className="w-fit">
+                  {item.conciliado ? "Conciliado" : "Pendente"}
+                </Badge>
+                {podeEditar && item.conciliado && (
+                  <DesfazerConciliacaoDialog
+                    onConfirm={(motivo) => desfazerMutation.mutate({ item, motivo })}
+                  />
+                )}
+              </div>
             </div>
           ))
         )}
@@ -782,53 +799,6 @@ function MetricaResumo({
         {valor == null ? indisponivel : brl(valor)}
       </p>
     </div>
-  );
-}
-
-// Desfazer direto na tela de operação (issue #141) — antes só dava pra
-// desfazer um vínculo feito por engano indo até Relatórios > Extrato da
-// Conciliação, uma tela separada de onde o tesoureiro realmente trabalha.
-function ConciliacoesRecentes({ contaId }: { contaId: string }) {
-  const qc = useQueryClient();
-
-  const { data: eventos = [] } = useQuery({
-    queryKey: ["conciliacoes_recentes", contaId],
-    queryFn: () => listarConciliacoesRecentes({ data: { contaId } }),
-  });
-
-  const desfazerMutation = useMutation({
-    mutationFn: (vars: { conciliacaoId: string; motivo: string }) =>
-      desfazerConciliacao({ data: vars }),
-    onSuccess: () => {
-      toast.success("Conciliação desfeita — linhas voltaram a pendente/em aberto.");
-      qc.invalidateQueries({ queryKey: ["conciliacoes_recentes"] });
-      qc.invalidateQueries({ queryKey: ["conciliacao_sistema"] });
-      qc.invalidateQueries({ queryKey: ["conciliacao_ofx"] });
-    },
-    onError: (err: Error) => toast.error(err.message ?? "Erro ao desfazer conciliação."),
-  });
-
-  if (eventos.length === 0) return null;
-
-  return (
-    <Card className="mt-4">
-      <CardHeader>
-        <CardTitle className="text-base">Conciliações recentes</CardTitle>
-      </CardHeader>
-      <CardContent className="divide-y">
-        {eventos.map((e) => (
-          <div key={e.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <div>
-              <span className="font-medium">{brl(e.valor_total)}</span>{" "}
-              <span className="text-muted-foreground">— {fmtDate(e.data_conciliacao)}</span>
-            </div>
-            <DesfazerConciliacaoDialog
-              onConfirm={(motivo) => desfazerMutation.mutate({ conciliacaoId: e.id, motivo })}
-            />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
   );
 }
 

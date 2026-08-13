@@ -72,6 +72,7 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
 
 export type OfxConferencia = OfxLancamento & {
   vinculos: string | null;
+  conciliacao_id: string | null;
 };
 
 export const listarOfxConferencia = createServerFn({ method: "GET" })
@@ -92,7 +93,7 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
       const periodoSql = periodo ? "AND o.data BETWEEN ? AND ?" : "";
       const periodoParams = periodo ? [periodo.data_inicial, periodo.data_final] : [];
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado,
+        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado, o.conciliacao_id,
                 COALESCE(
                   GROUP_CONCAT(DISTINCT CONCAT(l_lote.descricao, ' — R$ ',
                     CAST(cl.valor_aplicado AS CHAR)) SEPARATOR '; '),
@@ -103,7 +104,8 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
          LEFT JOIN lancamentos l_lote ON l_lote.id = cl.lancamento_id
          LEFT JOIN lancamentos l_direto ON l_direto.id = o.lancamento_id
          WHERE o.conta_financeira_id = ? ${periodoSql}
-         GROUP BY o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado, l_direto.descricao
+         GROUP BY o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado,
+                  o.conciliacao_id, l_direto.descricao
          ORDER BY o.data DESC, o.importado_em DESC LIMIT 500`,
         [data.contaId, ...periodoParams],
       );
