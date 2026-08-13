@@ -59,6 +59,7 @@ import {
   Search,
   Share2,
   Trash2,
+  Upload,
 } from "lucide-react";
 import type { Documento } from "@/lib/backend/documentos";
 
@@ -135,6 +136,7 @@ function LegislacaoPage() {
   const [dialogAberto, setDialogAberto] = useState(false);
   const [visualizando, setVisualizando] = useState<Documento | null>(null);
   const [editando, setEditando] = useState<Documento | null>(null);
+  const [loteAberto, setLoteAberto] = useState(false);
 
   const { data: documentos = [], isLoading } = useQuery({
     queryKey: ["documentos"],
@@ -231,19 +233,41 @@ function LegislacaoPage() {
         description="Repositório de documentos normativos, administrativos e tratados da Loja."
         actions={
           (can.isAdmin || can.canManageIrmaos) && (
-            <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-1.5 h-4 w-4" /> Adicionar documento
-                </Button>
-              </DialogTrigger>
-              <NovoDocumento
-                onCriado={async () => {
-                  setDialogAberto(false);
-                  await qc.invalidateQueries({ queryKey: ["documentos"] });
-                }}
-              />
-            </Dialog>
+            <div className="flex flex-wrap gap-2">
+              {can.isAdmin && categoria && (categoria !== "legislacao" || ano) && (
+                <Dialog open={loteAberto} onOpenChange={setLoteAberto}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Upload className="mr-1.5 h-4 w-4" /> Enviar em lote
+                    </Button>
+                  </DialogTrigger>
+                  <LoteDocumentos
+                    categoria={
+                      categoria === "legislacao" && ano && ano !== SEM_ANO
+                        ? `legislacao:${ano}`
+                        : categoria
+                    }
+                    onConcluido={async () => {
+                      setLoteAberto(false);
+                      await qc.invalidateQueries({ queryKey: ["documentos"] });
+                    }}
+                  />
+                </Dialog>
+              )}
+              <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-1.5 h-4 w-4" /> Adicionar documento
+                  </Button>
+                </DialogTrigger>
+                <NovoDocumento
+                  onCriado={async () => {
+                    setDialogAberto(false);
+                    await qc.invalidateQueries({ queryKey: ["documentos"] });
+                  }}
+                />
+              </Dialog>
+            </div>
           )
         }
       />
@@ -580,6 +604,93 @@ function LegislacaoPage() {
         )}
       </Dialog>
     </>
+  );
+}
+
+function arquivoParaDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function LoteDocumentos({
+  categoria,
+  onConcluido,
+}: {
+  categoria: string;
+  onConcluido: () => Promise<void>;
+}) {
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const [enviando, setEnviando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
+
+  const enviar = async () => {
+    if (!arquivos.length) return toast.error("Selecione ao menos um PDF.");
+    setEnviando(true);
+    const falhas: string[] = [];
+    for (const [indice, file] of arquivos.entries()) {
+      setProgresso(indice + 1);
+      try {
+        if (file.size > 15 * 1024 * 1024) throw new Error("arquivo maior que 15 MB");
+        const upload = await uploadArquivoDocumento({
+          data: { nomeArquivo: file.name, dataUrl: await arquivoParaDataUrl(file) },
+        });
+        await criarDocumento({
+          data: {
+            titulo: file.name.replace(/\.[^.]+$/, ""),
+            categoria,
+            conteudo: "Documento enviado em lote; informações pendentes de revisão.",
+            arquivoUrl: upload.url,
+            arquivoNomeOriginal: upload.nomeOriginal,
+            arquivoMime: upload.mime,
+          },
+        });
+      } catch {
+        falhas.push(file.name);
+      }
+    }
+    const concluidos = arquivos.length - falhas.length;
+    if (falhas.length) {
+      toast.warning(`${concluidos} enviado(s); ${falhas.length} falharam: ${falhas.join(", ")}`);
+    } else toast.success(`${concluidos} documento(s) enviados.`);
+    setEnviando(false);
+    if (concluidos) await onConcluido();
+  };
+
+  return (
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>Enviar documentos em lote</DialogTitle>
+        <DialogDescription>
+          Selecione até 50 PDFs. O nome de cada arquivo será usado como título e poderá ser editado
+          depois.
+        </DialogDescription>
+      </DialogHeader>
+      <div>
+        <Label htmlFor="lote-documentos">Arquivos PDF</Label>
+        <Input
+          id="lote-documentos"
+          type="file"
+          accept=".pdf,application/pdf"
+          multiple
+          disabled={enviando}
+          onChange={(e) => setArquivos(Array.from(e.target.files ?? []).slice(0, 50))}
+        />
+        <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
+          {enviando
+            ? `Enviando ${progresso} de ${arquivos.length}…`
+            : `${arquivos.length} arquivo(s) selecionado(s).`}
+        </p>
+      </div>
+      <DialogFooter>
+        <Button onClick={() => void enviar()} disabled={enviando || !arquivos.length}>
+          {enviando ? "Enviando…" : "Enviar lote"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 
