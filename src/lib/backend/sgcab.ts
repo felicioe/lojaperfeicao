@@ -314,10 +314,14 @@ export const obterValoresFaturaSgcab = createServerFn({ method: "POST" })
         [data.orgId, data.ano, data.grau],
       );
       const [[boton]] = await conn.query<RowDataPacket[]>(
-        `SELECT valor FROM tabela_valores
-         WHERE tipo = ? AND vigencia_inicio <= ?
+        `SELECT valor FROM sgcab_valores_catalogo
+         WHERE tipo = ? AND ano = ? AND vigencia_inicio <= ?
          ORDER BY vigencia_inicio DESC LIMIT 1`,
-        [data.grau === 13 ? "sgcab_boton_grau_13_2026" : "sgcab_boton_2026", `${data.ano}-12-31`],
+        [
+          data.grau === 13 ? "sgcab_boton_grau_13_2026" : "sgcab_boton_2026",
+          data.ano,
+          `${data.ano}-12-31`,
+        ],
       );
       return {
         iniciacao: Number(taxa?.sgcab ?? 0),
