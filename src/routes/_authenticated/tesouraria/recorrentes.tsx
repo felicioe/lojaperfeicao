@@ -75,7 +75,9 @@ function statusCompetencia(r: Recorrente, efetivadasEsteMes: Set<string>): Statu
   const fim = r.data_fim ? new Date(r.data_fim + "T00:00:00") : null;
   if (hoje < inicio || (fim && hoje > fim)) return "fora_periodo";
   if (efetivadasEsteMes.has(r.id)) return "efetivada";
-  return hoje.getDate() >= r.dia_vencimento ? "vencida" : "aguardando";
+  const ultimoDiaDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+  const vencimentoNoMes = Math.min(r.dia_vencimento, ultimoDiaDoMes);
+  return hoje.getDate() >= vencimentoNoMes ? "vencida" : "aguardando";
 }
 
 const FORM_VAZIO = {
@@ -234,7 +236,7 @@ function Recorrentes() {
               <Input
                 type="number"
                 min={1}
-                max={28}
+                max={31}
                 value={form.dia_vencimento}
                 onChange={(e) => setForm({ ...form, dia_vencimento: Number(e.target.value) })}
               />

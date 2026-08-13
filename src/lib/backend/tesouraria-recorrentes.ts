@@ -84,7 +84,7 @@ const recorrenteSchema = z.object({
   id: z.string().uuid().nullable(),
   descricao: z.string().min(1),
   valor: z.number().positive(),
-  dia_vencimento: z.number().int().min(1).max(28),
+  dia_vencimento: z.number().int().min(1).max(31),
   plano_conta_id: z.string().uuid(),
   terceiro_id: z.string().uuid().nullable(),
   data_inicio: z.string(),

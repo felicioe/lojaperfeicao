@@ -69,7 +69,7 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
      WHERE dr.ativo = TRUE
        AND dr.data_inicio <= CURRENT_DATE
        AND (dr.data_fim IS NULL OR dr.data_fim >= CURRENT_DATE)
-       AND DAYOFMONTH(CURRENT_DATE) >= dr.dia_vencimento
+       AND DAYOFMONTH(CURRENT_DATE) >= LEAST(dr.dia_vencimento, DAY(LAST_DAY(CURRENT_DATE)))
        AND NOT EXISTS (
          SELECT 1 FROM lancamentos l
          WHERE l.recorrente_id = dr.id AND l.competencia_mes = mes_competencia(CURRENT_DATE)
