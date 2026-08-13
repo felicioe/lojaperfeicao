@@ -109,6 +109,11 @@ const CATEGORIAS = [
     nome: "Tabela de Valores SGCAB",
     descricao: "Tabelas vigentes de taxas e valores do SGCAB",
   },
+  {
+    id: "historia_rito",
+    nome: "História do Rito",
+    descricao: "Documentos sobre a origem e a evolução histórica do Rito",
+  },
 ] as const;
 
 const SEM_ANO = "sem_ano";

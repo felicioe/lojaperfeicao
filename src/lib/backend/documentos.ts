@@ -17,6 +17,7 @@ const CATEGORIAS_DOCUMENTO = [
   "rituais_antigos",
   "formularios",
   "tabela_valores_sgcab",
+  "historia_rito",
 ] as const;
 
 export type Documento = {
