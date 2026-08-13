@@ -4,6 +4,8 @@ import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 import { chavePixValida } from "@/lib/pix";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 // RLS original: SELECT livre; escrita admin OU tesoureiro.
 const PAPEIS_ESCRITA = ["admin", "tesoureiro"];
@@ -72,6 +74,8 @@ export type ChavePix = {
   conta_financeira_id: string;
   tipo: "email" | "telefone" | "cpf" | "cnpj" | "aleatoria";
   chave: string;
+  pix_copia_cola: string | null;
+  qr_code_url: string | null;
   nome_beneficiario: string;
   cidade: string;
   principal: boolean;
@@ -111,7 +115,9 @@ export const listarTodasChavesPix = createServerFn({ method: "GET" }).handler(
 const chavePixSchema = z.object({
   contaFinanceiraId: z.string().uuid(),
   tipo: z.enum(["email", "telefone", "cpf", "cnpj", "aleatoria"]),
-  chave: z.string().min(1),
+  chave: z.string().max(140),
+  pixCopiaCola: z.string().max(1000).nullable(),
+  qrCodeUrl: z.string().max(500).nullable(),
   nomeBeneficiario: z.string().min(1).max(25),
   cidade: z.string().min(1).max(15),
   principal: z.boolean(),
@@ -121,7 +127,10 @@ export const criarChavePix = createServerFn({ method: "POST" })
   .validator((d: unknown) => chavePixSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      if (!chavePixValida(data.tipo, data.chave)) {
+      if (!data.chave && !data.pixCopiaCola && !data.qrCodeUrl) {
+        throw new Error("Informe uma chave, um código copia e cola ou uma imagem do QR Code.");
+      }
+      if (data.chave && !chavePixValida(data.tipo, data.chave)) {
         throw new Error("Chave não bate com o formato esperado para o tipo selecionado.");
       }
       if (data.principal) {
@@ -130,23 +139,72 @@ export const criarChavePix = createServerFn({ method: "POST" })
           [data.contaFinanceiraId],
         );
       }
-      await conn.query(
-        `INSERT INTO contas_financeiras_pix
-           (conta_financeira_id, tipo, chave, nome_beneficiario, cidade, principal)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          data.contaFinanceiraId,
-          data.tipo,
-          data.chave,
-          data.nomeBeneficiario,
-          data.cidade,
-          data.principal,
-        ],
+      const [[estrutura]] = await conn.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contas_financeiras_pix'
+           AND COLUMN_NAME IN ('pix_copia_cola', 'qr_code_url')`,
       );
+      const pixAvancadoDisponivel = Number(estrutura.total) === 2;
+      if (!pixAvancadoDisponivel && (data.pixCopiaCola || data.qrCodeUrl)) {
+        throw new Error("Atualize o banco de dados antes de salvar copia e cola ou QR Code.");
+      }
+      if (pixAvancadoDisponivel) {
+        await conn.query(
+          `INSERT INTO contas_financeiras_pix
+             (conta_financeira_id, tipo, chave, pix_copia_cola, qr_code_url, nome_beneficiario, cidade, principal)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            data.contaFinanceiraId,
+            data.tipo,
+            data.chave,
+            data.pixCopiaCola,
+            data.qrCodeUrl,
+            data.nomeBeneficiario,
+            data.cidade,
+            data.principal,
+          ],
+        );
+      } else {
+        await conn.query(
+          `INSERT INTO contas_financeiras_pix
+             (conta_financeira_id, tipo, chave, nome_beneficiario, cidade, principal)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            data.contaFinanceiraId,
+            data.tipo,
+            data.chave,
+            data.nomeBeneficiario,
+            data.cidade,
+            data.principal,
+          ],
+        );
+      }
       // id é UUID gerado por DEFAULT (UUID()) no MySQL, não auto_increment —
       // insertId não reflete o id real, então não dá pra usar como
       // entidade_id aqui (mesmo padrão de tabela_valores.criarValorVigente).
       await registrarAuditoria(conn, usuarioIdAtual, "criar", "chave_pix", null, null, data);
+    });
+  });
+
+const uploadQrCodeSchema = z.object({
+  nomeArquivo: z.string().min(1).max(255),
+  dataUrl: z.string().startsWith("data:image/"),
+});
+
+export const uploadQrCodePix = createServerFn({ method: "POST" })
+  .validator((d: unknown) => uploadQrCodeSchema.parse(d))
+  .handler(async ({ data }): Promise<{ url: string }> => {
+    return comPapel(PAPEIS_ESCRITA, async () => {
+      const match = data.dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
+      if (!match) throw new Error("Envie uma imagem PNG, JPG ou WebP.");
+      const buffer = Buffer.from(match[2], "base64");
+      if (buffer.byteLength > 5 * 1024 * 1024) throw new Error("Imagem maior que 5 MB.");
+      const extensao = match[1] === "image/jpeg" ? "jpg" : match[1].split("/")[1];
+      const dir = join(process.cwd(), "public", "uploads", "qrcode-pix");
+      await mkdir(dir, { recursive: true });
+      const nome = `${Date.now()}-${crypto.randomUUID()}.${extensao}`;
+      await writeFile(join(dir, nome), buffer);
+      return { url: `/uploads/qrcode-pix/${nome}` };
     });
   });
 

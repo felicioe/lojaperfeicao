@@ -152,6 +152,8 @@ export type LancamentoDetalhe = {
   org_logo_url: string | null;
   forma_cobranca: "pix" | "boleto" | null;
   pix_chave: string | null;
+  pix_copia_cola: string | null;
+  pix_qr_code_url: string | null;
   pix_nome_beneficiario: string | null;
   pix_cidade: string | null;
 };
@@ -166,12 +168,22 @@ export const obterLancamento = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<LancamentoDetalhe | null> => {
     return comSessao(async (conn, usuarioId) => {
+      const [[estruturaPix]] = await conn.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contas_financeiras_pix'
+           AND COLUMN_NAME IN ('pix_copia_cola', 'qr_code_url')`,
+      );
+      const camposPixAvancados =
+        Number(estruturaPix.total) === 2
+          ? "pix.pix_copia_cola, pix.qr_code_url AS pix_qr_code_url,"
+          : "NULL AS pix_copia_cola, NULL AS pix_qr_code_url,";
       const [[row]] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago,
                 l.competencia_mes, l.is_mensalidade, l.forma_cobranca,
                 i.nome_civil AS irmao_nome, i.cim AS irmao_cim, i.usuario_id AS irmao_usuario_id,
                 o.nome AS org_nome, o.logo_url AS org_logo_url,
-                pix.chave AS pix_chave, pix.nome_beneficiario AS pix_nome_beneficiario,
+                pix.chave AS pix_chave, ${camposPixAvancados}
+                pix.nome_beneficiario AS pix_nome_beneficiario,
                 pix.cidade AS pix_cidade
          FROM lancamentos l
          LEFT JOIN irmaos i ON i.id = l.irmao_id

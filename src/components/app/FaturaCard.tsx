@@ -33,7 +33,8 @@ function usePixQrCode(copiaCola: string | null) {
 
 export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
   const copiaCola =
-    fatura.forma_cobranca && fatura.pix_chave && fatura.pix_nome_beneficiario && fatura.pix_cidade
+    fatura.pix_copia_cola ||
+    (fatura.forma_cobranca && fatura.pix_chave && fatura.pix_nome_beneficiario && fatura.pix_cidade
       ? gerarPixCopiaCola({
           chave: fatura.pix_chave,
           nomeBeneficiario: fatura.pix_nome_beneficiario,
@@ -41,8 +42,9 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
           valor: Number(fatura.valor) - Number(fatura.valor_pago),
           txid: fatura.id.replace(/-/g, "").slice(0, 25),
         })
-      : null;
-  const qrDataUrl = usePixQrCode(copiaCola);
+      : null);
+  const qrGerado = usePixQrCode(copiaCola);
+  const qrDataUrl = fatura.pix_qr_code_url || qrGerado;
 
   const hoje = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date());
   const isBoleto = fatura.forma_cobranca === "boleto";
