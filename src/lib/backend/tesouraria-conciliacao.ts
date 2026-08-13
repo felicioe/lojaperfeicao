@@ -537,6 +537,7 @@ export const importarOfx = createServerFn({ method: "POST" })
         trntype: string;
         descricao: string;
         chaveDedupe: string;
+        assinaturaEstavel: string;
       };
       const linhas: LinhaOfx[] = [];
       for (const bloco of blocos) {
@@ -562,7 +563,26 @@ export const importarOfx = createServerFn({ method: "POST" })
           trntype,
           normalizarTexto(descricao),
         ].join("|");
-        linhas.push({ fitid, dataOfx, valor, trntype, descricao, chaveDedupe });
+        // Alguns bancos regeneram o FITID conforme a ordem das linhas no
+        // arquivo. Ao baixar o mesmo período novamente, a mesma transação
+        // pode receber outro FITID. Esta assinatura identifica o movimento
+        // pelo conteúdo bancário estável e evita a duplicação sem impedir
+        // duas transações realmente iguais no mesmo arquivo (contadas abaixo).
+        const assinaturaEstavel = [
+          dataOfx,
+          valor.toFixed(2),
+          trntype,
+          normalizarTexto(descricao),
+        ].join("|");
+        linhas.push({
+          fitid,
+          dataOfx,
+          valor,
+          trntype,
+          descricao,
+          chaveDedupe,
+          assinaturaEstavel,
+        });
       }
 
       const saldoFinalLido = Number.parseFloat(extrairCampo(conteudo, "BALAMT"));
@@ -576,6 +596,7 @@ export const importarOfx = createServerFn({ method: "POST" })
       // Fase 2: uma única consulta pra saber quais chaves já existem pra essa
       // conta — evita descobrir "já importado" um a um via INSERT IGNORE.
       const chavesJaExistentes = new Set<string>();
+      const quantidadesExistentes = new Map<string, number>();
       if (linhas.length > 0) {
         const [existentes] = await conn.query<RowDataPacket[]>(
           `SELECT chave_dedupe FROM ofx_lancamentos
@@ -583,6 +604,22 @@ export const importarOfx = createServerFn({ method: "POST" })
           [data.contaFinanceiraId, linhas.map((l) => l.chaveDedupe)],
         );
         for (const row of existentes) chavesJaExistentes.add(row.chave_dedupe as string);
+
+        const [movimentosExistentes] = await conn.query<RowDataPacket[]>(
+          `SELECT data, valor, tipo_ofx, descricao
+           FROM ofx_lancamentos
+           WHERE conta_financeira_id = ? AND data BETWEEN ? AND ?`,
+          [data.contaFinanceiraId, datas[0], datas.at(-1)],
+        );
+        for (const row of movimentosExistentes) {
+          const assinatura = [
+            String(row.data),
+            Number(row.valor).toFixed(2),
+            String(row.tipo_ofx ?? ""),
+            normalizarTexto(String(row.descricao ?? "")),
+          ].join("|");
+          quantidadesExistentes.set(assinatura, (quantidadesExistentes.get(assinatura) ?? 0) + 1);
+        }
       }
 
       // Fase 3: separa o que é de fato novo (também dedupe contra
@@ -591,9 +628,18 @@ export const importarOfx = createServerFn({ method: "POST" })
       // qual linha específica tem o problema (mesma granularidade de erro
       // de antes).
       const vistasNoArquivo = new Set<string>();
+      const ocorrenciasNoArquivo = new Map<string, number>();
       const paraInserir: LinhaOfx[] = [];
       for (const linha of linhas) {
-        if (chavesJaExistentes.has(linha.chaveDedupe) || vistasNoArquivo.has(linha.chaveDedupe)) {
+        const ocorrencia = (ocorrenciasNoArquivo.get(linha.assinaturaEstavel) ?? 0) + 1;
+        ocorrenciasNoArquivo.set(linha.assinaturaEstavel, ocorrencia);
+        const jaExistePeloConteudo =
+          (quantidadesExistentes.get(linha.assinaturaEstavel) ?? 0) >= ocorrencia;
+        if (
+          chavesJaExistentes.has(linha.chaveDedupe) ||
+          vistasNoArquivo.has(linha.chaveDedupe) ||
+          jaExistePeloConteudo
+        ) {
           jaImportados++;
           continue;
         }
