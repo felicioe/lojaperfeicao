@@ -9,7 +9,9 @@ import {
   criarLancamentosDeOfxRateado,
   desfazerConciliacao,
   importarOfx,
+  obterResumoConciliacaoOfx,
   type OfxLancamento,
+  type ResumoConciliacaoOfx,
 } from "@/lib/backend/tesouraria-conciliacao";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
@@ -40,7 +42,17 @@ import {
 } from "@/components/ui/dialog";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Link2, Loader2, Plus, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  CircleDollarSign,
+  Link2,
+  Loader2,
+  Plus,
+  Upload,
+} from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
 import { CATEGORIA_LABEL } from "@/components/app/RecebimentoAvulso";
@@ -86,9 +98,16 @@ function Conciliacao() {
     queryFn: () => listarOfxPendentes({ data: { contaId } }),
   });
 
+  const { data: resumo } = useQuery({
+    queryKey: ["conciliacao_resumo", contaId],
+    enabled: !!contaId,
+    queryFn: () => obterResumoConciliacaoOfx({ data: { contaId } }),
+  });
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["conciliacao_sistema"] });
     qc.invalidateQueries({ queryKey: ["conciliacao_ofx"] });
+    qc.invalidateQueries({ queryKey: ["conciliacao_resumo"] });
     setSelSistema([]);
     setSelOfx([]);
   };
@@ -310,6 +329,8 @@ function Conciliacao() {
           </>
         )}
       </Card>
+
+      {contaId && resumo && <PainelFechamento resumo={resumo} />}
 
       {contaId && (
         <div className="grid gap-4 md:grid-cols-2">
@@ -538,6 +559,149 @@ function Conciliacao() {
 
       {contaId && podeEditar && <ConciliacoesRecentes contaId={contaId} />}
     </>
+  );
+}
+
+function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
+  const cobertura =
+    resumo.totalMovimentado > 0
+      ? Math.round((resumo.valorConciliado / resumo.totalMovimentado) * 100)
+      : 100;
+  const fechado = resumo.itensPendentes === 0 && resumo.diferencaBancoSistema === 0;
+  const periodo =
+    resumo.dataInicial && resumo.dataFinal
+      ? `${fmtDate(resumo.dataInicial)} a ${fmtDate(resumo.dataFinal)}`
+      : "Nenhum período importado";
+
+  return (
+    <section
+      className="mb-6 overflow-hidden rounded-xl border bg-card"
+      aria-labelledby="fechamento-ofx"
+    >
+      <div className="flex flex-col gap-2 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 id="fechamento-ofx" className="font-semibold">
+            Fechamento do extrato
+          </h2>
+          <p className="text-sm text-muted-foreground">Último OFX importado · {periodo}</p>
+        </div>
+        <Badge variant={fechado ? "default" : "secondary"} className="w-fit">
+          {fechado ? "Fechado sem diferenças" : `${resumo.itensPendentes} item(ns) pendente(s)`}
+        </Badge>
+      </div>
+      <div className="grid md:grid-cols-[1.35fr_1fr]">
+        <div className="border-b p-5 md:border-b-0 md:border-r">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+            <MetricaResumo
+              label="Saldo inicial"
+              valor={resumo.saldoInicialBanco}
+              indisponivel="Não informado"
+            />
+            <MetricaResumo label="Entradas" valor={resumo.entradas} icon={ArrowUp} positivo />
+            <MetricaResumo label="Saídas" valor={resumo.saidas} icon={ArrowDown} />
+            <MetricaResumo
+              label="Saldo final do banco"
+              valor={resumo.saldoFinalBanco}
+              icon={CircleDollarSign}
+              indisponivel="Importe novo OFX"
+              destaque
+            />
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            O saldo final é lido diretamente do arquivo do banco; não é estimado pelo sistema.
+          </p>
+        </div>
+        <div className="space-y-4 p-5">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Movimentação conciliada</p>
+              <p className="text-xl font-semibold tabular-nums">
+                {brl(resumo.valorConciliado)}{" "}
+                <span className="text-sm font-normal text-muted-foreground">
+                  de {brl(resumo.totalMovimentado)}
+                </span>
+              </p>
+            </div>
+            <span className="text-2xl font-semibold tabular-nums">{cobertura}%</span>
+          </div>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-label="Percentual da movimentação conciliada"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={cobertura}
+          >
+            <div
+              className="h-full bg-primary transition-[width]"
+              style={{ width: `${cobertura}%` }}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4 border-t pt-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Pendente de conciliação</p>
+              <p className="font-semibold tabular-nums">{brl(resumo.valorPendente)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Diferença banco × sistema</p>
+              <p
+                className={`font-semibold tabular-nums ${resumo.diferencaBancoSistema && resumo.diferencaBancoSistema !== 0 ? "text-destructive" : ""}`}
+              >
+                {resumo.diferencaBancoSistema == null
+                  ? "Aguardando saldo OFX"
+                  : brl(resumo.diferencaBancoSistema)}
+              </p>
+            </div>
+          </div>
+          <div
+            className={`flex items-start gap-2 rounded-lg p-3 text-sm ${fechado ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}
+          >
+            {fechado ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : (
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            )}
+            <span>
+              {fechado
+                ? "Todos os itens foram conciliados e o saldo do sistema confere com o banco."
+                : resumo.saldoFinalBanco == null
+                  ? "Importe novamente o OFX para capturar o saldo bancário e concluir a conferência."
+                  : "A conciliação ainda não pode ser fechada. Resolva os itens pendentes e a diferença indicada."}
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MetricaResumo({
+  label,
+  valor,
+  icon: Icon,
+  positivo = false,
+  destaque = false,
+  indisponivel,
+}: {
+  label: string;
+  valor: number | null;
+  icon?: typeof ArrowUp;
+  positivo?: boolean;
+  destaque?: boolean;
+  indisponivel?: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        {Icon && <Icon className="h-4 w-4" />}
+        <span>{label}</span>
+      </div>
+      <p
+        className={`mt-1 font-semibold tabular-nums ${destaque ? "text-xl" : "text-lg"} ${positivo ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+      >
+        {valor == null ? indisponivel : brl(valor)}
+      </p>
+    </div>
   );
 }
 

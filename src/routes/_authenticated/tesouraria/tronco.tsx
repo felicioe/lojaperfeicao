@@ -88,7 +88,6 @@ function Tronco() {
   const ord = useOrdenacao(f.movimentos, {
     data: (m) => m.data,
     descricao: (m) => m.descricao,
-    conta: (m) => m.contas_financeiras?.nome,
     valor: (m) => Number(m.valor),
   });
   const movPag = usePaginacao(ord.itensOrdenados);
@@ -179,9 +178,6 @@ function Tronco() {
               <TableHeadOrdenavel campo="descricao" ord={ord}>
                 Descrição
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="conta" ord={ord}>
-                Conta
-              </TableHeadOrdenavel>
               <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
                 Tipo / valor
               </TableHeadOrdenavel>
@@ -190,7 +186,7 @@ function Tronco() {
           <TableBody>
             {f.movimentos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
                   Nenhuma arrecadação registrada ainda.
                 </TableCell>
               </TableRow>
@@ -199,9 +195,6 @@ function Tronco() {
               <TableRow key={m.id}>
                 <TableCell>{fmtDate(m.data)}</TableCell>
                 <TableCell>{m.descricao}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {m.contas_financeiras?.nome ?? "—"}
-                </TableCell>
                 <TableCell className="text-right font-medium">
                   <span className={m.tipo === "saida" ? "text-destructive" : "text-emerald-600"}>
                     {m.tipo === "saida" ? "−" : "+"} {brl(m.valor)}

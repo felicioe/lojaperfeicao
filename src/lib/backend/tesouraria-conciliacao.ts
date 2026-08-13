@@ -70,6 +70,83 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
     });
   });
 
+export type ResumoConciliacaoOfx = {
+  dataInicial: string | null;
+  dataFinal: string | null;
+  saldoInicialBanco: number | null;
+  saldoFinalBanco: number | null;
+  saldoSistema: number | null;
+  entradas: number;
+  saidas: number;
+  totalMovimentado: number;
+  valorConciliado: number;
+  valorPendente: number;
+  itensConciliados: number;
+  itensPendentes: number;
+  diferencaBancoSistema: number | null;
+};
+
+export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<ResumoConciliacaoOfx> => {
+    return comPapel(PAPEIS, async (conn) => {
+      let extrato: RowDataPacket | undefined;
+      try {
+        const [extratos] = await conn.query<RowDataPacket[]>(
+          `SELECT data_inicial, data_final, saldo_inicial, saldo_final
+           FROM ofx_extratos WHERE conta_financeira_id = ?
+           ORDER BY importado_em DESC, id DESC LIMIT 1`,
+          [data.contaId],
+        );
+        extrato = extratos[0];
+      } catch (erro) {
+        if ((erro as { code?: string }).code !== "ER_NO_SUCH_TABLE") throw erro;
+      }
+
+      const periodoSql = extrato ? "AND data BETWEEN ? AND ?" : "";
+      const periodoParams = extrato ? [extrato.data_inicial, extrato.data_final] : [];
+      const [[movimentos]] = await conn.query<RowDataPacket[]>(
+        `SELECT
+           COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) AS entradas,
+           COALESCE(SUM(CASE WHEN valor < 0 THEN ABS(valor) ELSE 0 END), 0) AS saidas,
+           COALESCE(SUM(ABS(valor)), 0) AS total_movimentado,
+           COALESCE(SUM(CASE WHEN conciliado THEN ABS(valor) ELSE 0 END), 0) AS valor_conciliado,
+           COALESCE(SUM(CASE WHEN NOT conciliado THEN ABS(valor) ELSE 0 END), 0) AS valor_pendente,
+           SUM(CASE WHEN conciliado THEN 1 ELSE 0 END) AS itens_conciliados,
+           SUM(CASE WHEN NOT conciliado THEN 1 ELSE 0 END) AS itens_pendentes,
+           MIN(data) AS data_inicial, MAX(data) AS data_final
+         FROM ofx_lancamentos
+         WHERE conta_financeira_id = ? ${periodoSql}`,
+        [data.contaId, ...periodoParams],
+      );
+      const [saldos] = await conn.query<RowDataPacket[]>(
+        "SELECT saldo_atual FROM v_saldo_contas WHERE id = ? LIMIT 1",
+        [data.contaId],
+      );
+      const saldoSistema = saldos[0] ? Number(saldos[0].saldo_atual) : null;
+      const saldoFinalBanco = extrato?.saldo_final == null ? null : Number(extrato.saldo_final);
+
+      return {
+        dataInicial: extrato?.data_inicial ?? movimentos.data_inicial ?? null,
+        dataFinal: extrato?.data_final ?? movimentos.data_final ?? null,
+        saldoInicialBanco: extrato?.saldo_inicial == null ? null : Number(extrato.saldo_inicial),
+        saldoFinalBanco,
+        saldoSistema,
+        entradas: Number(movimentos.entradas),
+        saidas: Number(movimentos.saidas),
+        totalMovimentado: Number(movimentos.total_movimentado),
+        valorConciliado: Number(movimentos.valor_conciliado),
+        valorPendente: Number(movimentos.valor_pendente),
+        itensConciliados: Number(movimentos.itens_conciliados),
+        itensPendentes: Number(movimentos.itens_pendentes),
+        diferencaBancoSistema:
+          saldoFinalBanco == null || saldoSistema == null
+            ? null
+            : Math.round((saldoFinalBanco - saldoSistema) * 100) / 100,
+      };
+    });
+  });
+
 export const conciliarOfxExistente = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z.object({ ofxId: z.string().uuid(), lancamentoId: z.string().uuid() }).parse(d),
@@ -401,6 +478,14 @@ export const importarOfx = createServerFn({ method: "POST" })
         linhas.push({ fitid, dataOfx, valor, trntype, descricao, chaveDedupe });
       }
 
+      const saldoFinalLido = Number.parseFloat(extrairCampo(conteudo, "BALAMT"));
+      const saldoFinal = Number.isFinite(saldoFinalLido) ? saldoFinalLido : null;
+      const datas = linhas.map((linha) => linha.dataOfx).sort();
+      const dataInicial = datas[0] ?? null;
+      const dataFinal = normalizarData(extrairCampo(conteudo, "DTASOF")) ?? datas.at(-1) ?? null;
+      const movimentoLiquido = linhas.reduce((total, linha) => total + linha.valor, 0);
+      const saldoInicial = saldoFinal == null ? null : saldoFinal - movimentoLiquido;
+
       // Fase 2: uma única consulta pra saber quais chaves já existem pra essa
       // conta — evita descobrir "já importado" um a um via INSERT IGNORE.
       const chavesJaExistentes = new Set<string>();
@@ -477,6 +562,32 @@ export const importarOfx = createServerFn({ method: "POST" })
               erros.push(e instanceof Error ? e.message : String(e));
             }
           }
+        }
+      }
+
+      if (dataInicial && dataFinal) {
+        try {
+          await conn.query(
+            `INSERT INTO ofx_extratos
+               (conta_financeira_id, data_inicial, data_final, saldo_inicial, saldo_final,
+                total_entradas, total_saidas, quantidade_lancamentos, importado_por)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              data.contaFinanceiraId,
+              dataInicial,
+              dataFinal,
+              saldoInicial,
+              saldoFinal,
+              linhas.filter((linha) => linha.valor > 0).reduce((s, linha) => s + linha.valor, 0),
+              linhas
+                .filter((linha) => linha.valor < 0)
+                .reduce((s, linha) => s + Math.abs(linha.valor), 0),
+              linhas.length,
+              usuarioId,
+            ],
+          );
+        } catch (erro) {
+          if ((erro as { code?: string }).code !== "ER_NO_SUCH_TABLE") throw erro;
         }
       }
 
