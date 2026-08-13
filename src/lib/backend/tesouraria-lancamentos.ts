@@ -180,9 +180,20 @@ export const obterLancamento = createServerFn({ method: "GET" })
         Number(estruturaPix.total) === 2
           ? "pix.pix_copia_cola, pix.qr_code_url AS pix_qr_code_url,"
           : "NULL AS pix_copia_cola, NULL AS pix_qr_code_url,";
+      // Faturas antigas podem não ter pix_chave_id. Nesse caso, usa a chave
+      // principal de uma conta ativa para que o modelo atualizado também
+      // apresente QR Code, chave e Copia e Cola no histórico já emitido.
+      const [[pixPadrao]] = await conn.query<RowDataPacket[]>(
+        `SELECT pix.id
+         FROM contas_financeiras_pix pix
+         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id
+         WHERE cf.ativo = TRUE
+         ORDER BY pix.principal DESC, pix.criado_em
+         LIMIT 1`,
+      );
       const [[row]] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago,
-                l.competencia_mes, l.is_mensalidade, l.forma_cobranca,
+                l.competencia_mes, l.is_mensalidade, 'pix' AS forma_cobranca,
                 i.nome_civil AS irmao_nome, i.cim AS irmao_cim, i.usuario_id AS irmao_usuario_id,
                 o.nome AS org_nome, o.logo_url AS org_logo_url,
                 pix.chave AS pix_chave, ${camposPixAvancados}
@@ -192,9 +203,9 @@ export const obterLancamento = createServerFn({ method: "GET" })
          LEFT JOIN irmaos i ON i.id = l.irmao_id
          LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
          LEFT JOIN orgs o ON o.id = io.org_id
-         LEFT JOIN contas_financeiras_pix pix ON pix.id = l.pix_chave_id
+         LEFT JOIN contas_financeiras_pix pix ON pix.id = COALESCE(l.pix_chave_id, ?)
          WHERE l.id = ?`,
-        [data.id],
+        [pixPadrao?.id ?? null, data.id],
       );
       if (!row) return null;
       if (!(await ehPrivilegiadoLancamentos(conn)) && row.irmao_usuario_id !== usuarioId) {

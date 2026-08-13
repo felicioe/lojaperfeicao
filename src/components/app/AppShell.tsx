@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { logout } from "@/lib/backend/auth";
+import { CabecalhoInstitucional } from "./CabecalhoInstitucional";
 import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -303,6 +304,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const can = useCan();
   const nav = useNavigate();
   const loc = useLocation();
+  const rotasRelatorioContabil = [
+    "/contabilidade/razao",
+    "/contabilidade/diario",
+    "/contabilidade/dre",
+    "/contabilidade/dre-orcado",
+    "/contabilidade/balancete",
+    "/contabilidade/fluxo-caixa",
+  ];
+  const exibirCabecalhoRelatorio =
+    loc.pathname.startsWith("/relatorios/") ||
+    rotasRelatorioContabil.some((rota) => loc.pathname.startsWith(rota));
   const queryClient = useQueryClient();
   const isDesktop = useIsDesktop();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -871,7 +883,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Sheet>
 
         <main className="min-w-0 flex-1">
-          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
+          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
+            {exibirCabecalhoRelatorio && <CabecalhoInstitucional />}
+            {children}
+          </div>
         </main>
       </div>
     </div>

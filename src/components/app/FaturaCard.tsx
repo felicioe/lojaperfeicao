@@ -7,6 +7,7 @@ import { gerarPixCopiaCola } from "@/lib/pix";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import type { LancamentoDetalhe } from "@/lib/backend/tesouraria-lancamentos";
+import { CabecalhoInstitucional } from "@/components/app/CabecalhoInstitucional";
 
 // Card imprimível de uma fatura (com QR Pix/boleto) — compartilhado entre a
 // tela administrativa (/tesouraria/faturas/$id) e o Meu Painel do irmão
@@ -47,9 +48,6 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
   const qrDataUrl = fatura.pix_qr_code_url || qrGerado;
 
   const hoje = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date());
-  const isBoleto = fatura.forma_cobranca === "boleto";
-  const nossoNumero = fatura.id.replace(/-/g, "").slice(0, 12).toUpperCase();
-
   const copiar = async () => {
     if (!copiaCola) return;
     await navigator.clipboard.writeText(copiaCola);
@@ -64,21 +62,12 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
           : "Documento gerado eletronicamente pelo sistema — pagamento exclusivo via Pix"}
       </div>
       <CardContent className="space-y-6 p-8">
+        <CabecalhoInstitucional compacto />
+
         <div className="flex items-start justify-between gap-4 border-b pb-4">
-          <div className="flex items-center gap-3">
-            {fatura.org_logo_url && (
-              <img
-                src={fatura.org_logo_url}
-                alt={fatura.org_nome ?? "Logo"}
-                className="h-14 w-14 object-contain"
-              />
-            )}
-            <div>
-              <h2 className="text-lg font-semibold tracking-tight">
-                {fatura.org_nome ?? "Fatura de mensalidade"}
-              </h2>
-              <p className="text-sm text-muted-foreground">Fatura de mensalidade</p>
-            </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Fatura da Associação</h2>
+            <p className="text-sm text-muted-foreground">Documento para pagamento</p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <span
@@ -96,9 +85,10 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Beneficiário
+              Favorecido
             </div>
-            <div className="font-medium">{fatura.org_nome ?? "—"}</div>
+            <div className="font-medium">ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI</div>
+            <div className="text-xs text-muted-foreground">CNPJ 26.649.083/0001-38</div>
           </div>
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -148,44 +138,31 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
               {fatura.pago ? "Pago em" : "Forma de pagamento"}
             </div>
             <div className="font-semibold">
-              {fatura.pago
-                ? fatura.data_pagamento
-                  ? fmtDate(fatura.data_pagamento)
-                  : "—"
-                : isBoleto
-                  ? "Boleto"
-                  : fatura.forma_cobranca === "pix"
-                    ? "Pix"
-                    : "—"}
+              {fatura.pago ? (fatura.data_pagamento ? fmtDate(fatura.data_pagamento) : "—") : "PIX"}
             </div>
           </div>
         </div>
 
         {!fatura.pago && qrDataUrl && (
           <>
-            {isBoleto && (
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex-1 border-t border-dashed" />
-                Corte na linha pontilhada
-                <span className="flex-1 border-t border-dashed" />
-              </div>
-            )}
-
             <div className="overflow-hidden rounded-md border">
-              {isBoleto && (
-                <div className="flex items-center justify-between bg-foreground px-4 py-2 text-background">
-                  <span className="font-mono text-xs font-medium">Nosso número {nossoNumero}</span>
-                  <span className="text-xs">Documento não é um boleto bancário registrado</span>
-                </div>
-              )}
               <div className="flex flex-col items-center gap-4 bg-muted/30 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-2 text-center sm:text-left">
                   <div className="text-sm font-semibold">Pague com Pix</div>
                   <p className="max-w-xs text-xs text-muted-foreground">
-                    {isBoleto
-                      ? "Código de barras substituído pelo QR Code Pix. Abra o app do seu banco e escaneie, ou copie o código abaixo."
-                      : "Abra o app do seu banco, escaneie o QR Code ou copie o código Pix Copia e Cola abaixo."}
+                    Abra o app do seu banco, escaneie o QR Code ou copie o código Pix Copia e Cola
+                    abaixo.
                   </p>
+                  {fatura.pix_chave && (
+                    <div className="text-xs">
+                      <span className="font-semibold">Chave PIX:</span> {fatura.pix_chave}
+                    </div>
+                  )}
+                  <div className="text-xs">
+                    <span className="font-semibold">Favorecido:</span> ASSOCIACAO CAPITULAR
+                    ADONHIRAMITA AO VALE DE ITAJAI
+                  </div>
+                  <div className="text-xs font-semibold">PIX Copia e Cola</div>
                   <div className="flex w-full max-w-xs items-center gap-2 sm:max-w-none">
                     <input
                       readOnly
