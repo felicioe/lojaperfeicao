@@ -101,6 +101,7 @@ export function RecebimentoAvulsoDialog({
   const [descricao, setDescricao] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [saving, setSaving] = useState(false);
+  const isTronco = categoriaInicial === "tronco";
 
   const { data: receitas = [] } = useQuery({
     queryKey: ["planos_receita"],
@@ -141,7 +142,7 @@ export function RecebimentoAvulsoDialog({
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <Label>Categoria</Label>
-          <Select value={categoria} onValueChange={setCategoria}>
+          <Select value={categoria} onValueChange={setCategoria} disabled={isTronco}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -197,14 +198,23 @@ export function RecebimentoAvulsoDialog({
           <Label>Data</Label>
           <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
         </div>
-        <div>
-          <Label>Forma de pagamento</Label>
-          <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} />
-        </div>
-        <div className="md:col-span-2">
-          <Label>Descrição (opcional)</Label>
-          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-        </div>
+        {isTronco ? (
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm md:col-span-2">
+            Este crédito será registrado como PIX anônimo. O nome do irmão não será armazenado no
+            histórico do Tronco.
+          </div>
+        ) : (
+          <>
+            <div>
+              <Label>Forma de pagamento</Label>
+              <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Descrição (opcional)</Label>
+              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+            </div>
+          </>
+        )}
         <div className="md:col-span-2">
           <Label>Observações</Label>
           <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
