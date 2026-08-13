@@ -2,7 +2,7 @@
 -- o dia escolhido, utiliza o ultimo dia valido do mes.
 
 ALTER TABLE despesas_recorrentes
-  DROP CHECK chk_despesas_recorrentes_dia;
+  DROP CONSTRAINT chk_despesas_recorrentes_dia;
 
 ALTER TABLE despesas_recorrentes
   ADD CONSTRAINT chk_despesas_recorrentes_dia
