@@ -708,7 +708,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TooltipProvider delayDuration={200}>
         <aside
           className={cn(
-            "hidden shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 print:hidden lg:flex",
+            "sticky top-0 hidden h-screen shrink-0 self-start flex-col overflow-hidden border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 print:hidden lg:flex",
             collapsed ? "w-[68px]" : "w-64",
           )}
         >
