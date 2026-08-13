@@ -163,14 +163,21 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
                     ADONHIRAMITA AO VALE DE ITAJAI
                   </div>
                   <div className="text-xs font-semibold">PIX Copia e Cola</div>
-                  <div className="flex w-full max-w-xs items-center gap-2 sm:max-w-none">
-                    <input
-                      readOnly
-                      value={copiaCola ?? ""}
-                      className="flex-1 truncate rounded border bg-background px-2 py-1.5 font-mono text-xs"
-                      onFocus={(e) => e.target.select()}
-                    />
-                    <Button size="sm" variant="outline" onClick={copiar} className="print:hidden">
+                  <div className="flex w-full max-w-xs items-start gap-2 sm:max-w-none">
+                    <code
+                      tabIndex={0}
+                      aria-label="Código PIX Copia e Cola completo"
+                      className="min-w-0 flex-1 select-all whitespace-normal break-all rounded border bg-background px-3 py-2 font-mono text-[10px] leading-relaxed text-foreground sm:text-xs print:border-foreground print:text-[9px]"
+                    >
+                      {copiaCola}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={copiar}
+                      className="shrink-0 print:hidden"
+                      aria-label="Copiar código PIX completo"
+                    >
                       <Copy className="h-3.5 w-3.5" />
                     </Button>
                   </div>
