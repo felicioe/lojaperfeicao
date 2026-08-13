@@ -750,6 +750,20 @@ function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
               </p>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4 border-t pt-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">No banco, sem lançamento</p>
+              <p className="font-semibold tabular-nums">{brl(resumo.valorPendente)}</p>
+              <p className="text-xs text-muted-foreground">{resumo.itensPendentes} item(ns)</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">No financeiro, sem OFX</p>
+              <p className="font-semibold tabular-nums">{brl(resumo.valorFinanceiroSemOfx)}</p>
+              <p className="text-xs text-muted-foreground">
+                {resumo.itensFinanceirosSemOfx} item(ns)
+              </p>
+            </div>
+          </div>
           <div
             className={`flex items-start gap-2 rounded-lg p-3 text-sm ${fechado ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}
           >

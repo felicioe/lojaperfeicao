@@ -62,8 +62,18 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<OfxLancamento[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, data, valor, tipo_ofx, descricao, conciliado FROM ofx_lancamentos
-         WHERE conta_financeira_id = ? AND conciliado = FALSE ORDER BY data`,
+        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao,
+                (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
+                  SELECT 1 FROM conciliacoes c
+                  WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+                )) AS conciliado
+         FROM ofx_lancamentos o
+         WHERE o.conta_financeira_id = ?
+           AND NOT (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
+             SELECT 1 FROM conciliacoes c
+             WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+           ))
+         ORDER BY o.data`,
         [data.contaId],
       );
       return rows as OfxLancamento[];
@@ -93,7 +103,12 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
       const periodoSql = periodo ? "AND o.data BETWEEN ? AND ?" : "";
       const periodoParams = periodo ? [periodo.data_inicial, periodo.data_final] : [];
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado, o.conciliacao_id,
+        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao,
+                (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
+                  SELECT 1 FROM conciliacoes c
+                  WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+                )) AS conciliado,
+                o.conciliacao_id,
                 COALESCE(
                   GROUP_CONCAT(DISTINCT CONCAT(l_lote.descricao, ' — R$ ',
                     CAST(cl.valor_aplicado AS CHAR)) SEPARATOR '; '),
@@ -126,6 +141,8 @@ export type ResumoConciliacaoOfx = {
   valorPendente: number;
   itensConciliados: number;
   itensPendentes: number;
+  valorFinanceiroSemOfx: number;
+  itensFinanceirosSemOfx: number;
   diferencaBancoSistema: number | null;
 };
 
@@ -146,25 +163,50 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
         if ((erro as { code?: string }).code !== "ER_NO_SUCH_TABLE") throw erro;
       }
 
-      const periodoSql = extrato ? "AND data BETWEEN ? AND ?" : "";
+      const periodoSql = extrato ? "AND o.data BETWEEN ? AND ?" : "";
       const periodoParams = extrato ? [extrato.data_inicial, extrato.data_final] : [];
       const [[movimentos]] = await conn.query<RowDataPacket[]>(
         `SELECT
-           COALESCE(SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END), 0) AS entradas,
-           COALESCE(SUM(CASE WHEN valor < 0 THEN ABS(valor) ELSE 0 END), 0) AS saidas,
-           COALESCE(SUM(ABS(valor)), 0) AS total_movimentado,
-           COALESCE(SUM(CASE WHEN conciliado THEN ABS(valor) ELSE 0 END), 0) AS valor_conciliado,
-           COALESCE(SUM(CASE WHEN NOT conciliado THEN ABS(valor) ELSE 0 END), 0) AS valor_pendente,
-           SUM(CASE WHEN conciliado THEN 1 ELSE 0 END) AS itens_conciliados,
-           SUM(CASE WHEN NOT conciliado THEN 1 ELSE 0 END) AS itens_pendentes,
-           MIN(data) AS data_inicial, MAX(data) AS data_final
-         FROM ofx_lancamentos
-         WHERE conta_financeira_id = ? ${periodoSql}`,
+           COALESCE(SUM(CASE WHEN o.valor > 0 THEN o.valor ELSE 0 END), 0) AS entradas,
+           COALESCE(SUM(CASE WHEN o.valor < 0 THEN ABS(o.valor) ELSE 0 END), 0) AS saidas,
+           COALESCE(SUM(ABS(o.valor)), 0) AS total_movimentado,
+           COALESCE(SUM(CASE WHEN o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
+             SELECT 1 FROM conciliacoes c WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+           ) THEN ABS(o.valor) ELSE 0 END), 0) AS valor_conciliado,
+           COALESCE(SUM(CASE WHEN NOT (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
+             SELECT 1 FROM conciliacoes c WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+           )) THEN ABS(o.valor) ELSE 0 END), 0) AS valor_pendente,
+           SUM(CASE WHEN o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
+             SELECT 1 FROM conciliacoes c WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+           ) THEN 1 ELSE 0 END) AS itens_conciliados,
+           SUM(CASE WHEN NOT (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
+             SELECT 1 FROM conciliacoes c WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+           )) THEN 1 ELSE 0 END) AS itens_pendentes,
+           MIN(o.data) AS data_inicial, MAX(o.data) AS data_final
+         FROM ofx_lancamentos o
+         WHERE o.conta_financeira_id = ? ${periodoSql}`,
         [data.contaId, ...periodoParams],
       );
       const [saldos] = await conn.query<RowDataPacket[]>(
         "SELECT saldo_atual FROM v_saldo_contas WHERE id = ? LIMIT 1",
         [data.contaId],
+      );
+      const paramsFinanceiro: unknown[] = [data.contaId];
+      const periodoFinanceiro = extrato ? "AND l.data_pagamento BETWEEN ? AND ?" : "";
+      if (extrato) paramsFinanceiro.push(extrato.data_inicial, extrato.data_final);
+      const [[financeiroSemOfx]] = await conn.query<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(l.valor_pago), 0) AS valor, COUNT(*) AS itens
+         FROM lancamentos l
+         WHERE l.conta_id = ? AND l.pago = TRUE ${periodoFinanceiro}
+           AND NOT EXISTS (
+             SELECT 1 FROM ofx_lancamentos o
+             WHERE o.lancamento_id = l.id
+                OR (o.conciliacao_id IS NOT NULL AND EXISTS (
+                  SELECT 1 FROM conciliacao_lancamentos cl
+                  WHERE cl.conciliacao_id = o.conciliacao_id AND cl.lancamento_id = l.id
+                ))
+           )`,
+        paramsFinanceiro,
       );
       const saldoSistema = saldos[0] ? Number(saldos[0].saldo_atual) : null;
       const saldoFinalBanco = extrato?.saldo_final == null ? null : Number(extrato.saldo_final);
@@ -182,6 +224,8 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
         valorPendente: Number(movimentos.valor_pendente),
         itensConciliados: Number(movimentos.itens_conciliados),
         itensPendentes: Number(movimentos.itens_pendentes),
+        valorFinanceiroSemOfx: Number(financeiroSemOfx.valor),
+        itensFinanceirosSemOfx: Number(financeiroSemOfx.itens),
         diferencaBancoSistema:
           saldoFinalBanco == null || saldoSistema == null
             ? null

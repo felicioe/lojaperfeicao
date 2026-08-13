@@ -78,12 +78,12 @@ type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
 function Brand() {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-sidebar-primary-foreground shadow-sm">
-        ⚜
-      </div>
+      <img src="/brand/sglfm-mark.svg" alt="SGLFM" className="h-10 w-9 shrink-0 object-contain" />
       <div className="min-w-0">
-        <div className="text-sm font-semibold leading-tight">Gestão da Loja</div>
-        <div className="truncate text-[11px] text-sidebar-foreground/60">Sistema Maçônico</div>
+        <div className="font-serif text-base font-semibold leading-tight tracking-wide">SGLFM</div>
+        <div className="truncate text-[10px] text-sidebar-foreground/60">
+          Gestão de Loja Filosófica
+        </div>
       </div>
     </div>
   );

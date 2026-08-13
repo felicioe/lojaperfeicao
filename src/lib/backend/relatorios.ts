@@ -302,7 +302,11 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
         valores.push(data.ate);
       }
       const [linhasDesc] = await conn.query<RowDataPacket[]>(
-        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado,
+        `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao,
+                (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
+                  SELECT 1 FROM conciliacoes c
+                  WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+                )) AS conciliado,
                 o.lancamento_id, o.conciliacao_id
          FROM ofx_lancamentos o
          WHERE ${condicoes.join(" AND ")}

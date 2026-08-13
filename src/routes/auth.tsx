@@ -188,14 +188,13 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div
-            aria-label="Símbolo da loja"
-            className="mx-auto w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-serif text-xl mb-2"
-          >
-            ⚜
-          </div>
-          <CardTitle className="text-2xl">Gestão da Loja</CardTitle>
-          <CardDescription>Sistema administrativo maçônico</CardDescription>
+          <img
+            src="/brand/sglfm-mark.svg"
+            alt="SGLFM"
+            className="mx-auto mb-2 h-24 w-20 object-contain"
+          />
+          <CardTitle className="font-serif text-3xl tracking-wide">SGLFM</CardTitle>
+          <CardDescription>Sistema de Gestão de Loja Filosófica Maçônica</CardDescription>
         </CardHeader>
         <CardContent>
           {aguardando2FA ? (
