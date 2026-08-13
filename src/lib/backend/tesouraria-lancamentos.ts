@@ -116,7 +116,10 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         data: r.data,
         data_vencimento: r.data_vencimento,
         data_pagamento: r.data_pagamento,
-        descricao: r.descricao,
+        descricao:
+          r.categoria_recebimento === "tronco" && r.tipo === "entrada"
+            ? "Recebimento Pix - Irmão do quadro ou visitante - nome omitido para confidencialidade do tronco"
+            : r.descricao,
         valor: r.valor,
         valor_pago: r.valor_pago,
         tipo: r.tipo,
@@ -126,8 +129,8 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         conta_id: r.conta_id,
         conta_destino_id: r.conta_destino_id,
         plano_conta_id: r.plano_conta_id,
-        irmao_id: r.irmao_id,
-        irmao_nome: r.irmao_nome,
+        irmao_id: r.categoria_recebimento === "tronco" ? null : r.irmao_id,
+        irmao_nome: r.categoria_recebimento === "tronco" ? null : r.irmao_nome,
         contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
         destino: r.destino_nome ? { nome: r.destino_nome } : null,
         plano_contas: r.plano_conta_nome ? { nome: r.plano_conta_nome } : null,
@@ -535,6 +538,11 @@ export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
   .validator((d: unknown) => recebimentoAvulsoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const descricaoSegura =
+        data.categoria === "tronco"
+          ? "Recebimento Pix - Irmão do quadro ou visitante - nome omitido para confidencialidade do tronco"
+          : data.descricao;
+      const formaPagamentoSegura = data.categoria === "tronco" ? "PIX" : data.formaPagamento;
       await conn.query(
         "CALL registrar_recebimento_avulso(?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, @lanc_id)",
         [
@@ -543,8 +551,8 @@ export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
           data.planoContaId,
           data.contaFinanceiraId,
           data.data,
-          data.formaPagamento,
-          data.descricao,
+          formaPagamentoSegura,
+          descricaoSegura,
           data.observacoes,
         ],
       );
@@ -556,7 +564,9 @@ export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
         "recebimento_avulso",
         lanc_id,
         null,
-        data,
+        data.categoria === "tronco"
+          ? { ...data, descricao: descricaoSegura, formaPagamento: "PIX" }
+          : data,
       );
       return { id: lanc_id };
     });
