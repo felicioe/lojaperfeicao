@@ -145,6 +145,7 @@ function PainelInicio() {
             value={SITUACAO_LABEL[irmao.situacao] ?? irmao.situacao}
             hint={GRAU_LABEL[irmao.grau] ?? irmao.grau}
             tone={irmao.situacao === "ativo" || irmao.situacao === "quite" ? "success" : "danger"}
+            to="/painel/dados"
           />
           <MetricCard
             icon={Wallet}
@@ -152,6 +153,7 @@ function PainelInicio() {
             value={brl(totalEmAberto)}
             hint={`${emAberto.length} lançamento(s)`}
             tone={emAberto.length > 0 ? "warning" : "success"}
+            to="/painel/financeiro"
           />
           <MetricCard
             icon={CalendarCheck2}
@@ -159,6 +161,7 @@ function PainelInicio() {
             value={`${percentualFrequencia}%`}
             hint={`${presencas} de ${totalSessoesFreq} sessão(ões)`}
             tone={percentualFrequencia >= 75 ? "success" : "warning"}
+            to="/painel/frequencia"
           />
           {(naoLidos.data ?? 0) > 0 && (
             <MetricCard
@@ -166,6 +169,7 @@ function PainelInicio() {
               label="Comunicações"
               value={`${naoLidos.data} não lido(s)`}
               tone="warning"
+              to="/painel/comunicacoes"
             />
           )}
         </div>
@@ -236,12 +240,14 @@ function MetricCard({
   value,
   hint,
   tone,
+  to,
 }: {
   icon: any;
   label: string;
   value: string;
   hint?: string;
   tone: "primary" | "success" | "warning" | "danger";
+  to?: string;
 }) {
   const toneClass = {
     primary: "text-primary bg-primary/10",
@@ -249,8 +255,8 @@ function MetricCard({
     warning: "text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30",
     danger: "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30",
   }[tone];
-  return (
-    <Card>
+  const card = (
+    <Card className={to ? "transition-colors hover:bg-muted/50" : undefined}>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
@@ -264,5 +270,15 @@ function MetricCard({
         </div>
       </CardContent>
     </Card>
+  );
+  return to ? (
+    <Link
+      to={to}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }

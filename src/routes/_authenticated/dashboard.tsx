@@ -7,13 +7,27 @@ import {
   contarMembrosAtivos,
   contarSessoesMes,
   listarAniversariantesMes,
+  obterResumoContasReceber,
   type ContaAPagarProxima,
 } from "@/lib/backend/dashboard";
 import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/AppShell";
 import { brl, fmtDate } from "@/lib/format";
-import { AlertCircle, CalendarClock, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowRight,
+  CalendarClock,
+  CalendarDays,
+  FileText,
+  Library,
+  RefreshCw,
+  Vote,
+} from "lucide-react";
+import { listarDocumentos } from "@/lib/backend/documentos";
+import { listarEnquetes } from "@/lib/backend/enquetes";
+import { listarEventos } from "@/lib/backend/eventos";
+import { listarPecasArquitetura } from "@/lib/backend/pecas-arquitetura";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,6 +102,14 @@ function Dashboard() {
     queryKey: ["dash", "aniversariantes"],
     queryFn: () => listarAniversariantesMes(),
   });
+  const contasReceber = useQuery({
+    queryKey: ["dash", "contasReceber"],
+    queryFn: () => obterResumoContasReceber(),
+  });
+  const documentos = useQuery({ queryKey: ["dash", "documentos"], queryFn: listarDocumentos });
+  const enquetes = useQuery({ queryKey: ["dash", "enquetes"], queryFn: listarEnquetes });
+  const eventos = useQuery({ queryKey: ["dash", "eventos"], queryFn: listarEventos });
+  const pecas = useQuery({ queryKey: ["dash", "pecas"], queryFn: listarPecasArquitetura });
 
   const totalPagar = (contasPagar.data ?? []).reduce(
     (soma, conta) => soma + Number(conta.valor),
@@ -116,6 +138,40 @@ function Dashboard() {
   return (
     <>
       <PageHeader title="Dashboard" description="Visão geral da loja e dos próximos 30 dias." />
+
+      <section aria-labelledby="receber-title" className="mb-6 sm:mb-8">
+        <SectionHeader
+          id="receber-title"
+          title="Contas a receber"
+          description="Recebimentos do mês e valores vencidos que precisam de acompanhamento."
+        />
+        <MetricGroup
+          columns="sm:grid-cols-2"
+          updatedAt={contasReceber.dataUpdatedAt}
+          refreshing={contasReceber.isFetching}
+        >
+          <MetricItem
+            label="Recebido neste mês"
+            value={brl(contasReceber.data?.recebidoMes ?? 0)}
+            hint="Ver todos os recebimentos"
+            query={contasReceber}
+            tone="success"
+            to="/relatorios/recebimentos"
+          />
+          <MetricItem
+            label="Inadimplência"
+            value={brl(contasReceber.data?.inadimplencia ?? 0)}
+            hint={pluralizar(
+              contasReceber.data?.quantidadeInadimplentes ?? 0,
+              "irmão com pendência",
+              "irmãos com pendência",
+            )}
+            query={contasReceber}
+            tone={(contasReceber.data?.inadimplencia ?? 0) > 0 ? "danger" : "success"}
+            to="/relatorios/inadimplencia"
+          />
+        </MetricGroup>
+      </section>
 
       <section aria-labelledby="atencao-title" className="mb-6 sm:mb-8">
         <Card>
@@ -221,19 +277,60 @@ function Dashboard() {
             label="Membros ativos"
             value={String(membrosAtivos.data ?? 0)}
             query={membrosAtivos}
+            to="/irmaos"
           />
           <MetricItem
             label="Sessões do mês"
             value={String(sessoesMes.data ?? 0)}
             query={sessoesMes}
+            to="/sessoes"
           />
           <MetricItem
             label="Aniversariantes do mês"
             value={String(aniversariantes.data?.length ?? 0)}
             hint={proximosAniversariantes || undefined}
             query={aniversariantes}
+            to="/irmaos"
           />
         </MetricGroup>
+      </section>
+
+      <section aria-labelledby="novidades-title" className="mt-6 sm:mt-8">
+        <SectionHeader
+          id="novidades-title"
+          title="Novidades do site"
+          description="Conteúdos e atividades adicionados recentemente."
+        />
+        <div className="divide-y overflow-hidden rounded-xl border bg-card">
+          <Novidade
+            icon={Vote}
+            label="Enquete"
+            titulo={enquetes.data?.[0]?.titulo}
+            to="/enquetes"
+            pending={enquetes.isPending}
+          />
+          <Novidade
+            icon={FileText}
+            label="Legislação"
+            titulo={documentos.data?.[0]?.titulo}
+            to="/documentos"
+            pending={documentos.isPending}
+          />
+          <Novidade
+            icon={CalendarDays}
+            label="Evento"
+            titulo={eventos.data?.[0]?.titulo}
+            to="/eventos"
+            pending={eventos.isPending}
+          />
+          <Novidade
+            icon={Library}
+            label="Biblioteca"
+            titulo={pecas.data?.[0]?.titulo}
+            to="/biblioteca"
+            pending={pecas.isPending}
+          />
+        </div>
       </section>
     </>
   );
@@ -497,6 +594,7 @@ function MetricItem({
   pending = query?.isPending ?? false,
   error = query?.isError ?? false,
   onRetry = () => void query?.refetch(),
+  to,
 }: {
   label: string;
   value: string;
@@ -506,6 +604,7 @@ function MetricItem({
   pending?: boolean;
   error?: boolean;
   onRetry?: () => void;
+  to?: string;
 }) {
   const valueClass = {
     neutral: "text-foreground",
@@ -513,8 +612,8 @@ function MetricItem({
     danger: "text-destructive",
   }[tone];
 
-  return (
-    <div className="min-w-0 p-4 sm:p-6">
+  const conteudo = (
+    <div className={`min-w-0 p-4 sm:p-6 ${to ? "transition-colors hover:bg-muted/50" : ""}`}>
       <p className="text-sm font-medium leading-normal text-muted-foreground">{label}</p>
       {pending ? (
         <div className="mt-2 space-y-2" aria-label={`Carregando ${label}`}>
@@ -540,8 +639,51 @@ function MetricItem({
               {hint}
             </p>
           )}
+          {to && <ArrowRight className="mt-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
         </>
       )}
     </div>
+  );
+  return to && !error ? (
+    <Link
+      to={to}
+      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+    >
+      {conteudo}
+    </Link>
+  ) : (
+    conteudo
+  );
+}
+
+function Novidade({
+  icon: Icon,
+  label,
+  titulo,
+  to,
+  pending,
+}: {
+  icon: typeof Vote;
+  label: string;
+  titulo?: string;
+  to: string;
+  pending: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex min-h-20 items-center gap-4 px-4 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-6"
+    >
+      <Icon className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        {pending ? (
+          <Skeleton className="mt-2 h-4 w-2/3" />
+        ) : (
+          <p className="mt-1 truncate font-medium">{titulo ?? "Nenhuma novidade cadastrada"}</p>
+        )}
+      </div>
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </Link>
   );
 }
