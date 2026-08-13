@@ -93,7 +93,8 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
       try {
         const [extratos] = await conn.query<RowDataPacket[]>(
           `SELECT data_inicial, data_final FROM ofx_extratos
-           WHERE conta_financeira_id = ? ORDER BY importado_em DESC, id DESC LIMIT 1`,
+           WHERE conta_financeira_id = ?
+           ORDER BY data_final DESC, data_inicial DESC, importado_em DESC, id DESC LIMIT 1`,
           [data.contaId],
         );
         periodo = extratos[0];
@@ -155,7 +156,7 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
         const [extratos] = await conn.query<RowDataPacket[]>(
           `SELECT data_inicial, data_final, saldo_inicial, saldo_final
            FROM ofx_extratos WHERE conta_financeira_id = ?
-           ORDER BY importado_em DESC, id DESC LIMIT 1`,
+           ORDER BY data_final DESC, data_inicial DESC, importado_em DESC, id DESC LIMIT 1`,
           [data.contaId],
         );
         extrato = extratos[0];
