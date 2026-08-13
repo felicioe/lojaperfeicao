@@ -9,7 +9,7 @@ import {
   type DespesaRecorrente,
 } from "@/lib/backend/tesouraria-recorrentes";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
-import { listarFornecedores } from "@/lib/backend/terceiros";
+import { FornecedorSelect } from "@/components/app/FornecedorSelect";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
@@ -125,11 +125,6 @@ function Recorrentes() {
     queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
   });
 
-  const { data: terceiros = [] } = useQuery({
-    queryKey: ["terceiros_fornecedores"],
-    queryFn: () => listarFornecedores(),
-  });
-
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["despesas_recorrentes"] });
     qc.invalidateQueries({ queryKey: ["recorrentes_efetivadas_mes"] });
@@ -198,12 +193,12 @@ function Recorrentes() {
     <>
       <PageHeader
         title="Despesas Recorrentes"
-        description="Templates que geram contas a pagar automaticamente por competência (aluguel, água/luz/internet etc.)."
+        description="Previsões mensais que alimentam contas a pagar e fluxo de caixa até o fim da vigência."
         actions={
           podeEditar && (
             <Button variant="outline" onClick={efetivarAgora} disabled={efetivando}>
               <RefreshCw className={`h-4 w-4 mr-1 ${efetivando ? "animate-spin" : ""}`} /> Efetivar
-              recorrências vencidas
+              Atualizar previsões
             </Button>
           )
         }
@@ -264,22 +259,10 @@ function Recorrentes() {
             </div>
             <div>
               <Label>Fornecedor (opcional)</Label>
-              <Select
+              <FornecedorSelect
                 value={form.terceiro_id}
                 onValueChange={(v) => setForm({ ...form, terceiro_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— nenhum —</SelectItem>
-                  {terceiros.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
             <div>
               <Label>Início</Label>

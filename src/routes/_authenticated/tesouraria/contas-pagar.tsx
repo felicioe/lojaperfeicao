@@ -5,10 +5,11 @@ import {
   listarContasPagarPagas,
   criarContaPagar,
   baixarContaPagar,
+  confirmarValorEfetivoContaPagar,
   type ContaPagar,
 } from "@/lib/backend/tesouraria-contas-pagar";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
-import { listarFornecedores } from "@/lib/backend/terceiros";
+import { FornecedorSelect } from "@/components/app/FornecedorSelect";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -44,7 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Plus } from "lucide-react";
+import { CheckCircle2, Pencil, Plus } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
@@ -196,6 +197,11 @@ function ContasPagar() {
                       </TableCell>
                       <TableCell>
                         {l.descricao}
+                        {l.recorrente_id && (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Origem: despesa recorrente
+                          </div>
+                        )}
                         <div className="text-xs text-muted-foreground sm:hidden">
                           {[l.plano_contas?.nome, l.terceiros?.nome].filter(Boolean).join(" · ")}
                         </div>
@@ -208,6 +214,19 @@ function ContasPagar() {
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {brl(Number(l.valor) - Number(l.valor_pago))}
+                        {l.recorrente_id && !l.valor_efetivo_confirmado && (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            Valor previsto
+                          </div>
+                        )}
+                        {l.recorrente_id &&
+                          l.valor_efetivo_confirmado &&
+                          l.valor_previsto != null &&
+                          Number(l.valor_previsto) !== Number(l.valor) && (
+                            <div className="text-xs font-normal text-muted-foreground">
+                              previsto: {brl(l.valor_previsto)}
+                            </div>
+                          )}
                         {l.valor_pago > 0 && (
                           <div className="text-xs font-normal text-muted-foreground">
                             de {brl(l.valor)} — parcial
@@ -215,7 +234,9 @@ function ContasPagar() {
                         )}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        {vencida ? (
+                        {l.recorrente_id && !l.valor_efetivo_confirmado ? (
+                          <Badge variant="secondary">Aguardando valor efetivo</Badge>
+                        ) : vencida ? (
                           <Badge variant="destructive">Vencida</Badge>
                         ) : (
                           <Badge variant="outline">Aberta</Badge>
@@ -223,15 +244,37 @@ function ContasPagar() {
                       </TableCell>
                       {podeEditar && (
                         <TableCell className="text-right">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button size="sm" variant="ghost" className="px-2 sm:px-3">
-                                <CheckCircle2 className="h-4 w-4 sm:mr-1" />
-                                <span className="hidden sm:inline">Baixar</span>
-                              </Button>
-                            </DialogTrigger>
-                            <BaixarContaPagarDialog lancamento={l} onDone={invalidate} />
-                          </Dialog>
+                          <div className="flex justify-end gap-1">
+                            {l.recorrente_id && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="px-2 sm:px-3">
+                                    <Pencil className="h-4 w-4 sm:mr-1" />
+                                    <span className="hidden sm:inline">
+                                      {l.valor_efetivo_confirmado
+                                        ? "Corrigir valor"
+                                        : "Informar valor"}
+                                    </span>
+                                  </Button>
+                                </DialogTrigger>
+                                <ValorEfetivoDialog lancamento={l} onDone={invalidate} />
+                              </Dialog>
+                            )}
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="px-2 sm:px-3"
+                                  disabled={!!l.recorrente_id && !l.valor_efetivo_confirmado}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 sm:mr-1" />
+                                  <span className="hidden sm:inline">Baixar</span>
+                                </Button>
+                              </DialogTrigger>
+                              <BaixarContaPagarDialog lancamento={l} onDone={invalidate} />
+                            </Dialog>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -342,11 +385,6 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
     queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
   });
 
-  const { data: terceiros = [] } = useQuery({
-    queryKey: ["terceiros_fornecedores"],
-    queryFn: () => listarFornecedores(),
-  });
-
   const salvar = async () => {
     if (!d.descricao.trim() || !(Number(d.valor) > 0) || !d.plano_conta_id) return;
     setSaving(true);
@@ -408,19 +446,10 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
         </div>
         <div>
           <Label>Fornecedor (opcional)</Label>
-          <Select value={d.terceiro_id} onValueChange={(v) => setD({ ...d, terceiro_id: v })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">— nenhum —</SelectItem>
-              {terceiros.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FornecedorSelect
+            value={d.terceiro_id}
+            onValueChange={(v) => setD({ ...d, terceiro_id: v })}
+          />
         </div>
         <div>
           <Label>Emissão</Label>
@@ -541,6 +570,66 @@ function BaixarContaPagarDialog({
       <DialogFooter>
         <Button onClick={baixar} disabled={saving || !contaFinanceiraId}>
           Confirmar baixa
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function ValorEfetivoDialog({
+  lancamento,
+  onDone,
+}: {
+  lancamento: ContaPagar;
+  onDone: () => void;
+}) {
+  const [valor, setValor] = useState(Number(lancamento.valor));
+  const [salvando, setSalvando] = useState(false);
+
+  const salvar = async () => {
+    if (!(valor > 0)) return;
+    setSalvando(true);
+    try {
+      await confirmarValorEfetivoContaPagar({
+        data: { lancamentoId: lancamento.id, valorEfetivo: valor },
+      });
+      toast.success("Valor efetivo confirmado. A conta já pode ser paga.");
+      onDone();
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível confirmar o valor.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <DialogContent className="max-w-md">
+      <DialogHeader>
+        <DialogTitle>Confirmar valor efetivo</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-3">
+        <div>
+          <div className="text-sm font-medium">{lancamento.descricao}</div>
+          <div className="text-sm text-muted-foreground">
+            Previsão original: {brl(lancamento.valor_previsto ?? lancamento.valor)}
+          </div>
+        </div>
+        <div>
+          <Label htmlFor={`valor-efetivo-${lancamento.id}`}>Valor efetivo para pagamento</Label>
+          <Input
+            id={`valor-efetivo-${lancamento.id}`}
+            type="number"
+            min="0.01"
+            step="0.01"
+            autoFocus
+            value={valor}
+            onChange={(e) => setValor(Number(e.target.value))}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={salvar} disabled={salvando || !(valor > 0)}>
+          {salvando ? "Salvando…" : "Confirmar valor"}
         </Button>
       </DialogFooter>
     </DialogContent>

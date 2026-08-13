@@ -334,7 +334,14 @@ function ContasPagarTable({
                 return (
                   <TableRow key={conta.id}>
                     <TableCell>{fmtDate(conta.data_vencimento)}</TableCell>
-                    <TableCell className="max-w-md break-words">{conta.descricao}</TableCell>
+                    <TableCell className="max-w-md break-words">
+                      {conta.descricao}
+                      {conta.recorrente_id && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Origem: despesa recorrente
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {brl(conta.valor)}
                     </TableCell>
@@ -409,6 +416,9 @@ function ContasPagarMobile({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="break-words text-base font-medium leading-snug">{conta.descricao}</p>
+                {conta.recorrente_id && (
+                  <p className="mt-1 text-sm text-muted-foreground">Origem: despesa recorrente</p>
+                )}
                 <p className="mt-1 text-sm text-muted-foreground">
                   Vence em {fmtDate(conta.data_vencimento)}
                 </p>

@@ -240,6 +240,17 @@ export const conciliarOfxExistente = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      try {
+        const [[parcela]] = await conn.query<RowDataPacket[]>(
+          `SELECT recorrente_id, valor_efetivo_confirmado FROM lancamentos WHERE id = ?`,
+          [data.lancamentoId],
+        );
+        if (parcela?.recorrente_id && !parcela.valor_efetivo_confirmado) {
+          throw new Error("Confirme o valor efetivo da despesa recorrente antes de conciliá-la.");
+        }
+      } catch (erro) {
+        if ((erro as { code?: string }).code !== "ER_BAD_FIELD_ERROR") throw erro;
+      }
       await conn.query("CALL conciliar_ofx_existente(?, ?)", [data.ofxId, data.lancamentoId]);
       await registrarAuditoria(
         conn,
@@ -275,6 +286,21 @@ export const conciliarOfxLote = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ conciliacaoId: string }> => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      try {
+        const ids = data.alocacao.map((item) => item.lancamentoId);
+        const [pendentes] = await conn.query<RowDataPacket[]>(
+          `SELECT id FROM lancamentos
+           WHERE id IN (?) AND recorrente_id IS NOT NULL AND valor_efetivo_confirmado = FALSE`,
+          [ids],
+        );
+        if (pendentes.length > 0) {
+          throw new Error(
+            "Confirme o valor efetivo das despesas recorrentes antes de conciliá-las.",
+          );
+        }
+      } catch (erro) {
+        if ((erro as { code?: string }).code !== "ER_BAD_FIELD_ERROR") throw erro;
+      }
       await conn.query("CALL conciliar_ofx_lote(?, ?, @conciliacao_id)", [
         JSON.stringify(data.ofxIds),
         JSON.stringify(

@@ -4,6 +4,7 @@ import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+import { garantirPrevisoesRecorrentes } from "./tesouraria-recorrentes";
 
 // lancamentos_write original: admin/tesoureiro.
 const PAPEIS = ["admin", "tesoureiro"];
@@ -18,6 +19,9 @@ export type ContaPagar = {
   valor_pago: number;
   pago: boolean;
   forma_pagamento: string | null;
+  recorrente_id: string | null;
+  valor_previsto: number | null;
+  valor_efetivo_confirmado: boolean;
   plano_contas: { codigo: string; nome: string } | null;
   terceiros: { nome: string } | null;
   contas_financeiras: { nome: string } | null;
@@ -29,8 +33,18 @@ async function buscarContasPagar(
   limite?: number,
 ): Promise<ContaPagar[]> {
   const ordenacao = pago ? "l.data_pagamento DESC" : "l.data_vencimento";
+  const [[estrutura]] = await conn.query<RowDataPacket[]>(
+    `SELECT COUNT(*) = 2 AS pronta
+     FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = 'lancamentos'
+       AND column_name IN ('valor_previsto', 'valor_efetivo_confirmado')`,
+  );
+  const camposRecorrencia = estrutura.pronta
+    ? "l.recorrente_id, l.valor_previsto, l.valor_efetivo_confirmado,"
+    : "NULL AS recorrente_id, NULL AS valor_previsto, TRUE AS valor_efetivo_confirmado,";
   const [rows] = await conn.query<RowDataPacket[]>(
     `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago, l.forma_pagamento,
+            ${camposRecorrencia}
             pc.codigo AS plano_codigo, pc.nome AS plano_nome, t.nome AS terceiro_nome, cf.nome AS conta_nome
      FROM lancamentos l
      LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
@@ -51,6 +65,9 @@ async function buscarContasPagar(
     valor_pago: r.valor_pago,
     pago: r.pago,
     forma_pagamento: r.forma_pagamento,
+    recorrente_id: r.recorrente_id,
+    valor_previsto: r.valor_previsto,
+    valor_efetivo_confirmado: r.valor_efetivo_confirmado,
     plano_contas: r.plano_codigo ? { codigo: r.plano_codigo, nome: r.plano_nome } : null,
     terceiros: r.terceiro_nome ? { nome: r.terceiro_nome } : null,
     contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
@@ -59,9 +76,42 @@ async function buscarContasPagar(
 
 export const listarContasPagarAbertas = createServerFn({ method: "GET" }).handler(
   async (): Promise<ContaPagar[]> => {
-    return comPapel(PAPEIS, (conn) => buscarContasPagar(conn, false));
+    return comPapel(PAPEIS, async (conn) => {
+      await garantirPrevisoesRecorrentes(conn);
+      return buscarContasPagar(conn, false);
+    });
   },
 );
+
+const valorEfetivoSchema = z.object({
+  lancamentoId: z.string().uuid(),
+  valorEfetivo: z.number().positive(),
+});
+
+export const confirmarValorEfetivoContaPagar = createServerFn({ method: "POST" })
+  .validator((d: unknown) => valorEfetivoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      const [resultado] = await conn.query(
+        `UPDATE lancamentos
+         SET valor = ?, valor_efetivo_confirmado = TRUE
+         WHERE id = ? AND tipo = 'saida' AND pago = FALSE AND recorrente_id IS NOT NULL`,
+        [data.valorEfetivo, data.lancamentoId],
+      );
+      if ((resultado as { affectedRows: number }).affectedRows !== 1) {
+        throw new Error("Parcela recorrente não encontrada ou já paga.");
+      }
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "confirmar_valor_efetivo",
+        "conta_pagar",
+        data.lancamentoId,
+        null,
+        data,
+      );
+    });
+  });
 
 export const listarContasPagarPagas = createServerFn({ method: "GET" }).handler(
   async (): Promise<ContaPagar[]> => {
@@ -109,6 +159,18 @@ export const baixarContaPagar = createServerFn({ method: "POST" })
   .validator((d: unknown) => baixarContaPagarSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      try {
+        const [[parcela]] = await conn.query<RowDataPacket[]>(
+          `SELECT recorrente_id, valor_efetivo_confirmado
+           FROM lancamentos WHERE id = ?`,
+          [data.lancamentoId],
+        );
+        if (parcela?.recorrente_id && !parcela.valor_efetivo_confirmado) {
+          throw new Error("Confirme o valor efetivo desta despesa recorrente antes da baixa.");
+        }
+      } catch (erro) {
+        if ((erro as { code?: string }).code !== "ER_BAD_FIELD_ERROR") throw erro;
+      }
       await conn.query("CALL baixar_conta_pagar(?, ?, ?, ?)", [
         data.lancamentoId,
         data.contaFinanceiraId,
