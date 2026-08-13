@@ -78,19 +78,15 @@ function TabelaValoresPage() {
   return (
     <>
       <PageHeader
-        title="Tabela de Valores"
-        description="Valores por grau/corpo do quadro filosófico (mensalidade, iniciação, troca de grau) e as taxas repassadas à Potência (SGCAB)."
+        title="Tabela de valores da Loja"
+        description="Mensalidades e demais valores próprios dos corpos maçônicos. As cobranças do SGCAB são controladas separadamente."
       />
       <Tabs defaultValue="corpo">
         <TabsList className="mb-4">
-          <TabsTrigger value="corpo">Taxas Corpo Maçônico</TabsTrigger>
-          <TabsTrigger value="potencia">Taxas Potência</TabsTrigger>
+          <TabsTrigger value="corpo">Valores da Loja</TabsTrigger>
         </TabsList>
         <TabsContent value="corpo">
           <TaxasCorpoPanel />
-        </TabsContent>
-        <TabsContent value="potencia">
-          <TaxasPotenciaPanel />
         </TabsContent>
       </Tabs>
     </>

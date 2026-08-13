@@ -403,7 +403,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         },
         {
           to: "/tesouraria/tabela-valores",
-          label: "Tabela de Valores",
+          label: "Tabela de Valores da Loja",
           icon: TrendingUp,
           show: can.canManageFinancas,
         },
@@ -446,7 +446,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         },
         {
           to: "/sgcab/cobrancas",
-          label: "Cobranças (Potência)",
+          label: "Controle SGCAB",
           icon: ScrollText,
           show: can.isTesoureiro || can.isSecretario,
         },

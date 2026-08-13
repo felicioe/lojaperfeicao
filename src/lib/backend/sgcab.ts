@@ -10,7 +10,7 @@ import { registrarAuditoria } from "./auditoria";
 // contábil (lancamentos/faturas): estas taxas normalmente são repassadas a
 // um órgão federativo externo, não são receita da loja (ver migração
 // 0014_taxas_grau_sgcab.sql).
-const PAPEIS_GESTAO = ["admin", "secretario"];
+const PAPEIS_GESTAO = ["admin", "secretario", "tesoureiro"];
 const PAPEIS_LEITURA = ["admin", "secretario", "tesoureiro"];
 
 export type TaxaGrau = {
@@ -216,6 +216,208 @@ export const registrarPagamentoSgcab = createServerFn({ method: "POST" })
           status: data.status,
           data_pagamento: data.dataPagamento,
         },
+      );
+    });
+  });
+
+export type SgcabFaturaItem = {
+  id: string;
+  tipo: string;
+  descricao: string;
+  valor: number;
+  ordem: number;
+};
+
+export type SgcabFatura = {
+  id: string;
+  irmao_id: string;
+  irmao_nome: string;
+  org_id: string;
+  org_nome: string;
+  ano: number;
+  grau: number;
+  nome_grau: string | null;
+  titulo: string;
+  data_sessao: string | null;
+  vencimento: string | null;
+  total: number;
+  status: "pendente" | "pago" | "cancelado";
+  data_pagamento: string | null;
+  comprovante_url: string | null;
+  observacoes: string | null;
+  itens: SgcabFaturaItem[];
+};
+
+const filtroFaturasSchema = z.object({
+  orgId: z.string().uuid().nullable(),
+  ano: z.number().int().nullable(),
+  status: z.enum(["pendente", "pago", "cancelado"]).nullable(),
+  irmaoId: z.string().uuid().nullable(),
+});
+
+export const listarFaturasSgcab = createServerFn({ method: "POST" })
+  .validator((d: unknown) => filtroFaturasSchema.parse(d))
+  .handler(async ({ data }): Promise<SgcabFatura[]> => {
+    return comPapel(PAPEIS_LEITURA, async (conn) => {
+      const condicoes: string[] = [];
+      const valores: unknown[] = [];
+      if (data.orgId) {
+        condicoes.push("sf.org_id = ?");
+        valores.push(data.orgId);
+      }
+      if (data.ano) {
+        condicoes.push("sf.ano = ?");
+        valores.push(data.ano);
+      }
+      if (data.status) {
+        condicoes.push("sf.status = ?");
+        valores.push(data.status);
+      }
+      if (data.irmaoId) {
+        condicoes.push("sf.irmao_id = ?");
+        valores.push(data.irmaoId);
+      }
+      const where = condicoes.length ? `WHERE ${condicoes.join(" AND ")}` : "";
+      const [faturas] = await conn.query<RowDataPacket[]>(
+        `SELECT sf.*, i.nome_civil AS irmao_nome, o.nome AS org_nome, og.nome AS nome_grau
+         FROM sgcab_faturas sf
+         JOIN irmaos i ON i.id = sf.irmao_id
+         JOIN orgs o ON o.id = sf.org_id
+         LEFT JOIN orgs_graus og ON og.org_id = sf.org_id AND og.grau = sf.grau
+         ${where}
+         ORDER BY sf.vencimento IS NULL, sf.vencimento, sf.criado_em DESC`,
+        valores,
+      );
+      if (faturas.length === 0) return [];
+      const ids = faturas.map((f) => f.id);
+      const [itens] = await conn.query<RowDataPacket[]>(
+        `SELECT id, fatura_id, tipo, descricao, valor, ordem
+         FROM sgcab_fatura_itens WHERE fatura_id IN (?) ORDER BY ordem, criado_em`,
+        [ids],
+      );
+      return faturas.map((f) => ({
+        ...f,
+        itens: itens.filter((item) => item.fatura_id === f.id),
+      })) as SgcabFatura[];
+    });
+  });
+
+export const obterValoresFaturaSgcab = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z.object({ orgId: z.string().uuid(), ano: z.number().int(), grau: z.number().int() }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_LEITURA, async (conn) => {
+      const [[taxa]] = await conn.query<RowDataPacket[]>(
+        `SELECT sgcab, ritual, diploma FROM taxas_grau
+         WHERE org_id = ? AND ano = ? AND grau = ? AND ativo = TRUE LIMIT 1`,
+        [data.orgId, data.ano, data.grau],
+      );
+      const [[boton]] = await conn.query<RowDataPacket[]>(
+        `SELECT valor FROM tabela_valores
+         WHERE tipo = ? AND vigencia_inicio <= ?
+         ORDER BY vigencia_inicio DESC LIMIT 1`,
+        [data.grau === 13 ? "sgcab_boton_grau_13_2026" : "sgcab_boton_2026", `${data.ano}-12-31`],
+      );
+      return {
+        iniciacao: Number(taxa?.sgcab ?? 0),
+        diploma: Number(taxa?.diploma ?? 0),
+        ritual: Number(taxa?.ritual ?? 0),
+        boton: Number(boton?.valor ?? 0),
+      };
+    });
+  });
+
+const criarFaturaSchema = z.object({
+  irmaoId: z.string().uuid(),
+  orgId: z.string().uuid(),
+  ano: z.number().int(),
+  grau: z.number().int().min(1).max(33),
+  titulo: z.string().min(3).max(255),
+  dataSessao: z.string().nullable(),
+  vencimento: z.string().nullable(),
+  observacoes: z.string().max(5000).nullable(),
+  itens: z
+    .array(
+      z.object({
+        tipo: z.string().min(1).max(50),
+        descricao: z.string().min(1).max(255),
+        valor: z.number().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+
+export const criarFaturaSgcab = createServerFn({ method: "POST" })
+  .validator((d: unknown) => criarFaturaSchema.parse(d))
+  .handler(async ({ data }): Promise<{ id: string }> => {
+    return comPapel(PAPEIS_GESTAO, async (conn, usuarioIdAtual) => {
+      const total = data.itens.reduce((soma, item) => soma + item.valor, 0);
+      await conn.beginTransaction();
+      try {
+        const [[novoId]] = await conn.query<RowDataPacket[]>("SELECT UUID() AS id");
+        await conn.query(
+          `INSERT INTO sgcab_faturas
+             (id, irmao_id, org_id, ano, grau, titulo, data_sessao, vencimento, total, observacoes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            novoId.id,
+            data.irmaoId,
+            data.orgId,
+            data.ano,
+            data.grau,
+            data.titulo,
+            data.dataSessao,
+            data.vencimento,
+            total,
+            data.observacoes,
+          ],
+        );
+        for (const [ordem, item] of data.itens.entries()) {
+          await conn.query(
+            `INSERT INTO sgcab_fatura_itens (fatura_id, tipo, descricao, valor, ordem)
+             VALUES (?, ?, ?, ?, ?)`,
+            [novoId.id, item.tipo, item.descricao, item.valor, ordem],
+          );
+        }
+        await registrarAuditoria(conn, usuarioIdAtual, "criar", "sgcab_fatura", novoId.id, null, {
+          ...data,
+          total,
+        });
+        await conn.commit();
+        return { id: novoId.id };
+      } catch (erro) {
+        await conn.rollback();
+        throw erro;
+      }
+    });
+  });
+
+const atualizarFaturaSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["pendente", "pago", "cancelado"]),
+  dataPagamento: z.string().nullable(),
+  comprovanteUrl: z.string().nullable(),
+  observacoes: z.string().max(5000).nullable(),
+});
+
+export const atualizarFaturaSgcab = createServerFn({ method: "POST" })
+  .validator((d: unknown) => atualizarFaturaSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_GESTAO, async (conn, usuarioIdAtual) => {
+      await conn.query(
+        `UPDATE sgcab_faturas SET status = ?, data_pagamento = ?,
+           comprovante_url = COALESCE(?, comprovante_url), observacoes = ? WHERE id = ?`,
+        [data.status, data.dataPagamento, data.comprovanteUrl, data.observacoes, data.id],
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "atualizar_status",
+        "sgcab_fatura",
+        data.id,
+        null,
+        data,
       );
     });
   });
