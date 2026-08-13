@@ -114,6 +114,8 @@ const CATEGORIAS = [
 const SEM_ANO = "sem_ano";
 
 function extrairAno(documento: Documento) {
+  const anoDaPasta = documento.categoria.match(/^legislacao:(\d{4})$/)?.[1];
+  if (anoDaPasta) return anoDaPasta;
   const texto = `${documento.titulo} ${documento.arquivo_nome_original ?? ""}`;
   const anos = texto.match(/\b(?:19|20)\d{2}\b/g);
   return anos?.at(-1) ?? SEM_ANO;
@@ -139,7 +141,8 @@ function LegislacaoPage() {
       Object.fromEntries(
         CATEGORIAS.map((item) => [
           item.id,
-          documentos.filter((d) => d.categoria === item.id).length,
+          documentos.filter((d) => d.categoria === item.id || d.categoria.startsWith(`${item.id}:`))
+            .length,
         ]),
       ),
     [documentos],
@@ -147,7 +150,10 @@ function LegislacaoPage() {
   const anosLegislacao = useMemo(() => {
     const contagem = new Map<string, number>();
     documentos
-      .filter((documento) => documento.categoria === "legislacao")
+      .filter(
+        (documento) =>
+          documento.categoria === "legislacao" || documento.categoria.startsWith("legislacao:"),
+      )
       .forEach((documento) => {
         const anoDocumento = extrairAno(documento);
         contagem.set(anoDocumento, (contagem.get(anoDocumento) ?? 0) + 1);
@@ -162,7 +168,9 @@ function LegislacaoPage() {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
     const resultado = documentos.filter(
       (documento) =>
-        (!categoria || documento.categoria === categoria) &&
+        (!categoria ||
+          documento.categoria === categoria ||
+          documento.categoria.startsWith(`${categoria}:`)) &&
         (categoria !== "legislacao" || !ano || extrairAno(documento) === ano) &&
         (!termo ||
           documento.titulo.toLocaleLowerCase("pt-BR").includes(termo) ||
@@ -217,7 +225,7 @@ function LegislacaoPage() {
         title="Legislação"
         description="Repositório de documentos normativos, administrativos e tratados da Loja."
         actions={
-          can.canManageIrmaos && (
+          (can.isAdmin || can.canManageIrmaos) && (
             <Dialog open={dialogAberto} onOpenChange={setDialogAberto}>
               <DialogTrigger asChild>
                 <Button>
@@ -429,7 +437,7 @@ function LegislacaoPage() {
                           <Share2 className="h-4 w-4" />
                         </Button>
                       )}
-                      {can.canManageIrmaos && (
+                      {(can.isAdmin || can.canManageIrmaos) && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -578,11 +586,21 @@ function EditarDocumento({
   onSalvo: () => Promise<void>;
 }) {
   const [titulo, setTitulo] = useState(documento.titulo);
-  const [categoria, setCategoria] = useState(documento.categoria);
+  const [categoria, setCategoria] = useState(documento.categoria.split(":")[0]);
+  const [anoReferencia, setAnoReferencia] = useState(
+    documento.categoria.match(/^legislacao:(\d{4})$/)?.[1] ?? "",
+  );
   const [ocupado, setOcupado] = useState(false);
 
   const salvar = async () => {
     if (!titulo.trim()) return toast.error("Informe o nome do documento.");
+    if (
+      categoria === "legislacao" &&
+      anoReferencia &&
+      (Number(anoReferencia) < 1800 || Number(anoReferencia) > 2200)
+    ) {
+      return toast.error("Informe um ano entre 1800 e 2200.");
+    }
     setOcupado(true);
     try {
       await atualizarDocumento({
@@ -590,6 +608,7 @@ function EditarDocumento({
           id: documento.id,
           titulo: titulo.trim(),
           categoria: categoria as (typeof CATEGORIAS)[number]["id"],
+          anoReferencia: categoria === "legislacao" && anoReferencia ? Number(anoReferencia) : null,
         },
       });
       toast.success("Documento atualizado.");
@@ -635,6 +654,24 @@ function EditarDocumento({
             </SelectContent>
           </Select>
         </div>
+        {categoria === "legislacao" && (
+          <div>
+            <Label htmlFor="editar-ano">Pasta do ano</Label>
+            <Input
+              id="editar-ano"
+              type="number"
+              min={1800}
+              max={2200}
+              inputMode="numeric"
+              placeholder="Ex.: 2025"
+              value={anoReferencia}
+              onChange={(e) => setAnoReferencia(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Preencha para mover o documento diretamente para a pasta desse ano.
+            </p>
+          </div>
+        )}
       </div>
       <DialogFooter>
         <Button onClick={() => void salvar()} disabled={ocupado || !titulo.trim()}>

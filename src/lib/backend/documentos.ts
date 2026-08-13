@@ -95,6 +95,7 @@ const atualizarDocumentoSchema = z.object({
   id: z.string().uuid(),
   titulo: z.string().trim().min(1).max(255),
   categoria: z.enum(CATEGORIAS_DOCUMENTO),
+  anoReferencia: z.number().int().min(1800).max(2200).nullable(),
 });
 
 export const atualizarDocumento = createServerFn({ method: "POST" })
@@ -107,14 +108,18 @@ export const atualizarDocumento = createServerFn({ method: "POST" })
       );
       if (!documento) throw new Error("Documento não encontrado.");
 
+      const categoriaDestino =
+        data.categoria === "legislacao" && data.anoReferencia
+          ? `legislacao:${data.anoReferencia}`
+          : data.categoria;
       await conn.query("UPDATE documentos SET titulo = ?, categoria = ? WHERE id = ?", [
         data.titulo,
-        data.categoria,
+        categoriaDestino,
         data.id,
       ]);
       await registrarAuditoria(conn, usuarioId, "atualizar", "documento", data.id, documento, {
         titulo: data.titulo,
-        categoria: data.categoria,
+        categoria: categoriaDestino,
       });
     });
   });
