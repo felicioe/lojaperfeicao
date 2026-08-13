@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
-import { comSessao } from "./authz";
+import { comPapel, comSessao } from "./authz";
+import { registrarAuditoria } from "./auditoria";
 
 // RLS original: SELECT admin/tesoureiro/secretario (tudo) OU o próprio
 // irmão vinculado. Sem escrita direta — só a procedure baixar_faturas.
@@ -99,3 +100,153 @@ export const listarReciboItens = createServerFn({ method: "GET" })
       }));
     });
   });
+
+export type ReciboAvulso = {
+  id: string;
+  numero: number;
+  tipo: "recebimento" | "pagamento";
+  status: "previsto" | "efetivo";
+  data: string;
+  valor: number;
+  descricao: string;
+  pessoa_nome: string;
+  forma_pagamento: string | null;
+  observacoes: string | null;
+  conta_nome: string | null;
+  conciliacao_id: string | null;
+};
+
+export const listarRecibosAvulsos = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ReciboAvulso[]> =>
+    comPapel(PAPEIS_PRIVILEGIADOS, async (conn) => {
+      const [rows] = await conn.query<
+        RowDataPacket[]
+      >(`SELECT r.id, r.numero, r.tipo, r.status, r.data, r.valor,
+      r.descricao, COALESCE(i.nome_civil, t.nome) AS pessoa_nome, r.forma_pagamento, r.observacoes,
+      cf.nome AS conta_nome, r.conciliacao_id FROM recibos_avulsos r
+      LEFT JOIN irmaos i ON i.id=r.irmao_id LEFT JOIN terceiros t ON t.id=r.terceiro_id
+      LEFT JOIN contas_financeiras cf ON cf.id=r.conta_financeira_id ORDER BY r.data DESC, r.numero DESC LIMIT 500`);
+      return rows as ReciboAvulso[];
+    }),
+);
+
+export const listarConciliacoesParaRecibo = createServerFn({ method: "GET" }).handler(async () =>
+  comPapel(PAPEIS_PRIVILEGIADOS, async (conn) => {
+    const [rows] = await conn.query<
+      RowDataPacket[]
+    >(`SELECT c.id, c.data_conciliacao AS data, c.valor_total AS valor,
+      GROUP_CONCAT(DISTINCT l.descricao SEPARATOR '; ') AS descricao
+      FROM conciliacoes c JOIN conciliacao_lancamentos cl ON cl.conciliacao_id=c.id
+      JOIN lancamentos l ON l.id=cl.lancamento_id LEFT JOIN recibos_avulsos r ON r.conciliacao_id=c.id
+      WHERE c.status='ativa' AND r.id IS NULL GROUP BY c.id ORDER BY c.data_conciliacao DESC LIMIT 100`);
+    return rows as { id: string; data: string; valor: number; descricao: string }[];
+  }),
+);
+
+const avulsoSchema = z
+  .object({
+    tipo: z.enum(["recebimento", "pagamento"]),
+    status: z.enum(["previsto", "efetivo"]),
+    data: z.string(),
+    valor: z.number().positive(),
+    descricao: z.string().trim().min(1),
+    irmaoId: z.string().uuid().nullable(),
+    terceiroId: z.string().uuid().nullable(),
+    planoContaId: z.string().uuid(),
+    contaFinanceiraId: z.string().uuid().nullable(),
+    formaPagamento: z.string().nullable(),
+    observacoes: z.string().nullable(),
+    conciliacaoId: z.string().uuid().nullable(),
+  })
+  .refine((d) => !!d.irmaoId !== !!d.terceiroId, "Selecione um irmão ou um terceiro.")
+  .refine(
+    (d) => d.status === "previsto" || !!d.contaFinanceiraId || !!d.conciliacaoId,
+    "Informe a conta financeira.",
+  );
+
+export const criarReciboAvulso = createServerFn({ method: "POST" })
+  .validator((d: unknown) => avulsoSchema.parse(d))
+  .handler(async ({ data }): Promise<{ id: string }> =>
+    comPapel(["admin", "tesoureiro"], async (conn, usuarioId) => {
+      const id = crypto.randomUUID();
+      let lancamentoId: string | null = null;
+      if (!data.conciliacaoId) {
+        lancamentoId = crypto.randomUUID();
+        const efetivo = data.status === "efetivo";
+        await conn.query(
+          `INSERT INTO lancamentos (id,data,data_vencimento,data_pagamento,descricao,valor,valor_pago,tipo,
+        plano_conta_id,irmao_id,terceiro_id,conta_id,pago,forma_pagamento,observacoes,criado_por)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [
+            lancamentoId,
+            data.data,
+            data.data,
+            efetivo ? data.data : null,
+            data.descricao,
+            data.valor,
+            efetivo ? data.valor : 0,
+            data.tipo === "recebimento" ? "entrada" : "saida",
+            data.planoContaId,
+            data.irmaoId,
+            data.terceiroId,
+            efetivo ? data.contaFinanceiraId : null,
+            efetivo,
+            data.formaPagamento,
+            data.observacoes,
+            usuarioId,
+          ],
+        );
+        if (efetivo) {
+          const [[conta]] = await conn.query<RowDataPacket[]>(
+            "SELECT plano_conta_id FROM contas_financeiras WHERE id=?",
+            [data.contaFinanceiraId],
+          );
+          if (!conta?.plano_conta_id)
+            throw new Error("A conta financeira não possui conta contábil vinculada.");
+          const entrada = data.tipo === "recebimento";
+          const itens = JSON.stringify([
+            {
+              conta_id: entrada ? conta.plano_conta_id : data.planoContaId,
+              tipo: "debito",
+              valor: data.valor,
+              descricao: data.descricao,
+            },
+            {
+              conta_id: entrada ? data.planoContaId : conta.plano_conta_id,
+              tipo: "credito",
+              valor: data.valor,
+              descricao: data.descricao,
+            },
+          ]);
+          await conn.query(
+            "CALL registrar_lancamento_contabil(?, ?, ?, ?, 'recibo_avulso', ?, @lc_id)",
+            [data.data, data.data.slice(0, 7) + "-01", data.descricao, itens, lancamentoId],
+          );
+        }
+      }
+      await conn.query(
+        `INSERT INTO recibos_avulsos (id,tipo,status,data,valor,descricao,irmao_id,terceiro_id,
+      plano_conta_id,conta_financeira_id,forma_pagamento,observacoes,lancamento_id,conciliacao_id,criado_por)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          id,
+          data.tipo,
+          data.status,
+          data.data,
+          data.valor,
+          data.descricao,
+          data.irmaoId,
+          data.terceiroId,
+          data.planoContaId,
+          data.contaFinanceiraId,
+          data.formaPagamento,
+          data.observacoes,
+          lancamentoId,
+          data.conciliacaoId,
+          usuarioId,
+        ],
+      );
+      await registrarAuditoria(conn, usuarioId, "criar", "recibo_avulso", id, null, data);
+      return { id };
+    }),
+  );

@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { listarRecibos, listarReciboItens } from "@/lib/backend/tesouraria-recibos";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  listarRecibos,
+  listarReciboItens,
+  listarRecibosAvulsos,
+  listarConciliacoesParaRecibo,
+  criarReciboAvulso,
+} from "@/lib/backend/tesouraria-recibos";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
+import { listarTerceiros } from "@/lib/backend/terceiros";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
+import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Card } from "@/components/ui/card";
@@ -13,12 +23,25 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Fragment, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { toISODate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/recibos")({
   head: () => ({ meta: [{ title: "Recibos — Gestão Maçônica" }] }),
@@ -27,6 +50,7 @@ export const Route = createFileRoute("/_authenticated/tesouraria/recibos")({
 
 function Recibos() {
   const [expandido, setExpandido] = useState<string | null>(null);
+  const qc = useQueryClient();
 
   const { data: recibos = [] } = useQuery({
     queryKey: ["recibos_all"],
@@ -42,6 +66,10 @@ function Recibos() {
     desconto: (r) => Number(r.desconto),
     total: (r) => Number(r.valor_total),
   });
+  const { data: avulsos = [] } = useQuery({
+    queryKey: ["recibos_avulsos"],
+    queryFn: listarRecibosAvulsos,
+  });
   const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
     ord.itensOrdenados,
   );
@@ -50,8 +78,55 @@ function Recibos() {
     <>
       <PageHeader
         title="Recibos"
-        description="Recibos emitidos na baixa de faturas (individuais ou agrupados)."
+        description="Recibos de recebimento e pagamento, avulsos ou originados de baixas."
+        actions={
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-1 h-4 w-4" />
+                Emitir recibo avulso
+              </Button>
+            </DialogTrigger>
+            <NovoReciboAvulso
+              onDone={() => qc.invalidateQueries({ queryKey: ["recibos_avulsos"] })}
+            />
+          </Dialog>
+        }
       />
+      {avulsos.length > 0 && (
+        <Card className="mb-6 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nº</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Favorecido / pagador</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {avulsos.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell>{r.numero}</TableCell>
+                  <TableCell>{fmtDate(r.data)}</TableCell>
+                  <TableCell>{r.tipo === "recebimento" ? "Recebimento" : "Pagamento"}</TableCell>
+                  <TableCell>{r.pessoa_nome}</TableCell>
+                  <TableCell>{r.descricao}</TableCell>
+                  <TableCell className="text-right font-semibold">{brl(r.valor)}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => imprimirRecibo(r)}>
+                      <Printer className="h-4 w-4" /> Imprimir
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
       <Card>
         <Table>
           <TableHeader>
@@ -194,5 +269,259 @@ function ReciboItensPanel({ reciboId }: { reciboId: string }) {
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function valorPorExtenso(valor: number) {
+  const inteiros = Math.floor(valor);
+  const centavos = Math.round((valor - inteiros) * 100);
+  return `${inteiros.toLocaleString("pt-BR")} ${inteiros === 1 ? "real" : "reais"}${centavos ? ` e ${centavos} centavos` : ""}`;
+}
+
+function imprimirRecibo(r: {
+  numero: number;
+  tipo: string;
+  data: string;
+  valor: number;
+  descricao: string;
+  pessoa_nome: string;
+  forma_pagamento: string | null;
+  observacoes: string | null;
+}) {
+  const janela = window.open("", "_blank", "width=900,height=700");
+  if (!janela) return toast.error("Permita pop-ups para imprimir o recibo.");
+  janela.document.write(
+    `<!doctype html><html><head><title>Recibo ${r.numero}</title><style>body{font-family:Arial,sans-serif;color:#111;padding:36px;max-width:820px;margin:auto}.head{display:grid;grid-template-columns:150px 1fr 100px;align-items:center;border-bottom:2px solid #9b7b32;padding-bottom:16px}.logos img{width:60px;height:60px;object-fit:contain}.right{width:80px}.center{text-align:center;font-size:13px;font-weight:bold}.title{text-align:center;margin:36px 0 24px}.valor{border:1px solid #777;padding:10px 16px;float:right;font-size:20px}.texto{font-size:17px;line-height:1.8;clear:both;padding-top:25px}.assinatura{margin-top:80px;text-align:center}.linha{border-top:1px solid #333;width:360px;margin:auto;padding-top:8px}@media print{button{display:none}}</style></head><body><div class="head"><div class="logos"><img src="/institucional/logo-capitulo-ayres-gevaerd.png"><img src="/institucional/logo-loja-perfeicao-adonhiram.png"></div><div class="center">LOJA DE PERFEIÇÃO ADONHIRAM<br>SUBLIME CAPÍTULO ADONHIRAMITA AYRES GEVAERD<br><br>ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI<br>CNPJ 26.649.083/0001-38</div><img class="right" src="/institucional/logo-sgcab.png"></div><h1 class="title">RECIBO Nº ${r.numero}</h1><div class="valor">${brl(r.valor)}</div><p class="texto">${r.tipo === "recebimento" ? "Recebemos de" : "Pagamos a"} <strong>${r.pessoa_nome}</strong> a importância de <strong>${valorPorExtenso(Number(r.valor))}</strong>, referente a ${r.descricao}.${r.forma_pagamento ? `<br>Forma de pagamento: ${r.forma_pagamento}.` : ""}</p>${r.observacoes ? `<p>${r.observacoes}</p>` : ""}<p>Camboriú, ${fmtDate(r.data)}.</p><div class="assinatura"><div class="linha">ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI</div></div><script>setTimeout(()=>window.print(),500)<\/script></body></html>`,
+  );
+  janela.document.close();
+}
+
+function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
+  const [d, setD] = useState({
+    tipo: "recebimento" as "recebimento" | "pagamento",
+    status: "efetivo" as "previsto" | "efetivo",
+    data: toISODate(new Date()),
+    valor: 0,
+    descricao: "",
+    pessoaTipo: "irmao",
+    pessoaId: "",
+    planoContaId: "",
+    contaFinanceiraId: "",
+    formaPagamento: "",
+    observacoes: "",
+    conciliacaoId: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: listarIrmaosNomes,
+  });
+  const { data: terceiros = [] } = useQuery({ queryKey: ["terceiros"], queryFn: listarTerceiros });
+  const { data: planos = [] } = useQuery({
+    queryKey: ["planos_recibo", d.tipo],
+    queryFn: () =>
+      listarPlanoContasPorTipo({
+        data: { tipo: d.tipo === "recebimento" ? "receita" : "despesa" },
+      }),
+  });
+  const { data: contas = [] } = useQuery({
+    queryKey: ["contas_financeiras_ativas"],
+    queryFn: listarContasFinanceiras,
+  });
+  const { data: conciliacoes = [] } = useQuery({
+    queryKey: ["conciliacoes_para_recibo"],
+    queryFn: listarConciliacoesParaRecibo,
+  });
+  const salvar = async () => {
+    if (!d.pessoaId || !d.planoContaId || !d.descricao.trim() || !(d.valor > 0))
+      return toast.error("Preencha os campos obrigatórios.");
+    setSaving(true);
+    try {
+      await criarReciboAvulso({
+        data: {
+          tipo: d.tipo,
+          status: d.status,
+          data: d.data,
+          valor: d.valor,
+          descricao: d.descricao.trim(),
+          irmaoId: d.pessoaTipo === "irmao" ? d.pessoaId : null,
+          terceiroId: d.pessoaTipo === "terceiro" ? d.pessoaId : null,
+          planoContaId: d.planoContaId,
+          contaFinanceiraId: d.status === "efetivo" ? d.contaFinanceiraId || null : null,
+          formaPagamento: d.formaPagamento || null,
+          observacoes: d.observacoes || null,
+          conciliacaoId: d.conciliacaoId || null,
+        },
+      });
+      toast.success("Recibo avulso emitido.");
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao emitir recibo.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <DialogContent className="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>Emitir recibo avulso</DialogTitle>
+      </DialogHeader>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Label>Usar movimentação já conciliada (opcional)</Label>
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3"
+            value={d.conciliacaoId}
+            onChange={(e) => {
+              const c = conciliacoes.find((item) => item.id === e.target.value);
+              setD({
+                ...d,
+                conciliacaoId: e.target.value,
+                status: "efetivo",
+                data: c?.data ?? d.data,
+                valor: c ? Math.abs(Number(c.valor)) : d.valor,
+                descricao: c?.descricao ?? d.descricao,
+              });
+            }}
+          >
+            <option value="">Criar recibo independente</option>
+            {conciliacoes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {fmtDate(c.data)} — {brl(Math.abs(Number(c.valor)))} — {c.descricao}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A conciliação será apenas referenciada; nenhum novo movimento de caixa será criado.
+          </p>
+        </div>
+        <div>
+          <Label>Tipo</Label>
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3"
+            value={d.tipo}
+            onChange={(e) =>
+              setD({ ...d, tipo: e.target.value as typeof d.tipo, planoContaId: "" })
+            }
+          >
+            <option value="recebimento">Recebimento</option>
+            <option value="pagamento">Pagamento</option>
+          </select>
+        </div>
+        <div>
+          <Label>Situação</Label>
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3"
+            value={d.status}
+            onChange={(e) => setD({ ...d, status: e.target.value as typeof d.status })}
+          >
+            <option value="efetivo">Efetivo — movimenta caixa</option>
+            <option value="previsto">Data futura — sem movimentar caixa</option>
+          </select>
+        </div>
+        <div>
+          <Label>Data</Label>
+          <Input
+            type="date"
+            value={d.data}
+            onChange={(e) => setD({ ...d, data: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label>Valor</Label>
+          <Input
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={d.valor}
+            onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
+          />
+        </div>
+        <div>
+          <Label>Vincular a</Label>
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3"
+            value={d.pessoaTipo}
+            onChange={(e) => setD({ ...d, pessoaTipo: e.target.value, pessoaId: "" })}
+          >
+            <option value="irmao">Irmão</option>
+            <option value="terceiro">Terceiro</option>
+          </select>
+        </div>
+        <div>
+          <Label>Nome</Label>
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3"
+            value={d.pessoaId}
+            onChange={(e) => setD({ ...d, pessoaId: e.target.value })}
+          >
+            <option value="">Selecione…</option>
+            {(d.pessoaTipo === "irmao"
+              ? irmaos.map((i) => ({ id: i.id, nome: i.nome_civil }))
+              : terceiros.map((t) => ({ id: t.id, nome: t.nome }))
+            ).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label>Categoria contábil</Label>
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3"
+            value={d.planoContaId}
+            onChange={(e) => setD({ ...d, planoContaId: e.target.value })}
+          >
+            <option value="">Selecione…</option>
+            {planos.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.codigo} — {p.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+        {d.status === "efetivo" && (
+          <div>
+            <Label>Conta financeira</Label>
+            <select
+              className="h-10 w-full rounded-md border bg-background px-3"
+              value={d.contaFinanceiraId}
+              onChange={(e) => setD({ ...d, contaFinanceiraId: e.target.value })}
+            >
+              <option value="">Selecione…</option>
+              {contas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="sm:col-span-2">
+          <Label>Referente a</Label>
+          <Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} />
+        </div>
+        <div>
+          <Label>Forma de pagamento</Label>
+          <Input
+            value={d.formaPagamento}
+            onChange={(e) => setD({ ...d, formaPagamento: e.target.value })}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Label>Observações</Label>
+          <Textarea
+            value={d.observacoes}
+            onChange={(e) => setD({ ...d, observacoes: e.target.value })}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={salvar} disabled={saving}>
+          {saving ? "Emitindo…" : "Emitir recibo"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
