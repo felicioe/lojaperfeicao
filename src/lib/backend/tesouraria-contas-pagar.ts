@@ -22,6 +22,9 @@ export type ContaPagar = {
   recorrente_id: string | null;
   valor_previsto: number | null;
   valor_efetivo_confirmado: boolean;
+  plano_conta_id: string;
+  terceiro_id: string | null;
+  observacoes: string | null;
   plano_contas: { codigo: string; nome: string } | null;
   terceiros: { nome: string } | null;
   contas_financeiras: { nome: string } | null;
@@ -44,6 +47,7 @@ async function buscarContasPagar(
     : "NULL AS recorrente_id, NULL AS valor_previsto, TRUE AS valor_efetivo_confirmado,";
   const [rows] = await conn.query<RowDataPacket[]>(
     `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago, l.forma_pagamento,
+            l.plano_conta_id, l.terceiro_id, l.observacoes,
             ${camposRecorrencia}
             pc.codigo AS plano_codigo, pc.nome AS plano_nome, t.nome AS terceiro_nome, cf.nome AS conta_nome
      FROM lancamentos l
@@ -68,6 +72,9 @@ async function buscarContasPagar(
     recorrente_id: r.recorrente_id,
     valor_previsto: r.valor_previsto,
     valor_efetivo_confirmado: r.valor_efetivo_confirmado,
+    plano_conta_id: r.plano_conta_id,
+    terceiro_id: r.terceiro_id,
+    observacoes: r.observacoes,
     plano_contas: r.plano_codigo ? { codigo: r.plano_codigo, nome: r.plano_nome } : null,
     terceiros: r.terceiro_nome ? { nome: r.terceiro_nome } : null,
     contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
@@ -145,6 +152,77 @@ export const criarContaPagar = createServerFn({ method: "POST" })
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
       await registrarAuditoria(conn, usuarioIdAtual, "criar", "conta_pagar", lanc_id, null, data);
       return { id: lanc_id };
+    });
+  });
+
+const editarContaPagarSchema = novaContaPagarSchema.extend({ id: z.string().uuid() });
+
+export const editarContaPagar = createServerFn({ method: "POST" })
+  .validator((d: unknown) => editarContaPagarSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      const [[anterior]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM lancamentos WHERE id = ? AND tipo = 'saida' LIMIT 1",
+        [data.id],
+      );
+      if (!anterior || anterior.pago || anterior.valor_pago > 0) {
+        throw new Error("Somente contas abertas e sem baixa parcial podem ser editadas.");
+      }
+      if (anterior.recorrente_id) {
+        throw new Error(
+          "Edite o modelo em Despesas Recorrentes ou apenas confirme o valor efetivo desta parcela.",
+        );
+      }
+      await conn.query(
+        `UPDATE lancamentos SET descricao=?, valor=?, plano_conta_id=?, data=?, data_vencimento=?,
+         terceiro_id=?, observacoes=? WHERE id=?`,
+        [
+          data.descricao,
+          data.valor,
+          data.planoContaId,
+          data.data,
+          data.dataVencimento,
+          data.terceiroId,
+          data.observacoes,
+          data.id,
+        ],
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "editar",
+        "conta_pagar",
+        data.id,
+        anterior,
+        data,
+      );
+    });
+  });
+
+export const excluirContaPagar = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      const [[anterior]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM lancamentos WHERE id = ? AND tipo = 'saida' LIMIT 1",
+        [data.id],
+      );
+      if (!anterior || anterior.pago || anterior.valor_pago > 0) {
+        throw new Error("Somente contas abertas e sem baixa parcial podem ser excluídas.");
+      }
+      if (anterior.recorrente_id) {
+        throw new Error("Exclua ou desative o modelo no menu Despesas Recorrentes.");
+      }
+      await conn.query("DELETE FROM lancamentos WHERE id = ?", [data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "excluir",
+        "conta_pagar",
+        data.id,
+        anterior,
+        null,
+      );
     });
   });
 

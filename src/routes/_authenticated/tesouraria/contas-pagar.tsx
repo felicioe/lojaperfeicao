@@ -6,6 +6,8 @@ import {
   criarContaPagar,
   baixarContaPagar,
   confirmarValorEfetivoContaPagar,
+  editarContaPagar,
+  excluirContaPagar,
   type ContaPagar,
 } from "@/lib/backend/tesouraria-contas-pagar";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
@@ -45,7 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Pencil, Plus } from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
@@ -259,6 +261,46 @@ function ContasPagar() {
                                 </DialogTrigger>
                                 <ValorEfetivoDialog lancamento={l} onDone={invalidate} />
                               </Dialog>
+                            )}
+                            {!l.recorrente_id && Number(l.valor_pago) === 0 && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="px-2 sm:px-3">
+                                    <Pencil className="h-4 w-4 sm:mr-1" />
+                                    <span className="hidden sm:inline">Editar</span>
+                                  </Button>
+                                </DialogTrigger>
+                                <EditarContaPagarDialog lancamento={l} onDone={invalidate} />
+                              </Dialog>
+                            )}
+                            {!l.recorrente_id && Number(l.valor_pago) === 0 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="px-2 text-destructive hover:text-destructive sm:px-3"
+                                onClick={async () => {
+                                  if (
+                                    !window.confirm(
+                                      `Excluir a conta “${l.descricao}”? Esta ação não pode ser desfeita.`,
+                                    )
+                                  )
+                                    return;
+                                  try {
+                                    await excluirContaPagar({ data: { id: l.id } });
+                                    toast.success("Conta a pagar excluída.");
+                                    invalidate();
+                                  } catch (erro) {
+                                    toast.error(
+                                      erro instanceof Error
+                                        ? erro.message
+                                        : "Não foi possível excluir.",
+                                    );
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Excluir</span>
+                              </Button>
                             )}
                             <Dialog>
                               <DialogTrigger asChild>
@@ -481,6 +523,129 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
           disabled={saving || !d.descricao || !(Number(d.valor) > 0) || !d.plano_conta_id}
         >
           Registrar
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function EditarContaPagarDialog({
+  lancamento,
+  onDone,
+}: {
+  lancamento: ContaPagar;
+  onDone: () => void;
+}) {
+  const [d, setD] = useState({
+    descricao: lancamento.descricao,
+    valor: Number(lancamento.valor),
+    plano_conta_id: lancamento.plano_conta_id,
+    terceiro_id: lancamento.terceiro_id ?? "none",
+    data: lancamento.data,
+    data_vencimento: lancamento.data_vencimento ?? lancamento.data,
+    observacoes: lancamento.observacoes ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const { data: planos = [] } = useQuery({
+    queryKey: ["planos_despesa"],
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
+  });
+  const salvar = async () => {
+    if (!d.descricao.trim() || !(d.valor > 0) || !d.plano_conta_id) return;
+    setSaving(true);
+    try {
+      await editarContaPagar({
+        data: {
+          id: lancamento.id,
+          descricao: d.descricao.trim(),
+          valor: d.valor,
+          planoContaId: d.plano_conta_id,
+          data: d.data,
+          dataVencimento: d.data_vencimento,
+          terceiroId: d.terceiro_id === "none" ? null : d.terceiro_id,
+          observacoes: d.observacoes || null,
+        },
+      });
+      toast.success("Conta a pagar atualizada.");
+      onDone();
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível editar.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle>Editar conta a pagar</DialogTitle>
+      </DialogHeader>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Label>Descrição</Label>
+          <Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} />
+        </div>
+        <div>
+          <Label>Valor</Label>
+          <Input
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={d.valor}
+            onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
+          />
+        </div>
+        <div>
+          <Label>Categoria</Label>
+          <Select value={d.plano_conta_id} onValueChange={(v) => setD({ ...d, plano_conta_id: v })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {planos.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.codigo} — {p.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Fornecedor</Label>
+          <FornecedorSelect
+            value={d.terceiro_id}
+            onValueChange={(v) => setD({ ...d, terceiro_id: v })}
+          />
+        </div>
+        <div>
+          <Label>Emissão</Label>
+          <Input
+            type="date"
+            value={d.data}
+            onChange={(e) => setD({ ...d, data: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label>Vencimento</Label>
+          <Input
+            type="date"
+            value={d.data_vencimento}
+            onChange={(e) => setD({ ...d, data_vencimento: e.target.value })}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <Label>Observações</Label>
+          <Textarea
+            value={d.observacoes}
+            onChange={(e) => setD({ ...d, observacoes: e.target.value })}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button
+          onClick={salvar}
+          disabled={saving || !d.descricao || !(d.valor > 0) || !d.plano_conta_id}
+        >
+          {saving ? "Salvando…" : "Salvar alterações"}
         </Button>
       </DialogFooter>
     </DialogContent>
