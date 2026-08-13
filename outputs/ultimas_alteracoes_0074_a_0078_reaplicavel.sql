@@ -14,6 +14,7 @@
 -- ============================================================================
 
 SET NAMES utf8mb4;
+USE `u630316951_ado`;
 
 -- 0074 - PIX -----------------------------------------------------------------
 ALTER TABLE contas_financeiras_pix
@@ -256,7 +257,7 @@ WHERE tipo LIKE 'sgcab\_%' ESCAPE '\\';
 -- como banco de resolucao das tabelas depois do primeiro SELECT.
 SELECT 'pix_colunas' AS verificacao, COUNT(*) AS quantidade
 FROM information_schema.columns
-WHERE table_schema = DATABASE()
+WHERE table_schema = 'u630316951_ado'
   AND table_name = 'contas_financeiras_pix'
   AND column_name IN ('pix_copia_cola', 'qr_code_url');
 
