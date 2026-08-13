@@ -439,6 +439,50 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
     });
   });
 
+// ---------- Taxas SGCAB no extrato do irmão --------------------------------
+// Permanecem gerenciais e separadas dos lançamentos da Loja. A consulta existe
+// apenas para oferecer uma visão global das obrigações do irmão.
+export type ItemExtratoSgcab = {
+  id: string;
+  data: string;
+  vencimento: string | null;
+  data_pagamento: string | null;
+  titulo: string;
+  itens_descricao: string | null;
+  total: number;
+  status: "pendente" | "pago" | "cancelado";
+};
+
+export const relatorioExtratoSgcabIrmao = createServerFn({ method: "GET" })
+  .validator((d: unknown) => filtroExtratoIrmaoSchema.parse(d))
+  .handler(async ({ data }): Promise<ItemExtratoSgcab[]> => {
+    return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+      const condicoes = ["sf.irmao_id = ?"];
+      const valores: unknown[] = [data.irmaoId];
+      if (data.de) {
+        condicoes.push("COALESCE(sf.vencimento, DATE(sf.criado_em)) >= ?");
+        valores.push(data.de);
+      }
+      if (data.ate) {
+        condicoes.push("COALESCE(sf.vencimento, DATE(sf.criado_em)) <= ?");
+        valores.push(data.ate);
+      }
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT sf.id, DATE(sf.criado_em) AS data, sf.vencimento, sf.data_pagamento,
+                sf.titulo, sf.total, sf.status,
+                GROUP_CONCAT(sfi.descricao ORDER BY sfi.ordem, sfi.criado_em SEPARATOR ' · ') AS itens_descricao
+         FROM sgcab_faturas sf
+         LEFT JOIN sgcab_fatura_itens sfi ON sfi.fatura_id = sf.id
+         WHERE ${condicoes.join(" AND ")}
+         GROUP BY sf.id
+         ORDER BY sf.vencimento IS NULL, sf.vencimento, sf.criado_em DESC
+         LIMIT 2000`,
+        valores,
+      );
+      return rows as ItemExtratoSgcab[];
+    });
+  });
+
 // ---------- Relatório de inadimplência detalhado (issue #115) ----------
 // Multa/juros calculados até hoje com a MESMA fórmula da procedure
 // calcular_multa_juros (também usada em baixar_faturas/BaixaDialog), só que
