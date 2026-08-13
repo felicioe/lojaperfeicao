@@ -187,10 +187,78 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
          WHERE o.conta_financeira_id = ? ${periodoSql}`,
         [data.contaId, ...periodoParams],
       );
-      const [saldos] = await conn.query<RowDataPacket[]>(
-        "SELECT saldo_atual FROM v_saldo_contas WHERE id = ? LIMIT 1",
-        [data.contaId],
-      );
+      let saldoSistema: number | null = null;
+      if (extrato?.data_final) {
+        const [[saldoNaData]] = await conn.query<RowDataPacket[]>(
+          `SELECT cf.saldo_inicial + COALESCE(SUM(eventos.valor_sinal), 0) AS saldo
+           FROM contas_financeiras cf
+           LEFT JOIN (
+             SELECT r.conta_financeira_id, r.valor_total AS valor_sinal
+             FROM recibos r
+             WHERE r.data <= ?
+             UNION ALL
+             SELECT c.conta_financeira_id,
+                    CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END
+             FROM conciliacoes c
+             JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id
+             JOIN lancamentos l ON l.id = cl.lancamento_id
+             WHERE c.status = 'ativa' AND c.data_conciliacao <= ?
+             UNION ALL
+             SELECT o.conta_financeira_id,
+                    CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END
+             FROM ofx_lancamentos o
+             JOIN lancamentos l ON l.id = o.lancamento_id
+             WHERE o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.data <= ?
+             UNION ALL
+             SELECT l.conta_id,
+                    CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END
+             FROM lancamentos l
+             WHERE l.pago = TRUE AND l.conta_id IS NOT NULL AND l.data_pagamento <= ?
+               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+               AND NOT EXISTS (
+                 SELECT 1 FROM conciliacao_lancamentos cl
+                 JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
+                 WHERE cl.lancamento_id = l.id
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM ofx_lancamentos o
+                 WHERE o.lancamento_id = l.id AND o.conciliacao_id IS NULL
+               )
+             UNION ALL
+             SELECT l.conta_destino_id, l.valor
+             FROM lancamentos l
+             WHERE l.pago = TRUE AND l.tipo = 'transferencia'
+               AND l.conta_destino_id IS NOT NULL AND l.data_pagamento <= ?
+               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+               AND NOT EXISTS (
+                 SELECT 1 FROM conciliacao_lancamentos cl
+                 JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
+                 WHERE cl.lancamento_id = l.id
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM ofx_lancamentos o
+                 WHERE o.lancamento_id = l.id AND o.conciliacao_id IS NULL
+               )
+           ) eventos ON eventos.conta_financeira_id = cf.id
+           WHERE cf.id = ?
+           GROUP BY cf.id, cf.saldo_inicial`,
+          [
+            extrato.data_final,
+            extrato.data_final,
+            extrato.data_final,
+            extrato.data_final,
+            extrato.data_final,
+            data.contaId,
+          ],
+        );
+        saldoSistema = saldoNaData?.saldo == null ? null : Number(saldoNaData.saldo);
+      } else {
+        const [saldos] = await conn.query<RowDataPacket[]>(
+          "SELECT saldo_atual FROM v_saldo_contas WHERE id = ? LIMIT 1",
+          [data.contaId],
+        );
+        saldoSistema = saldos[0] ? Number(saldos[0].saldo_atual) : null;
+      }
       const paramsFinanceiro: unknown[] = [data.contaId];
       const periodoFinanceiro = extrato ? "AND l.data_pagamento BETWEEN ? AND ?" : "";
       if (extrato) paramsFinanceiro.push(extrato.data_inicial, extrato.data_final);
@@ -208,7 +276,6 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
            )`,
         paramsFinanceiro,
       );
-      const saldoSistema = saldos[0] ? Number(saldos[0].saldo_atual) : null;
       const saldoFinalBanco = extrato?.saldo_final == null ? null : Number(extrato.saldo_final);
 
       return {
