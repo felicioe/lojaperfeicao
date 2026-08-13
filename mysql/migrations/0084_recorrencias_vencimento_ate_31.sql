@@ -1,6 +1,20 @@
 -- Permite vencimentos recorrentes do dia 1 ao 31. Nos meses que nao possuem
 -- o dia escolhido, utiliza o ultimo dia valido do mes.
 
+-- Torna esta migration independente da 0082. O MariaDB aceita IF NOT EXISTS
+-- sem consultar information_schema, que e restrito neste ambiente.
+ALTER TABLE lancamentos
+  ADD COLUMN IF NOT EXISTS valor_previsto DECIMAL(14,2) NULL AFTER valor;
+
+ALTER TABLE lancamentos
+  ADD COLUMN IF NOT EXISTS valor_efetivo_confirmado BOOLEAN NOT NULL DEFAULT TRUE AFTER valor_previsto;
+
+UPDATE lancamentos
+SET valor_previsto = valor,
+    valor_efetivo_confirmado = pago
+WHERE recorrente_id IS NOT NULL
+  AND valor_previsto IS NULL;
+
 ALTER TABLE despesas_recorrentes
   DROP CONSTRAINT chk_despesas_recorrentes_dia;
 
