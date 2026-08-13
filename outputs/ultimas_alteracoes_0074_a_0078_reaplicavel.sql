@@ -252,23 +252,25 @@ DELETE FROM tabela_valores
 WHERE tipo LIKE 'sgcab\_%' ESCAPE '\\';
 
 -- CONFERENCIA FINAL ----------------------------------------------------------
+-- Consultas independentes: evita que o MySQL mantenha information_schema
+-- como banco de resolucao das tabelas depois do primeiro SELECT.
 SELECT 'pix_colunas' AS verificacao, COUNT(*) AS quantidade
 FROM information_schema.columns
 WHERE table_schema = DATABASE()
   AND table_name = 'contas_financeiras_pix'
-  AND column_name IN ('pix_copia_cola', 'qr_code_url')
-UNION ALL
-SELECT 'config_tronco', COUNT(*)
-FROM tronco_beneficencia_config
-UNION ALL
-SELECT 'faturas_sgcab', COUNT(*)
-FROM sgcab_faturas
-UNION ALL
-SELECT 'itens_catalogo_sgcab_2026', COUNT(*)
+  AND column_name IN ('pix_copia_cola', 'qr_code_url');
+
+SELECT 'config_tronco' AS verificacao, COUNT(*) AS quantidade
+FROM tronco_beneficencia_config;
+
+SELECT 'faturas_sgcab' AS verificacao, COUNT(*) AS quantidade
+FROM sgcab_faturas;
+
+SELECT 'itens_catalogo_sgcab_2026' AS verificacao, COUNT(*) AS quantidade
 FROM sgcab_valores_catalogo
-WHERE ano = 2026
-UNION ALL
-SELECT 'sgcab_ainda_na_tabela_da_loja', COUNT(*)
+WHERE ano = 2026;
+
+SELECT 'sgcab_ainda_na_tabela_da_loja' AS verificacao, COUNT(*) AS quantidade
 FROM tabela_valores
 WHERE tipo LIKE 'sgcab\_%' ESCAPE '\\';
 
