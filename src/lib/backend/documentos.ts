@@ -12,6 +12,11 @@ const CATEGORIAS_DOCUMENTO = [
   "legislacao",
   "tratados_corporacoes",
   "tratados_orientes",
+  "ensino",
+  "documentos_historicos",
+  "rituais_antigos",
+  "formularios",
+  "tabela_valores_sgcab",
 ] as const;
 
 export type Documento = {

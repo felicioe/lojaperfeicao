@@ -84,6 +84,31 @@ const CATEGORIAS = [
     nome: "Tratados — Grandes Orientes",
     descricao: "Tratados com Grandes Orientes",
   },
+  {
+    id: "ensino",
+    nome: "Ensino",
+    descricao: "Materiais de estudo, formação e instrução maçônica",
+  },
+  {
+    id: "documentos_historicos",
+    nome: "Documentos Históricos",
+    descricao: "Registros e documentos da memória da Loja",
+  },
+  {
+    id: "rituais_antigos",
+    nome: "Rituais Antigos",
+    descricao: "Rituais históricos preservados para consulta",
+  },
+  {
+    id: "formularios",
+    nome: "Formulários",
+    descricao: "Modelos e formulários de uso administrativo",
+  },
+  {
+    id: "tabela_valores_sgcab",
+    nome: "Tabela de Valores SGCAB",
+    descricao: "Tabelas vigentes de taxas e valores do SGCAB",
+  },
 ] as const;
 
 const SEM_ANO = "sem_ano";
