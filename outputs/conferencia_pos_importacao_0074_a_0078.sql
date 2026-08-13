@@ -3,25 +3,26 @@
 -- O erro ocorreu na conferencia, depois das alteracoes principais.
 
 SET NAMES utf8mb4;
+USE `u630316951_ado`;
 
 SELECT 'pix_colunas' AS verificacao, COUNT(*) AS quantidade
 FROM information_schema.columns
-WHERE table_schema = DATABASE()
+WHERE table_schema = 'u630316951_ado'
   AND table_name = 'contas_financeiras_pix'
   AND column_name IN ('pix_copia_cola', 'qr_code_url');
 
 SELECT 'config_tronco' AS verificacao, COUNT(*) AS quantidade
-FROM tronco_beneficencia_config;
+FROM `u630316951_ado`.`tronco_beneficencia_config`;
 
 SELECT 'faturas_sgcab' AS verificacao, COUNT(*) AS quantidade
-FROM sgcab_faturas;
+FROM `u630316951_ado`.`sgcab_faturas`;
 
 SELECT 'itens_catalogo_sgcab_2026' AS verificacao, COUNT(*) AS quantidade
-FROM sgcab_valores_catalogo
+FROM `u630316951_ado`.`sgcab_valores_catalogo`
 WHERE ano = 2026;
 
 SELECT 'sgcab_ainda_na_tabela_da_loja' AS verificacao, COUNT(*) AS quantidade
-FROM tabela_valores
+FROM `u630316951_ado`.`tabela_valores`
 WHERE tipo LIKE 'sgcab\_%' ESCAPE '\\';
 
 -- Esperado:
