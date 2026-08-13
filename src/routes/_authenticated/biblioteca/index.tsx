@@ -74,6 +74,7 @@ import {
   MessageCircle,
   Printer,
   Share2,
+  Upload,
   X as XIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -124,6 +125,7 @@ function BibliotecaPage() {
   const [enviando, setEnviando] = useState(false);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [visualizando, setVisualizando] = useState<PecaArquitetura | null>(null);
+  const [loteAberto, setLoteAberto] = useState(false);
 
   const { data: pecas = [], isLoading } = useQuery({
     queryKey: ["pecas_arquitetura"],
@@ -314,127 +316,145 @@ function BibliotecaPage() {
         description="Peças de arquitetura (trabalhos apresentados em sessão)."
         actions={
           (meuIrmao || podeGerenciarTudo) && (
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={abrirNova}>
-                  <Plus className="mr-1.5 h-4 w-4" /> Nova peça
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>{form.id ? "Editar peça" : "Nova peça"}</DialogTitle>
-                  <DialogDescription>
-                    Título e autor são obrigatórios — o resto é opcional.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-3">
-                  <div>
-                    <Label>Autor</Label>
-                    {podeGerenciarTudo ? (
+            <div className="flex flex-wrap gap-2">
+              {can.isAdmin && (
+                <Dialog open={loteAberto} onOpenChange={setLoteAberto}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Upload className="mr-1.5 h-4 w-4" /> Enviar em lote
+                    </Button>
+                  </DialogTrigger>
+                  <LotePecas
+                    autorId={meuIrmao?.id}
+                    onConcluido={async () => {
+                      setLoteAberto(false);
+                      await invalidate();
+                    }}
+                  />
+                </Dialog>
+              )}
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={abrirNova}>
+                    <Plus className="mr-1.5 h-4 w-4" /> Nova peça
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>{form.id ? "Editar peça" : "Nova peça"}</DialogTitle>
+                    <DialogDescription>
+                      Título e autor são obrigatórios — o resto é opcional.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-3">
+                    <div>
+                      <Label>Autor</Label>
+                      {podeGerenciarTudo ? (
+                        <Select
+                          value={form.autorId}
+                          onValueChange={(v) => setForm({ ...form, autorId: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {irmaosNomes.map((i) => (
+                              <SelectItem key={i.id} value={i.id}>
+                                {i.nome_civil}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input value={meuIrmao?.nome_civil ?? ""} disabled />
+                      )}
+                    </div>
+                    <div>
+                      <Label>Título</Label>
+                      <Input
+                        value={form.titulo}
+                        onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Tema (opcional)</Label>
+                      <Input
+                        value={form.tema}
+                        onChange={(e) => setForm({ ...form, tema: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Grau</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={form.grau}
+                        onChange={(e) => setForm({ ...form, grau: e.target.value })}
+                        placeholder="Ex.: 4"
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Só irmãos deste grau ou superior poderão ver esta peça.
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Sessão em que foi apresentada (opcional)</Label>
                       <Select
-                        value={form.autorId}
-                        onValueChange={(v) => setForm({ ...form, autorId: v })}
+                        value={form.sessaoId || "nenhuma"}
+                        onValueChange={(v) =>
+                          setForm({ ...form, sessaoId: v === "nenhuma" ? "" : v })
+                        }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione…" />
+                          <SelectValue placeholder="Nenhuma" />
                         </SelectTrigger>
                         <SelectContent>
-                          {irmaosNomes.map((i) => (
-                            <SelectItem key={i.id} value={i.id}>
-                              {i.nome_civil}
+                          <SelectItem value="nenhuma">Nenhuma</SelectItem>
+                          {sessoes.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {fmtDate(s.data)} — {s.tipo}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    ) : (
-                      <Input value={meuIrmao?.nome_civil ?? ""} disabled />
-                    )}
+                    </div>
+                    <div>
+                      <Label>Resumo (opcional)</Label>
+                      <Textarea
+                        value={form.resumo}
+                        onChange={(e) => setForm({ ...form, resumo: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label>Arquivo (PDF, até 15 MB — opcional)</Label>
+                      <Input
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        disabled={enviandoArquivo}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleArquivo(file);
+                        }}
+                      />
+                      {form.arquivoNomeOriginal && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                          <FileText className="h-3 w-3" /> {form.arquivoNomeOriginal}
+                          {enviandoArquivo && " — enviando…"}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <Label>Título</Label>
-                    <Input
-                      value={form.titulo}
-                      onChange={(e) => setForm({ ...form, titulo: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Tema (opcional)</Label>
-                    <Input
-                      value={form.tema}
-                      onChange={(e) => setForm({ ...form, tema: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Grau</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={form.grau}
-                      onChange={(e) => setForm({ ...form, grau: e.target.value })}
-                      placeholder="Ex.: 4"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Só irmãos deste grau ou superior poderão ver esta peça.
-                    </p>
-                  </div>
-                  <div>
-                    <Label>Sessão em que foi apresentada (opcional)</Label>
-                    <Select
-                      value={form.sessaoId || "nenhuma"}
-                      onValueChange={(v) =>
-                        setForm({ ...form, sessaoId: v === "nenhuma" ? "" : v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Nenhuma" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nenhuma">Nenhuma</SelectItem>
-                        {sessoes.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {fmtDate(s.data)} — {s.tipo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Resumo (opcional)</Label>
-                    <Textarea
-                      value={form.resumo}
-                      onChange={(e) => setForm({ ...form, resumo: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Label>Arquivo (PDF, até 15 MB — opcional)</Label>
-                    <Input
-                      type="file"
-                      accept=".pdf,application/pdf"
-                      disabled={enviandoArquivo}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleArquivo(file);
-                      }}
-                    />
-                    {form.arquivoNomeOriginal && (
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        <FileText className="h-3 w-3" /> {form.arquivoNomeOriginal}
-                        {enviandoArquivo && " — enviando…"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={salvar} disabled={enviando || enviandoArquivo}>
-                    {enviando ? "Salvando…" : "Salvar"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={salvar} disabled={enviando || enviandoArquivo}>
+                      {enviando ? "Salvando…" : "Salvar"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           )
         }
       />
@@ -671,5 +691,96 @@ function BibliotecaPage() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function arquivoParaDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function LotePecas({
+  autorId,
+  onConcluido,
+}: {
+  autorId?: string;
+  onConcluido: () => Promise<void>;
+}) {
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const [enviando, setEnviando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
+
+  const enviar = async () => {
+    if (!autorId) return toast.error("O administrador precisa estar vinculado a um irmão.");
+    if (!arquivos.length) return toast.error("Selecione ao menos um PDF.");
+    setEnviando(true);
+    const falhas: string[] = [];
+    for (const [indice, file] of arquivos.entries()) {
+      setProgresso(indice + 1);
+      try {
+        if (file.size > 15 * 1024 * 1024) throw new Error("arquivo maior que 15 MB");
+        const upload = await uploadArquivoPeca({
+          data: { nomeArquivo: file.name, dataUrl: await arquivoParaDataUrl(file) },
+        });
+        await criarPecaArquitetura({
+          data: {
+            autorId,
+            titulo: file.name.replace(/\.[^.]+$/, ""),
+            grau: 1,
+            sessaoId: null,
+            tema: null,
+            resumo: "Peça enviada em lote; informações pendentes de revisão.",
+            arquivoUrl: upload.url,
+            arquivoNomeOriginal: upload.nomeOriginal,
+            arquivoMime: upload.mime,
+          },
+        });
+      } catch {
+        falhas.push(file.name);
+      }
+    }
+    const concluidos = arquivos.length - falhas.length;
+    if (falhas.length) {
+      toast.warning(`${concluidos} enviada(s); ${falhas.length} falharam: ${falhas.join(", ")}`);
+    } else toast.success(`${concluidos} peça(s) enviadas.`);
+    setEnviando(false);
+    if (concluidos) await onConcluido();
+  };
+
+  return (
+    <DialogContent className="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>Enviar peças em lote</DialogTitle>
+        <DialogDescription>
+          Selecione até 50 PDFs. Eles entrarão em análise com grau provisório 1 e poderão ser
+          completados depois.
+        </DialogDescription>
+      </DialogHeader>
+      <div>
+        <Label htmlFor="lote-pecas">Arquivos PDF</Label>
+        <Input
+          id="lote-pecas"
+          type="file"
+          accept=".pdf,application/pdf"
+          multiple
+          disabled={enviando}
+          onChange={(e) => setArquivos(Array.from(e.target.files ?? []).slice(0, 50))}
+        />
+        <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
+          {enviando
+            ? `Enviando ${progresso} de ${arquivos.length}…`
+            : `${arquivos.length} arquivo(s) selecionado(s).`}
+        </p>
+      </div>
+      <DialogFooter>
+        <Button onClick={() => void enviar()} disabled={enviando || !arquivos.length || !autorId}>
+          {enviando ? "Enviando…" : "Enviar lote"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
