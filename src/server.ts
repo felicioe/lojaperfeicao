@@ -9,6 +9,7 @@ import { executarBackupAgendado } from "./lib/backup-dispatch";
 import { tratarCallbackGoogle } from "./lib/google-oauth-callback";
 import { tratarCallbackFacebook } from "./lib/facebook-oauth-callback";
 import { executarLembretesFaturas } from "./lib/email-dispatch";
+import { carregarAgendaPublica } from "./lib/agenda-publica";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -184,6 +185,30 @@ async function tratarCronLembretesEmail(request: Request): Promise<Response | nu
   }
 }
 
+async function tratarAgendaPublica(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/publico/agenda") return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    const agenda = await carregarAgendaPublica();
+    return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), agenda }), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=300, stale-while-revalidate=900",
+        "access-control-allow-origin": "https://associacaoadonhiramita.org",
+        "x-content-type-options": "nosniff",
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: "Agenda temporariamente indisponível." }), {
+      status: 503,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
+}
+
 // Callback OAuth do Google — GET puro feito pelo navegador (redirect do
 // Google), não pelo `fetch` da aplicação, então precisa ser um endpoint
 // bruto fora do roteador do TanStack Start, mesmo motivo dos crons acima.
@@ -214,6 +239,9 @@ export default {
 
       const lembretesResponse = await tratarCronLembretesEmail(request);
       if (lembretesResponse) return lembretesResponse;
+
+      const agendaResponse = await tratarAgendaPublica(request);
+      if (agendaResponse) return agendaResponse;
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
       if (googleResponse) return googleResponse;
