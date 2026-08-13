@@ -70,7 +70,7 @@ export const relatorioInadimplentes = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ItemInadimplente[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      const condicoes = ["l.is_mensalidade = TRUE", "l.pago = FALSE", "l.data_vencimento < ?"];
+      const condicoes = ["l.tipo = 'entrada'", "l.pago = FALSE", "l.data_vencimento < ?"];
       const valores: unknown[] = [data.hoje];
       if (!privilegiado) {
         condicoes.push("l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
