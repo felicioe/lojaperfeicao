@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Fingerprint, ShieldCheck } from "lucide-react";
@@ -35,11 +35,13 @@ const ERRO_FACEBOOK_LABEL: Record<string, string> = {
   falha_token: "Não foi possível confirmar o login com Facebook.",
 };
 
+const AUTH_CONTROL_CLASS = "min-h-11 sm:min-h-10";
+
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Entrar — Gestão Maçônica" },
-      { name: "description", content: "Acesso restrito ao sistema de gestão da loja." },
+      { title: "Entrar | SGLFM" },
+      { name: "description", content: "Acesso ao Sistema de Gestão de Loja Filosófica Maçônica." },
     ],
   }),
   component: AuthPage,
@@ -60,6 +62,9 @@ function AuthPage() {
   const [codigo2FA, setCodigo2FA] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [facebookLoading, setFacebookLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const authBusy = loading || passkeyLoading || googleLoading || facebookLoading;
 
   useEffect(() => {
     contarUsuarios().then((total) => setFirstUser(total === 0));
@@ -86,29 +91,32 @@ function AuthPage() {
   }, [navigate]);
 
   const handleGoogleLogin = async () => {
+    setAuthError(null);
     setGoogleLoading(true);
     try {
       const { url } = await iniciarLoginGoogle();
       window.location.href = url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao iniciar login com Google.");
+      setAuthError(err instanceof Error ? err.message : "Erro ao iniciar login com Google.");
       setGoogleLoading(false);
     }
   };
 
   const handleFacebookLogin = async () => {
+    setAuthError(null);
     setFacebookLoading(true);
     try {
       const { url } = await iniciarLoginFacebook();
       window.location.href = url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao iniciar login com Facebook.");
+      setAuthError(err instanceof Error ? err.message : "Erro ao iniciar login com Facebook.");
       setFacebookLoading(false);
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     setLoading(true);
     try {
       const resultado = await login({ data: { email, senha: password } });
@@ -120,7 +128,9 @@ function AuthPage() {
       toast.success("Bem-vindo!");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao entrar.");
+      setAuthError(
+        err instanceof Error ? err.message : "Não foi possível entrar. Tente novamente.",
+      );
     } finally {
       setLoading(false);
     }
@@ -128,6 +138,7 @@ function AuthPage() {
 
   const handleConfirmar2FA = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     setLoading(true);
     try {
       const usuario = await confirmarLogin2FA({ data: { codigo: codigo2FA } });
@@ -135,7 +146,9 @@ function AuthPage() {
       toast.success("Bem-vindo!");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Código inválido.");
+      setAuthError(
+        err instanceof Error ? err.message : "Código inválido. Confira e tente novamente.",
+      );
       setCodigo2FA("");
     } finally {
       setLoading(false);
@@ -143,7 +156,11 @@ function AuthPage() {
   };
 
   const handlePasskeyLogin = async () => {
-    if (!email) return toast.error("Digite seu usuário antes de entrar com Face ID/digital.");
+    if (!email) {
+      toast.error("Digite seu e-mail antes de entrar com Face ID ou digital.");
+      return;
+    }
+    setAuthError(null);
     setPasskeyLoading(true);
     try {
       const optionsJSON = await iniciarLoginPasskey({ data: { email } });
@@ -159,7 +176,11 @@ function AuthPage() {
       if (err instanceof Error && err.name === "NotAllowedError") {
         toast.error("Login cancelado.");
       } else {
-        toast.error(err instanceof Error ? err.message : "Erro ao entrar com Face ID/digital.");
+        setAuthError(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível entrar com Face ID ou digital. Tente novamente.",
+        );
       }
     } finally {
       setPasskeyLoading(false);
@@ -169,6 +190,7 @@ function AuthPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!aceiteLgpd) return toast.error("É preciso aceitar a Política de Privacidade.");
+    setAuthError(null);
     setLoading(true);
     try {
       const usuario = await signup({
@@ -178,51 +200,69 @@ function AuthPage() {
       toast.success("Conta criada!");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao criar conta.");
+      setAuthError(err instanceof Error ? err.message : "Não foi possível criar a conta.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md">
+    <main className="flex min-h-screen min-h-dvh items-start justify-center overflow-y-auto bg-muted/40 p-4">
+      <Card className="my-auto w-full max-w-md">
         <CardHeader className="text-center">
           <img
             src="/brand/sglfm-mark.svg"
-            alt="SGLFM"
+            alt=""
             className="mx-auto mb-2 h-24 w-20 object-contain"
           />
-          <CardTitle className="font-serif text-3xl tracking-wide">SGLFM</CardTitle>
+          <h1 className="font-serif text-3xl font-semibold leading-snug tracking-wide">SGLFM</h1>
           <CardDescription>Sistema de Gestão de Loja Filosófica Maçônica</CardDescription>
         </CardHeader>
         <CardContent>
           {aguardando2FA ? (
-            <form onSubmit={handleConfirmar2FA} className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <form onSubmit={handleConfirmar2FA} className="space-y-3" aria-busy={loading}>
+              <div
+                id="codigo-2fa-ajuda"
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
                 <ShieldCheck className="h-4 w-4" /> Digite o código do seu app autenticador.
               </div>
               <div>
-                <Label>Código</Label>
+                <Label htmlFor="codigo-2fa">Código</Label>
                 <Input
+                  className={AUTH_CONTROL_CLASS}
+                  id="codigo-2fa"
+                  name="codigo"
                   autoFocus
+                  autoComplete="one-time-code"
                   inputMode="numeric"
+                  aria-describedby={
+                    authError ? "codigo-2fa-ajuda codigo-2fa-erro" : "codigo-2fa-ajuda"
+                  }
+                  aria-invalid={!!authError}
                   placeholder="000000 ou código de backup"
                   value={codigo2FA}
                   onChange={(e) => setCodigo2FA(e.target.value)}
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              {authError && (
+                <p id="codigo-2fa-erro" role="alert" className="text-sm text-destructive">
+                  {authError}
+                </p>
+              )}
+              <Button type="submit" className="min-h-11 w-full sm:min-h-10" disabled={authBusy}>
                 {loading ? "Confirmando…" : "Confirmar"}
               </Button>
               <Button
                 type="button"
                 variant="ghost"
-                className="w-full"
+                className="min-h-11 w-full sm:min-h-10"
+                disabled={loading}
                 onClick={() => {
                   setAguardando2FA(false);
                   setCodigo2FA("");
+                  setAuthError(null);
                 }}
               >
                 Voltar
@@ -230,48 +270,97 @@ function AuthPage() {
             </form>
           ) : firstUser ? (
             <Tabs defaultValue="signup">
-              <TabsList className="grid grid-cols-2 w-full">
-                <TabsTrigger value="signup">Criar 1º admin</TabsTrigger>
-                <TabsTrigger value="login">Entrar</TabsTrigger>
+              <TabsList className="grid min-h-11 h-auto w-full grid-cols-2">
+                <TabsTrigger value="signup" className="min-h-10">
+                  Criar 1º admin
+                </TabsTrigger>
+                <TabsTrigger value="login" className="min-h-10">
+                  Entrar
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="signup" className="pt-4">
-                <form onSubmit={handleSignUp} className="space-y-3">
+                <form onSubmit={handleSignUp} className="space-y-3" aria-busy={loading}>
                   <div>
-                    <Label>Nome completo</Label>
-                    <Input value={nome} onChange={(e) => setNome(e.target.value)} required />
+                    <Label htmlFor="cadastro-nome">Nome completo</Label>
+                    <Input
+                      className={AUTH_CONTROL_CLASS}
+                      id="cadastro-nome"
+                      name="name"
+                      autoComplete="name"
+                      aria-describedby={authError ? "cadastro-erro" : undefined}
+                      aria-invalid={!!authError}
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      required
+                    />
                   </div>
                   <div>
-                    <Label>E-mail</Label>
+                    <Label htmlFor="cadastro-email">E-mail</Label>
                     <Input
+                      className={AUTH_CONTROL_CLASS}
+                      id="cadastro-email"
+                      name="email"
                       type="email"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      autoCorrect="off"
+                      aria-describedby={authError ? "cadastro-erro" : undefined}
+                      aria-invalid={!!authError}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
                   <div>
-                    <Label>Senha</Label>
+                    <Label htmlFor="cadastro-senha">Senha</Label>
                     <Input
+                      className={AUTH_CONTROL_CLASS}
+                      id="cadastro-senha"
+                      name="password"
                       type="password"
+                      autoComplete="new-password"
+                      aria-describedby={authError ? "cadastro-erro" : undefined}
+                      aria-invalid={!!authError}
                       minLength={6}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
                     />
                   </div>
-                  <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
                     <Checkbox
+                      id="aceite-lgpd"
                       checked={aceiteLgpd}
                       onCheckedChange={(v) => setAceiteLgpd(v === true)}
                       className="mt-0.5"
                     />
-                    Li e aceito a{" "}
-                    <Link to="/privacidade" target="_blank" className="underline">
-                      Política de Privacidade
-                    </Link>
-                    .
-                  </label>
-                  <Button type="submit" className="w-full" disabled={loading || !aceiteLgpd}>
+                    <span>
+                      <Label
+                        htmlFor="aceite-lgpd"
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Li e aceito a
+                      </Label>{" "}
+                      <Link
+                        to="/privacidade"
+                        target="_blank"
+                        className="underline underline-offset-2"
+                      >
+                        Política de Privacidade
+                      </Link>
+                      .
+                    </span>
+                  </div>
+                  {authError && (
+                    <p id="cadastro-erro" role="alert" className="text-sm text-destructive">
+                      {authError}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="min-h-11 w-full sm:min-h-10"
+                    disabled={authBusy || !aceiteLgpd}
+                  >
                     {loading ? "Criando…" : "Criar conta de administrador"}
                   </Button>
                   <p className="text-xs text-muted-foreground">
@@ -287,6 +376,8 @@ function AuthPage() {
                     password,
                     setPassword,
                     loading,
+                    authBusy,
+                    authError,
                     handleLogin,
                     webauthnDisponivel,
                     passkeyLoading,
@@ -307,6 +398,8 @@ function AuthPage() {
                 password,
                 setPassword,
                 loading,
+                authBusy,
+                authError,
                 handleLogin,
                 webauthnDisponivel,
                 passkeyLoading,
@@ -320,7 +413,7 @@ function AuthPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }
 
@@ -355,12 +448,32 @@ function FacebookIcon() {
   );
 }
 
+interface LoginFormProps {
+  email: string;
+  setEmail: React.Dispatch<React.SetStateAction<string>>;
+  password: string;
+  setPassword: React.Dispatch<React.SetStateAction<string>>;
+  loading: boolean;
+  authBusy: boolean;
+  authError: string | null;
+  handleLogin: (event: React.FormEvent) => Promise<void>;
+  webauthnDisponivel: boolean;
+  passkeyLoading: boolean;
+  handlePasskeyLogin: () => Promise<void>;
+  googleLoading: boolean;
+  handleGoogleLogin: () => Promise<void>;
+  facebookLoading: boolean;
+  handleFacebookLogin: () => Promise<void>;
+}
+
 function LoginForm({
   email,
   setEmail,
   password,
   setPassword,
   loading,
+  authBusy,
+  authError,
   handleLogin,
   webauthnDisponivel,
   passkeyLoading,
@@ -369,50 +482,67 @@ function LoginForm({
   handleGoogleLogin,
   facebookLoading,
   handleFacebookLogin,
-}: any) {
+}: LoginFormProps) {
   return (
-    <form onSubmit={handleLogin} className="space-y-3">
+    <form onSubmit={handleLogin} className="space-y-3" aria-busy={authBusy}>
       <div>
-        <Label>Usuário ou e-mail</Label>
+        <Label htmlFor="login-email">E-mail</Label>
         <Input
-          type="text"
+          className={AUTH_CONTROL_CLASS}
+          id="login-email"
+          name="email"
+          type="email"
           autoCapitalize="none"
+          autoComplete="email"
           autoCorrect="off"
-          placeholder="nome.sobrenome ou email@..."
+          aria-describedby={authError ? "login-erro" : undefined}
+          aria-invalid={!!authError}
+          placeholder="seu@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
       </div>
       <div>
-        <Label>Senha</Label>
+        <Label htmlFor="login-senha">Senha</Label>
         <Input
+          className={AUTH_CONTROL_CLASS}
+          id="login-senha"
+          name="password"
           type="password"
+          autoComplete="current-password"
+          aria-describedby={authError ? "login-erro" : undefined}
+          aria-invalid={!!authError}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
       </div>
-      <Button type="submit" className="w-full" disabled={loading}>
+      {authError && (
+        <p id="login-erro" role="alert" className="text-sm text-destructive">
+          {authError}
+        </p>
+      )}
+      <Button type="submit" className="min-h-11 w-full sm:min-h-10" disabled={authBusy}>
         {loading ? "Entrando…" : "Entrar"}
       </Button>
       {webauthnDisponivel && (
         <Button
           type="button"
           variant="outline"
-          className="w-full"
-          disabled={passkeyLoading}
+          className="min-h-11 w-full sm:min-h-10"
+          disabled={authBusy}
           onClick={handlePasskeyLogin}
         >
           <Fingerprint className="mr-1.5 h-4 w-4" />
-          {passkeyLoading ? "Confirmando…" : "Entrar com Face ID / digital"}
+          {passkeyLoading ? "Confirmando…" : "Entrar com Face ID ou digital"}
         </Button>
       )}
       <Button
         type="button"
         variant="outline"
-        className="w-full"
-        disabled={googleLoading}
+        className="min-h-11 w-full sm:min-h-10"
+        disabled={authBusy}
         onClick={handleGoogleLogin}
       >
         <GoogleIcon />
@@ -421,8 +551,8 @@ function LoginForm({
       <Button
         type="button"
         variant="outline"
-        className="w-full"
-        disabled={facebookLoading}
+        className="min-h-11 w-full sm:min-h-10"
+        disabled={authBusy}
         onClick={handleFacebookLogin}
       >
         <FacebookIcon />
