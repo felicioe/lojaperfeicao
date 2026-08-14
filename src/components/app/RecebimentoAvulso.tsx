@@ -30,7 +30,7 @@ export const CATEGORIA_LABEL: Record<string, string> = {
 
 export function useMovimentosFiltrados(filtrosIniciais?: {
   categoria?: string;
-  statusInicial?: "todos" | "pago" | "nao_pago";
+  statusInicial?: "todos" | "pago" | "nao_pago" | "vencido" | "a_vencer";
 }) {
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
@@ -42,11 +42,13 @@ export function useMovimentosFiltrados(filtrosIniciais?: {
   // (cobrar quem ainda deve) — "Todos"/"Pago" ficam a um clique. Telas
   // como Tronco de Beneficência, onde o lançamento nasce sempre pago,
   // sobrescrevem via statusInicial pra não ficar com a lista vazia.
-  const [status, setStatus] = useState<"todos" | "pago" | "nao_pago">(
+  // "Vencido"/"A vencer" refinam "não pago" comparando data_vencimento
+  // com hoje — não existe coluna própria pra isso, é filtrado no cliente.
+  const [status, setStatus] = useState<"todos" | "pago" | "nao_pago" | "vencido" | "a_vencer">(
     filtrosIniciais?.statusInicial ?? "nao_pago",
   );
 
-  const { data: movimentos = [], isError } = useQuery({
+  const { data: movimentosBrutos = [], isError } = useQuery({
     queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria, irmaoId, status],
     queryFn: () =>
       listarLancamentos({
@@ -57,11 +59,19 @@ export function useMovimentosFiltrados(filtrosIniciais?: {
           tipo: tipo !== "todos" ? (tipo as "entrada" | "saida" | "transferencia") : null,
           categoria: categoria !== "todas" ? categoria : null,
           irmaoId: irmaoId !== "todos" ? irmaoId : null,
-          pago: status === "todos" ? null : status === "pago",
+          pago: status === "pago" ? true : status === "todos" ? null : false,
           limite: 500,
         },
       }),
   });
+
+  const hoje = toISODate(new Date());
+  const movimentos =
+    status === "vencido"
+      ? movimentosBrutos.filter((m) => m.data_vencimento && m.data_vencimento < hoje)
+      : status === "a_vencer"
+        ? movimentosBrutos.filter((m) => !m.data_vencimento || m.data_vencimento >= hoje)
+        : movimentosBrutos;
 
   return {
     movimentos,
