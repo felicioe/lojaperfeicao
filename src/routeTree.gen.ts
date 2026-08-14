@@ -88,6 +88,7 @@ import { Route as AuthenticatedUsuariosIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedPainelFaturasIdRouteImport } from './routes/_authenticated/painel/faturas/$id'
 import { Route as AuthenticatedTesourariaFaturasIndexRouteImport } from './routes/_authenticated/tesouraria/faturas/index'
 import { Route as AuthenticatedTesourariaFaturasIdRouteImport } from './routes/_authenticated/tesouraria/faturas/$id'
+import { Route as AuthenticatedTesourariaFaturasImprimirRouteImport } from './routes/_authenticated/tesouraria/faturas/imprimir'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -549,6 +550,12 @@ const AuthenticatedTesourariaFaturasIdRoute =
     path: '/tesouraria/faturas/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTesourariaFaturasImprimirRoute =
+  AuthenticatedTesourariaFaturasImprimirRouteImport.update({
+    id: '/tesouraria/faturas/imprimir',
+    path: '/tesouraria/faturas/imprimir',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -628,6 +635,7 @@ export interface FileRoutesByFullPath {
   '/usuarios/': typeof AuthenticatedUsuariosIndexRoute
   '/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
+  '/tesouraria/faturas/imprimir': typeof AuthenticatedTesourariaFaturasImprimirRoute
   '/tesouraria/faturas/': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
 export interface FileRoutesByTo {
@@ -707,6 +715,7 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosIndexRoute
   '/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
+  '/tesouraria/faturas/imprimir': typeof AuthenticatedTesourariaFaturasImprimirRoute
   '/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
 export interface FileRoutesById {
@@ -789,6 +798,7 @@ export interface FileRoutesById {
   '/_authenticated/usuarios/': typeof AuthenticatedUsuariosIndexRoute
   '/_authenticated/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/_authenticated/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
+  '/_authenticated/tesouraria/faturas/imprimir': typeof AuthenticatedTesourariaFaturasImprimirRoute
   '/_authenticated/tesouraria/faturas/': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
 export interface FileRouteTypes {
@@ -871,6 +881,7 @@ export interface FileRouteTypes {
     | '/usuarios/'
     | '/painel/faturas/$id'
     | '/tesouraria/faturas/$id'
+    | '/tesouraria/faturas/imprimir'
     | '/tesouraria/faturas/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -950,6 +961,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/painel/faturas/$id'
     | '/tesouraria/faturas/$id'
+    | '/tesouraria/faturas/imprimir'
     | '/tesouraria/faturas'
   id:
     | '__root__'
@@ -1031,6 +1043,7 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios/'
     | '/_authenticated/painel/faturas/$id'
     | '/_authenticated/tesouraria/faturas/$id'
+    | '/_authenticated/tesouraria/faturas/imprimir'
     | '/_authenticated/tesouraria/faturas/'
   fileRoutesById: FileRoutesById
 }
@@ -1600,6 +1613,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaFaturasIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tesouraria/faturas/imprimir': {
+      id: '/_authenticated/tesouraria/faturas/imprimir'
+      path: '/tesouraria/faturas/imprimir'
+      fullPath: '/tesouraria/faturas/imprimir'
+      preLoaderRoute: typeof AuthenticatedTesourariaFaturasImprimirRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -1695,6 +1715,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaIndexRoute: typeof AuthenticatedTesourariaIndexRoute
   AuthenticatedUsuariosIndexRoute: typeof AuthenticatedUsuariosIndexRoute
   AuthenticatedTesourariaFaturasIdRoute: typeof AuthenticatedTesourariaFaturasIdRoute
+  AuthenticatedTesourariaFaturasImprimirRoute: typeof AuthenticatedTesourariaFaturasImprimirRoute
   AuthenticatedTesourariaFaturasIndexRoute: typeof AuthenticatedTesourariaFaturasIndexRoute
 }
 
@@ -1790,6 +1811,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaIndexRoute: AuthenticatedTesourariaIndexRoute,
   AuthenticatedUsuariosIndexRoute: AuthenticatedUsuariosIndexRoute,
   AuthenticatedTesourariaFaturasIdRoute: AuthenticatedTesourariaFaturasIdRoute,
+  AuthenticatedTesourariaFaturasImprimirRoute:
+    AuthenticatedTesourariaFaturasImprimirRoute,
   AuthenticatedTesourariaFaturasIndexRoute:
     AuthenticatedTesourariaFaturasIndexRoute,
 }

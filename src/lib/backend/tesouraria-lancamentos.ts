@@ -215,6 +215,52 @@ export const obterLancamento = createServerFn({ method: "GET" })
     });
   });
 
+// Faturas de um mesmo irmão impressas agrupadas numa única página (issue
+// #318) — mesma consulta de obterLancamento, mas pra vários IDs de uma vez.
+// Só admin/tesoureiro/secretario (quem monta a impressão em lote na tela de
+// faturas em aberto), não o próprio irmão via Meu Painel.
+export const listarLancamentosParaImpressao = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1) }).parse(d))
+  .handler(async ({ data }): Promise<LancamentoDetalhe[]> => {
+    return comPapel(PAPEIS_LEITURA, async (conn) => {
+      const [[estruturaPix]] = await conn.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contas_financeiras_pix'
+           AND COLUMN_NAME IN ('pix_copia_cola', 'qr_code_url')`,
+      );
+      const camposPixAvancados =
+        Number(estruturaPix.total) === 2
+          ? "pix.pix_copia_cola, pix.qr_code_url AS pix_qr_code_url,"
+          : "NULL AS pix_copia_cola, NULL AS pix_qr_code_url,";
+      const [[pixPadrao]] = await conn.query<RowDataPacket[]>(
+        `SELECT pix.id
+         FROM contas_financeiras_pix pix
+         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id
+         WHERE cf.ativo = TRUE
+         ORDER BY pix.principal DESC, pix.criado_em
+         LIMIT 1`,
+      );
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago,
+                l.competencia_mes, l.is_mensalidade, 'pix' AS forma_cobranca,
+                i.nome_civil AS irmao_nome, i.cim AS irmao_cim,
+                o.nome AS org_nome, o.logo_url AS org_logo_url,
+                pix.chave AS pix_chave, ${camposPixAvancados}
+                pix.nome_beneficiario AS pix_nome_beneficiario,
+                pix.cidade AS pix_cidade
+         FROM lancamentos l
+         LEFT JOIN irmaos i ON i.id = l.irmao_id
+         LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
+         LEFT JOIN orgs o ON o.id = io.org_id
+         LEFT JOIN contas_financeiras_pix pix ON pix.id = COALESCE(l.pix_chave_id, ?)
+         WHERE l.id IN (?)
+         ORDER BY l.competencia_mes, l.data_vencimento`,
+        [pixPadrao?.id ?? null, data.ids],
+      );
+      return rows as LancamentoDetalhe[];
+    });
+  });
+
 export const marcarLancamentoPago = createServerFn({ method: "POST" })
   .validator((d: unknown) =>
     z.object({ id: z.string().uuid(), dataPagamento: z.string() }).parse(d),
