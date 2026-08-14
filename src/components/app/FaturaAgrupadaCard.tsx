@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { brl, fmtDate } from "@/lib/format";
+import { brl, fmtDate, fmtMesAno } from "@/lib/format";
 import { gerarPixCopiaCola } from "@/lib/pix";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
@@ -106,7 +106,7 @@ export function FaturaAgrupadaCard({ faturas }: { faturas: LancamentoDetalhe[] }
                 <div>
                   <div className="font-medium">{f.descricao}</div>
                   <div className="text-xs text-muted-foreground">
-                    {f.competencia_mes && `Competência ${fmtDate(f.competencia_mes)} · `}
+                    {f.competencia_mes && `Competência ${fmtMesAno(f.competencia_mes)} · `}
                     Vencimento {f.data_vencimento ? fmtDate(f.data_vencimento) : "—"}
                   </div>
                 </div>

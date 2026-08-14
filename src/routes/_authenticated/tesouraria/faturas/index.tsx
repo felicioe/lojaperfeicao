@@ -66,7 +66,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, MessageCircle, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
-import { brl, fmtDate, toISODate } from "@/lib/format";
+import { brl, fmtDate, fmtMesAno, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
@@ -329,7 +329,7 @@ function Faturas() {
                       <TableCell>{f.irmaos?.nome_civil ?? "—"}</TableCell>
                       <TableCell>{f.descricao}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {fmtDate(f.competencia_mes)}
+                        {fmtMesAno(f.competencia_mes)}
                       </TableCell>
                       <TableCell>{fmtDate(f.data_vencimento)}</TableCell>
                       <TableCell className="text-right font-medium">
@@ -377,7 +377,7 @@ function Faturas() {
                                     <AlertDialogTitle>Estornar esta fatura?</AlertDialogTitle>
                                     <AlertDialogDescription>
                                       Remove a fatura de {f.irmaos?.nome_civil} ({brl(f.valor)},{" "}
-                                      {fmtDate(f.competencia_mes)}) e o lançamento contábil
+                                      {fmtMesAno(f.competencia_mes)}) e o lançamento contábil
                                       correspondente. Essa ação não pode ser desfeita — só funciona
                                       pra faturas ainda em aberto.
                                     </AlertDialogDescription>
