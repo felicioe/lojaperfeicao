@@ -201,7 +201,9 @@ function Dashboard() {
                 </div>
               ) : (
                 <div className="mt-4">
-                  <p className="text-3xl font-semibold tabular-nums">{brl(totalPagar)}</p>
+                  <p className="text-xl font-semibold tabular-nums sm:text-2xl">
+                    {brl(totalPagar)}
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {pluralizar(contasPagar.data.length, "lançamento vence", "lançamentos vencem")}{" "}
                     nos próximos 30 dias
