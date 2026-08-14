@@ -71,6 +71,7 @@ import { useIsDesktop } from "@/lib/use-media-query";
 import { useTheme } from "@/lib/use-theme";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NotificationBell } from "@/components/app/NotificationBell";
+import { PainelShell } from "@/components/app/PainelShell";
 
 type NavItem = { to: string; label: string; icon: any; show: boolean; section?: string };
 type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
@@ -692,14 +693,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const primaryRole = can.roles[0] ?? "irmao";
 
-  // Quem só tem o papel "irmao" no celular/tablet usa o shell próprio de
-  // app (PainelShell, dentro de _authenticated/painel/route.tsx) — aqui é
-  // só passthrough. No desktop, cai para a sidebar normal abaixo (reduzida
-  // a "Meu Painel"). Fica depois de todos os hooks acima para não violar
-  // as Rules of Hooks (o número/ordem de hooks precisa ser igual em todo
-  // render).
+  // No celular/tablet, o perfil "irmao" precisa manter o mesmo shell em
+  // todas as rotas autenticadas. Antes ele era aplicado apenas em /painel;
+  // Biblioteca, Calendário, Enquetes, Legislação e Segurança ficavam sem
+  // qualquer caminho visível de volta.
   if (can.isMemberOnly && !isDesktop) {
-    return <>{children}</>;
+    return <PainelShell>{children}</PainelShell>;
   }
 
   return (
