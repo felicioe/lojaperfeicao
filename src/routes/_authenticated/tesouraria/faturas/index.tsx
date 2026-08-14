@@ -251,22 +251,35 @@ function Faturas() {
                 {selecionadas.length} fatura(s) selecionada(s) — total{" "}
                 {brl(faturasSelecionadas.reduce((s, f) => s + Number(f.valor), 0))}
               </div>
-              <Dialog open={openBaixa} onOpenChange={setOpenBaixa}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Baixar selecionadas
-                  </Button>
-                </DialogTrigger>
-                <BaixaDialog
-                  open={openBaixa}
-                  faturas={faturasSelecionadas}
-                  receitas={receitas}
-                  onDone={() => {
-                    setOpenBaixa(false);
-                    invalidate();
-                  }}
-                />
-              </Dialog>
+              <div className="flex gap-2">
+                {selecionadas.length >= 2 && (
+                  <Link
+                    to="/tesouraria/faturas/imprimir"
+                    search={{ ids: selecionadas.join(",") }}
+                    target="_blank"
+                  >
+                    <Button variant="outline">
+                      <Printer className="h-4 w-4 mr-1" /> Imprimir agrupada
+                    </Button>
+                  </Link>
+                )}
+                <Dialog open={openBaixa} onOpenChange={setOpenBaixa}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Baixar selecionadas
+                    </Button>
+                  </DialogTrigger>
+                  <BaixaDialog
+                    open={openBaixa}
+                    faturas={faturasSelecionadas}
+                    receitas={receitas}
+                    onDone={() => {
+                      setOpenBaixa(false);
+                      invalidate();
+                    }}
+                  />
+                </Dialog>
+              </div>
             </Card>
           )}
           <Card>
