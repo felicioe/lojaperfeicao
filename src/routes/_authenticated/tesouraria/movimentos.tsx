@@ -228,13 +228,17 @@ function Movimentos() {
           <Label className="text-xs">Status</Label>
           <Select
             value={f.status}
-            onValueChange={(v) => f.setStatus(v as "todos" | "pago" | "nao_pago")}
+            onValueChange={(v) =>
+              f.setStatus(v as "todos" | "pago" | "nao_pago" | "vencido" | "a_vencer")
+            }
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="nao_pago">Não pago</SelectItem>
+              <SelectItem value="vencido">Vencidos</SelectItem>
+              <SelectItem value="a_vencer">A vencer</SelectItem>
               <SelectItem value="pago">Pago</SelectItem>
               <SelectItem value="todos">Todos</SelectItem>
             </SelectContent>
