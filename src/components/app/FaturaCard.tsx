@@ -24,7 +24,10 @@ function usePixQrCode(copiaCola: string | null) {
     let cancelado = false;
     QRCode.toDataURL(copiaCola, { margin: 1, width: 220 })
       .then((url) => !cancelado && setDataUrl(url))
-      .catch(() => !cancelado && setDataUrl(null));
+      .catch((erro) => {
+        console.error("Erro ao gerar QR code:", erro);
+        !cancelado && setDataUrl(null);
+      });
     return () => {
       cancelado = true;
     };
@@ -46,6 +49,16 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
       : null);
   const qrGerado = usePixQrCode(copiaCola);
   const qrDataUrl = fatura.pix_qr_code_url || qrGerado;
+
+  if (!fatura.pago && !qrDataUrl) {
+    console.warn("QR Code não disponível", {
+      forma_cobranca: fatura.forma_cobranca,
+      pix_chave: fatura.pix_chave,
+      pix_nome_beneficiario: fatura.pix_nome_beneficiario,
+      pix_cidade: fatura.pix_cidade,
+      copiaCola: copiaCola?.slice(0, 50),
+    });
+  }
 
   const hoje = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date());
   const copiar = async () => {
