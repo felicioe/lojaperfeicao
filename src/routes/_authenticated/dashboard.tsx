@@ -139,7 +139,7 @@ function Dashboard() {
     <>
       <PageHeader title="Dashboard" description="Visão geral da loja e dos próximos 30 dias." />
 
-      <section aria-labelledby="receber-title" className="mb-6 sm:mb-8">
+      <section aria-labelledby="receber-title" className="mb-5 sm:mb-6">
         <SectionHeader
           id="receber-title"
           title="Contas a receber"
@@ -173,23 +173,23 @@ function Dashboard() {
         </MetricGroup>
       </section>
 
-      <section aria-labelledby="atencao-title" className="mb-6 sm:mb-8">
+      <section aria-labelledby="atencao-title" className="mb-5 sm:mb-6">
         <Card>
-          <CardHeader className="gap-4 space-y-0 border-b sm:flex-row sm:items-start sm:justify-between">
+          <CardHeader className="gap-3 space-y-0 border-b p-3.5 sm:flex-row sm:items-start sm:justify-between sm:p-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <div className="rounded-md bg-amber-100 p-2 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                  <CalendarClock className="h-5 w-5" aria-hidden="true" />
+                <div className="rounded-md bg-amber-100 p-1.5 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  <CalendarClock className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <CardTitle id="atencao-title">Requer atenção</CardTitle>
               </div>
               {contasPagar.isPending ? (
-                <div className="mt-4 space-y-2" aria-label="Carregando resumo de pendências">
-                  <Skeleton className="h-8 w-40" />
+                <div className="mt-3 space-y-2" aria-label="Carregando resumo de pendências">
+                  <Skeleton className="h-6 w-40" />
                   <Skeleton className="h-4 w-52" />
                 </div>
               ) : contasPagar.isError ? (
-                <div className="mt-4" role="alert">
+                <div className="mt-3" role="alert">
                   <p className="text-sm font-medium text-destructive">Resumo indisponível</p>
                   <Button
                     variant="link"
@@ -200,15 +200,13 @@ function Dashboard() {
                   </Button>
                 </div>
               ) : (
-                <div className="mt-4">
-                  <p className="text-xl font-semibold tabular-nums sm:text-2xl">
-                    {brl(totalPagar)}
-                  </p>
+                <div className="mt-3">
+                  <p className="text-lg font-semibold tabular-nums sm:text-xl">{brl(totalPagar)}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {pluralizar(contasPagar.data.length, "lançamento vence", "lançamentos vencem")}{" "}
                     nos próximos 30 dias
                   </p>
-                  <p className="mt-2 text-xs font-medium leading-relaxed text-muted-foreground">
+                  <p className="mt-1.5 text-xs font-medium leading-relaxed text-muted-foreground">
                     {contasPagar.isFetching
                       ? "Atualizando…"
                       : `Atualizado às ${horaAtualizacao(contasPagar.dataUpdatedAt)}`}
@@ -216,17 +214,22 @@ function Dashboard() {
                 </div>
               )}
             </div>
-            <Button variant="outline" asChild className="min-h-11 w-full sm:min-h-9 sm:w-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+            >
               <Link to="/tesouraria/contas-pagar">Gerenciar contas a pagar</Link>
             </Button>
           </CardHeader>
-          <CardContent className="pt-4 sm:pt-6">
+          <CardContent className="p-3.5 pt-3 sm:p-4 sm:pt-3">
             <ContasPagarTable contasPagar={contasPagar} ordenacao={ordenacao} hoje={hoje} />
           </CardContent>
         </Card>
       </section>
 
-      <section aria-labelledby="financeiro-title" className="mb-6 sm:mb-8">
+      <section aria-labelledby="financeiro-title" className="mb-5 sm:mb-6">
         <SectionHeader
           id="financeiro-title"
           title="Posição financeira"
@@ -297,7 +300,7 @@ function Dashboard() {
         </MetricGroup>
       </section>
 
-      <section aria-labelledby="novidades-title" className="mt-6 sm:mt-8">
+      <section aria-labelledby="novidades-title" className="mt-5 sm:mt-6">
         <SectionHeader
           id="novidades-title"
           title="Novidades do site"
@@ -348,8 +351,8 @@ function SectionHeader({
   description: string;
 }) {
   return (
-    <div className="mb-3 sm:mb-4">
-      <h2 id={id} className="text-lg font-semibold leading-snug tracking-[-0.01em]">
+    <div className="mb-2.5 sm:mb-3">
+      <h2 id={id} className="text-base font-semibold leading-snug tracking-[-0.01em] sm:text-lg">
         {title}
       </h2>
       <p className="mt-1 max-w-[70ch] text-sm leading-relaxed text-muted-foreground">
@@ -577,7 +580,7 @@ function MetricGroup({
       <CardContent className="p-0">
         <div className={`grid divide-y sm:divide-x sm:divide-y-0 ${columns}`}>{children}</div>
         <p
-          className="border-t px-4 py-2.5 text-xs font-medium leading-relaxed text-muted-foreground sm:px-6"
+          className="border-t px-3.5 py-2 text-xs font-medium leading-relaxed text-muted-foreground sm:px-4"
           aria-live="polite"
         >
           {refreshing ? "Atualizando…" : `Atualizado às ${horaAtualizacao(updatedAt)}`}
@@ -615,11 +618,11 @@ function MetricItem({
   }[tone];
 
   const conteudo = (
-    <div className={`min-w-0 p-4 sm:p-6 ${to ? "transition-colors hover:bg-muted/50" : ""}`}>
-      <p className="text-sm font-medium leading-normal text-muted-foreground">{label}</p>
+    <div className={`min-w-0 p-3.5 sm:p-4 ${to ? "transition-colors hover:bg-muted/50" : ""}`}>
+      <p className="text-xs font-medium leading-normal text-muted-foreground sm:text-sm">{label}</p>
       {pending ? (
         <div className="mt-2 space-y-2" aria-label={`Carregando ${label}`}>
-          <Skeleton className="h-7 w-28" />
+          <Skeleton className="h-6 w-28" />
           <Skeleton className="h-3 w-36" />
         </div>
       ) : error ? (
@@ -632,7 +635,7 @@ function MetricItem({
       ) : (
         <>
           <p
-            className={`mt-1 break-words text-xl font-semibold tabular-nums sm:text-2xl ${valueClass}`}
+            className={`mt-1 break-words text-lg font-semibold tabular-nums sm:text-xl ${valueClass}`}
           >
             {value}
           </p>
@@ -641,7 +644,7 @@ function MetricItem({
               {hint}
             </p>
           )}
-          {to && <ArrowRight className="mt-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+          {to && <ArrowRight className="mt-2 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
         </>
       )}
     </div>
@@ -674,7 +677,7 @@ function Novidade({
   return (
     <Link
       to={to}
-      className="flex min-h-20 items-center gap-4 px-4 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-6"
+      className="flex min-h-16 items-center gap-3 px-3.5 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-4"
     >
       <Icon className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
       <div className="min-w-0 flex-1">
