@@ -100,7 +100,13 @@ async function gravarNaFila(
   conn: PoolConnection,
   params: {
     chave: string;
-    tipo: "fatura_emitida" | "boas_vindas" | "comunicado" | "cobranca_manual" | "relatorio_manual";
+    tipo:
+      | "fatura_emitida"
+      | "boas_vindas"
+      | "comunicado"
+      | "cobranca_manual"
+      | "relatorio_manual"
+      | "lembrete_vencida";
     destinatarios: string[];
     assunto: string;
     html: string;
@@ -109,7 +115,7 @@ async function gravarNaFila(
     criadoPor?: string;
   },
 ): Promise<string> {
-  const [result] = await conn.query<RowDataPacket & { insertId?: string }>(
+  await conn.query(
     `INSERT INTO filas_email (chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, criado_por)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -125,7 +131,7 @@ async function gravarNaFila(
       params.criadoPor || null,
     ],
   );
-  return (result as { insertId?: string }).insertId || randomUUID();
+  return randomUUID();
 }
 
 // Verifica se já foi enviado com sucesso (para evitar reenvios desnecessários)
@@ -186,7 +192,14 @@ export async function enviarEmailFaturaEmitida(lancamentoId: string): Promise<vo
     });
 
     // Processa síncrono (feedback imediato)
-    await tentarEnviarFilaEmail(conn, filaId, [fatura.email], `Fatura emitida — ${fatura.descricao}`, html, texto);
+    await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      [fatura.email],
+      `Fatura emitida — ${fatura.descricao}`,
+      html,
+      texto,
+    );
   });
 }
 
@@ -227,7 +240,14 @@ export async function enviarEmailBoasVindas(usuarioId: string): Promise<boolean>
     });
 
     // Processa síncrono
-    const resultado = await tentarEnviarFilaEmail(conn, filaId, [dados.email_contato], "Seu acesso ao sistema de gestão da loja", html, texto);
+    const resultado = await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      [dados.email_contato],
+      "Seu acesso ao sistema de gestão da loja",
+      html,
+      texto,
+    );
     return resultado.falhas === 0;
   });
 }
@@ -259,7 +279,7 @@ export async function enviarEmailComunicado(
     const html = `<h3>${comunicado.titulo}</h3><p>${corpoHtml}</p>`;
     const texto = `${comunicado.titulo}\n\n${comunicado.corpo}`;
     const chave = `comunicado:${comunicadoId}`;
-    const listaEmails = destinatarios.map((r: { email: string }) => r.email);
+    const listaEmails = destinatarios.map((r) => (r as { email: string }).email);
 
     const filaId = await gravarNaFila(conn, {
       chave,
@@ -271,7 +291,14 @@ export async function enviarEmailComunicado(
     });
 
     // Processa síncrono
-    const resultado = await tentarEnviarFilaEmail(conn, filaId, listaEmails, `Comunicado — ${comunicado.titulo}`, html, texto);
+    const resultado = await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      listaEmails,
+      `Comunicado — ${comunicado.titulo}`,
+      html,
+      texto,
+    );
 
     // Retorna resultado por destinatário
     const resultados: ResultadoEnvioRelatorio = listaEmails.map((email) => ({
@@ -345,7 +372,12 @@ function montarLembreteFatura(
 }
 
 export type ResultadoLembretes = { avaliadas: number; enviadas: number; falhas: number };
-export type ResultadoFilaEmails = { processadas: number; enviadas: number; falhas: number; pendentes: number };
+export type ResultadoFilaEmails = {
+  processadas: number;
+  enviadas: number;
+  falhas: number;
+  pendentes: number;
+};
 
 // CRON @ a cada 2 minutos — Processa fila de emails com retry automático
 export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
@@ -455,7 +487,14 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
       });
 
       // Processa síncrono
-      const resultado = await tentarEnviarFilaEmail(conn, filaId, [fatura.email], assunto, html, texto);
+      const resultado = await tentarEnviarFilaEmail(
+        conn,
+        filaId,
+        [fatura.email],
+        assunto,
+        html,
+        texto,
+      );
       if (resultado.falhas === 0) enviadas++;
       else falhas++;
     }
@@ -501,7 +540,14 @@ export async function enviarCobrancaManual(lancamentoId: string): Promise<boolea
     });
 
     // Processa síncrono
-    const resultado = await tentarEnviarFilaEmail(conn, filaId, [fatura.email], assunto, html, texto);
+    const resultado = await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      [fatura.email],
+      assunto,
+      html,
+      texto,
+    );
     return resultado.falhas === 0;
   });
 }
