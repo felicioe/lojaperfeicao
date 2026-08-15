@@ -247,7 +247,87 @@ function Movimentos() {
       </Card>
 
       <Card>
-        <div className="overflow-x-auto">
+        <div className="sm:hidden">
+          <div className="sr-only" aria-live="polite">
+            {f.isError
+              ? "Erro ao carregar os movimentos."
+              : `${movPag.itensPagina.length} movimentos carregados.`}
+          </div>
+          {f.isError && (
+            <p className="px-4 py-6 text-center text-destructive">
+              Erro ao carregar os movimentos. Tente novamente.
+            </p>
+          )}
+          {!f.isError && f.movimentos.length === 0 && (
+            <p className="px-4 py-6 text-center text-muted-foreground">
+              Nenhum movimento encontrado.
+            </p>
+          )}
+          <ul className="divide-y" aria-label="Movimentos financeiros">
+            {movPag.itensPagina.map((m) => (
+              <li key={m.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-base font-medium leading-snug">{m.descricao}</p>
+                    {m.irmao_nome && (
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {m.irmao_nome}
+                      </p>
+                    )}
+                  </div>
+                  <p
+                    className={`shrink-0 text-right text-base font-semibold tabular-nums ${
+                      m.tipo === "entrada"
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : m.tipo === "saida"
+                          ? "text-destructive"
+                          : "text-foreground"
+                    }`}
+                  >
+                    {brl(m.valor)}
+                  </p>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+                  <span>{fmtDate(m.data)}</span>
+                  {m.data_vencimento && <span>· vence {fmtDate(m.data_vencimento)}</span>}
+                  <Badge
+                    variant={
+                      m.tipo === "entrada"
+                        ? "default"
+                        : m.tipo === "saida"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                  >
+                    {m.tipo === "entrada"
+                      ? "Entrada"
+                      : m.tipo === "saida"
+                        ? "Saída"
+                        : m.tipo === "transferencia"
+                          ? "Transferência"
+                          : m.tipo}
+                  </Badge>
+                  {m.pago ? (
+                    <Badge variant="secondary">Pago</Badge>
+                  ) : (
+                    <Badge variant="outline">Aberto</Badge>
+                  )}
+                </div>
+                {podeEditar && (
+                  <div className="-mr-2 mt-2 flex justify-end [&_button]:h-8 [&_button]:w-8 [&_button]:p-0">
+                    <AcoesLancamento
+                      lancamento={m}
+                      contas={contas}
+                      receitas={receitas}
+                      onDone={invalidate}
+                    />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <Table>
             <TableHeader>
               <TableRow>
