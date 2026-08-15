@@ -35,7 +35,7 @@ import { toast } from "sonner";
 import { Pencil, X } from "lucide-react";
 import { usePaginacao } from "@/lib/use-paginacao";
 
-export const Route = createFileRoute("/_authenticated/tesouraria/plano-contas")({
+export const Route = createFileRoute("/_authenticated/contabilidade/plano-contas")({
   head: () => ({ meta: [{ title: "Plano de Contas — Gestão Maçônica" }] }),
   component: PlanoContas,
 });

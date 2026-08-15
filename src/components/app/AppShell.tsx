@@ -421,12 +421,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageFinancas,
         },
         {
-          to: "/tesouraria/plano-contas",
-          label: "Plano de Contas",
-          icon: FileBarChart,
-          show: can.canManageFinancas,
-        },
-        {
           to: "/tesouraria/movimentos",
           label: "Movimento Financeiro",
           icon: ArrowLeftRight,
@@ -588,6 +582,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           label: "Auditoria Contábil",
           icon: ShieldCheck,
           show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/plano-contas",
+          label: "Plano de Contas",
+          icon: FileBarChart,
+          show: can.canManageFinancas,
+          section: "Cadastro",
         },
       ],
     },
