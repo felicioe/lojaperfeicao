@@ -355,72 +355,122 @@ function ListaAcordos({ acordos }: { acordos: Parcelamento[] }) {
 
   return (
     <Card>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead></TableHead>
-            <TableHeadOrdenavel campo="data" ord={ord}>
-              Data
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="irmao" ord={ord}>
-              Irmão
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
-              Original
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="entrada" ord={ord} className="text-right">
-              Entrada
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="parcelado" ord={ord} className="text-right">
-              Parcelado
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="parcelas" ord={ord}>
-              Parcelas
-            </TableHeadOrdenavel>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {acordos.length === 0 && (
-            <TableRow>
-              <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                Nenhum acordo de parcelamento ainda.
-              </TableCell>
-            </TableRow>
-          )}
+      <div className="sm:hidden">
+        {acordos.length === 0 && (
+          <p className="py-6 text-center text-muted-foreground">
+            Nenhum acordo de parcelamento ainda.
+          </p>
+        )}
+        <ul className="divide-y" aria-label="Acordos de parcelamento">
           {itensPagina.map((a) => (
-            <Fragment key={a.id}>
-              <TableRow>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setExpandido(expandido === a.id ? null : a.id)}
-                  >
-                    {expandido === a.id ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TableCell>
-                <TableCell>{fmtDate(a.data)}</TableCell>
-                <TableCell className="font-medium">{a.irmaos?.nome_civil ?? "—"}</TableCell>
-                <TableCell className="text-right">{brl(a.valor_original)}</TableCell>
-                <TableCell className="text-right">{brl(a.entrada)}</TableCell>
-                <TableCell className="text-right">{brl(a.valor_parcelado)}</TableCell>
-                <TableCell>{a.numero_parcelas}x</TableCell>
-              </TableRow>
+            <li key={a.id}>
+              <button
+                type="button"
+                className="flex w-full items-start justify-between gap-3 p-4 text-left"
+                onClick={() => setExpandido(expandido === a.id ? null : a.id)}
+                aria-expanded={expandido === a.id}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-base font-medium leading-snug">
+                    {a.irmaos?.nome_civil ?? "—"}
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {fmtDate(a.data)} · {a.numero_parcelas}x de{" "}
+                    {brl(Number(a.valor_parcelado) / a.numero_parcelas)}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Original {brl(a.valor_original)}
+                    {Number(a.entrada) > 0 && <> · Entrada {brl(a.entrada)}</>}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <p className="text-right text-base font-semibold tabular-nums">
+                    {brl(a.valor_parcelado)}
+                  </p>
+                  {expandido === a.id ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              </button>
               {expandido === a.id && (
-                <TableRow>
-                  <TableCell colSpan={7} className="bg-muted/30">
-                    <AcordoDetalhe parcelamentoId={a.id} />
-                  </TableCell>
-                </TableRow>
+                <div className="border-t bg-muted/30 px-4 pb-4">
+                  <AcordoDetalhe parcelamentoId={a.id} />
+                </div>
               )}
-            </Fragment>
+            </li>
           ))}
-        </TableBody>
-      </Table>
+        </ul>
+      </div>
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead></TableHead>
+              <TableHeadOrdenavel campo="data" ord={ord}>
+                Data
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="irmao" ord={ord}>
+                Irmão
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
+                Original
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="entrada" ord={ord} className="text-right">
+                Entrada
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="parcelado" ord={ord} className="text-right">
+                Parcelado
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="parcelas" ord={ord}>
+                Parcelas
+              </TableHeadOrdenavel>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {acordos.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                  Nenhum acordo de parcelamento ainda.
+                </TableCell>
+              </TableRow>
+            )}
+            {itensPagina.map((a) => (
+              <Fragment key={a.id}>
+                <TableRow>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExpandido(expandido === a.id ? null : a.id)}
+                    >
+                      {expandido === a.id ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TableCell>
+                  <TableCell>{fmtDate(a.data)}</TableCell>
+                  <TableCell className="font-medium">{a.irmaos?.nome_civil ?? "—"}</TableCell>
+                  <TableCell className="text-right">{brl(a.valor_original)}</TableCell>
+                  <TableCell className="text-right">{brl(a.entrada)}</TableCell>
+                  <TableCell className="text-right">{brl(a.valor_parcelado)}</TableCell>
+                  <TableCell>{a.numero_parcelas}x</TableCell>
+                </TableRow>
+                {expandido === a.id && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="bg-muted/30">
+                      <AcordoDetalhe parcelamentoId={a.id} />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
       <TabelaPaginacao
         pagina={pagina}
         totalPaginas={totalPaginas}
@@ -446,30 +496,15 @@ function AcordoDetalhe({ parcelamentoId }: { parcelamentoId: string }) {
 
   return (
     <div className="py-2">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHeadOrdenavel campo="descricao" ord={ord}>
-              Descrição
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="vencimento" ord={ord}>
-              Vencimento
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
-              Valor
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="status" ord={ord}>
-              Status
-            </TableHeadOrdenavel>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ord.itensOrdenados.map((it) => (
-            <TableRow key={it.id}>
-              <TableCell>{it.descricao}</TableCell>
-              <TableCell>{fmtDate(it.data_vencimento)}</TableCell>
-              <TableCell className="text-right">{brl(it.valor)}</TableCell>
-              <TableCell>
+      <ul className="divide-y sm:hidden" aria-label="Lançamentos do acordo">
+        {ord.itensOrdenados.map((it) => (
+          <li key={it.id} className="flex items-start justify-between gap-3 py-2.5 first:pt-0">
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-sm font-medium leading-snug">{it.descricao}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Vence {fmtDate(it.data_vencimento)}
+              </p>
+              <div className="mt-1">
                 {it.parcelado ? (
                   <Badge variant="outline">Fatura original encerrada</Badge>
                 ) : it.pago ? (
@@ -477,11 +512,52 @@ function AcordoDetalhe({ parcelamentoId }: { parcelamentoId: string }) {
                 ) : (
                   <Badge variant="secondary">Em aberto</Badge>
                 )}
-              </TableCell>
+              </div>
+            </div>
+            <p className="shrink-0 text-right text-sm font-semibold tabular-nums">
+              {brl(it.valor)}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHeadOrdenavel campo="descricao" ord={ord}>
+                Descrição
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="vencimento" ord={ord}>
+                Vencimento
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                Valor
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ord}>
+                Status
+              </TableHeadOrdenavel>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {ord.itensOrdenados.map((it) => (
+              <TableRow key={it.id}>
+                <TableCell>{it.descricao}</TableCell>
+                <TableCell>{fmtDate(it.data_vencimento)}</TableCell>
+                <TableCell className="text-right">{brl(it.valor)}</TableCell>
+                <TableCell>
+                  {it.parcelado ? (
+                    <Badge variant="outline">Fatura original encerrada</Badge>
+                  ) : it.pago ? (
+                    <Badge>Paga</Badge>
+                  ) : (
+                    <Badge variant="secondary">Em aberto</Badge>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

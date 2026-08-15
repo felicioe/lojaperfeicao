@@ -264,63 +264,46 @@ function TaxasCorpoPanel() {
       )}
 
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHeadOrdenavel campo="tipo" ord={ord}>
-                Tipo
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="corpo" ord={ord}>
-                Corpo
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="valor" ord={ord}>
-                Valor
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="vigencia" ord={ord}>
-                Vigência
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="observacoes" ord={ord}>
-                Observações
-              </TableHeadOrdenavel>
-              <TableHead></TableHead>
-              {podeEditar && <TableHead className="text-right">Ações</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {itens.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
-                  Nenhum valor cadastrado ainda.
-                </TableCell>
-              </TableRow>
-            )}
+        <div className="sm:hidden">
+          {itens.length === 0 && (
+            <p className="py-6 text-center text-muted-foreground">Nenhum valor cadastrado ainda.</p>
+          )}
+          <ul className="divide-y" aria-label="Tabela de valores">
             {itensPagina.map((item) => {
               const vigente = ehVigenteHoje(item, itens);
               return (
-                <TableRow key={item.id} className={!vigente ? "opacity-60" : undefined}>
-                  <TableCell className="font-medium">{rotuloTipo(item.tipo)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {item.org_nome ?? "Global"}
-                  </TableCell>
-                  <TableCell>{brl(item.valor)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {fmtDate(item.vigencia_inicio)}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {item.observacoes ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    {vigente && (
-                      <Badge variant="secondary">
-                        <TrendingUp className="mr-1 h-3 w-3" /> Vigente
-                      </Badge>
-                    )}
-                  </TableCell>
-                  {podeEditar && (
-                    <TableCell className="text-right">
+                <li key={item.id} className={`p-4 ${!vigente ? "opacity-60" : ""}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-base font-medium leading-snug">
+                        {rotuloTipo(item.tipo)}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {item.org_nome ?? "Global"}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-right text-base font-semibold tabular-nums">
+                      {brl(item.valor)}
+                    </p>
+                  </div>
+                  {item.observacoes && (
+                    <p className="mt-1 break-words text-sm text-muted-foreground">
+                      {item.observacoes}
+                    </p>
+                  )}
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <span>Desde {fmtDate(item.vigencia_inicio)}</span>
+                      {vigente && (
+                        <Badge variant="secondary">
+                          <TrendingUp className="mr-1 h-3 w-3" /> Vigente
+                        </Badge>
+                      )}
+                    </div>
+                    {podeEditar && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 shrink-0 p-0">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
@@ -341,13 +324,99 @@ function TaxasCorpoPanel() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
-                    </TableCell>
-                  )}
-                </TableRow>
+                    )}
+                  </div>
+                </li>
               );
             })}
-          </TableBody>
-        </Table>
+          </ul>
+        </div>
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHeadOrdenavel campo="tipo" ord={ord}>
+                  Tipo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="corpo" ord={ord}>
+                  Corpo
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor" ord={ord}>
+                  Valor
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="vigencia" ord={ord}>
+                  Vigência
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="observacoes" ord={ord}>
+                  Observações
+                </TableHeadOrdenavel>
+                <TableHead></TableHead>
+                {podeEditar && <TableHead className="text-right">Ações</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {itens.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
+                    Nenhum valor cadastrado ainda.
+                  </TableCell>
+                </TableRow>
+              )}
+              {itensPagina.map((item) => {
+                const vigente = ehVigenteHoje(item, itens);
+                return (
+                  <TableRow key={item.id} className={!vigente ? "opacity-60" : undefined}>
+                    <TableCell className="font-medium">{rotuloTipo(item.tipo)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {item.org_nome ?? "Global"}
+                    </TableCell>
+                    <TableCell>{brl(item.valor)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {fmtDate(item.vigencia_inicio)}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {item.observacoes ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      {vigente && (
+                        <Badge variant="secondary">
+                          <TrendingUp className="mr-1 h-3 w-3" /> Vigente
+                        </Badge>
+                      )}
+                    </TableCell>
+                    {podeEditar && (
+                      <TableCell className="text-right">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir este valor?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Remove {rotuloTipo(item.tipo)} de {item.org_nome ?? "Global"} (
+                                {brl(item.valor)}, vigente desde {fmtDate(item.vigencia_inicio)}).
+                                Não afeta cobranças já geradas.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => excluir(item.id)}>
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
         <TabelaPaginacao
           pagina={pagina}
           totalPaginas={totalPaginas}
