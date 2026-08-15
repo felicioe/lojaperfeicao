@@ -62,5 +62,4 @@ CREATE TABLE IF NOT EXISTS filas_email (
 ) ENGINE = InnoDB;
 
 -- Índice composto para buscar filas prontas para retry
-CREATE INDEX idx_filas_email_retry ON filas_email (status, proxima_tentativa)
-WHERE status IN ('pendente', 'erro_permanente');
+CREATE INDEX idx_filas_email_retry ON filas_email (status, proxima_tentativa);
