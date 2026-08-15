@@ -38,6 +38,7 @@ import { Route as AuthenticatedContabilidadeDreOrcadoRouteImport } from './route
 import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './routes/_authenticated/contabilidade/fechamento'
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
+import { Route as AuthenticatedContabilidadePlanoContasRouteImport } from './routes/_authenticated/contabilidade/plano-contas'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
 import { Route as AuthenticatedDocumentosIndexRouteImport } from './routes/_authenticated/documentos/index'
 import { Route as AuthenticatedEnquetesIndexRouteImport } from './routes/_authenticated/enquetes/index'
@@ -79,7 +80,6 @@ import { Route as AuthenticatedTesourariaContasPagarRouteImport } from './routes
 import { Route as AuthenticatedTesourariaMovimentosRouteImport } from './routes/_authenticated/tesouraria/movimentos'
 import { Route as AuthenticatedTesourariaParametrosRouteImport } from './routes/_authenticated/tesouraria/parametros'
 import { Route as AuthenticatedTesourariaParcelamentosRouteImport } from './routes/_authenticated/tesouraria/parcelamentos'
-import { Route as AuthenticatedTesourariaPlanoContasRouteImport } from './routes/_authenticated/tesouraria/plano-contas'
 import { Route as AuthenticatedTesourariaRecibosRouteImport } from './routes/_authenticated/tesouraria/recibos'
 import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes/_authenticated/tesouraria/recorrentes'
 import { Route as AuthenticatedTesourariaTabelaValoresRouteImport } from './routes/_authenticated/tesouraria/tabela-valores'
@@ -252,6 +252,12 @@ const AuthenticatedContabilidadeOrcamentoRoute =
   AuthenticatedContabilidadeOrcamentoRouteImport.update({
     id: '/contabilidade/orcamento',
     path: '/contabilidade/orcamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadePlanoContasRoute =
+  AuthenticatedContabilidadePlanoContasRouteImport.update({
+    id: '/contabilidade/plano-contas',
+    path: '/contabilidade/plano-contas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeRazaoRoute =
@@ -496,12 +502,6 @@ const AuthenticatedTesourariaParcelamentosRoute =
     path: '/tesouraria/parcelamentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedTesourariaPlanoContasRoute =
-  AuthenticatedTesourariaPlanoContasRouteImport.update({
-    id: '/tesouraria/plano-contas',
-    path: '/tesouraria/plano-contas',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedTesourariaRecibosRoute =
   AuthenticatedTesourariaRecibosRouteImport.update({
     id: '/tesouraria/recibos',
@@ -582,6 +582,7 @@ export interface FileRoutesByFullPath {
   '/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
   '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/contabilidade/plano-contas': typeof AuthenticatedContabilidadePlanoContasRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
   '/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
@@ -613,7 +614,6 @@ export interface FileRoutesByFullPath {
   '/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
   '/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/tesouraria/parcelamentos': typeof AuthenticatedTesourariaParcelamentosRoute
-  '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
@@ -662,6 +662,7 @@ export interface FileRoutesByTo {
   '/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
   '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/contabilidade/plano-contas': typeof AuthenticatedContabilidadePlanoContasRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
   '/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
@@ -693,7 +694,6 @@ export interface FileRoutesByTo {
   '/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
   '/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/tesouraria/parcelamentos': typeof AuthenticatedTesourariaParcelamentosRoute
-  '/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
@@ -745,6 +745,7 @@ export interface FileRoutesById {
   '/_authenticated/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
   '/_authenticated/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/_authenticated/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/_authenticated/contabilidade/plano-contas': typeof AuthenticatedContabilidadePlanoContasRoute
   '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/_authenticated/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
   '/_authenticated/ensino/importar-pdf-sessoes': typeof AuthenticatedEnsinoImportarPdfSessoesRoute
@@ -776,7 +777,6 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/movimentos': typeof AuthenticatedTesourariaMovimentosRoute
   '/_authenticated/tesouraria/parametros': typeof AuthenticatedTesourariaParametrosRoute
   '/_authenticated/tesouraria/parcelamentos': typeof AuthenticatedTesourariaParcelamentosRoute
-  '/_authenticated/tesouraria/plano-contas': typeof AuthenticatedTesourariaPlanoContasRoute
   '/_authenticated/tesouraria/recibos': typeof AuthenticatedTesourariaRecibosRoute
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
@@ -828,6 +828,7 @@ export interface FileRouteTypes {
     | '/contabilidade/fechamento'
     | '/contabilidade/fluxo-caixa'
     | '/contabilidade/orcamento'
+    | '/contabilidade/plano-contas'
     | '/contabilidade/razao'
     | '/ensino/importar-calendario'
     | '/ensino/importar-pdf-sessoes'
@@ -859,7 +860,6 @@ export interface FileRouteTypes {
     | '/tesouraria/movimentos'
     | '/tesouraria/parametros'
     | '/tesouraria/parcelamentos'
-    | '/tesouraria/plano-contas'
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
@@ -908,6 +908,7 @@ export interface FileRouteTypes {
     | '/contabilidade/fechamento'
     | '/contabilidade/fluxo-caixa'
     | '/contabilidade/orcamento'
+    | '/contabilidade/plano-contas'
     | '/contabilidade/razao'
     | '/ensino/importar-calendario'
     | '/ensino/importar-pdf-sessoes'
@@ -939,7 +940,6 @@ export interface FileRouteTypes {
     | '/tesouraria/movimentos'
     | '/tesouraria/parametros'
     | '/tesouraria/parcelamentos'
-    | '/tesouraria/plano-contas'
     | '/tesouraria/recibos'
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
@@ -990,6 +990,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contabilidade/fechamento'
     | '/_authenticated/contabilidade/fluxo-caixa'
     | '/_authenticated/contabilidade/orcamento'
+    | '/_authenticated/contabilidade/plano-contas'
     | '/_authenticated/contabilidade/razao'
     | '/_authenticated/ensino/importar-calendario'
     | '/_authenticated/ensino/importar-pdf-sessoes'
@@ -1021,7 +1022,6 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/movimentos'
     | '/_authenticated/tesouraria/parametros'
     | '/_authenticated/tesouraria/parcelamentos'
-    | '/_authenticated/tesouraria/plano-contas'
     | '/_authenticated/tesouraria/recibos'
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/tabela-valores'
@@ -1261,6 +1261,13 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/orcamento'
       fullPath: '/contabilidade/orcamento'
       preLoaderRoute: typeof AuthenticatedContabilidadeOrcamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/plano-contas': {
+      id: '/_authenticated/contabilidade/plano-contas'
+      path: '/contabilidade/plano-contas'
+      fullPath: '/contabilidade/plano-contas'
+      preLoaderRoute: typeof AuthenticatedContabilidadePlanoContasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contabilidade/razao': {
@@ -1550,13 +1557,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTesourariaParcelamentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tesouraria/plano-contas': {
-      id: '/_authenticated/tesouraria/plano-contas'
-      path: '/tesouraria/plano-contas'
-      fullPath: '/tesouraria/plano-contas'
-      preLoaderRoute: typeof AuthenticatedTesourariaPlanoContasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/tesouraria/recibos': {
       id: '/_authenticated/tesouraria/recibos'
       path: '/tesouraria/recibos'
@@ -1671,6 +1671,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContabilidadeFechamentoRoute: typeof AuthenticatedContabilidadeFechamentoRoute
   AuthenticatedContabilidadeFluxoCaixaRoute: typeof AuthenticatedContabilidadeFluxoCaixaRoute
   AuthenticatedContabilidadeOrcamentoRoute: typeof AuthenticatedContabilidadeOrcamentoRoute
+  AuthenticatedContabilidadePlanoContasRoute: typeof AuthenticatedContabilidadePlanoContasRoute
   AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
   AuthenticatedEnsinoImportarCalendarioRoute: typeof AuthenticatedEnsinoImportarCalendarioRoute
   AuthenticatedEnsinoImportarPdfSessoesRoute: typeof AuthenticatedEnsinoImportarPdfSessoesRoute
@@ -1695,7 +1696,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaMovimentosRoute: typeof AuthenticatedTesourariaMovimentosRoute
   AuthenticatedTesourariaParametrosRoute: typeof AuthenticatedTesourariaParametrosRoute
   AuthenticatedTesourariaParcelamentosRoute: typeof AuthenticatedTesourariaParcelamentosRoute
-  AuthenticatedTesourariaPlanoContasRoute: typeof AuthenticatedTesourariaPlanoContasRoute
   AuthenticatedTesourariaRecibosRoute: typeof AuthenticatedTesourariaRecibosRoute
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaTabelaValoresRoute: typeof AuthenticatedTesourariaTabelaValoresRoute
@@ -1749,6 +1749,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedContabilidadeFluxoCaixaRoute,
   AuthenticatedContabilidadeOrcamentoRoute:
     AuthenticatedContabilidadeOrcamentoRoute,
+  AuthenticatedContabilidadePlanoContasRoute:
+    AuthenticatedContabilidadePlanoContasRoute,
   AuthenticatedContabilidadeRazaoRoute: AuthenticatedContabilidadeRazaoRoute,
   AuthenticatedEnsinoImportarCalendarioRoute:
     AuthenticatedEnsinoImportarCalendarioRoute,
@@ -1788,8 +1790,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedTesourariaParametrosRoute,
   AuthenticatedTesourariaParcelamentosRoute:
     AuthenticatedTesourariaParcelamentosRoute,
-  AuthenticatedTesourariaPlanoContasRoute:
-    AuthenticatedTesourariaPlanoContasRoute,
   AuthenticatedTesourariaRecibosRoute: AuthenticatedTesourariaRecibosRoute,
   AuthenticatedTesourariaRecorrentesRoute:
     AuthenticatedTesourariaRecorrentesRoute,
