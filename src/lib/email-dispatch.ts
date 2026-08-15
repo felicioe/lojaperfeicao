@@ -6,11 +6,15 @@ import { randomUUID } from "node:crypto";
 import { withUserConnection } from "./backend/db";
 import { SENHA_PADRAO } from "./backend/usuarios";
 
-// Envio de e-mail (issue #103) — SMTP da própria Hostinger via nodemailer,
-// decisão confirmada (sem custo extra, sem cadastro em serviço terceiro).
-// Isolado aqui e importado só por server.ts/dentro de handlers via
-// import() dinâmico — mesmo motivo de backup-dispatch.ts/push-dispatch.ts:
-// evita que db.ts vaze pro bundle do cliente.
+// Envio de e-mail com fila (issue #103 + issue #XXX) — SMTP da própria
+// Hostinger via nodemailer. Isolado aqui e importado via import() dinâmico
+// em server.ts (evita que db.ts vaze pro bundle do cliente).
+//
+// Estratégia:
+// 1. Sob demanda (fatura, comunicado, relatório): grava na fila + processa
+//    síncrono (feedback imediato ao usuário)
+// 2. Se falhar: fica na fila com retry automático via CRON
+// 3. Lembretes vencidas: apenas @ 12h, apenas faturas vencidas
 
 let transporter: Transporter | undefined;
 
@@ -37,49 +41,97 @@ function getTransporter(): Transporter {
   return transporter;
 }
 
-// Grava a tentativa (sucesso ou falha) e devolve se enviou de verdade.
-// A dedup por `chave` é feita ANTES de chamar esta função (ver
-// jaEnviadoComSucesso) — aqui só registra o resultado desta tentativa.
-async function enviarEGravar(
+// Tenta enviar email via SMTP e atualiza fila com resultado
+async function tentarEnviarFilaEmail(
+  conn: PoolConnection,
+  filaId: string,
+  destinatarios: string[],
+  assunto: string,
+  html: string,
+  texto: string,
+  anexos?: { filename: string; content: Buffer; contentType: string }[],
+): Promise<{ sucesso: number; falhas: number; ultimoErro: string | null }> {
+  const remetente = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+  let sucesso = 0;
+  let falhas = 0;
+  let ultimoErro: string | null = null;
+
+  for (const dest of destinatarios) {
+    try {
+      await getTransporter().sendMail({
+        from: remetente,
+        to: dest,
+        subject: assunto,
+        html,
+        text: texto,
+        attachments: anexos,
+      });
+      sucesso++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      ultimoErro = msg.slice(0, 500);
+      falhas++;
+      console.error(`Falha ao enviar e-mail para ${dest}:`, msg);
+    }
+  }
+
+  // Atualiza status na fila (retry em 2 minutos se falhar)
+  const novoStatus = falhas === 0 ? "enviado" : "erro_permanente";
+  const enviadoEm = falhas === 0 ? "CURRENT_TIMESTAMP" : null;
+  const proximaTentativa = falhas > 0 ? "DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 2 MINUTE)" : null;
+
+  await conn.query(
+    `UPDATE filas_email SET
+     status = ?,
+     tentativas = tentativas + 1,
+     ultimo_erro = ?,
+     enviado_em = ${enviadoEm ? "CURRENT_TIMESTAMP" : "NULL"},
+     proxima_tentativa = ${proximaTentativa ? "DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 5 MINUTE)" : "NULL"},
+     atualizado_em = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [novoStatus, ultimoErro, filaId],
+  );
+
+  return { sucesso, falhas, ultimoErro };
+}
+
+// Grava na fila de envio (sob demanda)
+async function gravarNaFila(
   conn: PoolConnection,
   params: {
     chave: string;
-    destinatario: string;
+    tipo: "fatura_emitida" | "boas_vindas" | "comunicado" | "cobranca_manual" | "relatorio_manual";
+    destinatarios: string[];
     assunto: string;
     html: string;
     texto: string;
-    anexos?: { filename: string; content: Buffer; contentType: string }[];
+    anexo?: { buffer: Buffer; nome: string; mimeType: string };
+    criadoPor?: string;
   },
-): Promise<boolean> {
-  const remetente = process.env.SMTP_FROM || process.env.SMTP_USER || "";
-  try {
-    await getTransporter().sendMail({
-      from: remetente,
-      to: params.destinatario,
-      subject: params.assunto,
-      html: params.html,
-      text: params.texto,
-      attachments: params.anexos,
-    });
-    await conn.query(
-      "INSERT INTO emails_enviados (chave, destinatario, assunto, sucesso) VALUES (?, ?, ?, TRUE)",
-      [params.chave, params.destinatario, params.assunto],
-    );
-    return true;
-  } catch (err) {
-    const mensagem = err instanceof Error ? err.message : String(err);
-    console.error(`Falha ao enviar e-mail (${params.chave}):`, mensagem);
-    await conn.query(
-      "INSERT INTO emails_enviados (chave, destinatario, assunto, sucesso, erro) VALUES (?, ?, ?, FALSE, ?)",
-      [params.chave, params.destinatario, params.assunto, mensagem.slice(0, 500)],
-    );
-    return false;
-  }
+): Promise<string> {
+  const [result] = await conn.query<RowDataPacket & { insertId?: string }>(
+    `INSERT INTO filas_email (chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, criado_por)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      params.chave,
+      params.tipo,
+      JSON.stringify(params.destinatarios),
+      params.assunto,
+      params.html,
+      params.texto,
+      params.anexo?.buffer || null,
+      params.anexo?.nome || null,
+      params.anexo?.mimeType || null,
+      params.criadoPor || null,
+    ],
+  );
+  return (result as { insertId?: string }).insertId || randomUUID();
 }
 
+// Verifica se já foi enviado com sucesso (para evitar reenvios desnecessários)
 async function jaEnviadoComSucesso(conn: PoolConnection, chave: string): Promise<boolean> {
   const [rows] = await conn.query<RowDataPacket[]>(
-    "SELECT 1 AS ok FROM emails_enviados WHERE chave = ? AND sucesso = TRUE LIMIT 1",
+    "SELECT 1 AS ok FROM filas_email WHERE chave = ? AND status = 'enviado' LIMIT 1",
     [chave],
   );
   return rows.length > 0;
@@ -96,24 +148,8 @@ function fmtDate(d: string): string {
 // Semana ISO (segunda a domingo) de hoje, ex.: "2026-W32" — usada como
 // sufixo de chave pro lembrete se repetir semanalmente sem virar spam
 // diário, enquanto a fatura continuar em aberto.
-function semanaIsoDeHoje(): string {
-  const hoje = new Date();
-  const data = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
-  const diaSemana = (data.getUTCDay() + 6) % 7; // segunda = 0
-  data.setUTCDate(data.getUTCDate() - diaSemana + 3);
-  const primeiraQuinta = new Date(Date.UTC(data.getUTCFullYear(), 0, 4));
-  const semana =
-    1 +
-    Math.round(
-      ((data.getTime() - primeiraQuinta.getTime()) / 86400000 -
-        3 +
-        ((primeiraQuinta.getUTCDay() + 6) % 7)) /
-        7,
-    );
-  return `${data.getUTCFullYear()}-W${String(semana).padStart(2, "0")}`;
-}
 
-// ---------- Fatura emitida ----------
+// ---------- Fatura emitida (sob demanda, com fila) ----------
 
 export async function enviarEmailFaturaEmitida(lancamentoId: string): Promise<void> {
   await withUserConnection(null, async (conn) => {
@@ -140,22 +176,23 @@ export async function enviarEmailFaturaEmitida(lancamentoId: string): Promise<vo
     `;
     const texto = `Olá, ${fatura.nome_civil}! Fatura emitida: ${fatura.descricao}, valor ${brl(fatura.valor)}, vencimento ${fmtDate(fatura.data_vencimento)}. Acesse ${origemPublica()}/painel/financeiro.`;
 
-    await enviarEGravar(conn, {
+    const filaId = await gravarNaFila(conn, {
       chave,
-      destinatario: fatura.email,
+      tipo: "fatura_emitida",
+      destinatarios: [fatura.email],
       assunto: `Fatura emitida — ${fatura.descricao}`,
       html,
       texto,
     });
+
+    // Processa síncrono (feedback imediato)
+    await tentarEnviarFilaEmail(conn, filaId, [fatura.email], `Fatura emitida — ${fatura.descricao}`, html, texto);
   });
 }
 
-// ---------- Boas-vindas / primeiro acesso (issue #105) ----------
+// ---------- Boas-vindas / primeiro acesso (issue #105, com fila) ----------
 // Alternativa opcional ao fluxo já existente de admin comunicar login/senha
-// manualmente (decisão explícita do cliente — fica como alternativa, não
-// substitui). Só dispara se o irmão tiver e-mail de contato cadastrado
-// (irmaos.email); sem dedup por chave já que é uma ação pontual disparada
-// no momento da criação do acesso.
+// manualmente. Só dispara se o irmão tiver e-mail de contato cadastrado.
 
 export async function enviarEmailBoasVindas(usuarioId: string): Promise<boolean> {
   return withUserConnection(null, async (conn) => {
@@ -179,23 +216,25 @@ export async function enviarEmailBoasVindas(usuarioId: string): Promise<boolean>
     `;
     const texto = `Olá, ${dados.nome_civil}! Seu acesso foi criado. Login: ${dados.login}, senha: ${SENHA_PADRAO}. Acesse ${linkAcesso}.`;
 
-    return enviarEGravar(conn, {
+    const filaId = await gravarNaFila(conn, {
       chave: `boas_vindas:${usuarioId}:${randomUUID()}`,
-      destinatario: dados.email_contato,
+      tipo: "boas_vindas",
+      destinatarios: [dados.email_contato],
       assunto: "Seu acesso ao sistema de gestão da loja",
       html,
       texto,
+      criadoPor: usuarioId,
     });
+
+    // Processa síncrono
+    const resultado = await tentarEnviarFilaEmail(conn, filaId, [dados.email_contato], "Seu acesso ao sistema de gestão da loja", html, texto);
+    return resultado.falhas === 0;
   });
 }
 
-// ---------- Comunicado publicado (issue #107) ----------
-// Opcional por comunicado (decisão explícita do cliente — checkbox
-// desmarcado por padrão, ver comunicacoes.ts). Só dispara na CRIAÇÃO de um
-// comunicado novo, nunca em edição. Destinatários: irmãos ativos com
-// e-mail de contato cadastrado, respeitando a mesma regra de visibilidade
-// da tela (publico='todos' → todo mundo; publico='org' → só quem tem
-// vínculo com aquele corpo maçônico).
+// ---------- Comunicado publicado (issue #107, com fila) ----------
+// Opcional por comunicado (checkbox desmarcado por padrão).
+// Destinatários: irmãos ativos com e-mail, respeitando visibilidade.
 
 export async function enviarEmailComunicado(
   comunicadoId: string,
@@ -220,18 +259,25 @@ export async function enviarEmailComunicado(
     const html = `<h3>${comunicado.titulo}</h3><p>${corpoHtml}</p>`;
     const texto = `${comunicado.titulo}\n\n${comunicado.corpo}`;
     const chave = `comunicado:${comunicadoId}`;
+    const listaEmails = destinatarios.map((r: { email: string }) => r.email);
 
-    const resultados: ResultadoEnvioRelatorio = [];
-    for (const { email } of destinatarios) {
-      const ok = await enviarEGravar(conn, {
-        chave: `${chave}:${email}`,
-        destinatario: email,
-        assunto: `Comunicado — ${comunicado.titulo}`,
-        html,
-        texto,
-      });
-      resultados.push({ destinatario: email, sucesso: ok });
-    }
+    const filaId = await gravarNaFila(conn, {
+      chave,
+      tipo: "comunicado",
+      destinatarios: listaEmails,
+      assunto: `Comunicado — ${comunicado.titulo}`,
+      html,
+      texto,
+    });
+
+    // Processa síncrono
+    const resultado = await tentarEnviarFilaEmail(conn, filaId, listaEmails, `Comunicado — ${comunicado.titulo}`, html, texto);
+
+    // Retorna resultado por destinatário
+    const resultados: ResultadoEnvioRelatorio = listaEmails.map((email) => ({
+      destinatario: email,
+      sucesso: resultado.sucesso > 0,
+    }));
     return resultados;
   });
 }
@@ -299,28 +345,85 @@ function montarLembreteFatura(
 }
 
 export type ResultadoLembretes = { avaliadas: number; enviadas: number; falhas: number };
+export type ResultadoFilaEmails = { processadas: number; enviadas: number; falhas: number; pendentes: number };
 
+// CRON @ a cada 2 minutos — Processa fila de emails com retry automático
+export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
+  return withUserConnection(null, async (conn) => {
+    // Busca filas prontas para retry (status = erro_permanente, proxima_tentativa <= NOW, tentativas < 3)
+    const [filas] = await conn.query<RowDataPacket[]>(
+      `SELECT id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, tentativas
+       FROM filas_email
+       WHERE status = 'erro_permanente'
+         AND proxima_tentativa IS NOT NULL
+         AND proxima_tentativa <= NOW()
+         AND tentativas < 3
+       ORDER BY proxima_tentativa ASC
+       LIMIT 100`,
+    );
+
+    let processadas = 0;
+    let enviadas = 0;
+    let falhas = 0;
+
+    for (const fila of filas) {
+      const destinatarios = JSON.parse(fila.destinatarios_json) as string[];
+      const anexos = fila.anexo_buffer
+        ? [
+            {
+              filename: fila.anexo_nome,
+              content: fila.anexo_buffer as Buffer,
+              contentType: fila.anexo_mime_type,
+            },
+          ]
+        : undefined;
+
+      const resultado = await tentarEnviarFilaEmail(
+        conn,
+        fila.id,
+        destinatarios,
+        fila.assunto,
+        fila.corpo_html,
+        fila.corpo_texto,
+        anexos,
+      );
+
+      processadas++;
+      if (resultado.falhas === 0) enviadas++;
+      else falhas++;
+    }
+
+    // Conta pendentes ainda aguardando
+    const [[pendentesResult]] = await conn.query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS count FROM filas_email
+       WHERE status IN ('pendente', 'erro_permanente')
+         AND proxima_tentativa IS NOT NULL`,
+    );
+    const pendentes = Number(pendentesResult?.count || 0);
+
+    return { processadas, enviadas, falhas, pendentes };
+  });
+}
+
+// CRON @ 12:00h — Envia lembretes apenas de faturas VENCIDAS (não antecedência)
 export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
   return withUserConnection(null, async (conn) => {
-    // Vencendo em até 3 dias, ou já vencida — mesma janela usada pro
-    // "fatura_vencida" do sino de notificações, mais a antecedência de 3
-    // dias (o sino só avisa admin/secretaria de já vencidas; aqui o
-    // objetivo é lembrar o próprio irmão antes de vencer).
+    // Apenas faturas já vencidas (não vencendo em X dias)
     const [faturas] = await conn.query<RowDataPacket[]>(
       `SELECT l.id, l.descricao, l.valor, l.valor_pago, l.data_vencimento, i.nome_civil, i.email
        FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id
        WHERE l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE
-         AND l.data_vencimento <= DATE_ADD(CURRENT_DATE, INTERVAL 3 DAY)
+         AND l.data_vencimento < CURRENT_DATE
          AND i.email IS NOT NULL AND i.email != ''`,
     );
 
     let enviadas = 0;
     let falhas = 0;
-    const anoSemana = semanaIsoDeHoje();
     const hojeISO = new Date().toISOString().slice(0, 10);
 
     for (const fatura of faturas) {
-      const chave = `lembrete_fatura:${fatura.id}:${anoSemana}`;
+      // Dedup: uma vez por dia por fatura (chave com data)
+      const chave = `lembrete_vencida:${fatura.id}:${hojeISO}`;
       if (await jaEnviadoComSucesso(conn, chave)) continue;
 
       const saldoPrincipal = Number(fatura.valor) - Number(fatura.valor_pago);
@@ -341,14 +444,19 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
         saldo,
         hojeISO,
       );
-      const ok = await enviarEGravar(conn, {
+
+      const filaId = await gravarNaFila(conn, {
         chave,
-        destinatario: fatura.email,
+        tipo: "lembrete_vencida",
+        destinatarios: [fatura.email],
         assunto,
         html,
         texto,
       });
-      if (ok) enviadas++;
+
+      // Processa síncrono
+      const resultado = await tentarEnviarFilaEmail(conn, filaId, [fatura.email], assunto, html, texto);
+      if (resultado.falhas === 0) enviadas++;
       else falhas++;
     }
 
@@ -356,12 +464,8 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
   });
 }
 
-// ---------- Cobrança manual (issue #115) ----------
-// Chamado pelo botão "Gerar cobrança" do relatório de inadimplência.
-// Reaproveita o mesmo template do lembrete automático, mas com chave
-// sempre única (randomUUID) — diferente do lembrete semanal, aqui o
-// tesoureiro está pedindo o envio de propósito, não faz sentido a dedup
-// por semana bloquear.
+// ---------- Cobrança manual (issue #115, com fila) ----------
+// Sob demanda — botão "Gerar cobrança" do relatório de inadimplência.
 export async function enviarCobrancaManual(lancamentoId: string): Promise<boolean> {
   return withUserConnection(null, async (conn) => {
     const [[fatura]] = await conn.query<RowDataPacket[]>(
@@ -386,22 +490,24 @@ export async function enviarCobrancaManual(lancamentoId: string): Promise<boolea
       saldo,
       hojeISO,
     );
-    return enviarEGravar(conn, {
+
+    const filaId = await gravarNaFila(conn, {
       chave: `cobranca_manual:${lancamentoId}:${randomUUID()}`,
-      destinatario: fatura.email,
+      tipo: "cobranca_manual",
+      destinatarios: [fatura.email],
       assunto,
       html,
       texto,
     });
+
+    // Processa síncrono
+    const resultado = await tentarEnviarFilaEmail(conn, filaId, [fatura.email], assunto, html, texto);
+    return resultado.falhas === 0;
   });
 }
 
-// ---------- Envio manual de relatório (issue #111) ----------
-// Sem dedup por chave (cada chamada gera uma chave única com randomUUID):
-// é um envio manual disparado pelo usuário, não um job periódico que
-// possa repetir — não faz sentido "já enviado antes" bloquear um reenvio
-// pedido de propósito. Ainda assim grava em emails_enviados pelo mesmo
-// motivo dos outros fluxos: auditoria de o que foi mandado e quando.
+// ---------- Envio manual de relatório (issue #111, com fila) ----------
+// Sob demanda — cada chamada gera uma chave única (randomUUID).
 
 export type ResultadoEnvioRelatorio = { destinatario: string; sucesso: boolean }[];
 
@@ -414,24 +520,65 @@ export async function enviarArquivoPorEmail(params: {
   anexoMimeType: string;
 }): Promise<ResultadoEnvioRelatorio> {
   return withUserConnection(null, async (conn) => {
+    const html = `<p>${params.corpoTexto}</p>`;
+    const chave = `relatorio_manual:${randomUUID()}`;
+
+    const filaId = await gravarNaFila(conn, {
+      chave,
+      tipo: "relatorio_manual",
+      destinatarios: params.destinatarios,
+      assunto: params.assunto,
+      html,
+      texto: params.corpoTexto,
+      anexo: {
+        buffer: params.anexoBuffer,
+        nome: params.anexoNome,
+        mimeType: params.anexoMimeType,
+      },
+    });
+
+    // Processa síncrono com anexos
+    const remetente = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+    let sucessoCount = 0;
     const resultados: ResultadoEnvioRelatorio = [];
-    for (const destinatario of params.destinatarios) {
-      const ok = await enviarEGravar(conn, {
-        chave: `relatorio_manual:${randomUUID()}`,
-        destinatario,
-        assunto: params.assunto,
-        html: `<p>${params.corpoTexto}</p>`,
-        texto: params.corpoTexto,
-        anexos: [
-          {
-            filename: params.anexoNome,
-            content: params.anexoBuffer,
-            contentType: params.anexoMimeType,
-          },
-        ],
-      });
-      resultados.push({ destinatario, sucesso: ok });
+
+    for (const dest of params.destinatarios) {
+      try {
+        await getTransporter().sendMail({
+          from: remetente,
+          to: dest,
+          subject: params.assunto,
+          html,
+          text: params.corpoTexto,
+          attachments: [
+            {
+              filename: params.anexoNome,
+              content: params.anexoBuffer,
+              contentType: params.anexoMimeType,
+            },
+          ],
+        });
+        sucessoCount++;
+        resultados.push({ destinatario: dest, sucesso: true });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Falha ao enviar relatório para ${dest}:`, msg);
+        resultados.push({ destinatario: dest, sucesso: false });
+      }
     }
+
+    // Atualiza fila (status = enviado se todos OK, senão erro_permanente)
+    const todoEnviado = sucessoCount === params.destinatarios.length;
+    await conn.query(
+      `UPDATE filas_email SET
+       status = ?,
+       tentativas = 1,
+       enviado_em = ${todoEnviado ? "CURRENT_TIMESTAMP" : "NULL"},
+       atualizado_em = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [todoEnviado ? "enviado" : "erro_permanente", filaId],
+    );
+
     return resultados;
   });
 }

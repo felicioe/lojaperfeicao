@@ -8,7 +8,7 @@ import { executarDisparoNotificacoes } from "./lib/push-dispatch";
 import { executarBackupAgendado } from "./lib/backup-dispatch";
 import { tratarCallbackGoogle } from "./lib/google-oauth-callback";
 import { tratarCallbackFacebook } from "./lib/facebook-oauth-callback";
-import { executarLembretesFaturas } from "./lib/email-dispatch";
+import { executarLembretesFaturas, processarFilaEmails } from "./lib/email-dispatch";
 import { carregarAgendaPublica } from "./lib/agenda-publica";
 
 type ServerEntry = {
@@ -155,7 +155,7 @@ async function tratarCronBackup(request: Request): Promise<Response | null> {
 }
 
 // Mesmo padrão de tratarCronNotificacoes acima, para os lembretes de
-// fatura por e-mail (issue #103). Reaproveita o mesmo CRON_SECRET.
+// fatura por e-mail (issue #103, vencidas @ 12h). Reaproveita CRON_SECRET.
 async function tratarCronLembretesEmail(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== "/api/cron/lembretes-email") return null;
@@ -174,6 +174,32 @@ async function tratarCronLembretesEmail(request: Request): Promise<Response | nu
     const falhaTotal = resultado.avaliadas > 0 && resultado.enviadas === 0 && resultado.falhas > 0;
     return new Response(JSON.stringify(resultado), {
       status: falhaTotal ? 500 : 200,
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: (error as Error).message }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
+// Mesmo padrão, para processar fila de emails com retry automático
+// (issue #XXX — fila de envio). CRON @ a cada 2 minutos.
+async function tratarCronFilaEmails(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/cron/processar-fila-email") return null;
+
+  const token = url.searchParams.get("token") ?? request.headers.get("x-cron-token");
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado || token !== esperado) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const resultado = await processarFilaEmails();
+    return new Response(JSON.stringify(resultado), {
       headers: { "content-type": "application/json" },
     });
   } catch (error) {
@@ -239,6 +265,9 @@ export default {
 
       const lembretesResponse = await tratarCronLembretesEmail(request);
       if (lembretesResponse) return lembretesResponse;
+
+      const filaEmailResponse = await tratarCronFilaEmails(request);
+      if (filaEmailResponse) return filaEmailResponse;
 
       const agendaResponse = await tratarAgendaPublica(request);
       if (agendaResponse) return agendaResponse;
