@@ -788,16 +788,26 @@ export function AppShell({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <Button variant="outline" size="sm" className="w-full" asChild>
+                <Button variant="outline" size="sm" className="w-full text-foreground" asChild>
                   <Link to="/conta/seguranca">
                     <Fingerprint className="mr-1 h-3 w-3" /> Segurança
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={toggleDark}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 w-full text-foreground"
+                  onClick={toggleDark}
+                >
                   {dark ? <Sun className="mr-1 h-3 w-3" /> : <Moon className="mr-1 h-3 w-3" />}
                   {dark ? "Modo claro" : "Modo escuro"}
                 </Button>
-                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={signOut}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 w-full text-foreground"
+                  onClick={signOut}
+                >
                   <LogOut className="mr-1 h-3 w-3" /> Sair
                 </Button>
                 <Link
@@ -863,11 +873,19 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
                 )}
               </div>
-              <Button variant="outline" className="h-10 w-full" onClick={toggleDark}>
+              <Button
+                variant="outline"
+                className="h-10 w-full text-foreground"
+                onClick={toggleDark}
+              >
                 {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}
                 {dark ? "Modo claro" : "Modo escuro"}
               </Button>
-              <Button variant="outline" className="mt-2 h-10 w-full" onClick={signOut}>
+              <Button
+                variant="outline"
+                className="mt-2 h-10 w-full text-foreground"
+                onClick={signOut}
+              >
                 <LogOut className="mr-1.5 h-4 w-4" /> Sair
               </Button>
               <Link
