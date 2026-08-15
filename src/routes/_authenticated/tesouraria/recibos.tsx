@@ -40,6 +40,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { toISODate } from "@/lib/format";
 
@@ -95,119 +96,197 @@ function Recibos() {
       />
       {avulsos.length > 0 && (
         <Card className="mb-6 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nº</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Favorecido / pagador</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <div className="sm:hidden">
+            <ul className="divide-y" aria-label="Recibos avulsos">
               {avulsos.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.numero}</TableCell>
-                  <TableCell>{fmtDate(r.data)}</TableCell>
-                  <TableCell>{r.tipo === "recebimento" ? "Recebimento" : "Pagamento"}</TableCell>
-                  <TableCell>{r.pessoa_nome}</TableCell>
-                  <TableCell>{r.descricao}</TableCell>
-                  <TableCell className="text-right font-semibold">{brl(r.valor)}</TableCell>
-                  <TableCell>
+                <li key={r.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-base font-medium leading-snug">
+                        {r.pessoa_nome}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">{r.descricao}</p>
+                    </div>
+                    <p className="shrink-0 text-right text-base font-semibold tabular-nums">
+                      {brl(r.valor)}
+                    </p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+                    <span>Nº {r.numero}</span>
+                    <span>{fmtDate(r.data)}</span>
+                    <Badge variant={r.tipo === "recebimento" ? "default" : "secondary"}>
+                      {r.tipo === "recebimento" ? "Recebimento" : "Pagamento"}
+                    </Badge>
+                  </div>
+                  <div className="-mr-2 mt-2 flex justify-end">
                     <Button variant="ghost" size="sm" onClick={() => imprimirRecibo(r)}>
                       <Printer className="h-4 w-4" /> Imprimir
                     </Button>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </li>
               ))}
-            </TableBody>
-          </Table>
+            </ul>
+          </div>
+          <div className="hidden sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nº</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Favorecido / pagador</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {avulsos.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{r.numero}</TableCell>
+                    <TableCell>{fmtDate(r.data)}</TableCell>
+                    <TableCell>{r.tipo === "recebimento" ? "Recebimento" : "Pagamento"}</TableCell>
+                    <TableCell>{r.pessoa_nome}</TableCell>
+                    <TableCell>{r.descricao}</TableCell>
+                    <TableCell className="text-right font-semibold">{brl(r.valor)}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => imprimirRecibo(r)}>
+                        <Printer className="h-4 w-4" /> Imprimir
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </Card>
       )}
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead></TableHead>
-              <TableHeadOrdenavel campo="data" ord={ord}>
-                Data
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="irmao" ord={ord}>
-                Irmão
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="conta" ord={ord}>
-                Conta
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="forma" ord={ord}>
-                Forma
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
-                Original
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="multaJuros" ord={ord} className="text-right">
-                Multa+Juros
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="desconto" ord={ord} className="text-right">
-                Desconto
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="total" ord={ord} className="text-right">
-                Total
-              </TableHeadOrdenavel>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {recibos.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
-                  Nenhum recibo emitido ainda.
-                </TableCell>
-              </TableRow>
-            )}
+        <div className="sm:hidden">
+          {recibos.length === 0 && (
+            <p className="py-6 text-center text-muted-foreground">Nenhum recibo emitido ainda.</p>
+          )}
+          <ul className="divide-y" aria-label="Recibos">
             {itensPagina.map((r) => (
-              <Fragment key={r.id}>
-                <TableRow>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setExpandido(expandido === r.id ? null : r.id)}
-                    >
-                      {expandido === r.id ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TableCell>
-                  <TableCell>{fmtDate(r.data)}</TableCell>
-                  <TableCell className="font-medium">{r.irmaos?.nome_civil ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {r.contas_financeiras?.nome ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {r.forma_pagamento ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right">{brl(r.valor_original)}</TableCell>
-                  <TableCell className="text-right">
-                    {brl(Number(r.valor_multa) + Number(r.valor_juros))}
-                  </TableCell>
-                  <TableCell className="text-right">{brl(r.desconto)}</TableCell>
-                  <TableCell className="text-right font-semibold">{brl(r.valor_total)}</TableCell>
-                </TableRow>
+              <li key={r.id}>
+                <button
+                  type="button"
+                  className="flex w-full items-start justify-between gap-3 p-4 text-left"
+                  onClick={() => setExpandido(expandido === r.id ? null : r.id)}
+                  aria-expanded={expandido === r.id}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-base font-medium leading-snug">
+                      {r.irmaos?.nome_civil ?? "—"}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                      {fmtDate(r.data)}
+                      {r.contas_financeiras?.nome && ` · ${r.contas_financeiras.nome}`}
+                      {r.forma_pagamento && ` · ${r.forma_pagamento}`}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <p className="text-right text-base font-semibold tabular-nums">
+                      {brl(r.valor_total)}
+                    </p>
+                    {expandido === r.id ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </button>
                 {expandido === r.id && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="bg-muted/30">
-                      <ReciboItensPanel reciboId={r.id} />
-                    </TableCell>
-                  </TableRow>
+                  <div className="border-t bg-muted/30 px-4 pb-4">
+                    <ReciboItensPanel reciboId={r.id} />
+                  </div>
                 )}
-              </Fragment>
+              </li>
             ))}
-          </TableBody>
-        </Table>
+          </ul>
+        </div>
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead></TableHead>
+                <TableHeadOrdenavel campo="data" ord={ord}>
+                  Data
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="irmao" ord={ord}>
+                  Irmão
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="conta" ord={ord}>
+                  Conta
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="forma" ord={ord}>
+                  Forma
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
+                  Original
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="multaJuros" ord={ord} className="text-right">
+                  Multa+Juros
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="desconto" ord={ord} className="text-right">
+                  Desconto
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="total" ord={ord} className="text-right">
+                  Total
+                </TableHeadOrdenavel>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recibos.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                    Nenhum recibo emitido ainda.
+                  </TableCell>
+                </TableRow>
+              )}
+              {itensPagina.map((r) => (
+                <Fragment key={r.id}>
+                  <TableRow>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setExpandido(expandido === r.id ? null : r.id)}
+                      >
+                        {expandido === r.id ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableCell>
+                    <TableCell>{fmtDate(r.data)}</TableCell>
+                    <TableCell className="font-medium">{r.irmaos?.nome_civil ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {r.contas_financeiras?.nome ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {r.forma_pagamento ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right">{brl(r.valor_original)}</TableCell>
+                    <TableCell className="text-right">
+                      {brl(Number(r.valor_multa) + Number(r.valor_juros))}
+                    </TableCell>
+                    <TableCell className="text-right">{brl(r.desconto)}</TableCell>
+                    <TableCell className="text-right font-semibold">{brl(r.valor_total)}</TableCell>
+                  </TableRow>
+                  {expandido === r.id && (
+                    <TableRow>
+                      <TableCell colSpan={9} className="bg-muted/30">
+                        <ReciboItensPanel reciboId={r.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
         <TabelaPaginacao
           pagina={pagina}
           totalPaginas={totalPaginas}
@@ -236,38 +315,55 @@ function ReciboItensPanel({ reciboId }: { reciboId: string }) {
   return (
     <div className="py-2">
       <div className="text-sm font-medium mb-2">Faturas incluídas neste recibo</div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHeadOrdenavel campo="descricao" ord={ord}>
-              Descrição
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="vencimento" ord={ord}>
-              Vencimento
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
-              Original
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="multa" ord={ord} className="text-right">
-              Multa
-            </TableHeadOrdenavel>
-            <TableHeadOrdenavel campo="juros" ord={ord} className="text-right">
-              Juros
-            </TableHeadOrdenavel>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ord.itensOrdenados.map((it) => (
-            <TableRow key={it.id}>
-              <TableCell>{it.lancamentos?.descricao}</TableCell>
-              <TableCell>{fmtDate(it.lancamentos?.data_vencimento)}</TableCell>
-              <TableCell className="text-right">{brl(it.valor_original)}</TableCell>
-              <TableCell className="text-right">{brl(it.valor_multa)}</TableCell>
-              <TableCell className="text-right">{brl(it.valor_juros)}</TableCell>
+      <ul className="divide-y sm:hidden" aria-label="Faturas incluídas neste recibo">
+        {ord.itensOrdenados.map((it) => (
+          <li key={it.id} className="py-2.5 text-sm first:pt-0 last:pb-0">
+            <p className="font-medium leading-snug">{it.lancamentos?.descricao}</p>
+            <p className="mt-0.5 text-muted-foreground">
+              Vence {fmtDate(it.lancamentos?.data_vencimento)}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Original {brl(it.valor_original)}
+              {Number(it.valor_multa) > 0 && <> · Multa {brl(it.valor_multa)}</>}
+              {Number(it.valor_juros) > 0 && <> · Juros {brl(it.valor_juros)}</>}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHeadOrdenavel campo="descricao" ord={ord}>
+                Descrição
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="vencimento" ord={ord}>
+                Vencimento
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="original" ord={ord} className="text-right">
+                Original
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="multa" ord={ord} className="text-right">
+                Multa
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="juros" ord={ord} className="text-right">
+                Juros
+              </TableHeadOrdenavel>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {ord.itensOrdenados.map((it) => (
+              <TableRow key={it.id}>
+                <TableCell>{it.lancamentos?.descricao}</TableCell>
+                <TableCell>{fmtDate(it.lancamentos?.data_vencimento)}</TableCell>
+                <TableCell className="text-right">{brl(it.valor_original)}</TableCell>
+                <TableCell className="text-right">{brl(it.valor_multa)}</TableCell>
+                <TableCell className="text-right">{brl(it.valor_juros)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

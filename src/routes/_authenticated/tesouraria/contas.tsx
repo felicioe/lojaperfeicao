@@ -149,7 +149,45 @@ function Contas() {
       </Card>
 
       <Card>
-        <div className="overflow-x-auto">
+        <div className="sm:hidden">
+          <ul className="divide-y" aria-label="Contas financeiras">
+            {ord.itensOrdenados.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  className="flex w-full items-start justify-between gap-3 p-4 text-left"
+                  onClick={() => setExpandido(expandido === c.id ? null : c.id)}
+                  aria-expanded={expandido === c.id}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-base font-medium leading-snug">{c.nome}</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      {{ caixa: "Caixa", banco: "Banco", outro: "Outro" }[c.tipo as string] ??
+                        c.tipo}{" "}
+                      · Inicial {brl(c.saldo_inicial)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <p className="text-right text-base font-semibold tabular-nums">
+                      {brl(c.saldo_atual)}
+                    </p>
+                    {expandido === c.id ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </button>
+                {expandido === c.id && (
+                  <div className="border-t bg-muted/30 px-4 pb-4">
+                    <ChavesPixPanel contaId={c.id} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -315,7 +353,57 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
         Usadas pra gerar o QR code do Pix nas faturas cobradas com essa conta. Nome do beneficiário
         (máx. 25 caracteres) e cidade (máx. 15) são exigidos pelo padrão do Banco Central.
       </p>
-      <div className="overflow-x-auto">
+      <div className="sm:hidden">
+        {chaves.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhuma chave cadastrada ainda.</p>
+        )}
+        <ul className="divide-y rounded-lg border" aria-label="Chaves PIX">
+          {ordChaves.itensOrdenados.map((c) => (
+            <li key={c.id} className="p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-sm font-medium">{TIPO_PIX_LABEL[c.tipo]}</span>
+                    {c.principal && <Badge variant="secondary">Principal</Badge>}
+                  </div>
+                  <p className="mt-0.5 break-all font-mono text-sm text-muted-foreground">
+                    {c.chave || "Código/QR cadastrado"}
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {c.pix_copia_cola && <Badge variant="outline">Copia e cola</Badge>}
+                    {c.qr_code_url && <Badge variant="outline">Imagem QR</Badge>}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {c.nome_beneficiario} · {c.cidade}
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 shrink-0 p-0">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir chave PIX?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        A chave "{c.chave}" ({TIPO_PIX_LABEL[c.tipo]}) será removida
+                        permanentemente. Faturas que já usam essa chave para gerar o QR code
+                        deixarão de funcionar.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => remover(c.id)}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
         <Table>
           <TableHeader>
             <TableRow>
