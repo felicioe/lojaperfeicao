@@ -866,35 +866,45 @@ export function AppShell({ children }: { children: ReactNode }) {
                 asButtons={can.isMemberOnly}
               />
             </nav>
-            <div className="border-t border-sidebar-border p-3">
-              <div className="mb-2 text-xs">
-                <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
-                {user?.nomeCompleto && (
-                  <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
-                )}
+            <div className="border-t border-sidebar-border p-2.5">
+              <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-xs">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
+                  {user?.nomeCompleto && (
+                    <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
+                  )}
+                </div>
+                <Link
+                  to="/privacidade"
+                  target="_blank"
+                  className="shrink-0 text-sidebar-foreground/55 underline"
+                >
+                  Privacidade
+                </Link>
               </div>
-              <Button
-                variant="outline"
-                className="h-10 w-full text-foreground"
-                onClick={toggleDark}
-              >
-                {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}
-                {dark ? "Modo claro" : "Modo escuro"}
-              </Button>
-              <Button
-                variant="outline"
-                className="mt-2 h-10 w-full text-foreground"
-                onClick={signOut}
-              >
-                <LogOut className="mr-1.5 h-4 w-4" /> Sair
-              </Button>
-              <Link
-                to="/privacidade"
-                target="_blank"
-                className="mt-2 block text-center text-xs text-sidebar-foreground/55 underline"
-              >
-                Política de Privacidade
-              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-foreground"
+                  onClick={toggleDark}
+                >
+                  {dark ? (
+                    <Sun className="mr-1.5 h-3.5 w-3.5" />
+                  ) : (
+                    <Moon className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {dark ? "Claro" : "Escuro"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-foreground"
+                  onClick={signOut}
+                >
+                  <LogOut className="mr-1.5 h-3.5 w-3.5" /> Sair
+                </Button>
+              </div>
             </div>
           </SheetContent>
         </Sheet>
