@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,23 +16,31 @@ import { CabecalhoInstitucional } from "@/components/app/CabecalhoInstitucional"
 
 function usePixQrCode(copiaCola: string | null) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
-    if (!copiaCola) {
+    if (!copiaCola || !canvasRef.current) {
       setDataUrl(null);
       return;
     }
     let cancelado = false;
-    QRCode.toDataURL(copiaCola, { margin: 1, width: 220 })
-      .then((url) => !cancelado && setDataUrl(url))
+    QRCode.toCanvas(canvasRef.current, copiaCola, { margin: 1, width: 220 })
+      .then(() => {
+        if (!cancelado) {
+          const url = canvasRef.current?.toDataURL("image/png");
+          setDataUrl(url || null);
+        }
+      })
       .catch((erro) => {
         console.error("Erro ao gerar QR code:", erro);
-        !cancelado && setDataUrl(null);
+        if (!cancelado) setDataUrl(null);
       });
     return () => {
       cancelado = true;
     };
   }, [copiaCola]);
-  return dataUrl;
+
+  return { dataUrl, canvasRef };
 }
 
 export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
@@ -47,18 +55,8 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
           txid: fatura.id.replace(/-/g, "").slice(0, 25),
         })
       : null);
-  const qrGerado = usePixQrCode(copiaCola);
+  const { dataUrl: qrGerado, canvasRef } = usePixQrCode(copiaCola);
   const qrDataUrl = fatura.pix_qr_code_url || qrGerado;
-
-  if (!fatura.pago && !qrDataUrl) {
-    console.warn("QR Code não disponível", {
-      forma_cobranca: fatura.forma_cobranca,
-      pix_chave: fatura.pix_chave,
-      pix_nome_beneficiario: fatura.pix_nome_beneficiario,
-      pix_cidade: fatura.pix_cidade,
-      copiaCola: copiaCola?.slice(0, 50),
-    });
-  }
 
   const hoje = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date());
   const copiar = async () => {
@@ -195,11 +193,16 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
                     </Button>
                   </div>
                 </div>
-                <img
-                  src={qrDataUrl}
-                  alt="QR code Pix"
-                  className="h-36 w-36 rounded border bg-white p-1.5"
-                />
+                <>
+                  <canvas ref={canvasRef} className="hidden" />
+                  {qrDataUrl && (
+                    <img
+                      src={qrDataUrl}
+                      alt="QR code Pix"
+                      className="h-36 w-36 rounded border bg-white p-1.5"
+                    />
+                  )}
+                </>
               </div>
             </div>
           </>
