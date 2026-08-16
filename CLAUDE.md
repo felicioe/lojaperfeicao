@@ -7,18 +7,6 @@ interação — mensagens de chat, resumos, perguntas de esclarecimento etc.
 Comentários de código e nomes de identificadores seguem o padrão já usado no
 projeto (também majoritariamente em português).
 
-## Hospedagem e deploy — só Hostinger
-
-O sistema roda **exclusivamente na Hostinger**. O deploy é a Hostinger puxando
-do GitHub e rodando o build ela mesma, num Node normal (ver `nitro.preset =
-"node-server"` no `vite.config.ts`), e as variáveis de ambiente ficam no painel
-Node.js da Hostinger — arquivo `.env` não é lido em produção.
-
-**Nunca sugerir publicar, deployar ou hospedar no Lovable**, nem tratar o
-Lovable como destino de nada. O pacote `@lovable.dev/vite-tanstack-config` é só
-uma dependência de configuração do Vite herdada do início do projeto; a
-presença dele não significa que o Lovable faça parte do fluxo de deploy.
-
 ## Forma de trabalho para conjuntos de novas funcionalidades
 
 Quando o usuário pedir várias funcionalidades novas de uma vez (ex.: a partir

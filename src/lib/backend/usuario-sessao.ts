@@ -27,24 +27,13 @@ export type UsuarioSessao = {
 export async function carregarUsuarioComPapeis(usuarioId: string): Promise<UsuarioSessao | null> {
   return withUserConnection(usuarioId, async (conn) => {
     const [usuarios] = await conn.query<RowDataPacket[]>(
-      `SELECT u.id, u.email, u.nome_completo, u.consentimento_lgpd_em, u.ativo,
-              u.deve_trocar_senha, l.ativa AS loja_ativa
-         FROM usuarios u
-         LEFT JOIN lojas l ON l.id = u.loja_id
-        WHERE u.id = ?`,
+      "SELECT id, email, nome_completo, consentimento_lgpd_em, ativo, deve_trocar_senha FROM usuarios WHERE id = ?",
       [usuarioId],
     );
     const usuario = usuarios[0];
     // usuário inativo é tratado como "sem sessão" — derruba qualquer
     // sessão já aberta no próximo carregamento, não só bloqueia o login.
     if (!usuario || !usuario.ativo) return null;
-    // Loja suspensa pelo super-admin (issue #339) tem exatamente a mesma
-    // semântica, um nível acima: ninguém da loja entra, e quem já estava
-    // dentro cai na próxima navegação. Como todos os caminhos de login
-    // (senha, passkey, 2FA, Google, Facebook) terminam aqui, esta é a única
-    // checagem necessária — sem ela a pessoa autenticava normalmente e só
-    // encontrava telas vazias, sem explicação nenhuma.
-    if (!usuario.loja_ativa) return null;
 
     const [papeis] = await conn.query<RowDataPacket[]>(
       "SELECT papel FROM usuarios_papeis WHERE usuario_id = ?",

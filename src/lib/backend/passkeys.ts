@@ -14,7 +14,6 @@ import {
 import { isoBase64URL, isoUint8Array } from "@simplewebauthn/server/helpers";
 import { comSessao } from "./authz";
 import { withUserConnection } from "./db";
-import { usuarioUnicoParaLogin } from "./login-loja";
 import { criarSessao, salvarDesafioWebauthn, consumirDesafioWebauthn } from "./session";
 import { carregarUsuarioComPapeis, type UsuarioSessao } from "./usuario-sessao";
 import { registrarAuditoria } from "./auditoria";
@@ -161,7 +160,7 @@ export const iniciarLoginPasskey = createServerFn({ method: "POST" })
         "SELECT id FROM usuarios WHERE email = ? AND ativo = TRUE",
         [data.email],
       );
-      return usuarioUnicoParaLogin(rows);
+      return rows[0] ?? null;
     });
     // Mensagem propositalmente igual à de "nenhuma passkey cadastrada" —
     // não confirma se o e-mail existe (evita enumeração de contas).

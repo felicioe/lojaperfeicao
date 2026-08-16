@@ -24,102 +24,77 @@ export class SemPermissaoError extends Error {
  * estiver ativa, exceto as poucas funções que o próprio fluxo de troca
  * precisa (passadas com ignorarTrocaSenhaObrigatoria: true).
  */
+async function usuarioDeveTrocarSenha(conn: PoolConnection, usuarioId: string): Promise<boolean> {
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    "SELECT deve_trocar_senha FROM usuarios WHERE id = ?",
+    [usuarioId],
+  );
+  return !!row?.deve_trocar_senha;
+}
+
+/**
+ * Sessão é um cookie assinado stateless — não dá pra "derrubar" um cookie
+ * específico de outro dispositivo. Em vez disso, qualquer sessão criada
+ * ANTES da última troca de senha (usuarios.senha_alterada_em) é tratada
+ * como inválida (achado #184 da revisão de segurança): alguém que trocou a
+ * senha pra travar um acesso vazado/dispositivo perdido não queria que a
+ * sessão antiga continuasse valendo por até 30 dias.
+ */
+async function sessaoDesatualizada(conn: PoolConnection, usuarioId: string): Promise<boolean> {
+  const criadaEm = await criadaEmDaSessao();
+  if (!criadaEm) return false; // sessão anterior à introdução desse campo
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    "SELECT senha_alterada_em FROM usuarios WHERE id = ?",
+    [usuarioId],
+  );
+  if (!row?.senha_alterada_em) return false;
+  return new Date(row.senha_alterada_em).getTime() > criadaEm;
+}
+
 type OpcoesAutorizacao = {
   ignorarTrocaSenhaObrigatoria?: boolean;
   ignorarSessaoDesatualizada?: boolean;
 };
 
-/**
- * Porteiro de toda requisição autenticada: valida a senha/sessão e resolve a
- * loja (tenant) do contexto, devolvendo o id da loja.
- *
- * As três checagens vêm de uma query só — antes eram duas (deve_trocar_senha
- * e senha_alterada_em, cada uma com seu SELECT) e a loja seria uma terceira.
- * Numa hospedagem compartilhada com pool pequeno, economizar duas idas ao
- * banco por requisição não é micro-otimização.
- *
- * O que cada checagem defende:
- *
- * - `deve_trocar_senha`: a troca obrigatória até então só existia como
- *   redirecionamento no roteador React — quem chamasse uma server function
- *   direto nunca era barrado (achado #156 da revisão de segurança). As
- *   poucas funções que o próprio fluxo de troca precisa passam
- *   `ignorarTrocaSenhaObrigatoria`.
- *
- * - `senha_alterada_em`: sessão é cookie assinado stateless, não dá pra
- *   "derrubar" a de outro dispositivo. Em vez disso, toda sessão criada
- *   ANTES da última troca de senha é tratada como inválida (achado #184) —
- *   quem trocou a senha pra travar um acesso vazado não queria que a sessão
- *   antiga valesse por mais 30 dias.
- *
- * - loja: `@current_loja_id` é derivado do usuário em withUserConnection
- *   (db.ts). Aqui confirmamos que ela existe e está ativa. Usuário órfão
- *   (sem loja) é recusado em vez de rodar com escopo nulo e comportamento
- *   imprevisível; loja inativa (suspensa pelo super-admin, issue #339)
- *   barra todos os usuários dela na hora, não só no próximo login.
- */
-async function checarSessaoEResolverLoja(
+async function checarSenha(
   conn: PoolConnection,
   usuarioId: string,
   opcoes: OpcoesAutorizacao | undefined,
-): Promise<string> {
-  const [[row]] = await conn.query<RowDataPacket[]>(
-    `SELECT u.deve_trocar_senha, u.senha_alterada_em, l.id AS loja_id, l.ativa AS loja_ativa
-       FROM usuarios u
-       LEFT JOIN lojas l ON l.id = u.loja_id
-      WHERE u.id = ?`,
-    [usuarioId],
-  );
-  if (!row) throw new SemPermissaoError("Não autenticado.");
-
-  if (!opcoes?.ignorarTrocaSenhaObrigatoria && row.deve_trocar_senha) {
+): Promise<void> {
+  if (!opcoes?.ignorarTrocaSenhaObrigatoria && (await usuarioDeveTrocarSenha(conn, usuarioId))) {
     throw new SemPermissaoError("Troque sua senha antes de continuar.");
   }
-  if (!opcoes?.ignorarSessaoDesatualizada && row.senha_alterada_em) {
-    const criadaEm = await criadaEmDaSessao();
-    // Sessão anterior à introdução do campo: tratada como válida até expirar
-    // naturalmente pelo maxAge do cookie.
-    if (criadaEm && new Date(row.senha_alterada_em).getTime() > criadaEm) {
-      throw new SemPermissaoError("Sua senha foi alterada. Faça login novamente.");
-    }
+  if (!opcoes?.ignorarSessaoDesatualizada && (await sessaoDesatualizada(conn, usuarioId))) {
+    throw new SemPermissaoError("Sua senha foi alterada. Faça login novamente.");
   }
-
-  if (!row.loja_id) throw new SemPermissaoError("Usuário sem loja associada.");
-  if (!row.loja_ativa) {
-    throw new SemPermissaoError("Esta loja está inativa. Contate o administrador.");
-  }
-  return row.loja_id as string;
 }
 
-/** Equivalente a `TO authenticated USING (true)`: só exige sessão válida.
- * O terceiro argumento do callback é a loja do contexto — a maioria das
- * queries não precisa dele (usa `loja_id = @current_loja_id` direto no SQL),
- * mas quem monta INSERT em JS ou chama procedure com loja explícita usa. */
+/** Equivalente a `TO authenticated USING (true)`: só exige sessão válida. */
 export async function comSessao<T>(
-  fn: (conn: PoolConnection, usuarioId: string, lojaId: string) => Promise<T>,
+  fn: (conn: PoolConnection, usuarioId: string) => Promise<T>,
   opcoes?: OpcoesAutorizacao,
 ): Promise<T> {
   const usuarioId = await usuarioIdDaSessao();
   if (!usuarioId) throw new SemPermissaoError("Não autenticado.");
   return withUserConnection(usuarioId, async (conn) => {
-    const lojaId = await checarSessaoEResolverLoja(conn, usuarioId, opcoes);
-    return fn(conn, usuarioId, lojaId);
+    await checarSenha(conn, usuarioId, opcoes);
+    return fn(conn, usuarioId);
   });
 }
 
 /** Equivalente a uma policy `USING (has_role(auth.uid(), 'x') OR has_role(auth.uid(), 'y'))`. */
 export async function comPapel<T>(
   papeis: string[],
-  fn: (conn: PoolConnection, usuarioId: string, lojaId: string) => Promise<T>,
+  fn: (conn: PoolConnection, usuarioId: string) => Promise<T>,
   opcoes?: OpcoesAutorizacao,
 ): Promise<T> {
   const usuarioId = await usuarioIdDaSessao();
   if (!usuarioId) throw new SemPermissaoError("Não autenticado.");
   return withUserConnection(usuarioId, async (conn) => {
-    const lojaId = await checarSessaoEResolverLoja(conn, usuarioId, opcoes);
+    await checarSenha(conn, usuarioId, opcoes);
     const condicoes = papeis.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
     const [[row]] = await conn.query<RowDataPacket[]>(`SELECT (${condicoes}) AS ok`, papeis);
     if (!row.ok) throw new SemPermissaoError();
-    return fn(conn, usuarioId, lojaId);
+    return fn(conn, usuarioId);
   });
 }

@@ -115,19 +115,10 @@ async function gravarNaFila(
     criadoPor?: string;
   },
 ): Promise<string> {
-  // O id precisa ser gerado aqui e gravado junto: quem chama usa o retorno
-  // para dar UPDATE na linha depois de tentar enviar. Antes o INSERT deixava
-  // o DEFAULT uuid() do MariaDB gerar o id e a função devolvia um randomUUID()
-  // sem relação nenhuma com a linha — todo UPDATE ... WHERE id = ? afetava
-  // zero linhas. Efeito: a fila ficava eternamente 'pendente' com tentativas 0,
-  // ultimo_erro NUNCA era preenchido e o retry do CRON (que procura
-  // 'erro_permanente') nunca via nada para reprocessar.
-  const id = randomUUID();
   await conn.query(
-    `INSERT INTO filas_email (id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, criado_por)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO filas_email (chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, criado_por)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      id,
       params.chave,
       params.tipo,
       JSON.stringify(params.destinatarios),
@@ -140,7 +131,7 @@ async function gravarNaFila(
       params.criadoPor || null,
     ],
   );
-  return id;
+  return randomUUID();
 }
 
 // Verifica se já foi enviado com sucesso (para evitar reenvios desnecessários)
@@ -564,14 +555,7 @@ export async function enviarCobrancaManual(lancamentoId: string): Promise<boolea
 // ---------- Envio manual de relatório (issue #111, com fila) ----------
 // Sob demanda — cada chamada gera uma chave única (randomUUID).
 
-// `erro` só vem preenchido quando sucesso = false. É a mensagem que o servidor
-// SMTP devolveu ("Invalid login", "Message size exceeds limit"...), sem a qual
-// quem administra a Loja pelo navegador não tem como saber o que corrigir.
-export type ResultadoEnvioRelatorio = {
-  destinatario: string;
-  sucesso: boolean;
-  erro?: string;
-}[];
+export type ResultadoEnvioRelatorio = { destinatario: string; sucesso: boolean }[];
 
 export async function enviarArquivoPorEmail(params: {
   destinatarios: string[];
@@ -603,13 +587,6 @@ export async function enviarArquivoPorEmail(params: {
     const remetente = process.env.SMTP_FROM || process.env.SMTP_USER || "";
     let sucessoCount = 0;
     const resultados: ResultadoEnvioRelatorio = [];
-    // O motivo real da falha (senha SMTP recusada, host errado, anexo grande
-    // demais...) vinha só do console.error, que em produção fica no log do
-    // servidor — inacessível para quem administra a Loja pelo navegador. A
-    // tela mostrava "Falha ao enviar" sem dizer por quê, e a coluna
-    // filas_email.ultimo_erro, que existe justamente para isso, ficava NULL.
-    // Agora o erro é guardado e devolvido junto com o resultado.
-    let ultimoErro: string | null = null;
 
     for (const dest of params.destinatarios) {
       try {
@@ -632,8 +609,7 @@ export async function enviarArquivoPorEmail(params: {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`Falha ao enviar relatório para ${dest}:`, msg);
-        ultimoErro = msg;
-        resultados.push({ destinatario: dest, sucesso: false, erro: msg });
+        resultados.push({ destinatario: dest, sucesso: false });
       }
     }
 
@@ -643,13 +619,10 @@ export async function enviarArquivoPorEmail(params: {
       `UPDATE filas_email SET
        status = ?,
        tentativas = 1,
-       ultimo_erro = ?,
        enviado_em = ${todoEnviado ? "CURRENT_TIMESTAMP" : "NULL"},
        atualizado_em = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      // VARCHAR(500) na tabela: corta antes para não estourar a coluna e
-      // perder o registro inteiro por causa do tamanho da mensagem.
-      [todoEnviado ? "enviado" : "erro_permanente", ultimoErro?.slice(0, 500) ?? null, filaId],
+      [todoEnviado ? "enviado" : "erro_permanente", filaId],
     );
 
     return resultados;

@@ -46,9 +46,8 @@ export const listarDespesasRecorrentes = createServerFn({ method: "GET" }).handl
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT dr.*, pc.codigo AS plano_codigo, pc.nome AS plano_nome, t.nome AS terceiro_nome
          FROM despesas_recorrentes dr
-         LEFT JOIN plano_contas pc ON pc.id = dr.plano_conta_id AND pc.loja_id = dr.loja_id
-         LEFT JOIN terceiros t ON t.id = dr.terceiro_id AND t.loja_id = dr.loja_id
-         WHERE dr.loja_id = @current_loja_id
+         LEFT JOIN plano_contas pc ON pc.id = dr.plano_conta_id
+         LEFT JOIN terceiros t ON t.id = dr.terceiro_id
          ORDER BY dr.descricao`,
       );
       return rows.map((r) => ({
@@ -74,7 +73,7 @@ export const listarRecorrentesEfetivadasNoMes = createServerFn({ method: "GET" }
   .handler(async ({ data }): Promise<string[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT DISTINCT recorrente_id FROM lancamentos WHERE loja_id = @current_loja_id AND competencia_mes = ? AND recorrente_id IS NOT NULL",
+        "SELECT DISTINCT recorrente_id FROM lancamentos WHERE competencia_mes = ? AND recorrente_id IS NOT NULL",
         [data.inicioMes],
       );
       return rows.map((r) => r.recorrente_id as string);
@@ -110,7 +109,7 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
       if (data.id) {
         await conn.query(
           `UPDATE despesas_recorrentes SET descricao=?, valor=?, dia_vencimento=?, plano_conta_id=?, terceiro_id=?,
-           data_inicio=?, data_fim=?, observacoes=? WHERE id=? AND loja_id = @current_loja_id`,
+           data_inicio=?, data_fim=?, observacoes=? WHERE id=?`,
           [...valores, data.id],
         );
         await registrarAuditoria(
@@ -125,8 +124,8 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
       } else {
         const id = crypto.randomUUID();
         await conn.query(
-          `INSERT INTO despesas_recorrentes (loja_id, id, descricao, valor, dia_vencimento, plano_conta_id, terceiro_id, data_inicio, data_fim, observacoes)
-           VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO despesas_recorrentes (id, descricao, valor, dia_vencimento, plano_conta_id, terceiro_id, data_inicio, data_fim, observacoes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [id, ...valores],
         );
         await registrarAuditoria(
@@ -142,7 +141,7 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
       }
       await conn.query(
         `DELETE FROM lancamentos
-         WHERE loja_id = @current_loja_id AND recorrente_id = ? AND pago = FALSE AND valor_efetivo_confirmado = FALSE
+         WHERE recorrente_id = ? AND pago = FALSE AND valor_efetivo_confirmado = FALSE
            AND competencia_mes > COALESCE(?, '9999-12-01')`,
         [data.id, data.data_fim],
       );
@@ -155,16 +154,13 @@ export const alternarAtivoRecorrente = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
-      await conn.query(
-        "UPDATE despesas_recorrentes SET ativo=? WHERE id=? AND loja_id = @current_loja_id",
-        [data.ativo, data.id],
-      );
+      await conn.query("UPDATE despesas_recorrentes SET ativo=? WHERE id=?", [data.ativo, data.id]);
       if (data.ativo) {
         await garantirPrevisoesRecorrentes(conn);
       } else {
         await conn.query(
           `DELETE FROM lancamentos
-           WHERE loja_id = @current_loja_id AND recorrente_id = ? AND pago = FALSE AND valor_efetivo_confirmado = FALSE
+           WHERE recorrente_id = ? AND pago = FALSE AND valor_efetivo_confirmado = FALSE
              AND competencia_mes >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')`,
           [data.id],
         );

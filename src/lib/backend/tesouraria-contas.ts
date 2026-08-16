@@ -28,7 +28,7 @@ export const listarContasFinanceiras = createServerFn({ method: "GET" }).handler
   async (): Promise<ContaFinanceira[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM contas_financeiras WHERE loja_id = @current_loja_id AND ativo = TRUE ORDER BY nome",
+        "SELECT * FROM contas_financeiras WHERE ativo = TRUE ORDER BY nome",
       );
       return rows as ContaFinanceira[];
     });
@@ -38,15 +38,8 @@ export const listarContasFinanceiras = createServerFn({ method: "GET" }).handler
 export const listarSaldoContas = createServerFn({ method: "GET" }).handler(
   async (): Promise<SaldoConta[]> => {
     return comSessao(async (conn) => {
-      // v_saldo_contas ainda não conhece loja (a recriação das views é a
-      // issue #349), então o escopo vem do JOIN com a tabela base: cada
-      // conta pertence a uma loja, e o saldo é calculado por conta. Sem este
-      // JOIN a tela listaria as contas de todas as lojas.
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT v.* FROM v_saldo_contas v
-           JOIN contas_financeiras cf ON cf.id = v.id
-          WHERE cf.loja_id = @current_loja_id
-          ORDER BY v.nome`,
+        "SELECT * FROM v_saldo_contas ORDER BY nome",
       );
       return rows as SaldoConta[];
     });
@@ -65,7 +58,7 @@ export const criarContaFinanceira = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       await conn.query(
-        "INSERT INTO contas_financeiras (loja_id, nome, tipo, saldo_inicial, banco) VALUES (@current_loja_id, ?, ?, ?, ?)",
+        "INSERT INTO contas_financeiras (nome, tipo, saldo_inicial, banco) VALUES (?, ?, ?, ?)",
         [data.nome, data.tipo, data.saldo_inicial, data.banco],
       );
     });
@@ -93,7 +86,7 @@ export const listarChavesPix = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ChavePix[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM contas_financeiras_pix WHERE loja_id = @current_loja_id AND conta_financeira_id = ? ORDER BY principal DESC, criado_em",
+        "SELECT * FROM contas_financeiras_pix WHERE conta_financeira_id = ? ORDER BY principal DESC, criado_em",
         [data.contaId],
       );
       return rows as ChavePix[];
@@ -111,8 +104,7 @@ export const listarTodasChavesPix = createServerFn({ method: "GET" }).handler(
         `SELECT pix.*, cf.nome AS conta_nome
          FROM contas_financeiras_pix pix
          JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id
-         WHERE pix.loja_id = @current_loja_id AND cf.loja_id = @current_loja_id
-           AND cf.ativo = TRUE
+         WHERE cf.ativo = TRUE
          ORDER BY cf.nome, pix.principal DESC`,
       );
       return rows as ChavePixComConta[];
@@ -143,7 +135,7 @@ export const criarChavePix = createServerFn({ method: "POST" })
       }
       if (data.principal) {
         await conn.query(
-          "UPDATE contas_financeiras_pix SET principal = FALSE WHERE loja_id = @current_loja_id AND conta_financeira_id = ?",
+          "UPDATE contas_financeiras_pix SET principal = FALSE WHERE conta_financeira_id = ?",
           [data.contaFinanceiraId],
         );
       }
@@ -159,8 +151,8 @@ export const criarChavePix = createServerFn({ method: "POST" })
       if (pixAvancadoDisponivel) {
         await conn.query(
           `INSERT INTO contas_financeiras_pix
-             (loja_id, conta_financeira_id, tipo, chave, pix_copia_cola, qr_code_url, nome_beneficiario, cidade, principal)
-           VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (conta_financeira_id, tipo, chave, pix_copia_cola, qr_code_url, nome_beneficiario, cidade, principal)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             data.contaFinanceiraId,
             data.tipo,
@@ -175,8 +167,8 @@ export const criarChavePix = createServerFn({ method: "POST" })
       } else {
         await conn.query(
           `INSERT INTO contas_financeiras_pix
-             (loja_id, conta_financeira_id, tipo, chave, nome_beneficiario, cidade, principal)
-           VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?)`,
+             (conta_financeira_id, tipo, chave, nome_beneficiario, cidade, principal)
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [
             data.contaFinanceiraId,
             data.tipo,
@@ -220,16 +212,11 @@ export const removerChavePix = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      // O id vem da requisição: sem o filtro de loja, trocar o id no payload
-      // apagaria a chave PIX de outra loja (IDOR).
       const [[chave]] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM contas_financeiras_pix WHERE id = ? AND loja_id = @current_loja_id",
+        "SELECT * FROM contas_financeiras_pix WHERE id = ?",
         [data.id],
       );
-      await conn.query(
-        "DELETE FROM contas_financeiras_pix WHERE id = ? AND loja_id = @current_loja_id",
-        [data.id],
-      );
+      await conn.query("DELETE FROM contas_financeiras_pix WHERE id = ?", [data.id]);
       await registrarAuditoria(
         conn,
         usuarioIdAtual,

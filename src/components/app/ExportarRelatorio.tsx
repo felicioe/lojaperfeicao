@@ -110,15 +110,7 @@ export function ExportarRelatorio({
         toast.success("Relatório enviado por e-mail.");
         setOpenEmail(false);
       } else {
-        // Mostrar o motivo devolvido pelo SMTP, e não só "falhou": é o que
-        // diferencia "a senha do e-mail está errada" de "o anexo é grande
-        // demais" sem precisar abrir o log do servidor.
-        const motivo = falhas.find((f) => f.erro)?.erro;
-        toast.error(
-          `Falha ao enviar para: ${falhas.map((f) => f.destinatario).join(", ")}` +
-            (motivo ? ` — ${motivo}` : ""),
-          { duration: 12000 },
-        );
+        toast.error(`Falha ao enviar para: ${falhas.map((f) => f.destinatario).join(", ")}`);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao enviar relatório.");

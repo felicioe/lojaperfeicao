@@ -39,24 +39,18 @@ const enviarSchema = baseSchema.extend({
 
 export const enviarRelatorioPorEmail = createServerFn({ method: "POST" })
   .validator((d: unknown) => enviarSchema.parse(d))
-  // O tipo está repetido aqui em vez de importado de email-dispatch de
-  // propósito: este arquivo é alcançável pelo cliente, e importar de lá
-  // arrastaria o nodemailer (e o pool MySQL) para o bundle do navegador.
-  // `erro` acompanha o resultado para a tela poder dizer POR QUE falhou.
-  .handler(
-    async ({ data }): Promise<{ destinatario: string; sucesso: boolean; erro?: string }[]> => {
-      return comPapel(PAPEIS, async () => {
-        const { gerarArquivo, mimeTypePara, extensaoPara } = await import("../relatorio-export");
-        const { enviarArquivoPorEmail } = await import("../email-dispatch");
-        const buffer = await gerarArquivo(data.formato, data.titulo, data.colunas, data.linhas);
-        return enviarArquivoPorEmail({
-          destinatarios: data.destinatarios,
-          assunto: `Relatório: ${data.titulo}`,
-          corpoTexto: `Segue em anexo o relatório "${data.titulo}".`,
-          anexoBuffer: buffer,
-          anexoNome: `${data.titulo}.${extensaoPara(data.formato)}`,
-          anexoMimeType: mimeTypePara(data.formato),
-        });
+  .handler(async ({ data }): Promise<{ destinatario: string; sucesso: boolean }[]> => {
+    return comPapel(PAPEIS, async () => {
+      const { gerarArquivo, mimeTypePara, extensaoPara } = await import("../relatorio-export");
+      const { enviarArquivoPorEmail } = await import("../email-dispatch");
+      const buffer = await gerarArquivo(data.formato, data.titulo, data.colunas, data.linhas);
+      return enviarArquivoPorEmail({
+        destinatarios: data.destinatarios,
+        assunto: `Relatório: ${data.titulo}`,
+        corpoTexto: `Segue em anexo o relatório "${data.titulo}".`,
+        anexoBuffer: buffer,
+        anexoNome: `${data.titulo}.${extensaoPara(data.formato)}`,
+        anexoMimeType: mimeTypePara(data.formato),
       });
-    },
-  );
+    });
+  });

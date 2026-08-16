@@ -288,59 +288,6 @@ importar MySQL) — o corte é só de configuração e troca de fonte de verdade
    versão. Depois de confirmado que está tudo funcionando em produção real,
    desativar/arquivar o projeto Supabase.
 
-### 15. Multi-tenant: escopo de loja (issues #336/#337)
-
-O sistema virou SaaS: cada loja (tenant) é uma linha em `lojas`, e toda tabela
-de negócio tem `loja_id` (migração 0092). A regra de ouro é que **nenhuma
-query pode rodar sem escopo de loja** — esquecer um filtro é vazamento de
-dados entre lojas, não um bug cosmético.
-
-**Como o escopo chega no banco.** `withUserConnection()` (`db.ts`), no mesmo
-checkout de pool onde já setava `@current_usuario_id`, também seta
-`@current_loja_id` — **derivado do próprio usuário** (`usuarios.loja_id`), não
-recebido por parâmetro. Duas consequências importantes:
-
-1. a loja do contexto nunca pode divergir de quem está autenticado, porque
-   ninguém "passa" a loja — ela é lida do usuário;
-2. toda query escopa com `loja_id = @current_loja_id`, que é SQL puro. Não foi
-   preciso mudar a assinatura de nenhuma das ~350 server functions nem
-   carregar a loja por parâmetro através de dez camadas.
-
-Para trabalho sem usuário autenticado que ainda assim pertence a uma loja
-(crons, fila de e-mail, agenda pública — issue #341), existe
-`withLojaConnection(lojaId, fn)`, que diz a loja explicitamente. Sem usuário e
-sem loja explícita, `@current_loja_id` fica NULL e as queries escopadas não
-retornam nada — falha fechada, que é o comportamento desejado.
-
-**Onde o acesso é barrado.** `comSessao`/`comPapel` (`authz.ts`) resolvem a
-loja numa única query que também checa `deve_trocar_senha` e
-`senha_alterada_em` (antes eram dois SELECTs separados; agora é um só, então o
-multi-tenant saiu de graça em número de idas ao banco). Usuário sem loja e
-loja inativa são recusados ali. Além disso, `carregarUsuarioComPapeis()`
-(`usuario-sessao.ts`) devolve `null` quando a loja está inativa — como todos
-os caminhos de login (senha, passkey, 2FA, Google, Facebook) terminam nessa
-função, isso barra o login e derruba sessões já abertas na próxima navegação,
-com uma única checagem.
-
-**Login e identificadores.** `email`, `google_id` e `facebook_id` passaram a
-ser únicos **por loja**, então uma busca por identificador pode casar em mais
-de uma linha. `usuarioUnicoParaLogin()` (`login-loja.ts`) recusa nesse caso em
-vez de escolher a primeira — autenticar alguém numa loja arbitrária seria o
-pior tipo de bug possível aqui. Quando a resolução por subdomínio entrar
-(issue #338), a busca passa a ser filtrada pela loja do subdomínio e a
-ambiguidade deixa de existir na origem.
-
-**Como isso é garantido de verdade.** `npm run checar:escopo-loja` lê a lista
-de tabelas multi-tenant direto da migração 0092 (fonte única — tabela nova com
-`loja_id` é aprendida sozinha), extrai todo SQL do backend e reprova qualquer
-statement que toque uma tabela multi-tenant sem se referir a `loja_id`. As
-poucas exceções legítimas (buscas de login, que por definição acontecem antes
-de existir loja no contexto) estão numa lista com o motivo escrito, e o
-próprio script reprova exceção que ficou órfã — uma exceção que não casa mais
-com nenhuma query dá falsa sensação de cobertura revisada. Rodar isso é mais
-confiável que revisar ~420 statements no olho, e continua valendo para a
-próxima query que alguém escrever.
-
 ### 11. Autenticação e sessão (issue #49) — implementado
 
 `src/lib/backend/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
