@@ -22,6 +22,19 @@ function origemPublica(): string {
   return process.env.PUBLIC_ORIGIN || "http://localhost:5173";
 }
 
+// Contexto do SMTP para acompanhar a mensagem de erro. Sem saber contra QUAL
+// servidor e com QUAL usuário a tentativa foi feita, um "535 authentication
+// failed" não distingue senha errada de host errado — e quem administra a Loja
+// pelo navegador não tem como conferir as variáveis de ambiente do servidor.
+// A senha nunca entra aqui.
+function contextoSmtp(): string {
+  const host = process.env.SMTP_HOST || "(SMTP_HOST vazio)";
+  const porta = process.env.SMTP_PORT || "(SMTP_PORT vazio)";
+  const usuario = process.env.SMTP_USER || "(SMTP_USER vazio)";
+  const senhaDefinida = process.env.SMTP_PASSWORD ? "sim" : "NÃO";
+  return `servidor ${host}:${porta}, usuário ${usuario}, senha definida: ${senhaDefinida}`;
+}
+
 function getTransporter(): Transporter {
   if (transporter) return transporter;
   const host = process.env.SMTP_HOST;
@@ -69,9 +82,9 @@ async function tentarEnviarFilaEmail(
       sucesso++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      ultimoErro = msg.slice(0, 500);
+      ultimoErro = `${msg} (${contextoSmtp()})`.slice(0, 500);
       falhas++;
-      console.error(`Falha ao enviar e-mail para ${dest}:`, msg);
+      console.error(`Falha ao enviar e-mail para ${dest}:`, ultimoErro);
     }
   }
 
@@ -630,7 +643,7 @@ export async function enviarArquivoPorEmail(params: {
         sucessoCount++;
         resultados.push({ destinatario: dest, sucesso: true });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = `${err instanceof Error ? err.message : String(err)} (${contextoSmtp()})`;
         console.error(`Falha ao enviar relatório para ${dest}:`, msg);
         ultimoErro = msg;
         resultados.push({ destinatario: dest, sucesso: false, erro: msg });
