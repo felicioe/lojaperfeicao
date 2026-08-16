@@ -55,10 +55,13 @@ export const listarLancamentos = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<Lancamento[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiadoLancamentos(conn);
-      const condicoes: string[] = [];
+      // Escopo de loja sempre presente, independente dos filtros da tela.
+      const condicoes: string[] = ["l.loja_id = @current_loja_id"];
       const valores: unknown[] = [];
       if (!privilegiado) {
-        condicoes.push("l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
+        condicoes.push(
+          "l.irmao_id IN (SELECT id FROM irmaos WHERE loja_id = @current_loja_id AND usuario_id = ?)",
+        );
         valores.push(usuarioId);
       }
       if (data.de) {
@@ -89,7 +92,7 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         condicoes.push("l.pago = ?");
         valores.push(data.pago);
       }
-      const where = condicoes.length > 0 ? `WHERE ${condicoes.join(" AND ")}` : "";
+      const where = `WHERE ${condicoes.join(" AND ")}`;
       const limite = data.limite ?? 200;
 
       const [rows] = await conn.query<RowDataPacket[]>(
@@ -98,10 +101,10 @@ export const listarLancamentos = createServerFn({ method: "GET" })
                 l.irmao_id, i.nome_civil AS irmao_nome,
                 cf.nome AS conta_nome, cfd.nome AS destino_nome, pc.nome AS plano_conta_nome
          FROM lancamentos l
-         LEFT JOIN irmaos i ON i.id = l.irmao_id
-         LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
-         LEFT JOIN contas_financeiras cfd ON cfd.id = l.conta_destino_id
-         LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
+         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id AND cf.loja_id = l.loja_id
+         LEFT JOIN contas_financeiras cfd ON cfd.id = l.conta_destino_id AND cfd.loja_id = l.loja_id
+         LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
          ${where}
          ORDER BY l.data DESC
          LIMIT ?`,
@@ -186,8 +189,8 @@ export const obterLancamento = createServerFn({ method: "GET" })
       const [[pixPadrao]] = await conn.query<RowDataPacket[]>(
         `SELECT pix.id
          FROM contas_financeiras_pix pix
-         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id
-         WHERE cf.ativo = TRUE
+         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id AND cf.loja_id = pix.loja_id
+         WHERE pix.loja_id = @current_loja_id AND cf.ativo = TRUE
          ORDER BY pix.principal DESC, pix.criado_em
          LIMIT 1`,
       );
@@ -200,11 +203,12 @@ export const obterLancamento = createServerFn({ method: "GET" })
                 pix.nome_beneficiario AS pix_nome_beneficiario,
                 pix.cidade AS pix_cidade
          FROM lancamentos l
-         LEFT JOIN irmaos i ON i.id = l.irmao_id
-         LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
-         LEFT JOIN orgs o ON o.id = io.org_id
-         LEFT JOIN contas_financeiras_pix pix ON pix.id = COALESCE(l.pix_chave_id, ?)
-         WHERE l.id = ?`,
+         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.loja_id = l.loja_id AND io.principal = TRUE
+         LEFT JOIN orgs o ON o.id = io.org_id AND o.loja_id = l.loja_id
+         LEFT JOIN contas_financeiras_pix pix
+                ON pix.id = COALESCE(l.pix_chave_id, ?) AND pix.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id AND l.id = ?`,
         [pixPadrao?.id ?? null, data.id],
       );
       if (!row) return null;
@@ -235,8 +239,8 @@ export const listarLancamentosParaImpressao = createServerFn({ method: "GET" })
       const [[pixPadrao]] = await conn.query<RowDataPacket[]>(
         `SELECT pix.id
          FROM contas_financeiras_pix pix
-         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id
-         WHERE cf.ativo = TRUE
+         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id AND cf.loja_id = pix.loja_id
+         WHERE pix.loja_id = @current_loja_id AND cf.ativo = TRUE
          ORDER BY pix.principal DESC, pix.criado_em
          LIMIT 1`,
       );
@@ -249,11 +253,12 @@ export const listarLancamentosParaImpressao = createServerFn({ method: "GET" })
                 pix.nome_beneficiario AS pix_nome_beneficiario,
                 pix.cidade AS pix_cidade
          FROM lancamentos l
-         LEFT JOIN irmaos i ON i.id = l.irmao_id
-         LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
-         LEFT JOIN orgs o ON o.id = io.org_id
-         LEFT JOIN contas_financeiras_pix pix ON pix.id = COALESCE(l.pix_chave_id, ?)
-         WHERE l.id IN (?)
+         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.loja_id = l.loja_id AND io.principal = TRUE
+         LEFT JOIN orgs o ON o.id = io.org_id AND o.loja_id = l.loja_id
+         LEFT JOIN contas_financeiras_pix pix
+                ON pix.id = COALESCE(l.pix_chave_id, ?) AND pix.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id AND l.id IN (?)
          ORDER BY l.competencia_mes, l.data_vencimento`,
         [pixPadrao?.id ?? null, data.ids],
       );
@@ -268,7 +273,7 @@ export const marcarLancamentoPago = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT pago, data_pagamento, valor_pago FROM lancamentos WHERE id = ?",
+        "SELECT pago, data_pagamento, valor_pago FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
         [data.id],
       );
       // valor_pago = valor: mesmo invariante "pago=TRUE implica valor_pago
@@ -277,7 +282,7 @@ export const marcarLancamentoPago = createServerFn({ method: "POST" })
       // (valor - valor_pago) ficavam errados pra lançamento baixado por
       // aqui (achado #9 da auditoria financeira).
       await conn.query(
-        "UPDATE lancamentos SET pago = TRUE, data_pagamento = ?, valor_pago = valor WHERE id = ?",
+        "UPDATE lancamentos SET pago = TRUE, data_pagamento = ?, valor_pago = valor WHERE loja_id = @current_loja_id AND id = ?",
         [data.dataPagamento, data.id],
       );
       await registrarAuditoria(conn, usuarioIdAtual, "marcar_pago", "lancamentos", data.id, antes, {
@@ -301,18 +306,22 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT pago, data_pagamento, parcelado FROM lancamentos WHERE id = ?",
+        "SELECT pago, data_pagamento, parcelado FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
         [data.id],
       );
       const [[vinculo]] = await conn.query<RowDataPacket[]>(
         `SELECT
-           EXISTS(SELECT 1 FROM recibo_itens WHERE lancamento_id = ?) AS tem_recibo,
-           EXISTS(SELECT 1 FROM conciliacao_lancamentos WHERE lancamento_id = ?) AS tem_conciliacao,
-           EXISTS(SELECT 1 FROM ofx_lancamentos WHERE lancamento_id = ? AND conciliado = TRUE)
+           EXISTS(SELECT 1 FROM recibo_itens
+                  WHERE loja_id = @current_loja_id AND lancamento_id = ?) AS tem_recibo,
+           EXISTS(SELECT 1 FROM conciliacao_lancamentos
+                  WHERE loja_id = @current_loja_id AND lancamento_id = ?) AS tem_conciliacao,
+           EXISTS(SELECT 1 FROM ofx_lancamentos
+                  WHERE loja_id = @current_loja_id AND lancamento_id = ? AND conciliado = TRUE)
              AS tem_ofx_legado,
            EXISTS(
              SELECT 1 FROM lancamentos_contabeis
-             WHERE origem_tipo = 'conta_pagar_baixa' AND origem_id = ?
+             WHERE loja_id = @current_loja_id
+               AND origem_tipo = 'conta_pagar_baixa' AND origem_id = ?
            ) AS tem_baixa_conta_pagar`,
         [data.id, data.id, data.id, data.id],
       );
@@ -347,7 +356,7 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
         );
       }
       await conn.query(
-        "UPDATE lancamentos SET pago = FALSE, data_pagamento = NULL, valor_pago = 0 WHERE id = ?",
+        "UPDATE lancamentos SET pago = FALSE, data_pagamento = NULL, valor_pago = 0 WHERE loja_id = @current_loja_id AND id = ?",
         [data.id],
       );
       await registrarAuditoria(
@@ -379,11 +388,14 @@ export const atribuirIrmaoLancamento = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT irmao_id FROM lancamentos WHERE id = ?",
+        "SELECT irmao_id FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
         [data.id],
       );
       if (!antes) throw new Error("Lançamento não encontrado.");
-      await conn.query("UPDATE lancamentos SET irmao_id = ? WHERE id = ?", [data.irmaoId, data.id]);
+      await conn.query(
+        "UPDATE lancamentos SET irmao_id = ? WHERE loja_id = @current_loja_id AND id = ?",
+        [data.irmaoId, data.id],
+      );
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
@@ -412,7 +424,7 @@ export const atualizarLancamento = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT data, data_vencimento, descricao, valor, valor_pago, pago FROM lancamentos WHERE id = ?",
+        "SELECT data, data_vencimento, descricao, valor, valor_pago, pago FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
         [data.id],
       );
       if (!antes) throw new Error("Lançamento não encontrado.");
@@ -425,7 +437,7 @@ export const atualizarLancamento = createServerFn({ method: "POST" })
         );
       }
       await conn.query(
-        "UPDATE lancamentos SET data = ?, data_vencimento = ?, descricao = ?, valor = ? WHERE id = ?",
+        "UPDATE lancamentos SET data = ?, data_vencimento = ?, descricao = ?, valor = ? WHERE loja_id = @current_loja_id AND id = ?",
         [data.data, data.dataVencimento, data.descricao, data.valor, data.id],
       );
       await registrarAuditoria(conn, usuarioIdAtual, "editar", "lancamentos", data.id, antes, {
@@ -453,7 +465,7 @@ export const definirFormaCobranca = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT forma_cobranca, pix_chave_id, pago FROM lancamentos WHERE id = ?",
+        "SELECT forma_cobranca, pix_chave_id, pago FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
         [data.id],
       );
       if (!antes) throw new Error("Lançamento não encontrado.");
@@ -463,11 +475,10 @@ export const definirFormaCobranca = createServerFn({ method: "POST" })
       if (data.formaCobranca && !data.pixChaveId) {
         throw new Error("Selecione a chave PIX que vai gerar o QR code.");
       }
-      await conn.query("UPDATE lancamentos SET forma_cobranca = ?, pix_chave_id = ? WHERE id = ?", [
-        data.formaCobranca,
-        data.pixChaveId,
-        data.id,
-      ]);
+      await conn.query(
+        "UPDATE lancamentos SET forma_cobranca = ?, pix_chave_id = ? WHERE loja_id = @current_loja_id AND id = ?",
+        [data.formaCobranca, data.pixChaveId, data.id],
+      );
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
@@ -491,7 +502,7 @@ export const estornarLancamento = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[lancamento]] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM lancamentos WHERE id = ?",
+        "SELECT * FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
         [data.id],
       );
       if (!lancamento) throw new Error("Lançamento não encontrado.");
@@ -506,18 +517,25 @@ export const estornarLancamento = createServerFn({ method: "POST" })
 
       const [contabeis] = await conn.query<RowDataPacket[]>(
         `SELECT id FROM lancamentos_contabeis
-         WHERE origem_id = ?
+         WHERE loja_id = @current_loja_id
+           AND origem_id = ?
            AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso', 'conta_pagar_provisao')`,
         [data.id],
       );
       for (const lc of contabeis) {
-        await conn.query("DELETE FROM lancamentos_contabeis_itens WHERE lancamento_id = ?", [
-          lc.id,
-        ]);
-        await conn.query("DELETE FROM lancamentos_contabeis WHERE id = ?", [lc.id]);
+        await conn.query(
+          "DELETE FROM lancamentos_contabeis_itens WHERE loja_id = @current_loja_id AND lancamento_id = ?",
+          [lc.id],
+        );
+        await conn.query(
+          "DELETE FROM lancamentos_contabeis WHERE loja_id = @current_loja_id AND id = ?",
+          [lc.id],
+        );
       }
 
-      await conn.query("DELETE FROM lancamentos WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?", [
+        data.id,
+      ]);
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
@@ -553,8 +571,8 @@ export const criarLancamentoManual = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       await conn.query(
-        `INSERT INTO lancamentos (data, data_vencimento, descricao, valor, tipo, conta_id, plano_conta_id, pago, data_pagamento, observacoes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO lancamentos (loja_id, data, data_vencimento, descricao, valor, tipo, conta_id, plano_conta_id, pago, data_pagamento, observacoes)
+         VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.data,
           data.data_vencimento,
@@ -685,7 +703,7 @@ export const gerarMensalidades = createServerFn({ method: "POST" })
       // gerada — dedup por lancamento_id em email-dispatch.ts garante que
       // rodar de novo pra uma competência já processada não reenvia.
       const [gerados] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM lancamentos WHERE competencia_mes = ? AND is_mensalidade = TRUE",
+        "SELECT id FROM lancamentos WHERE loja_id = @current_loja_id AND competencia_mes = ? AND is_mensalidade = TRUE",
         [data.competencia],
       );
       const { enviarEmailFaturaEmitida } = await import("../email-dispatch");

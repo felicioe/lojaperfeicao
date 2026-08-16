@@ -9,6 +9,7 @@ import { registrarAuditoria } from "./auditoria";
 import { carregarUsuarioComPapeis, type Papel, type UsuarioSessao } from "./usuario-sessao";
 import { usuarioTemTotpAtivo } from "./totp";
 import { verificarBloqueio, registrarTentativaFalha, limparTentativas } from "./rate-limit";
+import { usuarioUnicoParaLogin } from "./login-loja";
 
 export type { Papel, UsuarioSessao };
 
@@ -35,11 +36,14 @@ export const login = createServerFn({ method: "POST" })
     await withUserConnection(null, (conn) => verificarBloqueio(conn, data.email));
 
     const usuario = await withUserConnection(null, async (conn) => {
+      // Sem LIMIT de propósito: o e-mail é único por loja (migração 0092), e
+      // usuarioUnicoParaLogin recusa quando casa em mais de uma — escolher
+      // "a primeira" logaria a pessoa numa loja arbitrária (issue #337).
       const [rows] = await conn.query<RowDataPacket[]>(
         "SELECT id, senha_hash, ativo FROM usuarios WHERE email = ?",
         [data.email],
       );
-      return rows[0] ?? null;
+      return usuarioUnicoParaLogin(rows);
     });
 
     if (!usuario || !(await bcrypt.compare(data.senha, usuario.senha_hash))) {

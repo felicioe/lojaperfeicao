@@ -51,10 +51,10 @@ async function buscarContasPagar(
             ${camposRecorrencia}
             pc.codigo AS plano_codigo, pc.nome AS plano_nome, t.nome AS terceiro_nome, cf.nome AS conta_nome
      FROM lancamentos l
-     LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
-     LEFT JOIN terceiros t ON t.id = l.terceiro_id
-     LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
-     WHERE l.tipo = 'saida' AND l.pago = ?
+     LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
+     LEFT JOIN terceiros t ON t.id = l.terceiro_id AND t.loja_id = l.loja_id
+     LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id AND cf.loja_id = l.loja_id
+     WHERE l.loja_id = @current_loja_id AND l.tipo = 'saida' AND l.pago = ?
      ORDER BY ${ordenacao}
      ${limite ? "LIMIT ?" : ""}`,
     limite ? [pago, limite] : [pago],
@@ -102,7 +102,7 @@ export const confirmarValorEfetivoContaPagar = createServerFn({ method: "POST" }
       const [resultado] = await conn.query(
         `UPDATE lancamentos
          SET valor = ?, valor_efetivo_confirmado = TRUE
-         WHERE id = ? AND tipo = 'saida' AND pago = FALSE AND recorrente_id IS NOT NULL`,
+         WHERE id = ? AND loja_id = @current_loja_id AND tipo = 'saida' AND pago = FALSE AND recorrente_id IS NOT NULL`,
         [data.valorEfetivo, data.lancamentoId],
       );
       if ((resultado as { affectedRows: number }).affectedRows !== 1) {
@@ -162,7 +162,7 @@ export const editarContaPagar = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       const [[anterior]] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM lancamentos WHERE id = ? AND tipo = 'saida' LIMIT 1",
+        "SELECT * FROM lancamentos WHERE id = ? AND loja_id = @current_loja_id AND tipo = 'saida' LIMIT 1",
         [data.id],
       );
       if (!anterior || anterior.pago || anterior.valor_pago > 0) {
@@ -175,7 +175,7 @@ export const editarContaPagar = createServerFn({ method: "POST" })
       }
       await conn.query(
         `UPDATE lancamentos SET descricao=?, valor=?, plano_conta_id=?, data=?, data_vencimento=?,
-         terceiro_id=?, observacoes=? WHERE id=?`,
+         terceiro_id=?, observacoes=? WHERE id=? AND loja_id = @current_loja_id`,
         [
           data.descricao,
           data.valor,
@@ -204,7 +204,7 @@ export const excluirContaPagar = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       const [[anterior]] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM lancamentos WHERE id = ? AND tipo = 'saida' LIMIT 1",
+        "SELECT * FROM lancamentos WHERE id = ? AND loja_id = @current_loja_id AND tipo = 'saida' LIMIT 1",
         [data.id],
       );
       if (!anterior || anterior.pago || anterior.valor_pago > 0) {
@@ -213,7 +213,9 @@ export const excluirContaPagar = createServerFn({ method: "POST" })
       if (anterior.recorrente_id) {
         throw new Error("Exclua ou desative o modelo no menu Despesas Recorrentes.");
       }
-      await conn.query("DELETE FROM lancamentos WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM lancamentos WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
@@ -240,7 +242,7 @@ export const baixarContaPagar = createServerFn({ method: "POST" })
       try {
         const [[parcela]] = await conn.query<RowDataPacket[]>(
           `SELECT recorrente_id, valor_efetivo_confirmado
-           FROM lancamentos WHERE id = ?`,
+           FROM lancamentos WHERE id = ? AND loja_id = @current_loja_id`,
           [data.lancamentoId],
         );
         if (parcela?.recorrente_id && !parcela.valor_efetivo_confirmado) {

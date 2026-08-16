@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "checar:escopo-loja": "node scripts/checar-escopo-loja.mjs",
     "format": "prettier --write .",
     "impeccable:detect": "impeccable detect .",
     "impeccable:detect:ci": "impeccable detect --json . > impeccable-report.json || true"
