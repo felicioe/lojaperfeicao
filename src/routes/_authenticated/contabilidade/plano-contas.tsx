@@ -180,9 +180,7 @@ function PlanoContas() {
             <Label>Tipo</Label>
             <Select
               value={form.tipo}
-              onValueChange={(v) =>
-                setForm({ ...form, tipo: v as TipoConta, parent_id: "none" })
-              }
+              onValueChange={(v) => setForm({ ...form, tipo: v as TipoConta, parent_id: "none" })}
             >
               <SelectTrigger>
                 <SelectValue />
