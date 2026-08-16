@@ -1,8 +1,9 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { logout } from "@/lib/backend/auth";
+import { CabecalhoInstitucional } from "./CabecalhoInstitucional";
 import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -59,8 +60,9 @@ import {
   Calendar,
   Hourglass,
   Vote,
-  FileSignature,
   Lock,
+  FileText,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
@@ -69,6 +71,7 @@ import { useIsDesktop } from "@/lib/use-media-query";
 import { useTheme } from "@/lib/use-theme";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NotificationBell } from "@/components/app/NotificationBell";
+import { PainelShell } from "@/components/app/PainelShell";
 
 type NavItem = { to: string; label: string; icon: any; show: boolean; section?: string };
 type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
@@ -76,12 +79,12 @@ type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
 function Brand() {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary font-serif text-sidebar-primary-foreground shadow-sm">
-        ⚜
-      </div>
+      <img src="/brand/sglfm-mark.svg" alt="SGLFM" className="h-10 w-9 shrink-0 object-contain" />
       <div className="min-w-0">
-        <div className="text-sm font-semibold leading-tight">Gestão da Loja</div>
-        <div className="truncate text-[11px] text-sidebar-foreground/60">Sistema Maçônico</div>
+        <div className="font-serif text-base font-semibold leading-tight tracking-wide">SGLFM</div>
+        <div className="truncate text-[10px] text-sidebar-foreground/60">
+          Gestão de Loja Filosófica
+        </div>
       </div>
     </div>
   );
@@ -134,6 +137,7 @@ function NavTree({
   size = "desktop",
   collapsed = false,
   onExpandGroup,
+  asButtons = false,
 }: {
   dashboard: NavItem;
   groups: NavGroup[];
@@ -144,6 +148,11 @@ function NavTree({
   size?: "desktop" | "mobile";
   collapsed?: boolean;
   onExpandGroup?: (groupId: string) => void;
+  // Menu "Meu Painel" (usuário comum, papel único "irmao") pediu pra cada
+  // item aparecer com cara de botão — o menu admin (Cadastros/Atividades/
+  // Tesouraria/...), que reusa este mesmo NavTree, ficou de fora do pedido
+  // e continua só com hover.
+  asButtons?: boolean;
 }) {
   const itemPad = size === "mobile" ? "px-3 py-2.5 text-sm" : "px-2.5 py-1.5 text-[13px]";
 
@@ -176,11 +185,21 @@ function NavTree({
         to={dashboard.to}
         onClick={onNavigate}
         className={cn(
-          "flex items-center gap-2.5 rounded-md px-3 text-sm transition-colors",
+          asButtons
+            ? buttonVariants({ variant: "outline", size: "sm" })
+            : "rounded-md transition-colors",
+          "flex w-full items-center justify-start gap-2.5 px-3 text-sm",
+          asButtons && "h-auto",
           size === "mobile" ? "py-2.5" : "py-2",
           isActive(dashboard.to)
-            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-sm"
-            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+            ? cn(
+                "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+                asButtons ? "border-sidebar-accent hover:bg-sidebar-accent" : "shadow-sm",
+              )
+            : cn(
+                "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                asButtons && "border-sidebar-border",
+              ),
         )}
       >
         <dashboard.icon
@@ -203,7 +222,11 @@ function NavTree({
             >
               <CollapsibleTrigger
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors hover:bg-sidebar-accent/40",
+                  asButtons
+                    ? buttonVariants({ variant: "outline", size: "sm" })
+                    : "rounded-md transition-colors",
+                  "flex w-full items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-wider hover:bg-sidebar-accent/40",
+                  asButtons && "h-auto border-sidebar-border",
                   size === "mobile" ? "py-2.5" : "py-2",
                   hasActive
                     ? "text-sidebar-foreground"
@@ -222,7 +245,12 @@ function NavTree({
                 />
               </CollapsibleTrigger>
               <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-                <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border pb-1 pl-3">
+                <div
+                  className={cn(
+                    "ml-4 mt-0.5 space-y-0.5 pb-1 pl-3",
+                    asButtons ? "mt-1 space-y-1" : "border-l border-sidebar-border",
+                  )}
+                >
                   {g.items.map((i, idx) => {
                     const active = isActive(i.to);
                     const mostraSecao = i.section && i.section !== g.items[idx - 1]?.section;
@@ -237,11 +265,21 @@ function NavTree({
                           to={i.to}
                           onClick={onNavigate}
                           className={cn(
-                            "flex items-center gap-2.5 rounded-md transition-colors",
+                            asButtons
+                              ? buttonVariants({ variant: "outline", size: "sm" })
+                              : "rounded-md transition-colors",
+                            "flex w-full items-center justify-start gap-2.5",
+                            asButtons && "h-auto",
                             itemPad,
                             active
-                              ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                              : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                              ? cn(
+                                  "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+                                  asButtons && "border-sidebar-accent hover:bg-sidebar-accent",
+                                )
+                              : cn(
+                                  "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                                  asButtons && "border-sidebar-border",
+                                ),
                           )}
                         >
                           <i.icon
@@ -267,6 +305,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const can = useCan();
   const nav = useNavigate();
   const loc = useLocation();
+  const rotasRelatorioContabil = [
+    "/contabilidade/razao",
+    "/contabilidade/diario",
+    "/contabilidade/dre",
+    "/contabilidade/dre-orcado",
+    "/contabilidade/balancete",
+    "/contabilidade/fluxo-caixa",
+  ];
+  const exibirCabecalhoRelatorio =
+    loc.pathname.startsWith("/relatorios/") ||
+    rotasRelatorioContabil.some((rota) => loc.pathname.startsWith(rota));
   const queryClient = useQueryClient();
   const isDesktop = useIsDesktop();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -297,7 +346,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
         { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
-        { to: "/documentos", label: "Documentos", icon: FileSignature, show: true },
+        { to: "/documentos", label: "Legislação", icon: Scale, show: true },
       ],
     },
   ];
@@ -332,27 +381,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       icon: CalendarRange,
       items: [
         { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
-        { to: "/sessoes", label: "Sessões", icon: CalendarDays, show: true },
         { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
-        {
-          to: "/ensino/importar-calendario",
-          label: "Importar Calendário",
-          icon: CalendarPlus,
-          show: can.canManageIrmaos,
-          section: "Importar",
-        },
-        {
-          to: "/ensino/importar-pdf-sessoes",
-          label: "Cronograma (PDF)",
-          icon: FileUp,
-          show: can.canManageIrmaos,
-          section: "Importar",
-        },
         { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
         { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
-        { to: "/documentos", label: "Documentos", icon: FileSignature, show: true },
+        { to: "/documentos", label: "Legislação", icon: Scale, show: true },
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
       ],
     },
@@ -382,14 +416,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         },
         {
           to: "/tesouraria/tabela-valores",
-          label: "Tabela de Valores",
+          label: "Tabela de Valores da Loja",
           icon: TrendingUp,
-          show: can.canManageFinancas,
-        },
-        {
-          to: "/tesouraria/plano-contas",
-          label: "Plano de Contas",
-          icon: FileBarChart,
           show: can.canManageFinancas,
         },
         {
@@ -418,8 +446,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageFinancas,
         },
         {
+          to: "/tesouraria/parcelamentos",
+          label: "Parcelamentos",
+          icon: Layers,
+          show: can.canManageFinancas,
+        },
+        {
           to: "/sgcab/cobrancas",
-          label: "Cobranças (Potência)",
+          label: "Controle SGCAB",
           icon: ScrollText,
           show: can.isTesoureiro || can.isSecretario,
         },
@@ -549,6 +583,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: ShieldCheck,
           show: can.canManageFinancas,
         },
+        {
+          to: "/contabilidade/plano-contas",
+          label: "Plano de Contas",
+          icon: FileBarChart,
+          show: can.canManageFinancas,
+          section: "Cadastro",
+        },
       ],
     },
     {
@@ -574,6 +615,33 @@ export function AppShell({ children }: { children: ReactNode }) {
           label: "Backups",
           icon: Archive,
           show: can.isAdmin,
+        },
+        {
+          to: "/administracao/dados-entidade",
+          label: "Dados da Entidade",
+          icon: FileText,
+          show: can.isAdmin,
+        },
+        {
+          to: "/ensino/importar-calendario",
+          label: "Importar Calendário",
+          icon: CalendarPlus,
+          show: can.canManageIrmaos,
+          section: "Importadores",
+        },
+        {
+          to: "/ensino/importar-pdf-sessoes",
+          label: "Cronograma (PDF)",
+          icon: FileUp,
+          show: can.canManageIrmaos,
+          section: "Importadores",
+        },
+        {
+          to: "/ensino/importar-planos-ensino",
+          label: "Planos de Ensino (PDF)",
+          icon: FileUp,
+          show: can.canManageIrmaos,
+          section: "Importadores",
         },
       ],
     },
@@ -626,14 +694,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const primaryRole = can.roles[0] ?? "irmao";
 
-  // Quem só tem o papel "irmao" no celular/tablet usa o shell próprio de
-  // app (PainelShell, dentro de _authenticated/painel/route.tsx) — aqui é
-  // só passthrough. No desktop, cai para a sidebar normal abaixo (reduzida
-  // a "Meu Painel"). Fica depois de todos os hooks acima para não violar
-  // as Rules of Hooks (o número/ordem de hooks precisa ser igual em todo
-  // render).
+  // No celular/tablet, o perfil "irmao" precisa manter o mesmo shell em
+  // todas as rotas autenticadas. Antes ele era aplicado apenas em /painel;
+  // Biblioteca, Calendário, Enquetes, Legislação e Segurança ficavam sem
+  // qualquer caminho visível de volta.
   if (can.isMemberOnly && !isDesktop) {
-    return <>{children}</>;
+    return <PainelShell>{children}</PainelShell>;
   }
 
   return (
@@ -642,7 +708,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <TooltipProvider delayDuration={200}>
         <aside
           className={cn(
-            "hidden shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 print:hidden lg:flex",
+            "sticky top-0 hidden h-screen shrink-0 self-start flex-col overflow-hidden border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 print:hidden lg:flex",
             collapsed ? "w-[68px]" : "w-64",
           )}
         >
@@ -687,6 +753,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               setOpen={setOpen}
               collapsed={collapsed}
               onExpandGroup={expandGroup}
+              asButtons={can.isMemberOnly}
             />
           </nav>
 
@@ -722,16 +789,26 @@ export function AppShell({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <Button variant="outline" size="sm" className="w-full" asChild>
+                <Button variant="outline" size="sm" className="w-full text-foreground" asChild>
                   <Link to="/conta/seguranca">
                     <Fingerprint className="mr-1 h-3 w-3" /> Segurança
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={toggleDark}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 w-full text-foreground"
+                  onClick={toggleDark}
+                >
                   {dark ? <Sun className="mr-1 h-3 w-3" /> : <Moon className="mr-1 h-3 w-3" />}
                   {dark ? "Modo claro" : "Modo escuro"}
                 </Button>
-                <Button variant="outline" size="sm" className="mt-2 w-full" onClick={signOut}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 w-full text-foreground"
+                  onClick={signOut}
+                >
                   <LogOut className="mr-1 h-3 w-3" /> Sair
                 </Button>
                 <Link
@@ -787,35 +864,57 @@ export function AppShell({ children }: { children: ReactNode }) {
                 setOpen={setOpen}
                 onNavigate={() => setMobileOpen(false)}
                 size="mobile"
+                asButtons={can.isMemberOnly}
               />
             </nav>
-            <div className="border-t border-sidebar-border p-3">
-              <div className="mb-2 text-xs">
-                <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
-                {user?.nomeCompleto && (
-                  <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
-                )}
+            <div className="border-t border-sidebar-border p-2.5">
+              <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-xs">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
+                  {user?.nomeCompleto && (
+                    <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
+                  )}
+                </div>
+                <Link
+                  to="/privacidade"
+                  target="_blank"
+                  className="shrink-0 text-sidebar-foreground/55 underline"
+                >
+                  Privacidade
+                </Link>
               </div>
-              <Button variant="outline" className="h-10 w-full" onClick={toggleDark}>
-                {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}
-                {dark ? "Modo claro" : "Modo escuro"}
-              </Button>
-              <Button variant="outline" className="mt-2 h-10 w-full" onClick={signOut}>
-                <LogOut className="mr-1.5 h-4 w-4" /> Sair
-              </Button>
-              <Link
-                to="/privacidade"
-                target="_blank"
-                className="mt-2 block text-center text-xs text-sidebar-foreground/55 underline"
-              >
-                Política de Privacidade
-              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-foreground"
+                  onClick={toggleDark}
+                >
+                  {dark ? (
+                    <Sun className="mr-1.5 h-3.5 w-3.5" />
+                  ) : (
+                    <Moon className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {dark ? "Claro" : "Escuro"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-foreground"
+                  onClick={signOut}
+                >
+                  <LogOut className="mr-1.5 h-3.5 w-3.5" /> Sair
+                </Button>
+              </div>
             </div>
           </SheetContent>
         </Sheet>
 
         <main className="min-w-0 flex-1">
-          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
+          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
+            {exibirCabecalhoRelatorio && <CabecalhoInstitucional />}
+            {children}
+          </div>
         </main>
       </div>
     </div>

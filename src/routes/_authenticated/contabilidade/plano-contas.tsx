@@ -35,7 +35,7 @@ import { toast } from "sonner";
 import { Pencil, X } from "lucide-react";
 import { usePaginacao } from "@/lib/use-paginacao";
 
-export const Route = createFileRoute("/_authenticated/tesouraria/plano-contas")({
+export const Route = createFileRoute("/_authenticated/contabilidade/plano-contas")({
   head: () => ({ meta: [{ title: "Plano de Contas — Gestão Maçônica" }] }),
   component: PlanoContas,
 });
@@ -180,7 +180,7 @@ function PlanoContas() {
             <Label>Tipo</Label>
             <Select
               value={form.tipo}
-              onValueChange={(v) => setForm({ ...form, tipo: v as TipoConta })}
+              onValueChange={(v) => setForm({ ...form, tipo: v as TipoConta, parent_id: "none" })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -206,7 +206,7 @@ function PlanoContas() {
               <SelectContent>
                 <SelectItem value="none">— nenhuma (conta de topo) —</SelectItem>
                 {data
-                  .filter((c) => c.id !== form.id)
+                  .filter((c) => c.id !== form.id && c.tipo === form.tipo && c.ativo)
                   .map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.codigo} — {c.nome}

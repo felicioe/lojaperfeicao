@@ -1,12 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
+import type { PoolConnection } from "mysql2/promise";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
 // RLS original: SELECT e escrita ambos restritos a admin/tesoureiro (não
 // é leitura livre como a maioria das tabelas de tesouraria).
 const PAPEIS = ["admin", "tesoureiro"];
+
+export async function garantirPrevisoesRecorrentes(conn: PoolConnection): Promise<number> {
+  try {
+    await conn.query(
+      "CALL gerar_previsoes_recorrentes(DATE_ADD(CURRENT_DATE, INTERVAL 11 MONTH), @total)",
+    );
+    const [[row]] = await conn.query<RowDataPacket[]>("SELECT @total AS total");
+    return Number(row?.total ?? 0);
+  } catch (erro) {
+    // Compatibilidade durante a janela entre o deploy e a importação da
+    // migração 0082: as telas antigas continuam operando sem previsões.
+    if ((erro as { code?: string }).code === "ER_SP_DOES_NOT_EXIST") return 0;
+    throw erro;
+  }
+}
 
 export type DespesaRecorrente = {
   id: string;
@@ -26,6 +42,7 @@ export type DespesaRecorrente = {
 export const listarDespesasRecorrentes = createServerFn({ method: "GET" }).handler(
   async (): Promise<DespesaRecorrente[]> => {
     return comPapel(PAPEIS, async (conn) => {
+      await garantirPrevisoesRecorrentes(conn);
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT dr.*, pc.codigo AS plano_codigo, pc.nome AS plano_nome, t.nome AS terceiro_nome
          FROM despesas_recorrentes dr
@@ -67,7 +84,7 @@ const recorrenteSchema = z.object({
   id: z.string().uuid().nullable(),
   descricao: z.string().min(1),
   valor: z.number().positive(),
-  dia_vencimento: z.number().int().min(1).max(28),
+  dia_vencimento: z.number().int().min(1).max(31),
   plano_conta_id: z.string().uuid(),
   terceiro_id: z.string().uuid().nullable(),
   data_inicio: z.string(),
@@ -77,7 +94,7 @@ const recorrenteSchema = z.object({
 
 export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
   .validator((d: unknown) => recorrenteSchema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       const valores = [
         data.descricao,
@@ -105,10 +122,11 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
           data,
         );
       } else {
+        const id = crypto.randomUUID();
         await conn.query(
-          `INSERT INTO despesas_recorrentes (descricao, valor, dia_vencimento, plano_conta_id, terceiro_id, data_inicio, data_fim, observacoes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          valores,
+          `INSERT INTO despesas_recorrentes (id, descricao, valor, dia_vencimento, plano_conta_id, terceiro_id, data_inicio, data_fim, observacoes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, ...valores],
         );
         await registrarAuditoria(
           conn,
@@ -119,7 +137,16 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
           null,
           data,
         );
+        data.id = id;
       }
+      await conn.query(
+        `DELETE FROM lancamentos
+         WHERE recorrente_id = ? AND pago = FALSE AND valor_efetivo_confirmado = FALSE
+           AND competencia_mes > COALESCE(?, '9999-12-01')`,
+        [data.id, data.data_fim],
+      );
+      await garantirPrevisoesRecorrentes(conn);
+      return { id: data.id! };
     });
   });
 
@@ -128,6 +155,16 @@ export const alternarAtivoRecorrente = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       await conn.query("UPDATE despesas_recorrentes SET ativo=? WHERE id=?", [data.ativo, data.id]);
+      if (data.ativo) {
+        await garantirPrevisoesRecorrentes(conn);
+      } else {
+        await conn.query(
+          `DELETE FROM lancamentos
+           WHERE recorrente_id = ? AND pago = FALSE AND valor_efetivo_confirmado = FALSE
+             AND competencia_mes >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')`,
+          [data.id],
+        );
+      }
       await registrarAuditoria(
         conn,
         usuarioIdAtual,

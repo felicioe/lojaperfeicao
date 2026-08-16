@@ -66,7 +66,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, MessageCircle, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
-import { brl, fmtDate, toISODate } from "@/lib/format";
+import { brl, fmtDate, fmtMesAno, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
@@ -153,7 +153,14 @@ function Faturas() {
     queryKey: ["faturas_abertas"],
     queryFn: () => listarFaturasAbertas(),
   });
-  const ord = useOrdenacao(abertas, {
+  const { data: irmaosFiltro = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
+  const [irmaoFiltroId, setIrmaoFiltroId] = useState("todos");
+  const abertasFiltradas =
+    irmaoFiltroId === "todos" ? abertas : abertas.filter((f) => f.irmao_id === irmaoFiltroId);
+  const ord = useOrdenacao(abertasFiltradas, {
     irmao: (f) => f.irmaos?.nome_civil,
     descricao: (f) => f.descricao,
     competencia: (f) => f.competencia_mes,
@@ -166,6 +173,14 @@ function Faturas() {
 
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [openBaixa, setOpenBaixa] = useState(false);
+
+  // Troca de filtro de Irmão precisa limpar a seleção — senão uma fatura
+  // selecionada antes fica escondida (fora do filtro atual) mas continua
+  // valendo pra "Baixar selecionadas", podendo confirmar baixa em algo
+  // que não está mais visível na tela.
+  useEffect(() => {
+    setSelecionadas([]);
+  }, [irmaoFiltroId]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["faturas_abertas"] });
@@ -214,27 +229,57 @@ function Faturas() {
         </TabsContent>
 
         <TabsContent value="abertas">
+          <Card className="mb-4 p-4 max-w-xs">
+            <Label className="text-xs">Irmão</Label>
+            <Select value={irmaoFiltroId} onValueChange={setIrmaoFiltroId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                {irmaosFiltro.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>
+                    {i.nome_civil}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Card>
           {podeEditar && selecionadas.length > 0 && (
             <Card className="mb-4 p-4 flex items-center justify-between">
               <div className="text-sm">
                 {selecionadas.length} fatura(s) selecionada(s) — total{" "}
                 {brl(faturasSelecionadas.reduce((s, f) => s + Number(f.valor), 0))}
               </div>
-              <Dialog open={openBaixa} onOpenChange={setOpenBaixa}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Baixar selecionadas
-                  </Button>
-                </DialogTrigger>
-                <BaixaDialog
-                  faturas={faturasSelecionadas}
-                  receitas={receitas}
-                  onDone={() => {
-                    setOpenBaixa(false);
-                    invalidate();
-                  }}
-                />
-              </Dialog>
+              <div className="flex gap-2">
+                {selecionadas.length >= 2 && (
+                  <Link
+                    to="/tesouraria/faturas/imprimir"
+                    search={{ ids: selecionadas.join(",") }}
+                    target="_blank"
+                  >
+                    <Button variant="outline">
+                      <Printer className="h-4 w-4 mr-1" /> Imprimir agrupada
+                    </Button>
+                  </Link>
+                )}
+                <Dialog open={openBaixa} onOpenChange={setOpenBaixa}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Baixar selecionadas
+                    </Button>
+                  </DialogTrigger>
+                  <BaixaDialog
+                    open={openBaixa}
+                    faturas={faturasSelecionadas}
+                    receitas={receitas}
+                    onDone={() => {
+                      setOpenBaixa(false);
+                      invalidate();
+                    }}
+                  />
+                </Dialog>
+              </div>
             </Card>
           )}
           <Card>
@@ -261,7 +306,7 @@ function Faturas() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {abertas.length === 0 && (
+                {abertasFiltradas.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                       Nenhuma fatura em aberto.
@@ -284,7 +329,7 @@ function Faturas() {
                       <TableCell>{f.irmaos?.nome_civil ?? "—"}</TableCell>
                       <TableCell>{f.descricao}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {fmtDate(f.competencia_mes)}
+                        {fmtMesAno(f.competencia_mes)}
                       </TableCell>
                       <TableCell>{fmtDate(f.data_vencimento)}</TableCell>
                       <TableCell className="text-right font-medium">
@@ -332,7 +377,7 @@ function Faturas() {
                                     <AlertDialogTitle>Estornar esta fatura?</AlertDialogTitle>
                                     <AlertDialogDescription>
                                       Remove a fatura de {f.irmaos?.nome_civil} ({brl(f.valor)},{" "}
-                                      {fmtDate(f.competencia_mes)}) e o lançamento contábil
+                                      {fmtMesAno(f.competencia_mes)}) e o lançamento contábil
                                       correspondente. Essa ação não pode ser desfeita — só funciona
                                       pra faturas ainda em aberto.
                                     </AlertDialogDescription>
@@ -383,10 +428,12 @@ function Faturas() {
 }
 
 function BaixaDialog({
+  open,
   faturas,
   receitas,
   onDone,
 }: {
+  open: boolean;
   faturas: any[];
   receitas: { id: string; codigo: string; nome: string }[];
   onDone: () => void;
@@ -419,6 +466,27 @@ function BaixaDialog({
   const somaSaldos = faturasParaAlocar.reduce((s, f) => s + f.saldo, 0);
   const [valorRecebidoParcial, setValorRecebidoParcial] = useState(somaSaldos);
   const [alocacao, setAlocacao] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    // O diálogo não desmonta entre aberturas (fica dentro de <Dialog> sempre
+    // renderizado) — sem isso, mudar a seleção de faturas com o diálogo
+    // fechado deixava o valor recebido parcial preso na soma da primeira
+    // abertura, mesmo com o teto do campo já ajustado corretamente.
+    if (open) {
+      setModo("integral");
+      setContaFinanceiraId("");
+      setFormaPagamento("");
+      setDataPagamento(toISODate(new Date()));
+      setDesconto(0);
+      setJurosAdicional(0);
+      setValorExtra(0);
+      setPlanoContaExtraId("");
+      setObservacoes("");
+      setValorRecebidoParcial(somaSaldos);
+      setAlocacao({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (modo !== "parcial") return;

@@ -7,6 +7,7 @@ import {
   listarChavesPix,
   criarChavePix,
   removerChavePix,
+  uploadQrCodePix,
   type ChavePix,
 } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -45,7 +47,7 @@ import {
 import { brl } from "@/lib/format";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ImageIcon, Trash2 } from "lucide-react";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
@@ -147,7 +149,45 @@ function Contas() {
       </Card>
 
       <Card>
-        <div className="overflow-x-auto">
+        <div className="sm:hidden">
+          <ul className="divide-y" aria-label="Contas financeiras">
+            {ord.itensOrdenados.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  className="flex w-full items-start justify-between gap-3 p-4 text-left"
+                  onClick={() => setExpandido(expandido === c.id ? null : c.id)}
+                  aria-expanded={expandido === c.id}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-base font-medium leading-snug">{c.nome}</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      {{ caixa: "Caixa", banco: "Banco", outro: "Outro" }[c.tipo as string] ??
+                        c.tipo}{" "}
+                      · Inicial {brl(c.saldo_inicial)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <p className="text-right text-base font-semibold tabular-nums">
+                      {brl(c.saldo_atual)}
+                    </p>
+                    {expandido === c.id ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </button>
+                {expandido === c.id && (
+                  <div className="border-t bg-muted/30 px-4 pb-4">
+                    <ChavesPixPanel contaId={c.id} />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -167,7 +207,7 @@ function Contas() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ord.itensOrdenados.map((c: any) => (
+              {ord.itensOrdenados.map((c) => (
                 <Fragment key={c.id}>
                   <TableRow>
                     <TableCell>
@@ -213,10 +253,21 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
   const [nova, setNova] = useState<{
     tipo: ChavePix["tipo"];
     chave: string;
+    pix_copia_cola: string;
+    qr_code_url: string | null;
     nome_beneficiario: string;
     cidade: string;
     principal: boolean;
-  }>({ tipo: "email", chave: "", nome_beneficiario: "", cidade: "", principal: false });
+  }>({
+    tipo: "email",
+    chave: "",
+    pix_copia_cola: "",
+    qr_code_url: null,
+    nome_beneficiario: "",
+    cidade: "",
+    principal: false,
+  });
+  const [enviandoQr, setEnviandoQr] = useState(false);
 
   const { data: chaves = [] } = useQuery({
     queryKey: ["chaves_pix", contaId],
@@ -232,22 +283,57 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["chaves_pix", contaId] });
 
   const adicionar = async () => {
-    if (!nova.chave.trim() || !nova.nome_beneficiario.trim() || !nova.cidade.trim()) return;
+    if (!nova.chave.trim() && !nova.pix_copia_cola.trim() && !nova.qr_code_url) {
+      return toast.error("Informe uma chave, um código copia e cola ou uma imagem do QR Code.");
+    }
+    if (!nova.nome_beneficiario.trim()) return toast.error("Informe o nome do beneficiário.");
+    if (!nova.cidade.trim()) return toast.error("Informe a cidade do beneficiário.");
     try {
       await criarChavePix({
         data: {
           contaFinanceiraId: contaId,
           tipo: nova.tipo,
           chave: nova.chave.trim(),
+          pixCopiaCola: nova.pix_copia_cola.trim() || null,
+          qrCodeUrl: nova.qr_code_url,
           nomeBeneficiario: nova.nome_beneficiario.trim(),
           cidade: nova.cidade.trim(),
           principal: nova.principal || chaves.length === 0,
         },
       });
-      setNova({ tipo: "email", chave: "", nome_beneficiario: "", cidade: "", principal: false });
+      setNova({
+        tipo: "email",
+        chave: "",
+        pix_copia_cola: "",
+        qr_code_url: null,
+        nome_beneficiario: "",
+        cidade: "",
+        principal: false,
+      });
+      toast.success("Dados PIX salvos.");
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao adicionar.");
+    }
+  };
+
+  const enviarQrCode = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) return toast.error("Imagem maior que 5 MB.");
+    setEnviandoQr(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const resultado = await uploadQrCodePix({ data: { nomeArquivo: file.name, dataUrl } });
+      setNova((atual) => ({ ...atual, qr_code_url: resultado.url }));
+      toast.success("Imagem do QR Code enviada.");
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível enviar a imagem.");
+    } finally {
+      setEnviandoQr(false);
     }
   };
 
@@ -267,7 +353,57 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
         Usadas pra gerar o QR code do Pix nas faturas cobradas com essa conta. Nome do beneficiário
         (máx. 25 caracteres) e cidade (máx. 15) são exigidos pelo padrão do Banco Central.
       </p>
-      <div className="overflow-x-auto">
+      <div className="sm:hidden">
+        {chaves.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhuma chave cadastrada ainda.</p>
+        )}
+        <ul className="divide-y rounded-lg border" aria-label="Chaves PIX">
+          {ordChaves.itensOrdenados.map((c) => (
+            <li key={c.id} className="p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-sm font-medium">{TIPO_PIX_LABEL[c.tipo]}</span>
+                    {c.principal && <Badge variant="secondary">Principal</Badge>}
+                  </div>
+                  <p className="mt-0.5 break-all font-mono text-sm text-muted-foreground">
+                    {c.chave || "Código/QR cadastrado"}
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {c.pix_copia_cola && <Badge variant="outline">Copia e cola</Badge>}
+                    {c.qr_code_url && <Badge variant="outline">Imagem QR</Badge>}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {c.nome_beneficiario} · {c.cidade}
+                  </p>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 shrink-0 p-0">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir chave PIX?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        A chave "{c.chave}" ({TIPO_PIX_LABEL[c.tipo]}) será removida
+                        permanentemente. Faturas que já usam essa chave para gerar o QR code
+                        deixarão de funcionar.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => remover(c.id)}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -298,7 +434,13 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
             {ordChaves.itensOrdenados.map((c) => (
               <TableRow key={c.id}>
                 <TableCell>{TIPO_PIX_LABEL[c.tipo]}</TableCell>
-                <TableCell className="font-mono text-sm">{c.chave}</TableCell>
+                <TableCell className="max-w-56 truncate font-mono text-sm">
+                  {c.chave || "Código/QR cadastrado"}
+                  <div className="mt-1 flex gap-1">
+                    {c.pix_copia_cola && <Badge variant="outline">Copia e cola</Badge>}
+                    {c.qr_code_url && <Badge variant="outline">Imagem QR</Badge>}
+                  </div>
+                </TableCell>
                 <TableCell>{c.nome_beneficiario}</TableCell>
                 <TableCell>{c.cidade}</TableCell>
                 <TableCell>{c.principal && <Badge variant="secondary">Principal</Badge>}</TableCell>
@@ -330,7 +472,7 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           </TableBody>
         </Table>
       </div>
-      <div className="grid gap-2 md:grid-cols-6 items-end">
+      <div className="grid gap-3 rounded-lg border p-4 md:grid-cols-2 xl:grid-cols-4">
         <div>
           <Label className="text-xs">Tipo</Label>
           <Select
@@ -350,12 +492,15 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Chave</Label>
+          <Label className="text-xs">Chave PIX (opcional)</Label>
           <Input
             className="h-8"
             value={nova.chave}
             onChange={(e) => setNova({ ...nova, chave: e.target.value })}
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Telefone: use +55. Chave aleatória: UUID.
+          </p>
         </div>
         <div>
           <Label className="text-xs">Beneficiário</Label>
@@ -375,6 +520,39 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
             onChange={(e) => setNova({ ...nova, cidade: e.target.value })}
           />
         </div>
+        <div className="md:col-span-2 xl:col-span-4">
+          <Label className="text-xs">PIX copia e cola (opcional)</Label>
+          <Textarea
+            rows={3}
+            maxLength={1000}
+            value={nova.pix_copia_cola}
+            onChange={(e) => setNova({ ...nova, pix_copia_cola: e.target.value })}
+            placeholder="Cole aqui o código PIX completo"
+            className="font-mono text-xs"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <Label className="text-xs">Imagem do QR Code (opcional)</Label>
+          <Input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={enviandoQr}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void enviarQrCode(file);
+            }}
+          />
+          {nova.qr_code_url && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+              <ImageIcon className="h-4 w-4" /> Imagem pronta para salvar
+              <img
+                src={nova.qr_code_url}
+                alt="Prévia do QR Code"
+                className="h-16 w-16 rounded border bg-white object-contain p-1"
+              />
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Checkbox
             id={`principal-${contaId}`}
@@ -385,8 +563,8 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
             Principal
           </Label>
         </div>
-        <Button size="sm" onClick={adicionar}>
-          Adicionar
+        <Button size="sm" onClick={adicionar} disabled={enviandoQr}>
+          Salvar dados PIX
         </Button>
       </div>
     </div>

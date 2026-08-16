@@ -34,13 +34,14 @@ export async function executarDisparoNotificacoes(): Promise<ResultadoDisparo> {
       );
       if (resultado.affectedRows === 0) continue; // já disparada antes — dedup
 
-      const condicoes = PAPEIS_NOTIFICACOES.map(() => "up.papel = ?").join(" OR ");
+      const papeisAlvo = item.papeis ?? PAPEIS_NOTIFICACOES;
+      const condicoes = papeisAlvo.map(() => "up.papel = ?").join(" OR ");
       const [inscricoes] = await conn.query<RowDataPacket[]>(
         `SELECT DISTINCT ps.id, ps.endpoint, ps.p256dh, ps.auth
          FROM push_subscriptions ps
          JOIN usuarios_papeis up ON up.usuario_id = ps.usuario_id
          WHERE ${condicoes}`,
-        PAPEIS_NOTIFICACOES,
+        papeisAlvo,
       );
 
       for (const inscricao of inscricoes) {

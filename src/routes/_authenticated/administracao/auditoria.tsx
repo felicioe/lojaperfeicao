@@ -73,13 +73,13 @@ function AuditoriaPage() {
                 <TableHeadOrdenavel campo="quando" ord={ord}>
                   Quando
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="quem" ord={ord}>
+                <TableHeadOrdenavel campo="quem" ord={ord} className="hidden sm:table-cell">
                   Quem
                 </TableHeadOrdenavel>
                 <TableHeadOrdenavel campo="acao" ord={ord}>
                   Ação
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="entidade" ord={ord}>
+                <TableHeadOrdenavel campo="entidade" ord={ord} className="hidden lg:table-cell">
                   Entidade
                 </TableHeadOrdenavel>
               </TableRow>
@@ -111,12 +111,15 @@ function AuditoriaPage() {
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                         {fmtDataHora(e.criado_em)}
+                        <div className="text-xs sm:hidden">{e.usuario_email ?? "—"}</div>
                       </TableCell>
-                      <TableCell>{e.usuario_email ?? "—"}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {e.usuario_email ?? "—"}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">{e.acao}</Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                         {e.entidade_tipo}
                         {e.entidade_id ? ` · ${e.entidade_id.slice(0, 8)}` : ""}
                       </TableCell>

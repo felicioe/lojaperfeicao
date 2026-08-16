@@ -67,7 +67,7 @@ function Inadimplentes() {
         cur.total += Number(l.valor);
         grupos.set(key, cur);
       });
-      return Array.from(grupos.values()).filter((g) => g.itens.length >= 3);
+      return Array.from(grupos.values());
     },
   });
   const dataFiltrada = (data ?? []).filter((g) => irmaoId === "todos" || g.irmao_id === irmaoId);
@@ -85,7 +85,7 @@ function Inadimplentes() {
     <>
       <PageHeader
         title="Relatório de Inadimplentes"
-        description="Irmãos com 3 ou mais mensalidades em atraso."
+        description="Todos os irmãos com valores vencidos e ainda não recebidos."
       />
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
@@ -115,7 +115,7 @@ function Inadimplentes() {
                 Irmão
               </TableHeadOrdenavel>
               <TableHeadOrdenavel campo="mensalidades" ord={ord} className="text-right">
-                Mensalidades em atraso
+                Títulos em atraso
               </TableHeadOrdenavel>
               <TableHeadOrdenavel campo="total" ord={ord} className="text-right">
                 Total devido

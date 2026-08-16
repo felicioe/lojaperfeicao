@@ -16,6 +16,7 @@ export type Evento = {
   titulo: string;
   data: string;
   hora: string | null;
+  local: string | null;
   descricao: string | null;
   publico: "todos" | "ativos" | "org";
   org_id: string | null;
@@ -29,7 +30,7 @@ export const listarEventos = createServerFn({ method: "GET" }).handler(
   async (): Promise<Evento[]> => {
     return comSessao(async (conn, usuarioId) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT e.id, e.titulo, e.data, e.hora, e.descricao, e.publico, e.org_id,
+        `SELECT e.id, e.titulo, e.data, e.hora, e.local, e.descricao, e.publico, e.org_id,
                 o.nome AS org_nome, e.tem_agape, r.participa AS minha_participacao, r.agape AS meu_agape
          FROM eventos e
          LEFT JOIN orgs o ON o.id = e.org_id
@@ -56,6 +57,7 @@ const eventoSchema = z.object({
   titulo: z.string().min(1),
   data: z.string(),
   hora: z.string().nullable(),
+  local: z.string().nullable(),
   descricao: z.string().nullable(),
   publico: z.enum(["todos", "ativos", "org"]),
   orgId: z.string().uuid().nullable(),
@@ -73,6 +75,7 @@ export const salvarEvento = createServerFn({ method: "POST" })
         data.titulo,
         data.data,
         data.hora,
+        data.local,
         data.descricao,
         data.publico,
         data.publico === "org" ? data.orgId : null,
@@ -80,7 +83,7 @@ export const salvarEvento = createServerFn({ method: "POST" })
       ];
       if (data.id) {
         await conn.query(
-          `UPDATE eventos SET titulo=?, data=?, hora=?, descricao=?, publico=?, org_id=?, tem_agape=?
+          `UPDATE eventos SET titulo=?, data=?, hora=?, local=?, descricao=?, publico=?, org_id=?, tem_agape=?
            WHERE id=?`,
           [...valores, data.id],
         );
@@ -89,8 +92,8 @@ export const salvarEvento = createServerFn({ method: "POST" })
         });
       } else {
         await conn.query(
-          `INSERT INTO eventos (titulo, data, hora, descricao, publico, org_id, tem_agape)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO eventos (titulo, data, hora, local, descricao, publico, org_id, tem_agape)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           valores,
         );
         await registrarAuditoria(conn, usuarioIdAtual, "criar", "evento", null, null, {

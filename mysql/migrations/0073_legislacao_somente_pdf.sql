@@ -1,0 +1,6 @@
+-- Normaliza os cinco arquivos legados para PDF.
+UPDATE documentos SET arquivo_url = '/uploads/legislacao/acervo-0001.pdf', arquivo_nome_original = 'Administração e Planejamento 2024 - L. Perfeição Adonhiram e Capitulo Ayres Gevaerd.pdf', arquivo_mime = 'application/pdf' WHERE arquivo_url = '/uploads/legislacao/acervo-0001.odt';
+UPDATE documentos SET arquivo_url = '/uploads/legislacao/acervo-0003.pdf', arquivo_nome_original = 'Cadastro para o SGCAB 2024.pdf', arquivo_mime = 'application/pdf' WHERE arquivo_url = '/uploads/legislacao/acervo-0003.docx';
+UPDATE documentos SET arquivo_url = '/uploads/legislacao/acervo-0006.pdf', arquivo_nome_original = 'Elevação 4º Grau (1) - Formulário.pdf', arquivo_mime = 'application/pdf' WHERE arquivo_url = '/uploads/legislacao/acervo-0006.docx';
+UPDATE documentos SET arquivo_url = '/uploads/legislacao/acervo-0249.pdf', arquivo_nome_original = 'download.pdf', arquivo_mime = 'application/pdf' WHERE arquivo_url = '/uploads/legislacao/acervo-0249.png';
+UPDATE documentos SET arquivo_url = '/uploads/legislacao/acervo-0255.pdf', arquivo_nome_original = 'PROGRAMAÇÃO LP E CAP - ATUALIZADOS.pdf', arquivo_mime = 'application/pdf' WHERE arquivo_url = '/uploads/legislacao/acervo-0255.docx';

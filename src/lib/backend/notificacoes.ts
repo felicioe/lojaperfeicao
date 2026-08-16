@@ -13,10 +13,21 @@ import { comSessao, comPapel } from "./authz";
 export const PAPEIS_NOTIFICACOES = ["admin", "secretario", "tesoureiro"];
 
 export type NotificacaoItem = {
-  tipo: "aniversario" | "fatura_vencida" | "recorrente_pendente" | "interstico_completo";
+  tipo:
+    | "aniversario"
+    | "fatura_vencida"
+    | "recorrente_pendente"
+    | "interstico_completo"
+    | "peca_pendente_aprovacao";
   chave: string;
   titulo: string;
   mensagem: string;
+  // Papéis que devem receber este item — quando omitido, vale PAPEIS_NOTIFICACOES
+  // inteiro. Peça de arquitetura pendente é o único caso restrito hoje: só
+  // admin/secretario conseguem ver/aprovar a peça (ver PODE_VER_CONDICAO em
+  // pecas-arquitetura.ts), então mandar pro tesoureiro também era notificação
+  // fantasma — o clique caía numa tela onde a peça não aparece.
+  papeis?: string[];
 };
 
 export async function gerarNotificacoes(conn: PoolConnection): Promise<NotificacaoItem[]> {
@@ -58,7 +69,7 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
      WHERE dr.ativo = TRUE
        AND dr.data_inicio <= CURRENT_DATE
        AND (dr.data_fim IS NULL OR dr.data_fim >= CURRENT_DATE)
-       AND DAYOFMONTH(CURRENT_DATE) >= dr.dia_vencimento
+       AND DAYOFMONTH(CURRENT_DATE) >= LEAST(dr.dia_vencimento, DAY(LAST_DAY(CURRENT_DATE)))
        AND NOT EXISTS (
          SELECT 1 FROM lancamentos l
          WHERE l.recorrente_id = dr.id AND l.competencia_mes = mes_competencia(CURRENT_DATE)
@@ -97,12 +108,43 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
     });
   }
 
+  // Peça de arquitetura pendente de aprovação (#224) — a chave inclui
+  // atualizado_em, então só dispara uma vez por versão da peça enquanto ela
+  // ficar em análise; se for aprovada/rejeitada e nunca mais entrar nesse
+  // estado, não repete. Sem atualizado_em na chave, reenviar uma peça já
+  // aprovada (que volta pra "em_analise" na edição) nunca gerava aviso de
+  // novo — a chave da primeira submissão já tinha sido usada.
+  const [pecasPendentes] = await conn.query<RowDataPacket[]>(
+    `SELECT pa.id, pa.titulo, i.nome_civil AS autor_nome, pa.atualizado_em
+     FROM pecas_arquitetura pa JOIN irmaos i ON i.id = pa.autor_id
+     WHERE pa.situacao = 'em_analise'`,
+  );
+  for (const peca of pecasPendentes) {
+    itens.push({
+      tipo: "peca_pendente_aprovacao",
+      chave: `peca_pendente_aprovacao:${peca.id}:${new Date(peca.atualizado_em).getTime()}`,
+      titulo: "Peça aguardando aprovação",
+      mensagem: `"${peca.titulo}" (${peca.autor_nome}) está em análise na Biblioteca de Peças.`,
+      papeis: ["admin", "secretario"],
+    });
+  }
+
   return itens;
 }
 
 export const listarNotificacoes = createServerFn({ method: "GET" }).handler(
   async (): Promise<NotificacaoItem[]> => {
-    return comPapel(PAPEIS_NOTIFICACOES, async (conn) => gerarNotificacoes(conn));
+    return comPapel(PAPEIS_NOTIFICACOES, async (conn, usuarioIdAtual) => {
+      const itens = await gerarNotificacoes(conn);
+      const [papeisRows] = await conn.query<RowDataPacket[]>(
+        "SELECT papel FROM usuarios_papeis WHERE usuario_id = ?",
+        [usuarioIdAtual],
+      );
+      const meusPapeis = new Set(papeisRows.map((r) => r.papel as string));
+      return itens.filter((item) =>
+        (item.papeis ?? PAPEIS_NOTIFICACOES).some((p) => meusPapeis.has(p)),
+      );
+    });
   },
 );
 

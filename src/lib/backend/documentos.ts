@@ -1,91 +1,60 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
-import { comSessao, comPapel, SemPermissaoError } from "./authz";
+import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
 const PAPEIS_ESCRITA = ["admin", "secretario"];
+const CATEGORIAS_DOCUMENTO = [
+  "documentos_loja",
+  "legislacao",
+  "tratados_corporacoes",
+  "tratados_orientes",
+  "ensino",
+  "documentos_historicos",
+  "rituais_antigos",
+  "formularios",
+  "tabela_valores_sgcab",
+  "historia_rito",
+] as const;
 
 export type Documento = {
   id: string;
   titulo: string;
+  categoria: string;
+  conteudo: string;
   arquivo_url: string | null;
   arquivo_nome_original: string | null;
   arquivo_mime: string | null;
   criado_por: string;
   criador_nome: string | null;
   criado_em: string;
-  total_assinaturas: number;
-  ja_assinei: boolean;
 };
 
 const DOCUMENTO_SELECT = `
-  SELECT d.id, d.titulo, d.arquivo_url, d.arquivo_nome_original, d.arquivo_mime,
-         d.criado_por, u.nome_completo AS criador_nome, d.criado_em,
-         (SELECT COUNT(*) FROM documento_assinaturas da WHERE da.documento_id = d.id) AS total_assinaturas,
-         EXISTS(
-           SELECT 1 FROM documento_assinaturas da WHERE da.documento_id = d.id AND da.usuario_id = ?
-         ) AS ja_assinei
+  SELECT d.id, d.titulo, d.categoria, d.conteudo, d.arquivo_url,
+         d.arquivo_nome_original, d.arquivo_mime, d.criado_por,
+         u.nome_completo AS criador_nome, d.criado_em
   FROM documentos d
   LEFT JOIN usuarios u ON u.id = d.criado_por
 `;
 
 export const listarDocumentos = createServerFn({ method: "GET" }).handler(
   async (): Promise<Documento[]> => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `${DOCUMENTO_SELECT} ORDER BY d.criado_em DESC`,
-        [usuarioId],
       );
       return rows as Documento[];
     });
   },
 );
 
-export type Signatario = { usuario_id: string; nome: string | null; assinado_em: string };
-
-export type DocumentoDetalhe = Documento & {
-  conteudo: string;
-  hash_conteudo: string;
-  signatarios: Signatario[];
-};
-
-export const obterDocumento = createServerFn({ method: "GET" })
-  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data }): Promise<DocumentoDetalhe | null> => {
-    return comSessao(async (conn, usuarioId) => {
-      const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT d.*, u.nome_completo AS criador_nome,
-                (SELECT COUNT(*) FROM documento_assinaturas da WHERE da.documento_id = d.id) AS total_assinaturas,
-                EXISTS(
-                  SELECT 1 FROM documento_assinaturas da WHERE da.documento_id = d.id AND da.usuario_id = ?
-                ) AS ja_assinei
-         FROM documentos d
-         LEFT JOIN usuarios u ON u.id = d.criado_por
-         WHERE d.id = ?`,
-        [usuarioId, data.id],
-      );
-      const documento = rows[0];
-      if (!documento) return null;
-
-      const [signatarios] = await conn.query<RowDataPacket[]>(
-        `SELECT da.usuario_id, u.nome_completo AS nome, da.assinado_em
-         FROM documento_assinaturas da
-         LEFT JOIN usuarios u ON u.id = da.usuario_id
-         WHERE da.documento_id = ?
-         ORDER BY da.assinado_em`,
-        [data.id],
-      );
-
-      return { ...(documento as DocumentoDetalhe), signatarios: signatarios as Signatario[] };
-    });
-  });
-
 const criarDocumentoSchema = z.object({
   titulo: z.string().min(1),
+  categoria: z.string().min(1),
   conteudo: z.string().min(1),
   arquivoUrl: z.string().nullable().optional(),
   arquivoNomeOriginal: z.string().nullable().optional(),
@@ -97,16 +66,17 @@ export const criarDocumento = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
       const id = crypto.randomUUID();
-      const hash = createHash("sha256").update(data.conteudo, "utf8").digest("hex");
       await conn.query(
         `INSERT INTO documentos
-           (id, titulo, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
+         VALUES (?, ?, ?, ?, SHA2(CONCAT(?, ?), 256), ?, ?, ?, ?)`,
         [
           id,
           data.titulo,
+          data.categoria,
           data.conteudo,
-          hash,
+          data.titulo,
+          data.arquivoUrl || "",
           data.arquivoUrl || null,
           data.arquivoNomeOriginal || null,
           data.arquivoMime || null,
@@ -115,34 +85,43 @@ export const criarDocumento = createServerFn({ method: "POST" })
       );
       await registrarAuditoria(conn, usuarioId, "criar", "documento", id, null, {
         titulo: data.titulo,
-        hash_conteudo: hash,
+        categoria: data.categoria,
         arquivo_nome_original: data.arquivoNomeOriginal || null,
       });
       return { id };
     });
   });
 
-export const assinarDocumento = createServerFn({ method: "POST" })
-  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+const atualizarDocumentoSchema = z.object({
+  id: z.string().uuid(),
+  titulo: z.string().trim().min(1).max(255),
+  categoria: z.enum(CATEGORIAS_DOCUMENTO),
+  anoReferencia: z.number().int().min(1800).max(2200).nullable(),
+});
+
+export const atualizarDocumento = createServerFn({ method: "POST" })
+  .validator((d: unknown) => atualizarDocumentoSchema.parse(d))
   .handler(async ({ data }) => {
-    return comSessao(async (conn, usuarioId) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
       const [[documento]] = await conn.query<RowDataPacket[]>(
-        "SELECT hash_conteudo FROM documentos WHERE id = ?",
+        "SELECT titulo, categoria FROM documentos WHERE id = ?",
         [data.id],
       );
       if (!documento) throw new Error("Documento não encontrado.");
 
-      const [[jaAssinou]] = await conn.query<RowDataPacket[]>(
-        "SELECT 1 AS ok FROM documento_assinaturas WHERE documento_id = ? AND usuario_id = ?",
-        [data.id, usuarioId],
-      );
-      if (jaAssinou) throw new Error("Você já assinou este documento.");
-
-      await conn.query(
-        `INSERT INTO documento_assinaturas (id, documento_id, usuario_id, hash_conteudo_no_momento)
-         VALUES (?, ?, ?, ?)`,
-        [crypto.randomUUID(), data.id, usuarioId, documento.hash_conteudo],
-      );
+      const categoriaDestino =
+        data.categoria === "legislacao" && data.anoReferencia
+          ? `legislacao:${data.anoReferencia}`
+          : data.categoria;
+      await conn.query("UPDATE documentos SET titulo = ?, categoria = ? WHERE id = ?", [
+        data.titulo,
+        categoriaDestino,
+        data.id,
+      ]);
+      await registrarAuditoria(conn, usuarioId, "atualizar", "documento", data.id, documento, {
+        titulo: data.titulo,
+        categoria: categoriaDestino,
+      });
     });
   });
 
@@ -150,15 +129,6 @@ export const excluirDocumento = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, usuarioId) => {
-      const [[{ total }]] = await conn.query<RowDataPacket[]>(
-        "SELECT COUNT(*) AS total FROM documento_assinaturas WHERE documento_id = ?",
-        [data.id],
-      );
-      if (Number(total) > 0) {
-        throw new SemPermissaoError(
-          "Este documento já tem assinaturas registradas e não pode mais ser excluído.",
-        );
-      }
       const [[documento]] = await conn.query<RowDataPacket[]>(
         "SELECT titulo, hash_conteudo, criado_por FROM documentos WHERE id = ?",
         [data.id],
@@ -174,11 +144,7 @@ const uploadArquivoSchema = z.object({
   dataUrl: z.string().startsWith("data:"),
 });
 
-const MIME_AUTORIZADOS = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-];
+const MIME_AUTORIZADOS = ["application/pdf"];
 const TAMANHO_MAXIMO_BYTES = 15 * 1024 * 1024; // 15 MB — hospedagem compartilhada tem disco limitado.
 
 export const uploadArquivoDocumento = createServerFn({ method: "POST" })
@@ -189,7 +155,7 @@ export const uploadArquivoDocumento = createServerFn({ method: "POST" })
       if (!match) throw new Error("Arquivo inválido.");
       const mime = match[1];
       if (!MIME_AUTORIZADOS.includes(mime)) {
-        throw new Error("Formato não aceito — envie um PDF ou DOCX.");
+        throw new Error("Formato não aceito — envie um arquivo PDF.");
       }
       const buffer = Buffer.from(match[2], "base64");
       if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {

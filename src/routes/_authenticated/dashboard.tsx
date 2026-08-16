@@ -1,40 +1,47 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import {
   listarContasAPagarProximas,
   obterProjecaoFluxo,
   contarMembrosAtivos,
   contarSessoesMes,
   listarAniversariantesMes,
+  obterResumoContasReceber,
+  type ContaAPagarProxima,
 } from "@/lib/backend/dashboard";
 import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/AppShell";
 import { brl, fmtDate } from "@/lib/format";
-import { CalendarClock, Wallet, TrendingUp, Users, CalendarDays, Cake } from "lucide-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  AlertCircle,
+  ArrowRight,
+  CalendarClock,
+  CalendarDays,
+  FileText,
+  Library,
+  RefreshCw,
+  Vote,
+} from "lucide-react";
+import { listarDocumentos } from "@/lib/backend/documentos";
+import { listarEnquetes } from "@/lib/backend/enquetes";
+import { listarEventos } from "@/lib/backend/eventos";
+import { listarPecasArquitetura } from "@/lib/backend/pecas-arquitetura";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  // quem só tem o papel "irmao" (sem admin/tesoureiro/secretario) usa o
-  // painel reduzido, não o dashboard administrativo.
   beforeLoad: ({ context }) => {
     const papeis = context.usuario?.papeis ?? [];
     const privilegiado = papeis.some(
-      (p) => p === "admin" || p === "tesoureiro" || p === "secretario",
+      (papel) => papel === "admin" || papel === "tesoureiro" || papel === "secretario",
     );
-    if (papeis.includes("irmao") && !privilegiado) {
-      throw redirect({ to: "/painel" });
-    }
+    if (papeis.includes("irmao") && !privilegiado) throw redirect({ to: "/painel" });
   },
   head: () => ({
     meta: [
@@ -45,194 +52,643 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+function dataIsoLocal(data: Date) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+function pluralizar(quantidade: number, singular: string, plural: string) {
+  return `${quantidade} ${quantidade === 1 ? singular : plural}`;
+}
+
+function horaAtualizacao(timestamp: number) {
+  if (!timestamp) return "agora";
+  return new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(
+    new Date(timestamp),
+  );
+}
+
+function atualizacaoMaisAntiga(...timestamps: number[]) {
+  const validos = timestamps.filter(Boolean);
+  return validos.length ? Math.min(...validos) : 0;
+}
+
 function Dashboard() {
-  const in30 = new Date();
-  in30.setDate(in30.getDate() + 30);
-  const today = new Date().toISOString().slice(0, 10);
-  const in30Iso = in30.toISOString().slice(0, 10);
+  const em30Dias = new Date();
+  em30Dias.setDate(em30Dias.getDate() + 30);
+  const hoje = dataIsoLocal(new Date());
+  const em30DiasIso = dataIsoLocal(em30Dias);
 
   const contasPagar = useQuery({
-    queryKey: ["dash", "contasPagar", today, in30Iso],
-    queryFn: () => listarContasAPagarProximas({ data: { de: today, ate: in30Iso } }),
+    queryKey: ["dash", "contasPagar", hoje, em30DiasIso],
+    queryFn: () => listarContasAPagarProximas({ data: { de: hoje, ate: em30DiasIso } }),
   });
-
-  const saldos = useQuery({
-    queryKey: ["dash", "saldos"],
-    queryFn: () => listarSaldoContas(),
-  });
-
+  const saldos = useQuery({ queryKey: ["dash", "saldos"], queryFn: () => listarSaldoContas() });
   const projecao = useQuery({
-    queryKey: ["dash", "projecao", today, in30Iso],
-    queryFn: () => obterProjecaoFluxo({ data: { de: today, ate: in30Iso } }),
+    queryKey: ["dash", "projecao", hoje, em30DiasIso],
+    queryFn: () => obterProjecaoFluxo({ data: { de: hoje, ate: em30DiasIso } }),
   });
-
   const membrosAtivos = useQuery({
     queryKey: ["dash", "membrosAtivos"],
     queryFn: () => contarMembrosAtivos(),
   });
-
   const sessoesMes = useQuery({
     queryKey: ["dash", "sessoesMes"],
     queryFn: () => contarSessoesMes(),
   });
-
   const aniversariantes = useQuery({
     queryKey: ["dash", "aniversariantes"],
     queryFn: () => listarAniversariantesMes(),
   });
+  const contasReceber = useQuery({
+    queryKey: ["dash", "contasReceber"],
+    queryFn: () => obterResumoContasReceber(),
+  });
+  const documentos = useQuery({ queryKey: ["dash", "documentos"], queryFn: listarDocumentos });
+  const enquetes = useQuery({ queryKey: ["dash", "enquetes"], queryFn: listarEnquetes });
+  const eventos = useQuery({ queryKey: ["dash", "eventos"], queryFn: listarEventos });
+  const pecas = useQuery({ queryKey: ["dash", "pecas"], queryFn: listarPecasArquitetura });
 
-  const totalPagar = (contasPagar.data ?? []).reduce((a, r: any) => a + Number(r.valor), 0);
-  const saldoAtual = (saldos.data ?? []).reduce((a, r: any) => a + Number(r.saldo_atual ?? 0), 0);
-  const projetado = saldoAtual + (projecao.data?.delta ?? 0);
+  const totalPagar = (contasPagar.data ?? []).reduce(
+    (soma, conta) => soma + Number(conta.valor),
+    0,
+  );
+  const saldoAtual = (saldos.data ?? []).reduce(
+    (soma, conta) => soma + Number(conta.saldo_atual ?? 0),
+    0,
+  );
+  const saldoProjetado = saldoAtual + (projecao.data?.delta ?? 0);
   const proximosAniversariantes = (aniversariantes.data ?? [])
     .slice(0, 2)
-    .map((a) => a.nome_civil.split(" ")[0])
+    .map((aniversariante) => aniversariante.nome_civil.split(" ")[0])
     .join(", ");
 
-  const ordContasPagar = useOrdenacao(contasPagar.data ?? [], {
-    vencimento: (l) => l.data_vencimento,
-    descricao: (l) => l.descricao,
-    valor: (l) => Number(l.valor),
-    status: (l) => (new Date(l.data_vencimento) < new Date(today) ? 1 : 0),
+  const ordenacao = useOrdenacao(contasPagar.data ?? [], {
+    vencimento: (conta) => conta.data_vencimento,
+    descricao: (conta) => conta.descricao,
+    valor: (conta) => Number(conta.valor),
+    status: (conta) => (new Date(conta.data_vencimento) < new Date(`${hoje}T00:00:00`) ? 1 : 0),
   });
+
+  const projecaoPendente = saldos.isPending || projecao.isPending;
+  const projecaoComErro = saldos.isError || projecao.isError;
 
   return (
     <>
       <PageHeader title="Dashboard" description="Visão geral da loja e dos próximos 30 dias." />
 
-      <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          icon={Users}
-          label="Membros Ativos"
-          value={String(membrosAtivos.data ?? "—")}
-          tone="primary"
+      <section aria-labelledby="receber-title" className="mb-5 sm:mb-6">
+        <SectionHeader
+          id="receber-title"
+          title="Contas a receber"
+          description="Recebimentos do mês e valores vencidos que precisam de acompanhamento."
         />
-        <MetricCard
-          icon={CalendarDays}
-          label="Sessões do Mês"
-          value={String(sessoesMes.data ?? "—")}
-          tone="primary"
-        />
-        <MetricCard
-          icon={CalendarClock}
-          label="Pendências Financeiras"
-          value={brl(totalPagar)}
-          hint={`${contasPagar.data?.length ?? 0} lançamento(s) em 30 dias`}
-          tone="warning"
-        />
-        <MetricCard
-          icon={Cake}
-          label="Aniversariantes do Mês"
-          value={String(aniversariantes.data?.length ?? "—")}
-          hint={proximosAniversariantes || undefined}
-          tone="gold"
-        />
-      </div>
+        <MetricGroup
+          columns="sm:grid-cols-2"
+          updatedAt={contasReceber.dataUpdatedAt}
+          refreshing={contasReceber.isFetching}
+        >
+          <MetricItem
+            label="Recebido neste mês"
+            value={brl(contasReceber.data?.recebidoMes ?? 0)}
+            hint="Ver todos os recebimentos"
+            query={contasReceber}
+            tone="success"
+            to="/relatorios/recebimentos"
+          />
+          <MetricItem
+            label="Inadimplência"
+            value={brl(contasReceber.data?.inadimplencia ?? 0)}
+            hint={pluralizar(
+              contasReceber.data?.quantidadeInadimplentes ?? 0,
+              "irmão com pendência",
+              "irmãos com pendência",
+            )}
+            query={contasReceber}
+            tone={(contasReceber.data?.inadimplencia ?? 0) > 0 ? "danger" : "success"}
+            to="/relatorios/inadimplencia"
+          />
+        </MetricGroup>
+      </section>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <MetricCard
-          icon={Wallet}
-          label="Saldo de Caixa (hoje)"
-          value={brl(saldoAtual)}
-          hint={`${saldos.data?.length ?? 0} conta(s)`}
-          tone="primary"
-        />
-        <MetricCard
-          icon={TrendingUp}
-          label="Saldo Projetado (30 dias)"
-          value={brl(projetado)}
-          hint={`${(projecao.data?.delta ?? 0) >= 0 ? "+" : ""}${brl(projecao.data?.delta ?? 0)} previstos`}
-          tone={projetado >= 0 ? "success" : "danger"}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Contas a pagar nos próximos 30 dias</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHeadOrdenavel campo="vencimento" ord={ordContasPagar}>
-                  Vencimento
-                </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="descricao" ord={ordContasPagar}>
-                  Descrição
-                </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="valor" ord={ordContasPagar} className="text-right">
-                  Valor
-                </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="status" ord={ordContasPagar}>
-                  Status
-                </TableHeadOrdenavel>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(contasPagar.data ?? []).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-6">
-                    Nenhuma conta a pagar nos próximos 30 dias.
-                  </TableCell>
-                </TableRow>
+      <section aria-labelledby="atencao-title" className="mb-5 sm:mb-6">
+        <Card>
+          <CardHeader className="gap-3 space-y-0 border-b p-3.5 sm:flex-row sm:items-start sm:justify-between sm:p-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <div className="rounded-md bg-amber-100 p-1.5 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  <CalendarClock className="h-4 w-4" aria-hidden="true" />
+                </div>
+                <CardTitle id="atencao-title">Requer atenção</CardTitle>
+              </div>
+              {contasPagar.isPending ? (
+                <div className="mt-3 space-y-2" aria-label="Carregando resumo de pendências">
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-52" />
+                </div>
+              ) : contasPagar.isError ? (
+                <div className="mt-3" role="alert">
+                  <p className="text-sm font-medium text-destructive">Resumo indisponível</p>
+                  <Button
+                    variant="link"
+                    className="mt-1 h-auto p-0 text-xs"
+                    onClick={() => void contasPagar.refetch()}
+                  >
+                    <RefreshCw aria-hidden="true" /> Tentar novamente
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <p className="text-lg font-semibold tabular-nums sm:text-xl">{brl(totalPagar)}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {pluralizar(contasPagar.data.length, "lançamento vence", "lançamentos vencem")}{" "}
+                    nos próximos 30 dias
+                  </p>
+                  <p className="mt-1.5 text-xs font-medium leading-relaxed text-muted-foreground">
+                    {contasPagar.isFetching
+                      ? "Atualizando…"
+                      : `Atualizado às ${horaAtualizacao(contasPagar.dataUpdatedAt)}`}
+                  </p>
+                </div>
               )}
-              {ordContasPagar.itensOrdenados.map((l: any) => {
-                const overdue = new Date(l.data_vencimento) < new Date(today);
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+            >
+              <Link to="/tesouraria/contas-pagar">Gerenciar contas a pagar</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="p-3.5 pt-3 sm:p-4 sm:pt-3">
+            <ContasPagarTable contasPagar={contasPagar} ordenacao={ordenacao} hoje={hoje} />
+          </CardContent>
+        </Card>
+      </section>
+
+      <section aria-labelledby="financeiro-title" className="mb-5 sm:mb-6">
+        <SectionHeader
+          id="financeiro-title"
+          title="Posição financeira"
+          description="Disponibilidade atual e impacto previsto para os próximos 30 dias."
+        />
+        <MetricGroup
+          columns="sm:grid-cols-2"
+          updatedAt={atualizacaoMaisAntiga(saldos.dataUpdatedAt, projecao.dataUpdatedAt)}
+          refreshing={saldos.isFetching || projecao.isFetching}
+        >
+          <MetricItem
+            label="Saldo de caixa (hoje)"
+            value={brl(saldoAtual)}
+            hint={pluralizar(saldos.data?.length ?? 0, "conta", "contas")}
+            query={saldos}
+          />
+          <MetricItem
+            label="Saldo projetado (30 dias)"
+            value={brl(saldoProjetado)}
+            hint={`${(projecao.data?.delta ?? 0) >= 0 ? "+" : ""}${brl(projecao.data?.delta ?? 0)} previstos`}
+            tone={saldoProjetado >= 0 ? "success" : "danger"}
+            pending={projecaoPendente}
+            error={projecaoComErro}
+            onRetry={() => {
+              void saldos.refetch();
+              void projecao.refetch();
+            }}
+          />
+        </MetricGroup>
+      </section>
+
+      <section aria-labelledby="loja-title">
+        <SectionHeader
+          id="loja-title"
+          title="Vida da loja"
+          description="Indicadores institucionais deste mês."
+        />
+        <MetricGroup
+          columns="sm:grid-cols-3"
+          updatedAt={atualizacaoMaisAntiga(
+            membrosAtivos.dataUpdatedAt,
+            sessoesMes.dataUpdatedAt,
+            aniversariantes.dataUpdatedAt,
+          )}
+          refreshing={
+            membrosAtivos.isFetching || sessoesMes.isFetching || aniversariantes.isFetching
+          }
+        >
+          <MetricItem
+            label="Membros ativos"
+            value={String(membrosAtivos.data ?? 0)}
+            query={membrosAtivos}
+            to="/irmaos"
+          />
+          <MetricItem
+            label="Sessões do mês"
+            value={String(sessoesMes.data ?? 0)}
+            query={sessoesMes}
+            to="/sessoes"
+          />
+          <MetricItem
+            label="Aniversariantes do mês"
+            value={String(aniversariantes.data?.length ?? 0)}
+            hint={proximosAniversariantes || undefined}
+            query={aniversariantes}
+            to="/irmaos"
+          />
+        </MetricGroup>
+      </section>
+
+      <section aria-labelledby="novidades-title" className="mt-5 sm:mt-6">
+        <SectionHeader
+          id="novidades-title"
+          title="Novidades do site"
+          description="Conteúdos e atividades adicionados recentemente."
+        />
+        <div className="divide-y overflow-hidden rounded-xl border bg-card">
+          <Novidade
+            icon={Vote}
+            label="Enquete"
+            titulo={enquetes.data?.[0]?.titulo}
+            to="/enquetes"
+            pending={enquetes.isPending}
+          />
+          <Novidade
+            icon={FileText}
+            label="Legislação"
+            titulo={documentos.data?.[0]?.titulo}
+            to="/documentos"
+            pending={documentos.isPending}
+          />
+          <Novidade
+            icon={CalendarDays}
+            label="Evento"
+            titulo={eventos.data?.[0]?.titulo}
+            to="/eventos"
+            pending={eventos.isPending}
+          />
+          <Novidade
+            icon={Library}
+            label="Biblioteca"
+            titulo={pecas.data?.[0]?.titulo}
+            to="/biblioteca"
+            pending={pecas.isPending}
+          />
+        </div>
+      </section>
+    </>
+  );
+}
+
+function SectionHeader({
+  id,
+  title,
+  description,
+}: {
+  id: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="mb-2.5 sm:mb-3">
+      <h2 id={id} className="text-base font-semibold leading-snug tracking-[-0.01em] sm:text-lg">
+        {title}
+      </h2>
+      <p className="mt-1 max-w-[70ch] text-sm leading-relaxed text-muted-foreground">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function ContasPagarTable({
+  contasPagar,
+  ordenacao,
+  hoje,
+}: {
+  contasPagar: ReturnType<typeof useQuery<ContaAPagarProxima[]>>;
+  ordenacao: ReturnType<typeof useOrdenacao<ContaAPagarProxima>>;
+  hoje: string;
+}) {
+  return (
+    <>
+      <div className="sr-only" aria-live="polite">
+        {contasPagar.isPending
+          ? "Carregando contas a pagar."
+          : contasPagar.isError
+            ? "Não foi possível carregar as contas a pagar."
+            : `${contasPagar.data.length} contas a pagar carregadas.`}
+      </div>
+      <div className="sm:hidden">
+        <ContasPagarMobile contasPagar={contasPagar} hoje={hoje} />
+      </div>
+      <div className="hidden max-w-full overflow-x-auto overscroll-x-contain sm:block">
+        <Table className="min-w-[620px]">
+          <TableHeader>
+            <TableRow>
+              <TableHeadOrdenavel campo="vencimento" ord={ordenacao}>
+                Vencimento
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="descricao" ord={ordenacao}>
+                Descrição
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="valor" ord={ordenacao} className="text-right">
+                Valor
+              </TableHeadOrdenavel>
+              <TableHeadOrdenavel campo="status" ord={ordenacao}>
+                Status
+              </TableHeadOrdenavel>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {contasPagar.isPending && <TableLoadingRows />}
+            {contasPagar.isError && (
+              <TableRow>
+                <TableCell colSpan={4} className="py-8 text-center">
+                  <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+                    <AlertCircle className="h-5 w-5 text-destructive" aria-hidden="true" />
+                    <div>
+                      <p className="text-sm font-medium">Não foi possível carregar as contas</p>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                        Verifique sua conexão e tente novamente. Os demais dados continuam
+                        disponíveis.
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => void contasPagar.refetch()}>
+                      <RefreshCw aria-hidden="true" /> Tentar novamente
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {contasPagar.isSuccess && contasPagar.data.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                  Nenhuma conta a pagar nos próximos 30 dias.
+                </TableCell>
+              </TableRow>
+            )}
+            {contasPagar.isSuccess &&
+              ordenacao.itensOrdenados.map((conta: ContaAPagarProxima) => {
+                const vencida =
+                  new Date(`${conta.data_vencimento}T00:00:00`) < new Date(`${hoje}T00:00:00`);
                 return (
-                  <TableRow key={l.id}>
-                    <TableCell>{fmtDate(l.data_vencimento)}</TableCell>
-                    <TableCell>{l.descricao}</TableCell>
-                    <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
+                  <TableRow key={conta.id}>
+                    <TableCell>{fmtDate(conta.data_vencimento)}</TableCell>
+                    <TableCell className="max-w-md break-words">
+                      {conta.descricao}
+                      {conta.recorrente_id && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Origem: despesa recorrente
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {brl(conta.valor)}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={overdue ? "destructive" : "secondary"}>
-                        {overdue ? "Vencida" : "A vencer"}
+                      <Badge variant={vencida ? "destructive" : "secondary"}>
+                        {vencida ? "Vencida" : "A vencer"}
                       </Badge>
                     </TableCell>
                   </TableRow>
                 );
               })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          </TableBody>
+        </Table>
+      </div>
     </>
   );
 }
 
-function MetricCard({
-  icon: Icon,
+function ContasPagarMobile({
+  contasPagar,
+  hoje,
+}: {
+  contasPagar: ReturnType<typeof useQuery<ContaAPagarProxima[]>>;
+  hoje: string;
+}) {
+  if (contasPagar.isPending) {
+    return (
+      <div className="space-y-4" aria-label="Carregando contas a pagar">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className="space-y-2 border-b pb-4 last:border-0 last:pb-0">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (contasPagar.isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center" role="alert">
+        <AlertCircle className="h-5 w-5 text-destructive" aria-hidden="true" />
+        <div>
+          <p className="text-sm font-medium">Não foi possível carregar as contas</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Verifique sua conexão e tente novamente.
+          </p>
+        </div>
+        <Button variant="outline" className="min-h-11" onClick={() => void contasPagar.refetch()}>
+          <RefreshCw aria-hidden="true" /> Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  if (contasPagar.data.length === 0) {
+    return (
+      <p className="py-6 text-center text-sm text-muted-foreground">
+        Nenhuma conta a pagar nos próximos 30 dias.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="divide-y" aria-label="Contas a pagar nos próximos 30 dias">
+      {contasPagar.data.map((conta) => {
+        const vencida =
+          new Date(`${conta.data_vencimento}T00:00:00`) < new Date(`${hoje}T00:00:00`);
+        return (
+          <li key={conta.id} className="py-4 first:pt-0 last:pb-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-base font-medium leading-snug">{conta.descricao}</p>
+                {conta.recorrente_id && (
+                  <p className="mt-1 text-sm text-muted-foreground">Origem: despesa recorrente</p>
+                )}
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Vence em {fmtDate(conta.data_vencimento)}
+                </p>
+              </div>
+              <Badge variant={vencida ? "destructive" : "secondary"} className="shrink-0">
+                {vencida ? "Vencida" : "A vencer"}
+              </Badge>
+            </div>
+            <p className="mt-3 text-lg font-semibold tabular-nums">{brl(conta.valor)}</p>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function TableLoadingRows() {
+  return Array.from({ length: 3 }, (_, index) => (
+    <TableRow key={index} aria-hidden="true">
+      <TableCell>
+        <Skeleton className="h-4 w-24" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-4 w-full max-w-xs" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="ml-auto h-4 w-20" />
+      </TableCell>
+      <TableCell>
+        <Skeleton className="h-5 w-16" />
+      </TableCell>
+    </TableRow>
+  ));
+}
+
+type EstadoConsulta = {
+  isPending: boolean;
+  isError: boolean;
+  isFetching: boolean;
+  dataUpdatedAt: number;
+  refetch: () => Promise<unknown>;
+};
+
+function MetricGroup({
+  children,
+  columns,
+  updatedAt,
+  refreshing,
+}: {
+  children: ReactNode;
+  columns: string;
+  updatedAt: number;
+  refreshing: boolean;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className={`grid divide-y sm:divide-x sm:divide-y-0 ${columns}`}>{children}</div>
+        <p
+          className="border-t px-3.5 py-2 text-xs font-medium leading-relaxed text-muted-foreground sm:px-4"
+          aria-live="polite"
+        >
+          {refreshing ? "Atualizando…" : `Atualizado às ${horaAtualizacao(updatedAt)}`}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricItem({
   label,
   value,
   hint,
-  tone,
+  tone = "neutral",
+  query,
+  pending = query?.isPending ?? false,
+  error = query?.isError ?? false,
+  onRetry = () => void query?.refetch(),
+  to,
 }: {
-  icon: any;
   label: string;
   value: string;
   hint?: string;
-  tone: "primary" | "success" | "warning" | "danger" | "gold";
+  tone?: "neutral" | "success" | "danger";
+  query?: EstadoConsulta;
+  pending?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+  to?: string;
 }) {
-  const toneClass = {
-    primary: "text-primary bg-primary/10",
-    success: "text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30",
-    warning: "text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30",
-    danger: "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30",
-    gold: "text-gold-foreground bg-gold-muted",
+  const valueClass = {
+    neutral: "text-foreground",
+    success: "text-emerald-700 dark:text-emerald-300",
+    danger: "text-destructive",
   }[tone];
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="mt-1 text-2xl font-semibold">{value}</p>
-            {hint && <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p>}
-          </div>
-          <div className={`shrink-0 rounded-md p-2 ${toneClass}`}>
-            <Icon className="h-5 w-5" />
-          </div>
+
+  const conteudo = (
+    <div className={`min-w-0 p-3.5 sm:p-4 ${to ? "transition-colors hover:bg-muted/50" : ""}`}>
+      <p className="text-xs font-medium leading-normal text-muted-foreground sm:text-sm">{label}</p>
+      {pending ? (
+        <div className="mt-2 space-y-2" aria-label={`Carregando ${label}`}>
+          <Skeleton className="h-6 w-28" />
+          <Skeleton className="h-3 w-36" />
         </div>
-      </CardContent>
-    </Card>
+      ) : error ? (
+        <div className="mt-2" role="alert">
+          <p className="text-sm font-medium text-destructive">Dados indisponíveis</p>
+          <Button variant="link" className="mt-1 h-auto p-0 text-xs" onClick={onRetry}>
+            <RefreshCw aria-hidden="true" /> Tentar novamente
+          </Button>
+        </div>
+      ) : (
+        <>
+          <p
+            className={`mt-1 break-words text-lg font-semibold tabular-nums sm:text-xl ${valueClass}`}
+          >
+            {value}
+          </p>
+          {hint && (
+            <p className="mt-1 break-words text-xs font-medium leading-relaxed text-muted-foreground">
+              {hint}
+            </p>
+          )}
+          {to && <ArrowRight className="mt-2 h-4 w-4 text-muted-foreground" aria-hidden="true" />}
+        </>
+      )}
+    </div>
+  );
+  return to && !error ? (
+    <Link
+      to={to}
+      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+    >
+      {conteudo}
+    </Link>
+  ) : (
+    conteudo
+  );
+}
+
+function Novidade({
+  icon: Icon,
+  label,
+  titulo,
+  to,
+  pending,
+}: {
+  icon: typeof Vote;
+  label: string;
+  titulo?: string;
+  to: string;
+  pending: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex min-h-16 items-center gap-3 px-3.5 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-4"
+    >
+      <Icon className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        {pending ? (
+          <Skeleton className="mt-2 h-4 w-2/3" />
+        ) : (
+          <p className="mt-1 truncate font-medium">{titulo ?? "Nenhuma novidade cadastrada"}</p>
+        )}
+      </div>
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </Link>
   );
 }

@@ -16,8 +16,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { GRAU_LABEL, SITUACAO_LABEL } from "@/lib/format";
-import { Plus } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
@@ -36,17 +36,25 @@ export const Route = createFileRoute("/_authenticated/irmaos/")({
 function IrmaosList() {
   const [q, setQ] = useState("");
   const can = useCan();
-  const { data = [], isLoading } = useQuery({
+  const {
+    data = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["irmaos"],
     queryFn: () => listarIrmaos(),
   });
 
-  const filtered = data.filter(
-    (i: any) =>
-      !q ||
-      i.nome_civil?.toLowerCase().includes(q.toLowerCase()) ||
-      i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
-      i.cim?.toLowerCase().includes(q.toLowerCase()),
+  const filtered = useMemo(
+    () =>
+      data.filter(
+        (i: any) =>
+          !q ||
+          i.nome_civil?.toLowerCase().includes(q.toLowerCase()) ||
+          i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
+          i.cim?.toLowerCase().includes(q.toLowerCase()),
+      ),
+    [data, q],
   );
   const ord = useOrdenacao(filtered, {
     nome_civil: (i) => i.nome_civil,
@@ -99,10 +107,10 @@ function IrmaosList() {
               <TableHeadOrdenavel campo="nome_civil" ord={ord}>
                 Nome civil
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="nome_simbolico" ord={ord}>
+              <TableHeadOrdenavel campo="nome_simbolico" ord={ord} className="hidden sm:table-cell">
                 Nome simbólico
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="cim" ord={ord}>
+              <TableHeadOrdenavel campo="cim" ord={ord} className="hidden sm:table-cell">
                 CIM
               </TableHeadOrdenavel>
               <TableHeadOrdenavel campo="grau" ord={ord}>
@@ -122,26 +130,41 @@ function IrmaosList() {
                 </TableCell>
               </TableRow>
             )}
-            {!isLoading && filtered.length === 0 && (
+            {isError && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-6 text-destructive">
+                  Erro ao carregar os irmãos. Tente novamente.
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && !isError && filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                  Nenhum irmão cadastrado.
+                  {q ? "Nenhum irmão encontrado para essa busca." : "Nenhum irmão cadastrado."}
                 </TableCell>
               </TableRow>
             )}
             {itensPagina.map((i: any) => (
               <TableRow key={i.id}>
-                <TableCell className="font-medium">{i.nome_civil}</TableCell>
-                <TableCell>{i.nome_simbolico ?? "—"}</TableCell>
-                <TableCell>{i.cim ?? "—"}</TableCell>
+                <TableCell className="font-medium">
+                  {i.nome_civil}
+                  {(i.nome_simbolico || i.cim) && (
+                    <div className="text-xs text-muted-foreground sm:hidden">
+                      {[i.nome_simbolico, i.cim].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">{i.nome_simbolico ?? "—"}</TableCell>
+                <TableCell className="hidden sm:table-cell">{i.cim ?? "—"}</TableCell>
                 <TableCell>{GRAU_LABEL[i.grau]}</TableCell>
                 <TableCell>
                   <Badge variant={situacaoVariant(i.situacao)}>{SITUACAO_LABEL[i.situacao]}</Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="pl-0 text-right">
                   <Link to="/irmaos/$id" params={{ id: i.id }}>
-                    <Button variant="ghost" size="sm">
-                      Abrir
+                    <Button variant="ghost" size="sm" aria-label="Abrir" className="px-2 sm:px-3">
+                      <span className="hidden sm:inline">Abrir</span>
+                      <ChevronRight className="h-4 w-4 sm:hidden" />
                     </Button>
                   </Link>
                 </TableCell>

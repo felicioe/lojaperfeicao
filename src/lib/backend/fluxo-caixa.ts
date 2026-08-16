@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comSessao } from "./authz";
+import { garantirPrevisoesRecorrentes } from "./tesouraria-recorrentes";
 
 // Mesma visibilidade "privilegiado ou próprio" de tesouraria-lancamentos.ts/dashboard.ts.
 const PAPEIS_PRIVILEGIADOS = ["admin", "tesoureiro", "secretario"];
@@ -39,6 +40,7 @@ export const obterFluxoAnteriores = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<number> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
+      if (privilegiado) await garantirPrevisoesRecorrentes(conn);
       const condicaoIrmao = privilegiado
         ? ""
         : "AND l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)";
@@ -143,6 +145,7 @@ export type MovimentoPendente = {
   valor: number;
   tipo: "entrada" | "saida";
   data_vencimento: string;
+  recorrente_id: string | null;
 };
 
 export const listarMovimentosPendentes = createServerFn({ method: "GET" })
@@ -150,6 +153,7 @@ export const listarMovimentosPendentes = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<MovimentoPendente[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
+      if (privilegiado) await garantirPrevisoesRecorrentes(conn);
       const condicoes = [
         "pago = FALSE",
         "tipo IN ('entrada','saida')",
@@ -162,7 +166,8 @@ export const listarMovimentosPendentes = createServerFn({ method: "GET" })
         valores.push(usuarioId);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT descricao, (valor - valor_pago) AS valor, tipo, data_vencimento FROM lancamentos WHERE ${condicoes.join(" AND ")} ORDER BY data_vencimento`,
+        `SELECT descricao, (valor - valor_pago) AS valor, tipo, data_vencimento, recorrente_id
+         FROM lancamentos WHERE ${condicoes.join(" AND ")} ORDER BY data_vencimento`,
         valores,
       );
       return rows as MovimentoPendente[];

@@ -24,7 +24,7 @@ import {
   Library,
   Calendar,
   Vote,
-  FileSignature,
+  Scale,
 } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
 
@@ -36,6 +36,11 @@ const TITULOS: Record<string, string> = {
   "/painel/sessoes": "Sessões",
   "/painel/eventos": "Eventos",
   "/painel/comunicacoes": "Comunicações",
+  "/biblioteca": "Biblioteca de Peças",
+  "/calendario": "Calendário",
+  "/enquetes": "Enquetes",
+  "/documentos": "Legislação",
+  "/conta/seguranca": "Segurança da conta",
 };
 
 const ABAS = [
@@ -75,9 +80,9 @@ export function PainelShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-background shadow-sm">
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4">
+    <div className="min-h-screen min-h-dvh bg-muted/30">
+      <div className="mx-auto flex min-h-screen min-h-dvh w-full max-w-md flex-col bg-background shadow-sm">
+        <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b bg-background px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
           <button
             type="button"
             aria-label="Abrir menu"
@@ -99,9 +104,14 @@ export function PainelShell({ children }: { children: ReactNode }) {
           </Link>
         </header>
 
-        <main className="flex-1 overflow-x-hidden px-4 pb-24 pt-4">{children}</main>
+        <main className="flex-1 overflow-x-hidden px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4">
+          {children}
+        </main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md border-t bg-primary text-primary-foreground">
+        <nav
+          aria-label="Navegação principal"
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md border-t bg-primary pb-[env(safe-area-inset-bottom)] text-primary-foreground"
+        >
           <div className="flex">
             {ABAS.map((aba) => {
               const ativo = loc.pathname === aba.to;
@@ -111,7 +121,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   key={aba.to}
                   to={aba.to}
                   className={cn(
-                    "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] transition-all",
+                    "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] transition-all",
                     ativo
                       ? "opacity-100 bg-white/10"
                       : "opacity-60 hover:opacity-85 hover:bg-white/5",
@@ -133,7 +143,10 @@ export function PainelShell({ children }: { children: ReactNode }) {
         </nav>
 
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-          <SheetContent side="left" className="flex w-72 flex-col gap-0 p-0">
+          <SheetContent
+            side="left"
+            className="flex h-dvh w-[86vw] max-w-80 flex-col gap-0 overflow-hidden p-0"
+          >
             <SheetTitle className="sr-only">Menu</SheetTitle>
             <div className="border-b p-4">
               <div className="truncate text-sm font-semibold">
@@ -141,79 +154,59 @@ export function PainelShell({ children }: { children: ReactNode }) {
               </div>
               <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
             </div>
-            <div className="flex-1 p-3">
-              <Link
-                to="/painel/eventos"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <PartyPopper className="h-4 w-4 text-muted-foreground" /> Eventos
-              </Link>
-              <Link
-                to="/painel/dados"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <ShieldCheck className="h-4 w-4 text-muted-foreground" /> Meus dados e privacidade
-              </Link>
-              <Link
-                to="/biblioteca"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <Library className="h-4 w-4 text-muted-foreground" /> Biblioteca de Peças
-              </Link>
-              <Link
-                to="/calendario"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <Calendar className="h-4 w-4 text-muted-foreground" /> Calendário
-              </Link>
-              <Link
-                to="/enquetes"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <Vote className="h-4 w-4 text-muted-foreground" /> Enquetes
-              </Link>
-              <Link
-                to="/documentos"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <FileSignature className="h-4 w-4 text-muted-foreground" /> Documentos
-              </Link>
-              <Link
-                to="/conta/seguranca"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm hover:bg-muted"
-              >
-                <Fingerprint className="h-4 w-4 text-muted-foreground" /> Segurança da conta
-              </Link>
-              <a
-                href="/privacidade"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 block rounded-md px-3 py-2.5 text-sm text-muted-foreground hover:bg-muted"
-              >
-                Política de Privacidade
-              </a>
-              <button
-                type="button"
-                onClick={toggleDark}
-                className="mt-1 flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-sm hover:bg-muted"
-              >
-                {dark ? (
-                  <Sun className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Moon className="h-4 w-4 text-muted-foreground" />
-                )}
+            <nav aria-label="Menu do usuário" className="flex-1 space-y-1 overflow-y-auto p-3">
+              <Button variant="outline" className="min-h-11 w-full justify-start" asChild>
+                <Link to="/painel" onClick={() => setMenuOpen(false)}>
+                  <Home className="mr-1.5 h-4 w-4" /> Início
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/painel/eventos" onClick={() => setMenuOpen(false)}>
+                  <PartyPopper className="mr-1.5 h-4 w-4" /> Eventos
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/painel/dados" onClick={() => setMenuOpen(false)}>
+                  <ShieldCheck className="mr-1.5 h-4 w-4" /> Meus dados e privacidade
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/biblioteca" onClick={() => setMenuOpen(false)}>
+                  <Library className="mr-1.5 h-4 w-4" /> Biblioteca de Peças
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/calendario" onClick={() => setMenuOpen(false)}>
+                  <Calendar className="mr-1.5 h-4 w-4" /> Calendário
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/enquetes" onClick={() => setMenuOpen(false)}>
+                  <Vote className="mr-1.5 h-4 w-4" /> Enquetes
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/documentos" onClick={() => setMenuOpen(false)}>
+                  <Scale className="mr-1.5 h-4 w-4" /> Legislação
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/conta/seguranca" onClick={() => setMenuOpen(false)}>
+                  <Fingerprint className="mr-1.5 h-4 w-4" /> Segurança da conta
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <a href="/privacidade" target="_blank" rel="noreferrer">
+                  Política de Privacidade
+                </a>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" onClick={toggleDark}>
+                {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}
                 {dark ? "Modo claro" : "Modo escuro"}
-              </button>
-            </div>
-            <div className="border-t p-3">
-              <Button variant="outline" className="w-full" onClick={sair}>
+              </Button>
+            </nav>
+            <div className="border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Button variant="outline" className="min-h-11 w-full" onClick={sair}>
                 <LogOut className="mr-1.5 h-4 w-4" /> Sair
               </Button>
             </div>

@@ -5,10 +5,13 @@ import {
   listarContasPagarPagas,
   criarContaPagar,
   baixarContaPagar,
+  confirmarValorEfetivoContaPagar,
+  editarContaPagar,
+  excluirContaPagar,
   type ContaPagar,
 } from "@/lib/backend/tesouraria-contas-pagar";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
-import { listarFornecedores } from "@/lib/backend/terceiros";
+import { FornecedorSelect } from "@/components/app/FornecedorSelect";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -44,7 +47,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Plus } from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
@@ -145,19 +148,31 @@ function ContasPagar() {
                   <TableHeadOrdenavel campo="descricao" ord={ordAbertas}>
                     Descrição
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="categoria" ord={ordAbertas}>
+                  <TableHeadOrdenavel
+                    campo="categoria"
+                    ord={ordAbertas}
+                    className="hidden sm:table-cell"
+                  >
                     Categoria
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="fornecedor" ord={ordAbertas}>
+                  <TableHeadOrdenavel
+                    campo="fornecedor"
+                    ord={ordAbertas}
+                    className="hidden sm:table-cell"
+                  >
                     Fornecedor
                   </TableHeadOrdenavel>
                   <TableHeadOrdenavel campo="valor" ord={ordAbertas} className="text-right">
                     Valor
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="status" ord={ordAbertas}>
+                  <TableHeadOrdenavel
+                    campo="status"
+                    ord={ordAbertas}
+                    className="hidden sm:table-cell"
+                  >
                     Status
                   </TableHeadOrdenavel>
-                  {podeEditar && <TableHead className="text-right">Ações</TableHead>}
+                  {podeEditar && <TableHead className="text-right"></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -172,24 +187,58 @@ function ContasPagar() {
                   const vencida = l.data_vencimento && l.data_vencimento < hoje;
                   return (
                     <TableRow key={l.id}>
-                      <TableCell>{fmtDate(l.data_vencimento)}</TableCell>
-                      <TableCell>{l.descricao}</TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell>
+                        {fmtDate(l.data_vencimento)}
+                        {vencida && (
+                          <div className="sm:hidden">
+                            <Badge variant="destructive" className="mt-1">
+                              Vencida
+                            </Badge>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {l.descricao}
+                        {l.recorrente_id && (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Origem: despesa recorrente
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground sm:hidden">
+                          {[l.plano_contas?.nome, l.terceiros?.nome].filter(Boolean).join(" · ")}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">
                         {l.plano_contas?.nome ?? "—"}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">
                         {l.terceiros?.nome ?? "—"}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {brl(Number(l.valor) - Number(l.valor_pago))}
+                        {l.recorrente_id && !l.valor_efetivo_confirmado && (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            Valor previsto
+                          </div>
+                        )}
+                        {l.recorrente_id &&
+                          l.valor_efetivo_confirmado &&
+                          l.valor_previsto != null &&
+                          Number(l.valor_previsto) !== Number(l.valor) && (
+                            <div className="text-xs font-normal text-muted-foreground">
+                              previsto: {brl(l.valor_previsto)}
+                            </div>
+                          )}
                         {l.valor_pago > 0 && (
                           <div className="text-xs font-normal text-muted-foreground">
                             de {brl(l.valor)} — parcial
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>
-                        {vencida ? (
+                      <TableCell className="hidden sm:table-cell">
+                        {l.recorrente_id && !l.valor_efetivo_confirmado ? (
+                          <Badge variant="secondary">Aguardando valor efetivo</Badge>
+                        ) : vencida ? (
                           <Badge variant="destructive">Vencida</Badge>
                         ) : (
                           <Badge variant="outline">Aberta</Badge>
@@ -197,14 +246,77 @@ function ContasPagar() {
                       </TableCell>
                       {podeEditar && (
                         <TableCell className="text-right">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button size="sm" variant="ghost">
-                                <CheckCircle2 className="h-4 w-4 mr-1" /> Baixar
+                          <div className="flex justify-end gap-1">
+                            {l.recorrente_id && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="px-2 sm:px-3">
+                                    <Pencil className="h-4 w-4 sm:mr-1" />
+                                    <span className="hidden sm:inline">
+                                      {l.valor_efetivo_confirmado
+                                        ? "Corrigir valor"
+                                        : "Informar valor"}
+                                    </span>
+                                  </Button>
+                                </DialogTrigger>
+                                <ValorEfetivoDialog lancamento={l} onDone={invalidate} />
+                              </Dialog>
+                            )}
+                            {!l.recorrente_id && Number(l.valor_pago) === 0 && (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="px-2 sm:px-3">
+                                    <Pencil className="h-4 w-4 sm:mr-1" />
+                                    <span className="hidden sm:inline">Editar</span>
+                                  </Button>
+                                </DialogTrigger>
+                                <EditarContaPagarDialog lancamento={l} onDone={invalidate} />
+                              </Dialog>
+                            )}
+                            {!l.recorrente_id && Number(l.valor_pago) === 0 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="px-2 text-destructive hover:text-destructive sm:px-3"
+                                onClick={async () => {
+                                  if (
+                                    !window.confirm(
+                                      `Excluir a conta “${l.descricao}”? Esta ação não pode ser desfeita.`,
+                                    )
+                                  )
+                                    return;
+                                  try {
+                                    await excluirContaPagar({ data: { id: l.id } });
+                                    toast.success("Conta a pagar excluída.");
+                                    invalidate();
+                                  } catch (erro) {
+                                    toast.error(
+                                      erro instanceof Error
+                                        ? erro.message
+                                        : "Não foi possível excluir.",
+                                    );
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Excluir</span>
                               </Button>
-                            </DialogTrigger>
-                            <BaixarContaPagarDialog lancamento={l} onDone={invalidate} />
-                          </Dialog>
+                            )}
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="px-2 sm:px-3"
+                                  disabled={!!l.recorrente_id && !l.valor_efetivo_confirmado}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 sm:mr-1" />
+                                  <span className="hidden sm:inline">Baixar</span>
+                                </Button>
+                              </DialogTrigger>
+                              <BaixarContaPagarDialog lancamento={l} onDone={invalidate} />
+                            </Dialog>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -233,13 +345,17 @@ function ContasPagar() {
                   <TableHeadOrdenavel campo="descricao" ord={ordPagas}>
                     Descrição
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="categoria" ord={ordPagas}>
+                  <TableHeadOrdenavel
+                    campo="categoria"
+                    ord={ordPagas}
+                    className="hidden sm:table-cell"
+                  >
                     Categoria
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="conta" ord={ordPagas}>
+                  <TableHeadOrdenavel campo="conta" ord={ordPagas} className="hidden sm:table-cell">
                     Conta
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="forma" ord={ordPagas}>
+                  <TableHeadOrdenavel campo="forma" ord={ordPagas} className="hidden lg:table-cell">
                     Forma
                   </TableHeadOrdenavel>
                   <TableHeadOrdenavel campo="valor" ord={ordPagas} className="text-right">
@@ -258,14 +374,21 @@ function ContasPagar() {
                 {pagasPag.itensPagina.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>{fmtDate(l.data_pagamento)}</TableCell>
-                    <TableCell>{l.descricao}</TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell>
+                      {l.descricao}
+                      <div className="text-xs text-muted-foreground sm:hidden">
+                        {[l.plano_contas?.nome, l.contas_financeiras?.nome]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">
                       {l.plano_contas?.nome ?? "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">
                       {l.contas_financeiras?.nome ?? "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden lg:table-cell text-muted-foreground">
                       {l.forma_pagamento ?? "—"}
                     </TableCell>
                     <TableCell className="text-right font-medium">{brl(l.valor)}</TableCell>
@@ -304,13 +427,8 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
     queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
   });
 
-  const { data: terceiros = [] } = useQuery({
-    queryKey: ["terceiros_fornecedores"],
-    queryFn: () => listarFornecedores(),
-  });
-
   const salvar = async () => {
-    if (!d.descricao.trim() || !d.valor || !d.plano_conta_id) return;
+    if (!d.descricao.trim() || !(Number(d.valor) > 0) || !d.plano_conta_id) return;
     setSaving(true);
     try {
       await criarContaPagar({
@@ -370,19 +488,10 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
         </div>
         <div>
           <Label>Fornecedor (opcional)</Label>
-          <Select value={d.terceiro_id} onValueChange={(v) => setD({ ...d, terceiro_id: v })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">— nenhum —</SelectItem>
-              {terceiros.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FornecedorSelect
+            value={d.terceiro_id}
+            onValueChange={(v) => setD({ ...d, terceiro_id: v })}
+          />
         </div>
         <div>
           <Label>Emissão</Label>
@@ -409,8 +518,134 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={salvar} disabled={saving || !d.descricao || !d.valor || !d.plano_conta_id}>
+        <Button
+          onClick={salvar}
+          disabled={saving || !d.descricao || !(Number(d.valor) > 0) || !d.plano_conta_id}
+        >
           Registrar
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function EditarContaPagarDialog({
+  lancamento,
+  onDone,
+}: {
+  lancamento: ContaPagar;
+  onDone: () => void;
+}) {
+  const [d, setD] = useState({
+    descricao: lancamento.descricao,
+    valor: Number(lancamento.valor),
+    plano_conta_id: lancamento.plano_conta_id,
+    terceiro_id: lancamento.terceiro_id ?? "none",
+    data: lancamento.data,
+    data_vencimento: lancamento.data_vencimento ?? lancamento.data,
+    observacoes: lancamento.observacoes ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const { data: planos = [] } = useQuery({
+    queryKey: ["planos_despesa"],
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
+  });
+  const salvar = async () => {
+    if (!d.descricao.trim() || !(d.valor > 0) || !d.plano_conta_id) return;
+    setSaving(true);
+    try {
+      await editarContaPagar({
+        data: {
+          id: lancamento.id,
+          descricao: d.descricao.trim(),
+          valor: d.valor,
+          planoContaId: d.plano_conta_id,
+          data: d.data,
+          dataVencimento: d.data_vencimento,
+          terceiroId: d.terceiro_id === "none" ? null : d.terceiro_id,
+          observacoes: d.observacoes || null,
+        },
+      });
+      toast.success("Conta a pagar atualizada.");
+      onDone();
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível editar.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle>Editar conta a pagar</DialogTitle>
+      </DialogHeader>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Label>Descrição</Label>
+          <Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} />
+        </div>
+        <div>
+          <Label>Valor</Label>
+          <Input
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={d.valor}
+            onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
+          />
+        </div>
+        <div>
+          <Label>Categoria</Label>
+          <Select value={d.plano_conta_id} onValueChange={(v) => setD({ ...d, plano_conta_id: v })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {planos.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.codigo} — {p.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Fornecedor</Label>
+          <FornecedorSelect
+            value={d.terceiro_id}
+            onValueChange={(v) => setD({ ...d, terceiro_id: v })}
+          />
+        </div>
+        <div>
+          <Label>Emissão</Label>
+          <Input
+            type="date"
+            value={d.data}
+            onChange={(e) => setD({ ...d, data: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label>Vencimento</Label>
+          <Input
+            type="date"
+            value={d.data_vencimento}
+            onChange={(e) => setD({ ...d, data_vencimento: e.target.value })}
+          />
+        </div>
+        <div className="md:col-span-2">
+          <Label>Observações</Label>
+          <Textarea
+            value={d.observacoes}
+            onChange={(e) => setD({ ...d, observacoes: e.target.value })}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button
+          onClick={salvar}
+          disabled={saving || !d.descricao || !(d.valor > 0) || !d.plano_conta_id}
+        >
+          {saving ? "Salvando…" : "Salvar alterações"}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -500,6 +735,66 @@ function BaixarContaPagarDialog({
       <DialogFooter>
         <Button onClick={baixar} disabled={saving || !contaFinanceiraId}>
           Confirmar baixa
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function ValorEfetivoDialog({
+  lancamento,
+  onDone,
+}: {
+  lancamento: ContaPagar;
+  onDone: () => void;
+}) {
+  const [valor, setValor] = useState(Number(lancamento.valor));
+  const [salvando, setSalvando] = useState(false);
+
+  const salvar = async () => {
+    if (!(valor > 0)) return;
+    setSalvando(true);
+    try {
+      await confirmarValorEfetivoContaPagar({
+        data: { lancamentoId: lancamento.id, valorEfetivo: valor },
+      });
+      toast.success("Valor efetivo confirmado. A conta já pode ser paga.");
+      onDone();
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível confirmar o valor.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <DialogContent className="max-w-md">
+      <DialogHeader>
+        <DialogTitle>Confirmar valor efetivo</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-3">
+        <div>
+          <div className="text-sm font-medium">{lancamento.descricao}</div>
+          <div className="text-sm text-muted-foreground">
+            Previsão original: {brl(lancamento.valor_previsto ?? lancamento.valor)}
+          </div>
+        </div>
+        <div>
+          <Label htmlFor={`valor-efetivo-${lancamento.id}`}>Valor efetivo para pagamento</Label>
+          <Input
+            id={`valor-efetivo-${lancamento.id}`}
+            type="number"
+            min="0.01"
+            step="0.01"
+            autoFocus
+            value={valor}
+            onChange={(e) => setValor(Number(e.target.value))}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button onClick={salvar} disabled={salvando || !(valor > 0)}>
+          {salvando ? "Salvando…" : "Confirmar valor"}
         </Button>
       </DialogFooter>
     </DialogContent>

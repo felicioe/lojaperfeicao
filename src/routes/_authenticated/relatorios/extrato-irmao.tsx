@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { relatorioExtratoIrmao, type ItemExtratoIrmao } from "@/lib/backend/relatorios";
+import {
+  relatorioExtratoIrmao,
+  relatorioExtratoSgcabIrmao,
+  type ItemExtratoIrmao,
+} from "@/lib/backend/relatorios";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -30,6 +34,7 @@ import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
+import { Info } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/relatorios/extrato-irmao")({
   head: () => ({ meta: [{ title: "Extrato do Irmão — Gestão Maçônica" }] }),
@@ -37,6 +42,7 @@ export const Route = createFileRoute("/_authenticated/relatorios/extrato-irmao")
 });
 
 const COLUNAS: ColunaRelatorio[] = [
+  { chave: "origem", titulo: "Origem" },
   { chave: "data", titulo: "Emissão" },
   { chave: "vencimento", titulo: "Vencimento" },
   { chave: "descricao", titulo: "Descrição" },
@@ -50,10 +56,13 @@ const TIPO_LABEL: Record<string, string> = {
   transferencia: "Transferência",
 };
 
-const hoje = new Date().toISOString().slice(0, 10);
-
 function diasAtraso(vencimento: string | null): number {
   if (!vencimento) return 0;
+  // Calculado a cada chamada (não guardado em módulo) — a tela é um SPA
+  // que pode ficar aberta de um dia pro outro sem reload, e "hoje" fixo no
+  // load do bundle deixaria uma fatura vencida ontem à noite ainda
+  // aparecendo como "A vencer" hoje de manhã.
+  const hoje = new Date().toISOString().slice(0, 10);
   const ms = new Date(hoje).getTime() - new Date(vencimento).getTime();
   return Math.max(0, Math.round(ms / 86_400_000));
 }
@@ -74,6 +83,13 @@ function ExtratoIrmao() {
     queryFn: () => relatorioExtratoIrmao({ data: { irmaoId, de: de || null, ate: ate || null } }),
   });
 
+  const { data: taxasSgcab = [] } = useQuery({
+    queryKey: ["relatorio_extrato_sgcab_irmao", irmaoId, de, ate],
+    enabled: !!irmaoId,
+    queryFn: () =>
+      relatorioExtratoSgcabIrmao({ data: { irmaoId, de: de || null, ate: ate || null } }),
+  });
+
   const irmaoNome = irmaos.find((i) => i.id === irmaoId)?.nome_civil ?? "";
 
   const emAberto = itens.filter((i) => !i.pago);
@@ -83,6 +99,9 @@ function ExtratoIrmao() {
   const totalAberto = emAberto.reduce((s, i) => s + (Number(i.valor) - Number(i.valor_pago)), 0);
   const atrasadas = emAberto.filter((i) => diasAtraso(i.data_vencimento) > 0);
   const totalAtrasado = atrasadas.reduce((s, i) => s + (Number(i.valor) - Number(i.valor_pago)), 0);
+  const sgcabEmAberto = taxasSgcab.filter((i) => i.status === "pendente");
+  const totalSgcabAberto = sgcabEmAberto.reduce((s, i) => s + Number(i.total), 0);
+  const totalGeralDevido = totalAberto + totalSgcabAberto;
 
   const statusLabel = (i: ItemExtratoIrmao) => {
     if (i.pago) return "Pago";
@@ -101,14 +120,31 @@ function ExtratoIrmao() {
   const valorExibido = (i: ItemExtratoIrmao) =>
     Number(i.valor_pago) > 0 ? Number(i.valor_pago) : Number(i.valor);
 
-  const linhasExportacao = itens.map((i) => ({
-    data: fmtDate(i.data),
-    vencimento: i.data_vencimento ? fmtDate(i.data_vencimento) : "—",
-    descricao: i.descricao,
-    valor: valorExibido(i),
-    status: statusLabel(i),
-    pago_em: i.data_pagamento ? fmtDate(i.data_pagamento) : "—",
-  }));
+  const linhasExportacao = [
+    ...itens.map((i) => ({
+      origem: "Loja",
+      data: fmtDate(i.data),
+      vencimento: i.data_vencimento ? fmtDate(i.data_vencimento) : "—",
+      descricao: i.descricao,
+      valor: valorExibido(i),
+      status: statusLabel(i),
+      pago_em: i.data_pagamento ? fmtDate(i.data_pagamento) : "—",
+    })),
+    ...taxasSgcab.map((i) => ({
+      origem: "SGCAB",
+      data: fmtDate(i.data),
+      vencimento: i.vencimento ? fmtDate(i.vencimento) : "—",
+      descricao: i.itens_descricao ? `${i.titulo} — ${i.itens_descricao}` : i.titulo,
+      valor: Number(i.total),
+      status:
+        i.status === "pago"
+          ? "Pago ao SGCAB"
+          : i.status === "cancelado"
+            ? "Cancelado"
+            : "Pendente no SGCAB",
+      pago_em: i.data_pagamento ? fmtDate(i.data_pagamento) : "—",
+    })),
+  ];
 
   const ordAberto = useOrdenacao(emAberto, {
     vencimento: (i) => i.data_vencimento,
@@ -137,8 +173,8 @@ function ExtratoIrmao() {
     ordHistorico.coluna === null
       ? [...historico].sort(
           (a, b) =>
-            new Date(b.data_pagamento ?? b.data).getTime() -
-            new Date(a.data_pagamento ?? a.data).getTime(),
+            new Date(a.data_pagamento ?? a.data).getTime() -
+            new Date(b.data_pagamento ?? b.data).getTime(),
         )
       : ordHistorico.itensOrdenados;
 
@@ -194,13 +230,13 @@ function ExtratoIrmao() {
 
       {irmaoId && (
         <>
-          <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
             <Card className="p-4">
-              <div className="text-sm text-muted-foreground">Total pago</div>
+              <div className="text-sm text-muted-foreground">Total pago à Loja</div>
               <div className="text-2xl font-semibold">{brl(totalPago)}</div>
             </Card>
             <Card className="p-4">
-              <div className="text-sm text-muted-foreground">Total em aberto</div>
+              <div className="text-sm text-muted-foreground">Em aberto — Loja</div>
               <div className="text-2xl font-semibold">{brl(totalAberto)}</div>
             </Card>
             <Card className={`p-4 ${totalAtrasado > 0 ? "border-destructive" : ""}`}>
@@ -215,6 +251,13 @@ function ExtratoIrmao() {
                   {atrasadas.length} fatura(s) vencida(s)
                 </div>
               )}
+            </Card>
+            <Card className="p-4 bg-muted/25">
+              <div className="text-sm text-muted-foreground">Visão global — total devido</div>
+              <div className="text-2xl font-semibold">{brl(totalGeralDevido)}</div>
+              <div className="text-xs text-muted-foreground">
+                Loja {brl(totalAberto)} + SGCAB {brl(totalSgcabAberto)}
+              </div>
             </Card>
           </div>
 
@@ -280,6 +323,71 @@ function ExtratoIrmao() {
                       </TableRow>
                     );
                   })}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground">
+                Taxas SGCAB ({taxasSgcab.length})
+              </h3>
+              <p className="mt-1 flex max-w-3xl items-start gap-2 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                Taxas devidas ao SGCAB deverão ser emitidas diretamente no site do SGCAB ou via DDA
+                do Irmão.
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground">Total devido ao SGCAB</div>
+              <div className="font-semibold tabular-nums">{brl(totalSgcabAberto)}</div>
+            </div>
+          </div>
+          <Card className="mb-6">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vencimento</TableHead>
+                    <TableHead>Descrição / composição</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Situação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {taxasSgcab.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                        Nenhuma taxa do SGCAB registrada no período.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {taxasSgcab.map((i) => (
+                    <TableRow key={i.id}>
+                      <TableCell>{i.vencimento ? fmtDate(i.vencimento) : "—"}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{i.titulo}</div>
+                        {i.itens_descricao && (
+                          <div className="mt-0.5 text-xs text-muted-foreground">
+                            {i.itens_descricao}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {brl(i.total)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={i.status === "pago" ? "secondary" : "outline"}>
+                          {i.status === "pago"
+                            ? "Pago ao SGCAB"
+                            : i.status === "cancelado"
+                              ? "Cancelado"
+                              : "Pendente no SGCAB"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>

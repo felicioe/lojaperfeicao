@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
-import { comSessao } from "./authz";
+import { comPapel, comSessao } from "./authz";
+import { garantirPrevisoesRecorrentes } from "./tesouraria-recorrentes";
 
 // Mesma visibilidade de lancamentos usada em tesouraria-lancamentos.ts:
 // admin/tesoureiro/secretario veem tudo, irmão comum só os seus.
@@ -23,6 +24,7 @@ export type ContaAPagarProxima = {
   valor: number;
   data_vencimento: string;
   tipo: "entrada" | "saida";
+  recorrente_id: string | null;
 };
 
 export const listarContasAPagarProximas = createServerFn({ method: "GET" })
@@ -30,6 +32,7 @@ export const listarContasAPagarProximas = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ContaAPagarProxima[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
+      if (privilegiado) await garantirPrevisoesRecorrentes(conn);
       const condicoes = [
         "tipo = 'saida'",
         "pago = FALSE",
@@ -42,7 +45,7 @@ export const listarContasAPagarProximas = createServerFn({ method: "GET" })
         valores.push(usuarioId);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, descricao, (valor - valor_pago) AS valor, data_vencimento, tipo FROM lancamentos
+        `SELECT id, descricao, (valor - valor_pago) AS valor, data_vencimento, tipo, recorrente_id FROM lancamentos
          WHERE ${condicoes.join(" AND ")}
          ORDER BY data_vencimento`,
         valores,
@@ -53,7 +56,7 @@ export const listarContasAPagarProximas = createServerFn({ method: "GET" })
 
 export const contarMembrosAtivos = createServerFn({ method: "GET" }).handler(
   async (): Promise<number> => {
-    return comSessao(async (conn) => {
+    return comPapel(PAPEIS_PRIVILEGIADOS, async (conn) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
         "SELECT COUNT(*) AS total FROM irmaos WHERE situacao IN ('ativo', 'quite', 'irregular')",
       );
@@ -95,11 +98,64 @@ export const listarAniversariantesMes = createServerFn({ method: "GET" }).handle
 
 export type ProjecaoFluxo = { somaE: number; somaS: number; delta: number };
 
+export type ResumoContasReceber = {
+  inadimplencia: number;
+  quantidadeInadimplentes: number;
+  recebidoMes: number;
+};
+
+export const obterResumoContasReceber = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ResumoContasReceber> => {
+    return comSessao(async (conn) => {
+      const [[inadimplencia]] = await conn.query<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(valor - valor_pago), 0) AS valor,
+                COUNT(DISTINCT irmao_id) AS quantidade
+         FROM lancamentos
+         WHERE tipo = 'entrada' AND pago = FALSE AND data_vencimento < CURRENT_DATE`,
+      );
+      const [[recebido]] = await conn.query<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(valor), 0) AS valor FROM (
+           SELECT (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor
+           FROM recibo_itens ri
+           JOIN recibos r ON r.id = ri.recibo_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id AND l.tipo = 'entrada'
+           WHERE YEAR(r.data) = YEAR(CURRENT_DATE) AND MONTH(r.data) = MONTH(CURRENT_DATE)
+           UNION ALL
+           SELECT cl.valor_aplicado
+           FROM conciliacao_lancamentos cl
+           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
+           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.tipo = 'entrada'
+           WHERE YEAR(c.data_conciliacao) = YEAR(CURRENT_DATE)
+             AND MONTH(c.data_conciliacao) = MONTH(CURRENT_DATE)
+           UNION ALL
+           SELECT l.valor
+           FROM lancamentos l
+           WHERE l.tipo = 'entrada' AND l.pago = TRUE AND l.parcelado = FALSE
+             AND YEAR(l.data_pagamento) = YEAR(CURRENT_DATE)
+             AND MONTH(l.data_pagamento) = MONTH(CURRENT_DATE)
+             AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+             AND NOT EXISTS (
+               SELECT 1 FROM conciliacao_lancamentos cl
+               JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
+               WHERE cl.lancamento_id = l.id
+             )
+         ) recebimentos`,
+      );
+      return {
+        inadimplencia: Number(inadimplencia.valor),
+        quantidadeInadimplentes: Number(inadimplencia.quantidade),
+        recebidoMes: Number(recebido.valor),
+      };
+    });
+  },
+);
+
 export const obterProjecaoFluxo = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ de: z.string(), ate: z.string() }).parse(d))
   .handler(async ({ data }): Promise<ProjecaoFluxo> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
+      if (privilegiado) await garantirPrevisoesRecorrentes(conn);
       const condicoes = ["pago = FALSE", "data_vencimento >= ?", "data_vencimento <= ?"];
       const valores: unknown[] = [data.de, data.ate];
       if (!privilegiado) {

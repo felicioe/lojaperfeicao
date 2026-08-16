@@ -215,7 +215,11 @@ function UsuariosPage() {
                   <TableHeadOrdenavel campo="nome" ord={ordSemAcesso}>
                     Nome
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="login" ord={ordSemAcesso}>
+                  <TableHeadOrdenavel
+                    campo="login"
+                    ord={ordSemAcesso}
+                    className="hidden sm:table-cell"
+                  >
                     Login sugerido
                   </TableHeadOrdenavel>
                   <TableHead className="text-right">Ação</TableHead>
@@ -224,8 +228,13 @@ function UsuariosPage() {
               <TableBody>
                 {ordSemAcesso.itensOrdenados.map((i) => (
                   <TableRow key={i.id}>
-                    <TableCell className="font-medium">{i.nome_civil}</TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">
+                    <TableCell className="font-medium">
+                      {i.nome_civil}
+                      <div className="font-mono text-xs text-muted-foreground sm:hidden">
+                        {i.loginSugerido}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell font-mono text-sm text-muted-foreground">
                       {i.loginSugerido}
                     </TableCell>
                     <TableCell className="text-right">
@@ -254,13 +263,13 @@ function UsuariosPage() {
                 <TableHeadOrdenavel campo="usuario" ord={ord}>
                   Usuário
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="nome" ord={ord}>
+                <TableHeadOrdenavel campo="nome" ord={ord} className="hidden sm:table-cell">
                   Nome
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="papeis" ord={ord}>
+                <TableHeadOrdenavel campo="papeis" ord={ord} className="hidden sm:table-cell">
                   Papéis
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="irmao" ord={ord}>
+                <TableHeadOrdenavel campo="irmao" ord={ord} className="hidden lg:table-cell">
                   Irmão vinculado
                 </TableHeadOrdenavel>
                 <TableHeadOrdenavel campo="status" ord={ord}>
@@ -361,9 +370,17 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
 
   return (
     <TableRow>
-      <TableCell className="font-medium">{usuario.email}</TableCell>
-      <TableCell>{usuario.nome_completo ?? "—"}</TableCell>
-      <TableCell>
+      <TableCell className="font-medium">
+        {usuario.email}
+        <div className="text-xs font-normal text-muted-foreground sm:hidden">
+          {usuario.nome_completo ?? "—"}
+          {usuario.papeis.length > 0
+            ? ` · ${usuario.papeis.map((p) => ROLE_LABEL[p]).join(", ")}`
+            : ""}
+        </div>
+      </TableCell>
+      <TableCell className="hidden sm:table-cell">{usuario.nome_completo ?? "—"}</TableCell>
+      <TableCell className="hidden sm:table-cell">
         <div className="flex flex-wrap gap-1">
           {usuario.papeis.map((p) => (
             <Badge key={p} variant="outline">
@@ -372,7 +389,9 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
           ))}
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">{usuario.irmao?.nome_civil ?? "—"}</TableCell>
+      <TableCell className="hidden lg:table-cell text-muted-foreground">
+        {usuario.irmao?.nome_civil ?? "—"}
+      </TableCell>
       <TableCell>
         <div className="flex flex-wrap gap-1">
           <Badge variant={usuario.ativo ? "secondary" : "outline"}>

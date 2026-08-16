@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 260" role="img" aria-labelledby="title desc">
+  <title id="title">SGLFM</title>
+  <desc id="desc">Sistema de Gestão de Loja Filosófica Maçônica</desc>
+  <g transform="translate(34 12) scale(.68)">
+    <path fill="#C6A65B" d="M128 4 98 72l30 62 30-62L128 4Z"/>
+    <path fill="#101A2B" d="M128 104c27 16 39 43 34 73-4 27-24 53-46 68 15-30 19-52 8-72-8-16-20-28-38-38 10-13 24-24 42-31Z"/>
+    <path fill="#C6A65B" d="M88 91c-26 27-31 61-15 90 13 24 40 37 58 57 15 17 19 35 12 55 25-29 31-64 15-91-13-23-39-36-56-55-15-17-20-35-14-56Z"/>
+    <path fill="#101A2B" d="M77 213 8 316h84l36-59-51-44Zm102 0 69 103h-84l-36-59 51-44Z"/>
+    <path fill="#C6A65B" d="m128 260-30 56h60l-30-56Z"/>
+  </g>
+  <path stroke="#C6A65B" stroke-width="2" d="M234 42v176"/>
+  <text x="278" y="132" fill="#101A2B" font-family="Georgia,serif" font-size="92" letter-spacing="8">SGLFM</text>
+  <text x="282" y="176" fill="#101A2B" font-family="Arial,sans-serif" font-size="21">Sistema de Gestão de Loja Filosófica Maçônica</text>
+</svg>

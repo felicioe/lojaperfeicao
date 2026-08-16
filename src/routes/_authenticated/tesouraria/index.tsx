@@ -7,6 +7,7 @@ import {
   criarLancamentoManual,
   criarTransferencia,
   gerarMensalidades as gerarMensalidadesFn,
+  type Lancamento,
 } from "@/lib/backend/tesouraria-lancamentos";
 import { AcoesLancamento } from "@/components/app/LancamentoAcoes";
 import { PageHeader } from "@/components/app/AppShell";
@@ -152,7 +153,7 @@ function Tesouraria() {
         description="Movimento financeiro, transferências e mensalidades."
         actions={
           can.canManageFinancas && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setOpenConfirmGerar(true)}>
                 <Repeat className="h-4 w-4 mr-1" /> Gerar mensalidades do mês
               </Button>
@@ -194,7 +195,97 @@ function Tesouraria() {
           <CardTitle className="text-base">Últimos lançamentos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="sm:hidden">
+            <div className="sr-only" aria-live="polite">
+              {lancamentos.isLoading
+                ? "Carregando lançamentos."
+                : lancamentos.isError
+                  ? "Erro ao carregar lançamentos."
+                  : `${itensPagina.length} lançamentos carregados.`}
+            </div>
+            {lancamentos.isLoading && (
+              <div className="space-y-4" aria-label="Carregando lançamentos">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="space-y-2 border-b pb-4 last:border-0 last:pb-0">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                ))}
+              </div>
+            )}
+            {lancamentos.isError && (
+              <p className="py-6 text-center text-destructive">
+                Erro ao carregar lançamentos.{" "}
+                <button className="underline" onClick={() => lancamentos.refetch()}>
+                  Tentar novamente
+                </button>
+              </p>
+            )}
+            {!lancamentos.isLoading &&
+              !lancamentos.isError &&
+              (lancamentos.data ?? []).length === 0 && (
+                <p className="py-6 text-center text-muted-foreground">Nenhum lançamento.</p>
+              )}
+            <ul className="divide-y" aria-label="Últimos lançamentos">
+              {itensPagina.map((l: Lancamento) => (
+                <li key={l.id} className="py-4 first:pt-0 last:pb-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-base font-medium leading-snug">
+                        {l.descricao}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {l.contas_financeiras?.nome ?? "—"}
+                        {l.destino?.nome && <> → {l.destino.nome}</>}
+                      </p>
+                    </div>
+                    <p
+                      className={`shrink-0 text-right text-base font-semibold tabular-nums ${
+                        l.tipo === "entrada"
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : l.tipo === "saida"
+                            ? "text-destructive"
+                            : "text-foreground"
+                      }`}
+                    >
+                      {brl(l.valor)}
+                    </p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+                    <span>{fmtDate(l.data)}</span>
+                    {l.data_vencimento && <span>· vence {fmtDate(l.data_vencimento)}</span>}
+                    <Badge
+                      variant={
+                        l.tipo === "entrada"
+                          ? "default"
+                          : l.tipo === "saida"
+                            ? "destructive"
+                            : "secondary"
+                      }
+                    >
+                      {l.tipo === "entrada" ? "Entrada" : l.tipo === "saida" ? "Saída" : l.tipo}
+                    </Badge>
+                    {l.pago ? (
+                      <Badge variant="secondary">Pago</Badge>
+                    ) : (
+                      <Badge variant="outline">Aberto</Badge>
+                    )}
+                  </div>
+                  {can.canManageFinancas && (
+                    <div className="-mr-2 mt-2 flex justify-end [&_button]:h-8 [&_button]:w-8 [&_button]:p-0">
+                      <AcoesLancamento
+                        lancamento={l}
+                        contas={contas.data ?? []}
+                        receitas={receitas.data ?? []}
+                        onDone={invalidateLancamentos}
+                      />
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -275,7 +366,7 @@ function Tesouraria() {
                       </TableCell>
                     </TableRow>
                   )}
-                {itensPagina.map((l: any) => (
+                {itensPagina.map((l: Lancamento) => (
                   <TableRow key={l.id}>
                     <TableCell className="hidden sm:table-cell">{fmtDate(l.data)}</TableCell>
                     <TableCell>{l.data_vencimento ? fmtDate(l.data_vencimento) : "—"}</TableCell>
@@ -403,8 +494,8 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
             value={d.valor}
             onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
           />
-          {!Number(d.valor) && (
-            <p className="mt-1 text-xs text-destructive">O valor não pode ser zero.</p>
+          {!(Number(d.valor) > 0) && (
+            <p className="mt-1 text-xs text-destructive">O valor deve ser maior que zero.</p>
           )}
         </div>
         <div className="md:col-span-2">
@@ -481,7 +572,10 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
             Cancelar
           </Button>
         </DialogClose>
-        <Button onClick={save} disabled={saving || !d.descricao || !d.conta_id || !Number(d.valor)}>
+        <Button
+          onClick={save}
+          disabled={saving || !d.descricao || !d.conta_id || !(Number(d.valor) > 0)}
+        >
           Salvar
         </Button>
       </DialogFooter>
@@ -597,7 +691,7 @@ function TransferenciaDialog({ contas, onDone }: any) {
             Cancelar
           </Button>
         </DialogClose>
-        <Button onClick={save} disabled={saving || !Number(d.valor)}>
+        <Button onClick={save} disabled={saving || !(Number(d.valor) > 0)}>
           Transferir
         </Button>
       </DialogFooter>

@@ -1,12 +1,15 @@
 import "./lib/error-capture";
 
+import { readFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { executarDisparoNotificacoes } from "./lib/push-dispatch";
 import { executarBackupAgendado } from "./lib/backup-dispatch";
 import { tratarCallbackGoogle } from "./lib/google-oauth-callback";
 import { tratarCallbackFacebook } from "./lib/facebook-oauth-callback";
-import { executarLembretesFaturas } from "./lib/email-dispatch";
+import { executarLembretesFaturas, processarFilaEmails } from "./lib/email-dispatch";
+import { carregarAgendaPublica } from "./lib/agenda-publica";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -46,6 +49,52 @@ function isH3SwallowedErrorBody(body: string): boolean {
     return payload.unhandled === true && payload.message === "HTTPError";
   } catch {
     return false;
+  }
+}
+
+// irmaos.ts, orgs.ts, pecas-arquitetura.ts, documentos.ts e sgcab.ts gravam
+// uploads em disco (node:fs/promises) sob public/uploads/... em tempo de
+// execução, contando que o Nitro sirva esses arquivos como estático — mas
+// o preset "node-server" gera, em build time, um MANIFESTO CONGELADO dos
+// arquivos que existiam em public/ naquele momento (ver
+// .output/server/index.mjs, `public_assets_data_default`) e serve só a
+// partir dele: qualquer arquivo enviado DEPOIS do deploy (ou seja, todo
+// upload feito pelos usuários em produção) não está no manifesto e cai em
+// 404, em qualquer navegador/aparelho — não é um problema de PWA/cache nem
+// específico de celular, é o servidor Node de produção nunca lendo o
+// diretório ao vivo. Intercepta /uploads/* aqui e lê do disco a cada
+// requisição, contornando o manifesto do Nitro.
+const UPLOADS_MIME_POR_EXTENSAO: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
+
+async function tratarUploadEstatico(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (!url.pathname.startsWith("/uploads/")) return null;
+
+  const baseDir = resolve(process.cwd(), "public", "uploads");
+  const caminhoAbsoluto = resolve(process.cwd(), "public", `.${decodeURIComponent(url.pathname)}`);
+  if (!caminhoAbsoluto.startsWith(baseDir)) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
+  try {
+    const conteudo = await readFile(caminhoAbsoluto);
+    const mime =
+      UPLOADS_MIME_POR_EXTENSAO[extname(caminhoAbsoluto).toLowerCase()] ??
+      "application/octet-stream";
+    return new Response(conteudo, {
+      headers: { "content-type": mime, "cache-control": "public, max-age=3600" },
+    });
+  } catch {
+    return new Response("Arquivo não encontrado.", { status: 404 });
   }
 }
 
@@ -106,7 +155,7 @@ async function tratarCronBackup(request: Request): Promise<Response | null> {
 }
 
 // Mesmo padrão de tratarCronNotificacoes acima, para os lembretes de
-// fatura por e-mail (issue #103). Reaproveita o mesmo CRON_SECRET.
+// fatura por e-mail (issue #103, vencidas @ 12h). Reaproveita CRON_SECRET.
 async function tratarCronLembretesEmail(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== "/api/cron/lembretes-email") return null;
@@ -119,6 +168,37 @@ async function tratarCronLembretesEmail(request: Request): Promise<Response | nu
 
   try {
     const resultado = await executarLembretesFaturas();
+    // Todas as tentativas falharam (ex.: SMTP nunca configurado) — responder
+    // 200 aqui deixaria o agendador do painel da Hostinger achar que o job
+    // "rodou com sucesso" pra sempre, mesmo sem enviar um único e-mail.
+    const falhaTotal = resultado.avaliadas > 0 && resultado.enviadas === 0 && resultado.falhas > 0;
+    return new Response(JSON.stringify(resultado), {
+      status: falhaTotal ? 500 : 200,
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: (error as Error).message }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
+// Mesmo padrão, para processar fila de emails com retry automático
+// (issue #XXX — fila de envio). CRON @ a cada 2 minutos.
+async function tratarCronFilaEmails(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/cron/processar-fila-email") return null;
+
+  const token = url.searchParams.get("token") ?? request.headers.get("x-cron-token");
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado || token !== esperado) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const resultado = await processarFilaEmails();
     return new Response(JSON.stringify(resultado), {
       headers: { "content-type": "application/json" },
     });
@@ -127,6 +207,30 @@ async function tratarCronLembretesEmail(request: Request): Promise<Response | nu
     return new Response(JSON.stringify({ erro: (error as Error).message }), {
       status: 500,
       headers: { "content-type": "application/json" },
+    });
+  }
+}
+
+async function tratarAgendaPublica(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/publico/agenda") return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    const agenda = await carregarAgendaPublica();
+    return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), agenda }), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=300, stale-while-revalidate=900",
+        "access-control-allow-origin": "https://associacaoadonhiramita.org",
+        "x-content-type-options": "nosniff",
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: "Agenda temporariamente indisponível." }), {
+      status: 503,
+      headers: { "content-type": "application/json; charset=utf-8" },
     });
   }
 }
@@ -150,6 +254,9 @@ async function tratarCallbackFacebookOuNull(request: Request): Promise<Response 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const uploadResponse = await tratarUploadEstatico(request);
+      if (uploadResponse) return uploadResponse;
+
       const cronResponse = await tratarCronNotificacoes(request);
       if (cronResponse) return cronResponse;
 
@@ -158,6 +265,12 @@ export default {
 
       const lembretesResponse = await tratarCronLembretesEmail(request);
       if (lembretesResponse) return lembretesResponse;
+
+      const filaEmailResponse = await tratarCronFilaEmails(request);
+      if (filaEmailResponse) return filaEmailResponse;
+
+      const agendaResponse = await tratarAgendaPublica(request);
+      if (agendaResponse) return agendaResponse;
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
       if (googleResponse) return googleResponse;

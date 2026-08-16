@@ -371,7 +371,14 @@ function FluxoProjetado() {
               {itensPagina.map((p, i) => (
                 <TableRow key={i}>
                   <TableCell>{fmtDate(p.data_vencimento)}</TableCell>
-                  <TableCell>{p.descricao}</TableCell>
+                  <TableCell>
+                    {p.descricao}
+                    {p.recorrente_id && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Origem: despesa recorrente
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={p.tipo === "entrada" ? "default" : "destructive"}>
                       {p.tipo === "entrada" ? "Entrada" : "Saída"}

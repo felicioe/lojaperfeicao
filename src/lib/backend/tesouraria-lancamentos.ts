@@ -45,6 +45,8 @@ const filtrosSchema = z.object({
   contaId: z.string().uuid().nullable().optional(),
   tipo: z.enum(["entrada", "saida", "transferencia"]).nullable().optional(),
   categoria: z.string().nullable().optional(),
+  irmaoId: z.string().uuid().nullable().optional(),
+  pago: z.boolean().nullable().optional(),
   limite: z.number().int().positive().max(1000).optional(),
 });
 
@@ -79,6 +81,14 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         condicoes.push("l.categoria_recebimento = ?");
         valores.push(data.categoria);
       }
+      if (data.irmaoId) {
+        condicoes.push("l.irmao_id = ?");
+        valores.push(data.irmaoId);
+      }
+      if (data.pago !== null && data.pago !== undefined) {
+        condicoes.push("l.pago = ?");
+        valores.push(data.pago);
+      }
       const where = condicoes.length > 0 ? `WHERE ${condicoes.join(" AND ")}` : "";
       const limite = data.limite ?? 200;
 
@@ -97,12 +107,19 @@ export const listarLancamentos = createServerFn({ method: "GET" })
          LIMIT ?`,
         [...valores, limite],
       );
-      return rows.map((r) => ({
+      // DESC+LIMIT busca os mais recentes (sem filtro de data essa tela
+      // puxa o histórico todo — inverter a ordem sem isso faria o cap
+      // esconder justamente os lançamentos mais novos); inverte só na
+      // saída pra exibir sempre do mais antigo pro mais novo.
+      return rows.reverse().map((r) => ({
         id: r.id,
         data: r.data,
         data_vencimento: r.data_vencimento,
         data_pagamento: r.data_pagamento,
-        descricao: r.descricao,
+        descricao:
+          r.categoria_recebimento === "tronco" && r.tipo === "entrada"
+            ? "Recebimento Pix - Irmão do quadro ou visitante - nome omitido para confidencialidade do tronco"
+            : r.descricao,
         valor: r.valor,
         valor_pago: r.valor_pago,
         tipo: r.tipo,
@@ -112,8 +129,8 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         conta_id: r.conta_id,
         conta_destino_id: r.conta_destino_id,
         plano_conta_id: r.plano_conta_id,
-        irmao_id: r.irmao_id,
-        irmao_nome: r.irmao_nome,
+        irmao_id: r.categoria_recebimento === "tronco" ? null : r.irmao_id,
+        irmao_nome: r.categoria_recebimento === "tronco" ? null : r.irmao_nome,
         contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
         destino: r.destino_nome ? { nome: r.destino_nome } : null,
         plano_contas: r.plano_conta_nome ? { nome: r.plano_conta_nome } : null,
@@ -138,6 +155,8 @@ export type LancamentoDetalhe = {
   org_logo_url: string | null;
   forma_cobranca: "pix" | "boleto" | null;
   pix_chave: string | null;
+  pix_copia_cola: string | null;
+  pix_qr_code_url: string | null;
   pix_nome_beneficiario: string | null;
   pix_cidade: string | null;
 };
@@ -152,26 +171,93 @@ export const obterLancamento = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<LancamentoDetalhe | null> => {
     return comSessao(async (conn, usuarioId) => {
+      const [[estruturaPix]] = await conn.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contas_financeiras_pix'
+           AND COLUMN_NAME IN ('pix_copia_cola', 'qr_code_url')`,
+      );
+      const camposPixAvancados =
+        Number(estruturaPix.total) === 2
+          ? "pix.pix_copia_cola, pix.qr_code_url AS pix_qr_code_url,"
+          : "NULL AS pix_copia_cola, NULL AS pix_qr_code_url,";
+      // Faturas antigas podem não ter pix_chave_id. Nesse caso, usa a chave
+      // principal de uma conta ativa para que o modelo atualizado também
+      // apresente QR Code, chave e Copia e Cola no histórico já emitido.
+      const [[pixPadrao]] = await conn.query<RowDataPacket[]>(
+        `SELECT pix.id
+         FROM contas_financeiras_pix pix
+         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id
+         WHERE cf.ativo = TRUE
+         ORDER BY pix.principal DESC, pix.criado_em
+         LIMIT 1`,
+      );
       const [[row]] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago,
-                l.competencia_mes, l.is_mensalidade, l.forma_cobranca,
+                l.competencia_mes, l.is_mensalidade, 'pix' AS forma_cobranca,
                 i.nome_civil AS irmao_nome, i.cim AS irmao_cim, i.usuario_id AS irmao_usuario_id,
                 o.nome AS org_nome, o.logo_url AS org_logo_url,
-                pix.chave AS pix_chave, pix.nome_beneficiario AS pix_nome_beneficiario,
+                pix.chave AS pix_chave, ${camposPixAvancados}
+                pix.nome_beneficiario AS pix_nome_beneficiario,
                 pix.cidade AS pix_cidade
          FROM lancamentos l
          LEFT JOIN irmaos i ON i.id = l.irmao_id
          LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
          LEFT JOIN orgs o ON o.id = io.org_id
-         LEFT JOIN contas_financeiras_pix pix ON pix.id = l.pix_chave_id
+         LEFT JOIN contas_financeiras_pix pix ON pix.id = COALESCE(l.pix_chave_id, ?)
          WHERE l.id = ?`,
-        [data.id],
+        [pixPadrao?.id ?? null, data.id],
       );
       if (!row) return null;
       if (!(await ehPrivilegiadoLancamentos(conn)) && row.irmao_usuario_id !== usuarioId) {
         throw new SemPermissaoError();
       }
       return row as LancamentoDetalhe;
+    });
+  });
+
+// Faturas de um mesmo irmão impressas agrupadas numa única página (issue
+// #318) — mesma consulta de obterLancamento, mas pra vários IDs de uma vez.
+// Só admin/tesoureiro/secretario (quem monta a impressão em lote na tela de
+// faturas em aberto), não o próprio irmão via Meu Painel.
+export const listarLancamentosParaImpressao = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ ids: z.array(z.string().uuid()).min(1) }).parse(d))
+  .handler(async ({ data }): Promise<LancamentoDetalhe[]> => {
+    return comPapel(PAPEIS_LEITURA, async (conn) => {
+      const [[estruturaPix]] = await conn.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contas_financeiras_pix'
+           AND COLUMN_NAME IN ('pix_copia_cola', 'qr_code_url')`,
+      );
+      const camposPixAvancados =
+        Number(estruturaPix.total) === 2
+          ? "pix.pix_copia_cola, pix.qr_code_url AS pix_qr_code_url,"
+          : "NULL AS pix_copia_cola, NULL AS pix_qr_code_url,";
+      const [[pixPadrao]] = await conn.query<RowDataPacket[]>(
+        `SELECT pix.id
+         FROM contas_financeiras_pix pix
+         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id
+         WHERE cf.ativo = TRUE
+         ORDER BY pix.principal DESC, pix.criado_em
+         LIMIT 1`,
+      );
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago,
+                l.competencia_mes, l.is_mensalidade, 'pix' AS forma_cobranca,
+                i.nome_civil AS irmao_nome, i.cim AS irmao_cim,
+                o.nome AS org_nome, o.logo_url AS org_logo_url,
+                pix.chave AS pix_chave, ${camposPixAvancados}
+                pix.nome_beneficiario AS pix_nome_beneficiario,
+                pix.cidade AS pix_cidade
+         FROM lancamentos l
+         LEFT JOIN irmaos i ON i.id = l.irmao_id
+         LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
+         LEFT JOIN orgs o ON o.id = io.org_id
+         LEFT JOIN contas_financeiras_pix pix ON pix.id = COALESCE(l.pix_chave_id, ?)
+         WHERE l.id IN (?)
+         ORDER BY l.competencia_mes, l.data_vencimento`,
+        [pixPadrao?.id ?? null, data.ids],
+      );
+      return rows as LancamentoDetalhe[];
     });
   });
 
@@ -215,7 +301,7 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT pago, data_pagamento FROM lancamentos WHERE id = ?",
+        "SELECT pago, data_pagamento, parcelado FROM lancamentos WHERE id = ?",
         [data.id],
       );
       const [[vinculo]] = await conn.query<RowDataPacket[]>(
@@ -223,8 +309,12 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
            EXISTS(SELECT 1 FROM recibo_itens WHERE lancamento_id = ?) AS tem_recibo,
            EXISTS(SELECT 1 FROM conciliacao_lancamentos WHERE lancamento_id = ?) AS tem_conciliacao,
            EXISTS(SELECT 1 FROM ofx_lancamentos WHERE lancamento_id = ? AND conciliado = TRUE)
-             AS tem_ofx_legado`,
-        [data.id, data.id, data.id],
+             AS tem_ofx_legado,
+           EXISTS(
+             SELECT 1 FROM lancamentos_contabeis
+             WHERE origem_tipo = 'conta_pagar_baixa' AND origem_id = ?
+           ) AS tem_baixa_conta_pagar`,
+        [data.id, data.id, data.id, data.id],
       );
       if (vinculo.tem_recibo) {
         throw new Error(
@@ -234,6 +324,26 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
       if (vinculo.tem_conciliacao || vinculo.tem_ofx_legado) {
         throw new Error(
           'Este lançamento foi quitado por conciliação bancária — use "Desfazer conciliação" (Conciliação Bancária ou Extrato da Conciliação), não "Desmarcar pago".',
+        );
+      }
+      if (vinculo.tem_baixa_conta_pagar) {
+        // baixar_conta_pagar grava o lançamento contábil (débito Contas a
+        // Pagar / crédito banco) direto em lancamentos_contabeis, sem
+        // nenhuma tabela de vínculo (recibo_itens etc.) — "Desmarcar pago"
+        // reabriria a conta a pagar sem estornar essa contrapartida, e uma
+        // nova baixa depois geraria um SEGUNDO lançamento contábil pro
+        // mesmo pagamento (achado da revisão da metodologia contábil).
+        throw new Error(
+          "Esta conta a pagar foi baixada — desmarcar por aqui deixaria o lançamento contábil da baixa órfão. Não é possível reverter por aqui.",
+        );
+      }
+      if (antes?.parcelado) {
+        // criar_parcelamento marca a fatura original como pago/parcelado
+        // sem recibo/conciliação — reabri-la aqui deixaria a fatura original
+        // em aberto de novo enquanto as parcelas geradas pelo acordo
+        // continuam existindo e cobráveis, cobrando o irmão em dobro.
+        throw new Error(
+          "Esta fatura foi absorvida por um acordo de parcelamento — não é possível desmarcar isoladamente.",
         );
       }
       await conn.query(
@@ -395,7 +505,9 @@ export const estornarLancamento = createServerFn({ method: "POST" })
       }
 
       const [contabeis] = await conn.query<RowDataPacket[]>(
-        `SELECT id FROM lancamentos_contabeis WHERE origem_id = ? AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso')`,
+        `SELECT id FROM lancamentos_contabeis
+         WHERE origem_id = ?
+           AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso', 'conta_pagar_provisao')`,
         [data.id],
       );
       for (const lc of contabeis) {
@@ -483,6 +595,11 @@ export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
   .validator((d: unknown) => recebimentoAvulsoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const descricaoSegura =
+        data.categoria === "tronco"
+          ? "Recebimento Pix - Irmão do quadro ou visitante - nome omitido para confidencialidade do tronco"
+          : data.descricao;
+      const formaPagamentoSegura = data.categoria === "tronco" ? "PIX" : data.formaPagamento;
       await conn.query(
         "CALL registrar_recebimento_avulso(?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, @lanc_id)",
         [
@@ -491,8 +608,8 @@ export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
           data.planoContaId,
           data.contaFinanceiraId,
           data.data,
-          data.formaPagamento,
-          data.descricao,
+          formaPagamentoSegura,
+          descricaoSegura,
           data.observacoes,
         ],
       );
@@ -504,7 +621,9 @@ export const registrarRecebimentoAvulso = createServerFn({ method: "POST" })
         "recebimento_avulso",
         lanc_id,
         null,
-        data,
+        data.categoria === "tronco"
+          ? { ...data, descricao: descricaoSegura, formaPagamento: "PIX" }
+          : data,
       );
       return { id: lanc_id };
     });

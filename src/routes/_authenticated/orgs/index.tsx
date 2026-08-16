@@ -6,6 +6,9 @@ import {
   listarPotencias,
   salvarOrg,
   alternarAtivoOrg,
+  excluirOrg,
+  transferirDadosOrg,
+  listarUsoOrgs,
   listarOrgsGraus,
   gerarGrausPadraoOrg,
   criarOrgGrau,
@@ -14,6 +17,7 @@ import {
   removerOrgGrau,
   uploadLogoOrg,
   type Org,
+  type UsoOrg,
 } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -27,6 +31,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -92,6 +107,12 @@ function Orgs() {
     queryKey: ["potencias_all"],
     queryFn: () => listarPotencias(),
   });
+
+  const { data: usoOrgs = [] } = useQuery({
+    queryKey: ["orgs_uso"],
+    queryFn: () => listarUsoOrgs(),
+  });
+  const usoPorOrg = new Map(usoOrgs.map((u) => [u.org_id, u]));
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["orgs_all"] });
 
@@ -179,6 +200,51 @@ function Orgs() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
+    }
+  };
+
+  const descreverUso = (uso: UsoOrg | undefined) => {
+    if (!uso) return null;
+    const partes = [
+      uso.irmaos > 0 && `${uso.irmaos} irmão(s) vinculado(s)`,
+      uso.gestoes > 0 && `${uso.gestoes} gestão(ões)`,
+      uso.cobrancas > 0 && `${uso.cobrancas} cobrança(s) SGCAB`,
+      uso.eventos > 0 && `${uso.eventos} evento(s)`,
+      uso.comissoes > 0 && `${uso.comissoes} comissão(ões)`,
+      uso.cargos > 0 && `${uso.cargos} cargo(s)`,
+      uso.taxasGrau > 0 && `${uso.taxasGrau} taxa(s) de grau`,
+      uso.comunicados > 0 && `${uso.comunicados} comunicado(s)`,
+      uso.tabelaValores > 0 && `${uso.tabelaValores} valor(es) na Tabela de Valores`,
+    ].filter(Boolean);
+    return partes.length > 0 ? partes.join(", ") : null;
+  };
+
+  const excluir = async (o: Org) => {
+    try {
+      await excluirOrg({ data: { id: o.id } });
+      toast.success("Corpo excluído.");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["orgs_uso"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
+    }
+  };
+
+  const [destinoTransferencia, setDestinoTransferencia] = useState<string>("");
+  const [transferindo, setTransferindo] = useState(false);
+
+  const transferir = async (origem: Org) => {
+    if (!destinoTransferencia) return;
+    setTransferindo(true);
+    try {
+      await transferirDadosOrg({ data: { origemId: origem.id, destinoId: destinoTransferencia } });
+      toast.success("Dados transferidos.");
+      setDestinoTransferencia("");
+      qc.invalidateQueries({ queryKey: ["orgs_uso"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao transferir.");
+    } finally {
+      setTransferindo(false);
     }
   };
 
@@ -362,13 +428,13 @@ function Orgs() {
               <TableHeadOrdenavel campo="nome" ord={ord}>
                 Nome
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="natureza" ord={ord}>
+              <TableHeadOrdenavel campo="natureza" ord={ord} className="hidden sm:table-cell">
                 Natureza
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="graus" ord={ord}>
+              <TableHeadOrdenavel campo="graus" ord={ord} className="hidden sm:table-cell">
                 Graus
               </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="potencia" ord={ord}>
+              <TableHeadOrdenavel campo="potencia" ord={ord} className="hidden lg:table-cell">
                 Potência
               </TableHeadOrdenavel>
               <TableHeadOrdenavel campo="ativo" ord={ord}>
@@ -404,14 +470,17 @@ function Orgs() {
                   <TableCell className="font-medium">
                     {o.nome}
                     {o.sigla ? ` (${o.sigla})` : ""}
+                    <div className="text-xs text-muted-foreground sm:hidden">
+                      {NATUREZA_LABEL[o.natureza]} · Graus {o.grau_min}–{o.grau_max}
+                    </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Badge variant="outline">{NATUREZA_LABEL[o.natureza]}</Badge>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
                     {o.grau_min}–{o.grau_max}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                     {potencias.find((p) => p.id === o.potencia_id)?.sigla ?? "—"}
                   </TableCell>
                   <TableCell>
@@ -426,6 +495,76 @@ function Orgs() {
                       <Button variant="ghost" size="sm" onClick={() => editar(o)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      {(() => {
+                        const usoDesc = descreverUso(usoPorOrg.get(o.id));
+                        const outrosCorpos = orgs.filter((outro) => outro.id !== o.id);
+                        return (
+                          <AlertDialog
+                            onOpenChange={(aberto) => !aberto && setDestinoTransferencia("")}
+                          >
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir "{o.nome}"?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {usoDesc ? (
+                                    <>
+                                      Não é possível excluir: este corpo tem {usoDesc}. Transfira
+                                      pra outro corpo abaixo, ou desative-o em vez de excluir.
+                                    </>
+                                  ) : (
+                                    <>
+                                      Essa ação não pode ser desfeita. Nenhum dado (irmão, gestão,
+                                      cobrança, evento, comissão, cargo, taxa, comunicado ou valor
+                                      da Tabela de Valores) está vinculado a este corpo.
+                                    </>
+                                  )}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              {usoDesc && (
+                                <div className="flex items-end gap-2">
+                                  <div className="flex-1">
+                                    <Label>Transferir dados para</Label>
+                                    <Select
+                                      value={destinoTransferencia}
+                                      onValueChange={setDestinoTransferencia}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecione o corpo destino…" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {outrosCorpos.map((outro) => (
+                                          <SelectItem key={outro.id} value={outro.id}>
+                                            {outro.nome}
+                                            {!outro.ativo ? " (inativo)" : ""}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    disabled={!destinoTransferencia || transferindo}
+                                    onClick={() => transferir(o)}
+                                  >
+                                    Transferir
+                                  </Button>
+                                </div>
+                              )}
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => excluir(o)} disabled={!!usoDesc}>
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        );
+                      })()}
                     </TableCell>
                   )}
                 </TableRow>

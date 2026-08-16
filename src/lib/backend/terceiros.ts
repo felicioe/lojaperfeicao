@@ -105,6 +105,35 @@ export const salvarTerceiro = createServerFn({ method: "POST" })
     });
   });
 
+const fornecedorRapidoSchema = z.object({
+  nome: z.string().trim().min(2).max(200),
+  documento: z.string().trim().max(18).nullable(),
+  contato: z.string().trim().max(100).nullable(),
+  email: z.string().trim().email().max(200).nullable().or(z.literal("")),
+});
+
+export const criarFornecedorRapido = createServerFn({ method: "POST" })
+  .validator((d: unknown) => fornecedorRapidoSchema.parse(d))
+  .handler(async ({ data }): Promise<{ id: string; nome: string }> => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      const id = crypto.randomUUID();
+      const digitos = (data.documento ?? "").replace(/\D/g, "");
+      await conn.query(
+        `INSERT INTO terceiros (id, tipo, nome, cnpj, cpf, contato, email, ativo)
+         VALUES (?, 'fornecedor', ?, ?, ?, ?, ?, TRUE)`,
+        [
+          id,
+          data.nome,
+          digitos.length === 14 ? digitos : null,
+          digitos.length === 11 ? digitos : null,
+          data.contato || null,
+          data.email || null,
+        ],
+      );
+      return { id, nome: data.nome };
+    });
+  });
+
 export const alternarAtivoTerceiro = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {

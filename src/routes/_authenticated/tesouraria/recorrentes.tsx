@@ -9,7 +9,7 @@ import {
   type DespesaRecorrente,
 } from "@/lib/backend/tesouraria-recorrentes";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
-import { listarFornecedores } from "@/lib/backend/terceiros";
+import { FornecedorSelect } from "@/components/app/FornecedorSelect";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
@@ -75,7 +75,9 @@ function statusCompetencia(r: Recorrente, efetivadasEsteMes: Set<string>): Statu
   const fim = r.data_fim ? new Date(r.data_fim + "T00:00:00") : null;
   if (hoje < inicio || (fim && hoje > fim)) return "fora_periodo";
   if (efetivadasEsteMes.has(r.id)) return "efetivada";
-  return hoje.getDate() >= r.dia_vencimento ? "vencida" : "aguardando";
+  const ultimoDiaDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+  const vencimentoNoMes = Math.min(r.dia_vencimento, ultimoDiaDoMes);
+  return hoje.getDate() >= vencimentoNoMes ? "vencida" : "aguardando";
 }
 
 const FORM_VAZIO = {
@@ -123,11 +125,6 @@ function Recorrentes() {
   const { data: planos = [] } = useQuery({
     queryKey: ["planos_despesa"],
     queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
-  });
-
-  const { data: terceiros = [] } = useQuery({
-    queryKey: ["terceiros_fornecedores"],
-    queryFn: () => listarFornecedores(),
   });
 
   const invalidate = () => {
@@ -198,12 +195,12 @@ function Recorrentes() {
     <>
       <PageHeader
         title="Despesas Recorrentes"
-        description="Templates que geram contas a pagar automaticamente por competência (aluguel, água/luz/internet etc.)."
+        description="Previsões mensais que alimentam contas a pagar e fluxo de caixa até o fim da vigência."
         actions={
           podeEditar && (
             <Button variant="outline" onClick={efetivarAgora} disabled={efetivando}>
               <RefreshCw className={`h-4 w-4 mr-1 ${efetivando ? "animate-spin" : ""}`} /> Efetivar
-              recorrências vencidas
+              Atualizar previsões
             </Button>
           )
         }
@@ -239,7 +236,7 @@ function Recorrentes() {
               <Input
                 type="number"
                 min={1}
-                max={28}
+                max={31}
                 value={form.dia_vencimento}
                 onChange={(e) => setForm({ ...form, dia_vencimento: Number(e.target.value) })}
               />
@@ -264,22 +261,10 @@ function Recorrentes() {
             </div>
             <div>
               <Label>Fornecedor (opcional)</Label>
-              <Select
+              <FornecedorSelect
                 value={form.terceiro_id}
                 onValueChange={(v) => setForm({ ...form, terceiro_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— nenhum —</SelectItem>
-                  {terceiros.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
             <div>
               <Label>Início</Label>
@@ -322,74 +307,130 @@ function Recorrentes() {
       )}
 
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHeadOrdenavel campo="descricao" ord={ord}>
-                Descrição
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="categoria" ord={ord}>
-                Categoria
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="dia" ord={ord}>
-                Dia
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
-                Valor
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="vigencia" ord={ord}>
-                Vigência
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="status" ord={ord}>
-                Status
-              </TableHeadOrdenavel>
-              <TableHead>Ativa</TableHead>
-              {podeEditar && <TableHead className="text-right">Ações</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {recorrentes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
-                  Nenhuma recorrência cadastrada.
-                </TableCell>
-              </TableRow>
-            )}
+        <div className="sm:hidden">
+          {recorrentes.length === 0 && (
+            <p className="py-6 text-center text-muted-foreground">
+              Nenhuma recorrência cadastrada.
+            </p>
+          )}
+          <ul className="divide-y" aria-label="Despesas recorrentes">
             {itensPagina.map((r) => {
               const status = statusCompetencia(r, efetivadasSet);
               return (
-                <TableRow key={r.id} className={!r.ativo ? "opacity-50" : undefined}>
-                  <TableCell className="font-medium">{r.descricao}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {r.plano_contas?.nome ?? "—"}
-                  </TableCell>
-                  <TableCell className="font-mono">{r.dia_vencimento}</TableCell>
-                  <TableCell className="text-right">{brl(r.valor)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                <li key={r.id} className={`p-4 ${!r.ativo ? "opacity-50" : ""}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-base font-medium leading-snug">
+                        {r.descricao}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {r.plano_contas?.nome ?? "—"} · dia {r.dia_vencimento}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-right text-base font-semibold tabular-nums">
+                      {brl(r.valor)}
+                    </p>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {fmtDate(r.data_inicio)} – {r.data_fim ? fmtDate(r.data_fim) : "indeterminado"}
-                  </TableCell>
-                  <TableCell>
+                  </p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
                     <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={r.ativo}
-                      onCheckedChange={() => alternarAtivo(r)}
-                      disabled={!podeEditar}
-                    />
-                  </TableCell>
-                  {podeEditar && (
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => editar(r)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  )}
-                </TableRow>
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        checked={r.ativo}
+                        onCheckedChange={() => alternarAtivo(r)}
+                        disabled={!podeEditar}
+                        aria-label="Ativa"
+                      />
+                      {podeEditar && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => editar(r)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </li>
               );
             })}
-          </TableBody>
-        </Table>
+          </ul>
+        </div>
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHeadOrdenavel campo="descricao" ord={ord}>
+                  Descrição
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="categoria" ord={ord}>
+                  Categoria
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="dia" ord={ord}>
+                  Dia
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
+                  Valor
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="vigencia" ord={ord}>
+                  Vigência
+                </TableHeadOrdenavel>
+                <TableHeadOrdenavel campo="status" ord={ord}>
+                  Status
+                </TableHeadOrdenavel>
+                <TableHead>Ativa</TableHead>
+                {podeEditar && <TableHead className="text-right">Ações</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recorrentes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                    Nenhuma recorrência cadastrada.
+                  </TableCell>
+                </TableRow>
+              )}
+              {itensPagina.map((r) => {
+                const status = statusCompetencia(r, efetivadasSet);
+                return (
+                  <TableRow key={r.id} className={!r.ativo ? "opacity-50" : undefined}>
+                    <TableCell className="font-medium">{r.descricao}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {r.plano_contas?.nome ?? "—"}
+                    </TableCell>
+                    <TableCell className="font-mono">{r.dia_vencimento}</TableCell>
+                    <TableCell className="text-right">{brl(r.valor)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {fmtDate(r.data_inicio)} –{" "}
+                      {r.data_fim ? fmtDate(r.data_fim) : "indeterminado"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={r.ativo}
+                        onCheckedChange={() => alternarAtivo(r)}
+                        disabled={!podeEditar}
+                      />
+                    </TableCell>
+                    {podeEditar && (
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => editar(r)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
         <TabelaPaginacao
           pagina={pagina}
           totalPaginas={totalPaginas}

@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
+import { listarIrmaosNomes } from "@/lib/backend/irmaos";
+import { listarLancamentos } from "@/lib/backend/tesouraria-lancamentos";
 import { AcoesLancamento } from "@/components/app/LancamentoAcoes";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -59,8 +61,15 @@ function Movimentos() {
     queryKey: ["planos_receita"],
     queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "receita" } }),
   });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] });
+    qc.invalidateQueries({ queryKey: ["movimentos_financeiros_totais"] });
+  };
   const ord = useOrdenacao(f.movimentos, {
     emissao: (m) => m.data,
     vencimento: (m) => m.data_vencimento,
@@ -72,10 +81,39 @@ function Movimentos() {
   });
   const movPag = usePaginacao(ord.itensOrdenados);
 
-  const totalEntradas = f.movimentos
+  // Total entradas/saídas precisa ignorar o filtro de Status (senão, com
+  // o padrão "Não pago", os cards mostrariam só o que ainda está em
+  // aberto como se fosse o total movimentado — mesmo problema já
+  // corrigido nos cards de Cobranças SGCAB). Busca à parte, com os
+  // mesmos filtros de data/conta/tipo/categoria/irmão mas sem status.
+  const { data: movimentosParaTotais = [] } = useQuery({
+    queryKey: [
+      "movimentos_financeiros_totais",
+      f.de,
+      f.ate,
+      f.contaId,
+      f.tipo,
+      f.categoria,
+      f.irmaoId,
+    ],
+    queryFn: () =>
+      listarLancamentos({
+        data: {
+          de: f.de || null,
+          ate: f.ate || null,
+          contaId: f.contaId !== "todas" ? f.contaId : null,
+          tipo: f.tipo !== "todos" ? (f.tipo as "entrada" | "saida" | "transferencia") : null,
+          categoria: f.categoria !== "todas" ? f.categoria : null,
+          irmaoId: f.irmaoId !== "todos" ? f.irmaoId : null,
+          pago: null,
+          limite: 500,
+        },
+      }),
+  });
+  const totalEntradas = movimentosParaTotais
     .filter((m) => m.tipo === "entrada")
     .reduce((s, m) => s + Number(m.valor), 0);
-  const totalSaidas = f.movimentos
+  const totalSaidas = movimentosParaTotais
     .filter((m) => m.tipo === "saida")
     .reduce((s, m) => s + Number(m.valor), 0);
 
@@ -115,7 +153,7 @@ function Movimentos() {
         </Card>
       </div>
 
-      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-5">
+      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4 lg:grid-cols-7">
         <div>
           <Label className="text-xs">De</Label>
           <Input type="date" value={f.de} onChange={(e) => f.setDe(e.target.value)} />
@@ -170,10 +208,126 @@ function Movimentos() {
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <Label className="text-xs">Irmão</Label>
+          <Select value={f.irmaoId} onValueChange={f.setIrmaoId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {irmaos.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Status</Label>
+          <Select
+            value={f.status}
+            onValueChange={(v) =>
+              f.setStatus(v as "todos" | "pago" | "nao_pago" | "vencido" | "a_vencer")
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nao_pago">Não pago</SelectItem>
+              <SelectItem value="vencido">Vencidos</SelectItem>
+              <SelectItem value="a_vencer">A vencer</SelectItem>
+              <SelectItem value="pago">Pago</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </Card>
 
       <Card>
-        <div className="overflow-x-auto">
+        <div className="sm:hidden">
+          <div className="sr-only" aria-live="polite">
+            {f.isError
+              ? "Erro ao carregar os movimentos."
+              : `${movPag.itensPagina.length} movimentos carregados.`}
+          </div>
+          {f.isError && (
+            <p className="px-4 py-6 text-center text-destructive">
+              Erro ao carregar os movimentos. Tente novamente.
+            </p>
+          )}
+          {!f.isError && f.movimentos.length === 0 && (
+            <p className="px-4 py-6 text-center text-muted-foreground">
+              Nenhum movimento encontrado.
+            </p>
+          )}
+          <ul className="divide-y" aria-label="Movimentos financeiros">
+            {movPag.itensPagina.map((m) => (
+              <li key={m.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-base font-medium leading-snug">{m.descricao}</p>
+                    {m.irmao_nome && (
+                      <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        {m.irmao_nome}
+                      </p>
+                    )}
+                  </div>
+                  <p
+                    className={`shrink-0 text-right text-base font-semibold tabular-nums ${
+                      m.tipo === "entrada"
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : m.tipo === "saida"
+                          ? "text-destructive"
+                          : "text-foreground"
+                    }`}
+                  >
+                    {brl(m.valor)}
+                  </p>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+                  <span>{fmtDate(m.data)}</span>
+                  {m.data_vencimento && <span>· vence {fmtDate(m.data_vencimento)}</span>}
+                  <Badge
+                    variant={
+                      m.tipo === "entrada"
+                        ? "default"
+                        : m.tipo === "saida"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                  >
+                    {m.tipo === "entrada"
+                      ? "Entrada"
+                      : m.tipo === "saida"
+                        ? "Saída"
+                        : m.tipo === "transferencia"
+                          ? "Transferência"
+                          : m.tipo}
+                  </Badge>
+                  {m.pago ? (
+                    <Badge variant="secondary">Pago</Badge>
+                  ) : (
+                    <Badge variant="outline">Aberto</Badge>
+                  )}
+                </div>
+                {podeEditar && (
+                  <div className="-mr-2 mt-2 flex justify-end [&_button]:h-8 [&_button]:w-8 [&_button]:p-0">
+                    <AcoesLancamento
+                      lancamento={m}
+                      contas={contas}
+                      receitas={receitas}
+                      onDone={invalidate}
+                    />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -202,7 +356,14 @@ function Movimentos() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {f.movimentos.length === 0 && (
+              {f.isError && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6 text-destructive">
+                    Erro ao carregar os movimentos. Tente novamente.
+                  </TableCell>
+                </TableRow>
+              )}
+              {!f.isError && f.movimentos.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                     Nenhum movimento encontrado.

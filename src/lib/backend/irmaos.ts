@@ -90,9 +90,9 @@ export const listarIrmaos = createServerFn({ method: "GET" }).handler(
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
       const [rows] = privilegiado
-        ? await conn.query<RowDataPacket[]>("SELECT * FROM irmaos ORDER BY nome_civil")
+        ? await conn.query<RowDataPacket[]>("SELECT * FROM irmaos ORDER BY nome_civil LIMIT 5000")
         : await conn.query<RowDataPacket[]>(
-            "SELECT * FROM irmaos WHERE usuario_id = ? ORDER BY nome_civil",
+            "SELECT * FROM irmaos WHERE usuario_id = ? ORDER BY nome_civil LIMIT 5000",
             [usuarioId],
           );
       return rows as Irmao[];
@@ -220,22 +220,29 @@ export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const campos: string[] = CAMPOS_PERFIL.filter((c) => c in data.perfil);
       if (campos.length === 0) return;
-      // Editar a mensalidade aqui (fora do reajuste em massa) é sempre uma
-      // negociação individual — marca como customizada pra gerar_mensalidades
-      // nunca mais sobrescrever com o histórico global da Tabela de Valores
-      // (achado #5 da auditoria: reajuste em massa estava atropelando quem
-      // tinha valor diferenciado).
-      if (campos.includes("valor_mensalidade")) {
-        campos.push("valor_mensalidade_customizado");
-        data.perfil.valor_mensalidade_customizado = true;
-      }
       // Só o estado ANTERIOR dos campos que de fato vão ser alterados — sem
       // isso, uma mudança indevida de grau/situação/mensalidade não deixava
       // rastro nenhum de quem fez nem do valor anterior.
+      const colunasAntes = campos.includes("valor_mensalidade")
+        ? [...new Set([...campos, "valor_mensalidade_customizado"])]
+        : campos;
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        `SELECT ${campos.join(", ")} FROM irmaos WHERE id = ?`,
+        `SELECT ${colunasAntes.join(", ")} FROM irmaos WHERE id = ?`,
         [data.id],
       );
+      // Editar a mensalidade aqui (fora do reajuste em massa) só conta como
+      // negociação individual quando o valor DE FATO muda — a tela de
+      // perfil (irmaos/$id.tsx) manda TODOS os campos em toda edição, então
+      // sem essa comparação qualquer alteração não relacionada (telefone,
+      // endereço etc.) marcaria o irmão como customizado pra sempre,
+      // travando-o fora de qualquer reajuste em massa futuro.
+      if (
+        campos.includes("valor_mensalidade") &&
+        Number(data.perfil.valor_mensalidade) !== Number(antes?.valor_mensalidade)
+      ) {
+        campos.push("valor_mensalidade_customizado");
+        data.perfil.valor_mensalidade_customizado = true;
+      }
       const set = campos.map((c) => `${c} = ?`).join(", ");
       const valores = campos.map((c) => data.perfil[c] ?? null);
       await conn.query(`UPDATE irmaos SET ${set} WHERE id = ?`, [...valores, data.id]);

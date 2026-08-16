@@ -7,7 +7,20 @@ export const fmtDate = (d: string | Date | null | undefined) => {
   return new Intl.DateTimeFormat("pt-BR").format(date);
 };
 
-export const toISODate = (d: Date) => d.toISOString().slice(0, 10);
+// Competência é um período (mês/ano), não um dia — "01/07/2026" sugere uma
+// data específica que não existe; "julho de 2026" é o que o campo significa.
+export const fmtMesAno = (d: string | Date | null | undefined) => {
+  if (!d) return "—";
+  const date = typeof d === "string" ? new Date(d + (d.length === 10 ? "T00:00:00" : "")) : d;
+  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
+};
+
+export const toISODate = (d: Date) => {
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+};
 
 export const GRAU_LABEL: Record<string, string> = {
   aprendiz: "Aprendiz",

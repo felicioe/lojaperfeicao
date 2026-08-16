@@ -15,6 +15,12 @@ import {
   CalendarDays,
   AlertCircle,
   Megaphone,
+  PartyPopper,
+  Library,
+  Calendar,
+  Vote,
+  Scale,
+  Fingerprint,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/")({
@@ -22,31 +28,17 @@ export const Route = createFileRoute("/_authenticated/painel/")({
 });
 
 const TILES = [
-  { to: "/painel/dados", label: "Meus Dados", icon: UserRound, cor: "from-blue-400 to-indigo-600" },
-  {
-    to: "/painel/financeiro",
-    label: "Financeiro",
-    icon: Wallet,
-    cor: "from-emerald-400 to-teal-600",
-  },
-  {
-    to: "/painel/frequencia",
-    label: "Frequência",
-    icon: CalendarCheck2,
-    cor: "from-amber-400 to-orange-600",
-  },
-  {
-    to: "/painel/sessoes",
-    label: "Sessões",
-    icon: CalendarDays,
-    cor: "from-violet-400 to-purple-600",
-  },
-  {
-    to: "/painel/comunicacoes",
-    label: "Comunicações",
-    icon: Megaphone,
-    cor: "from-rose-400 to-pink-600",
-  },
+  { to: "/painel/dados", label: "Meus Dados", icon: UserRound },
+  { to: "/painel/financeiro", label: "Financeiro", icon: Wallet },
+  { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2 },
+  { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays },
+  { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone },
+  { to: "/painel/eventos", label: "Eventos", icon: PartyPopper },
+  { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library },
+  { to: "/calendario", label: "Calendário", icon: Calendar },
+  { to: "/enquetes", label: "Enquetes", icon: Vote },
+  { to: "/documentos", label: "Legislação", icon: Scale },
+  { to: "/conta/seguranca", label: "Segurança", icon: Fingerprint },
 ] as const;
 
 function PainelInicio() {
@@ -100,8 +92,8 @@ function PainelInicio() {
       <div className="space-y-4">
         <Skeleton className="h-16 rounded-2xl" />
         <div className="grid grid-cols-5 gap-3">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex flex-col items-center gap-1.5">
+          {TILES.map((t) => (
+            <div key={t.to} className="flex flex-col items-center gap-1.5">
               <Skeleton className="aspect-square w-full rounded-2xl" />
               <Skeleton className="h-3 w-10" />
             </div>
@@ -153,6 +145,7 @@ function PainelInicio() {
             value={SITUACAO_LABEL[irmao.situacao] ?? irmao.situacao}
             hint={GRAU_LABEL[irmao.grau] ?? irmao.grau}
             tone={irmao.situacao === "ativo" || irmao.situacao === "quite" ? "success" : "danger"}
+            to="/painel/dados"
           />
           <MetricCard
             icon={Wallet}
@@ -160,6 +153,7 @@ function PainelInicio() {
             value={brl(totalEmAberto)}
             hint={`${emAberto.length} lançamento(s)`}
             tone={emAberto.length > 0 ? "warning" : "success"}
+            to="/painel/financeiro"
           />
           <MetricCard
             icon={CalendarCheck2}
@@ -167,6 +161,7 @@ function PainelInicio() {
             value={`${percentualFrequencia}%`}
             hint={`${presencas} de ${totalSessoesFreq} sessão(ões)`}
             tone={percentualFrequencia >= 75 ? "success" : "warning"}
+            to="/painel/frequencia"
           />
           {(naoLidos.data ?? 0) > 0 && (
             <MetricCard
@@ -174,6 +169,7 @@ function PainelInicio() {
               label="Comunicações"
               value={`${naoLidos.data} não lido(s)`}
               tone="warning"
+              to="/painel/comunicacoes"
             />
           )}
         </div>
@@ -227,10 +223,8 @@ function PainelInicio() {
       <div className="grid grid-cols-5 gap-3">
         {TILES.map((t) => (
           <Link key={t.to} to={t.to} className="flex flex-col items-center gap-1.5 text-center">
-            <div
-              className={`flex aspect-square w-full items-center justify-center rounded-2xl bg-gradient-to-br shadow-sm ${t.cor}`}
-            >
-              <t.icon className="h-7 w-7 text-white" />
+            <div className="flex aspect-square w-full items-center justify-center rounded-2xl border bg-muted/60">
+              <t.icon className="h-6 w-6 text-foreground" />
             </div>
             <span className="text-[11px] leading-tight text-foreground">{t.label}</span>
           </Link>
@@ -246,12 +240,14 @@ function MetricCard({
   value,
   hint,
   tone,
+  to,
 }: {
   icon: any;
   label: string;
   value: string;
   hint?: string;
   tone: "primary" | "success" | "warning" | "danger";
+  to?: string;
 }) {
   const toneClass = {
     primary: "text-primary bg-primary/10",
@@ -259,8 +255,8 @@ function MetricCard({
     warning: "text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30",
     danger: "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30",
   }[tone];
-  return (
-    <Card>
+  const card = (
+    <Card className={to ? "transition-colors hover:bg-muted/50" : undefined}>
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
@@ -274,5 +270,15 @@ function MetricCard({
         </div>
       </CardContent>
     </Card>
+  );
+  return to ? (
+    <Link
+      to={to}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }

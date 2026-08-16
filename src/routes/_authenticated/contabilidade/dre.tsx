@@ -98,7 +98,7 @@ function Dre() {
     <>
       <PageHeader
         title="Demonstrativo de Resultado (DRE)"
-        description="Receitas e despesas realizadas no período, apuradas a partir dos lançamentos contábeis."
+        description="Receitas e despesas reconhecidas pelo regime de caixa, na data do efetivo recebimento ou pagamento."
         actions={
           <Button variant="outline" onClick={exportarCSV} disabled={linhas.length === 0}>
             <Download className="h-4 w-4 mr-1" /> Exportar CSV

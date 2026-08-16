@@ -28,15 +28,28 @@ export const CATEGORIA_LABEL: Record<string, string> = {
   outros: "Outros",
 };
 
-export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string }) {
+export function useMovimentosFiltrados(filtrosIniciais?: {
+  categoria?: string;
+  statusInicial?: "todos" | "pago" | "nao_pago" | "vencido" | "a_vencer";
+}) {
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [contaId, setContaId] = useState("todas");
   const [tipo, setTipo] = useState("todos");
   const [categoria, setCategoria] = useState(filtrosIniciais?.categoria ?? "todas");
+  const [irmaoId, setIrmaoId] = useState("todos");
+  // Padrão "não pago": é o que mais importa acompanhar no dia a dia
+  // (cobrar quem ainda deve) — "Todos"/"Pago" ficam a um clique. Telas
+  // como Tronco de Beneficência, onde o lançamento nasce sempre pago,
+  // sobrescrevem via statusInicial pra não ficar com a lista vazia.
+  // "Vencido"/"A vencer" refinam "não pago" comparando data_vencimento
+  // com hoje — não existe coluna própria pra isso, é filtrado no cliente.
+  const [status, setStatus] = useState<"todos" | "pago" | "nao_pago" | "vencido" | "a_vencer">(
+    filtrosIniciais?.statusInicial ?? "nao_pago",
+  );
 
-  const { data: movimentos = [] } = useQuery({
-    queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria],
+  const { data: movimentosBrutos = [], isError } = useQuery({
+    queryKey: ["movimentos_financeiros", de, ate, contaId, tipo, categoria, irmaoId, status],
     queryFn: () =>
       listarLancamentos({
         data: {
@@ -45,13 +58,24 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
           contaId: contaId !== "todas" ? contaId : null,
           tipo: tipo !== "todos" ? (tipo as "entrada" | "saida" | "transferencia") : null,
           categoria: categoria !== "todas" ? categoria : null,
+          irmaoId: irmaoId !== "todos" ? irmaoId : null,
+          pago: status === "pago" ? true : status === "todos" ? null : false,
           limite: 500,
         },
       }),
   });
 
+  const hoje = toISODate(new Date());
+  const movimentos =
+    status === "vencido"
+      ? movimentosBrutos.filter((m) => m.data_vencimento && m.data_vencimento < hoje)
+      : status === "a_vencer"
+        ? movimentosBrutos.filter((m) => !m.data_vencimento || m.data_vencimento >= hoje)
+        : movimentosBrutos;
+
   return {
     movimentos,
+    isError,
     de,
     setDe,
     ate,
@@ -62,6 +86,10 @@ export function useMovimentosFiltrados(filtrosIniciais?: { categoria?: string })
     setTipo,
     categoria,
     setCategoria,
+    irmaoId,
+    setIrmaoId,
+    status,
+    setStatus,
   };
 }
 
@@ -83,6 +111,7 @@ export function RecebimentoAvulsoDialog({
   const [descricao, setDescricao] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [saving, setSaving] = useState(false);
+  const isTronco = categoriaInicial === "tronco";
 
   const { data: receitas = [] } = useQuery({
     queryKey: ["planos_receita"],
@@ -90,7 +119,7 @@ export function RecebimentoAvulsoDialog({
   });
 
   const salvar = async () => {
-    if (!valor || !planoContaId || !contaFinanceiraId)
+    if (!(Number(valor) > 0) || !planoContaId || !contaFinanceiraId)
       return toast.error("Preencha valor, categoria contábil e conta.");
     setSaving(true);
     try {
@@ -123,7 +152,7 @@ export function RecebimentoAvulsoDialog({
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <Label>Categoria</Label>
-          <Select value={categoria} onValueChange={setCategoria}>
+          <Select value={categoria} onValueChange={setCategoria} disabled={isTronco}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -179,21 +208,33 @@ export function RecebimentoAvulsoDialog({
           <Label>Data</Label>
           <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
         </div>
-        <div>
-          <Label>Forma de pagamento</Label>
-          <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} />
-        </div>
-        <div className="md:col-span-2">
-          <Label>Descrição (opcional)</Label>
-          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-        </div>
+        {isTronco ? (
+          <div className="rounded-lg border bg-muted/30 p-3 text-sm md:col-span-2">
+            Este crédito será registrado como PIX anônimo. O nome do irmão não será armazenado no
+            histórico do Tronco.
+          </div>
+        ) : (
+          <>
+            <div>
+              <Label>Forma de pagamento</Label>
+              <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Descrição (opcional)</Label>
+              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+            </div>
+          </>
+        )}
         <div className="md:col-span-2">
           <Label>Observações</Label>
           <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={salvar} disabled={saving || !valor || !planoContaId || !contaFinanceiraId}>
+        <Button
+          onClick={salvar}
+          disabled={saving || !(Number(valor) > 0) || !planoContaId || !contaFinanceiraId}
+        >
           Registrar
         </Button>
       </DialogFooter>
