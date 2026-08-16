@@ -29,7 +29,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/lib/auth-hooks";
-import { gerarArquivoRelatorio, enviarRelatorioPorEmail } from "@/lib/backend/relatorio-exportacao";
+import {
+  gerarArquivoRelatorio,
+  enviarRelatorioPorEmail,
+  testarConexaoSmtp,
+} from "@/lib/backend/relatorio-exportacao";
 import type { ColunaRelatorio, FormatoRelatorio, LinhaRelatorio } from "@/lib/relatorio-export";
 
 const FORMATO_LABEL: Record<FormatoRelatorio, string> = {
@@ -74,6 +78,18 @@ export function ExportarRelatorio({
   const [openEmail, setOpenEmail] = useState(false);
   const [destinatarios, setDestinatarios] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [testando, setTestando] = useState(false);
+  const [diagnostico, setDiagnostico] = useState<{
+    ok: boolean;
+    erro?: string;
+    host: string;
+    porta: string;
+    conexaoSegura: boolean;
+    usuario: string;
+    usuarioCaracteres: number;
+    senhaCaracteres: number;
+    remetente: string;
+  } | null>(null);
 
   const exportar = async (formato: FormatoRelatorio) => {
     setExportando(formato);
@@ -91,7 +107,20 @@ export function ExportarRelatorio({
 
   const abrirEmail = () => {
     setDestinatarios(user?.email ?? "");
+    setDiagnostico(null);
     setOpenEmail(true);
+  };
+
+  const testarConexao = async () => {
+    setTestando(true);
+    setDiagnostico(null);
+    try {
+      setDiagnostico(await testarConexaoSmtp());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao testar a conexão.");
+    } finally {
+      setTestando(false);
+    }
   };
 
   const enviar = async () => {
@@ -197,6 +226,41 @@ export function ExportarRelatorio({
               <p className="text-xs text-muted-foreground mt-1">
                 Separe vários e-mails por vírgula. O arquivo (.xlsx) vai anexado.
               </p>
+            </div>
+
+            <div className="border-t pt-3">
+              <Button variant="outline" size="sm" onClick={testarConexao} disabled={testando}>
+                {testando ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+                Testar conexão com o servidor de e-mail
+              </Button>
+              {diagnostico && (
+                <div className="mt-2 rounded-md border p-3 text-xs space-y-1">
+                  <p
+                    className={
+                      diagnostico.ok ? "font-medium text-green-600" : "font-medium text-destructive"
+                    }
+                  >
+                    {diagnostico.ok
+                      ? "Autenticação aceita pelo servidor."
+                      : `Falhou: ${diagnostico.erro}`}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Servidor: {diagnostico.host}:{diagnostico.porta}
+                    {diagnostico.conexaoSegura ? " (SSL)" : " (sem SSL)"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Usuário: {diagnostico.usuario} — {diagnostico.usuarioCaracteres} caracteres
+                  </p>
+                  <p className="text-muted-foreground">
+                    Senha: {diagnostico.senhaCaracteres} caracteres
+                  </p>
+                  <p className="text-muted-foreground">Remetente: {diagnostico.remetente}</p>
+                  {/* Um número de caracteres diferente do que foi digitado no
+                      painel denuncia espaço sobrando, aspas coladas junto ou
+                      valor cortado — causas que produzem o mesmo erro de
+                      autenticação que uma senha errada. */}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

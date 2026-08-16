@@ -33,6 +33,29 @@ export const gerarArquivoRelatorio = createServerFn({ method: "POST" })
     });
   });
 
+// Diagnóstico de SMTP — mesmo motivo da duplicação de tipo abaixo: importar
+// de email-dispatch arrastaria nodemailer e o pool MySQL pro bundle do
+// navegador. Nenhum valor de credencial atravessa: só host, porta, usuário e
+// os TAMANHOS de usuário e senha.
+export const testarConexaoSmtp = createServerFn({ method: "POST" }).handler(
+  async (): Promise<{
+    ok: boolean;
+    erro?: string;
+    host: string;
+    porta: string;
+    conexaoSegura: boolean;
+    usuario: string;
+    usuarioCaracteres: number;
+    senhaCaracteres: number;
+    remetente: string;
+  }> => {
+    return comPapel(PAPEIS, async () => {
+      const { verificarSmtp } = await import("../email-dispatch");
+      return verificarSmtp();
+    });
+  },
+);
+
 const enviarSchema = baseSchema.extend({
   destinatarios: z.array(z.string().email()).min(1).max(10),
 });

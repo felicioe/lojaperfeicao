@@ -31,8 +31,80 @@ function contextoSmtp(): string {
   const host = process.env.SMTP_HOST || "(SMTP_HOST vazio)";
   const porta = process.env.SMTP_PORT || "(SMTP_PORT vazio)";
   const usuario = process.env.SMTP_USER || "(SMTP_USER vazio)";
-  const senhaDefinida = process.env.SMTP_PASSWORD ? "sim" : "NÃO";
+  const senha = process.env.SMTP_PASSWORD ?? "";
+  const senhaDefinida = senha ? `sim, ${senha.length} caracteres` : "NÃO";
   return `servidor ${host}:${porta}, usuário ${usuario}, senha definida: ${senhaDefinida}`;
+}
+
+export type DiagnosticoSmtp = {
+  ok: boolean;
+  erro?: string;
+  host: string;
+  porta: string;
+  conexaoSegura: boolean;
+  usuario: string;
+  usuarioCaracteres: number;
+  senhaCaracteres: number;
+  remetente: string;
+};
+
+// Testa SÓ a conexão e a autenticação no servidor SMTP, sem gerar relatório,
+// sem anexo e sem passar pela fila — isola o problema de credencial do resto
+// do fluxo de envio. O `verify()` do nodemailer abre a conexão, faz o AUTH e
+// encerra, sem enviar mensagem nenhuma.
+//
+// Devolve também o TAMANHO do usuário e da senha (nunca os valores): é o que
+// revela espaço sobrando, aspas coladas junto ou valor cortado no painel de
+// variáveis de ambiente — causas invisíveis que produzem o mesmo "535
+// authentication failed" de uma senha genuinamente errada.
+export async function verificarSmtp(): Promise<DiagnosticoSmtp> {
+  const host = process.env.SMTP_HOST ?? "";
+  const porta = process.env.SMTP_PORT ?? "";
+  const usuario = process.env.SMTP_USER ?? "";
+  const senha = process.env.SMTP_PASSWORD ?? "";
+  const base = {
+    host: host || "(vazio)",
+    porta: porta || "(vazio)",
+    conexaoSegura: Number(porta) === 465,
+    usuario: usuario || "(vazio)",
+    usuarioCaracteres: usuario.length,
+    senhaCaracteres: senha.length,
+    remetente: process.env.SMTP_FROM || usuario || "(vazio)",
+  };
+  const faltando = [
+    !host && "SMTP_HOST",
+    !porta && "SMTP_PORT",
+    !usuario && "SMTP_USER",
+    !senha && "SMTP_PASSWORD",
+  ].filter(Boolean);
+  if (faltando.length > 0) {
+    return { ...base, ok: false, erro: `Variáveis ausentes: ${faltando.join(", ")}.` };
+  }
+  // Transporter próprio, fora do cache do módulo: o teste tem que refletir as
+  // variáveis de ambiente atuais deste processo, não uma conexão montada num
+  // envio anterior.
+  const testador = nodemailer.createTransport({
+    host,
+    port: Number(porta),
+    secure: Number(porta) === 465,
+    auth: { user: usuario, pass: senha },
+    // Timeouts curtos e explícitos: os padrões do nodemailer são longos o
+    // bastante para o botão parecer travado quando o host está errado ou a
+    // porta bloqueada. Aqui a resposta rápida é o objetivo — inclusive uma
+    // falha de conexão é resposta útil, porque distingue "servidor recusou a
+    // credencial" de "nem cheguei a falar com esse servidor".
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
+  try {
+    await testador.verify();
+    return { ...base, ok: true };
+  } catch (err) {
+    return { ...base, ok: false, erro: err instanceof Error ? err.message : String(err) };
+  } finally {
+    testador.close();
+  }
 }
 
 function getTransporter(): Transporter {
