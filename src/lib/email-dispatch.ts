@@ -36,72 +36,207 @@ function contextoSmtp(): string {
   return `servidor ${host}:${porta}, usuário ${usuario}, senha definida: ${senhaDefinida}`;
 }
 
-export type DiagnosticoSmtp = {
-  ok: boolean;
-  erro?: string;
-  host: string;
-  porta: string;
-  conexaoSegura: boolean;
-  usuario: string;
-  usuarioCaracteres: number;
-  senhaCaracteres: number;
-  remetente: string;
+export type ChecagemSmtp = {
+  nome: string;
+  situacao: "ok" | "atencao" | "falha";
+  detalhe: string;
 };
 
-// Testa SÓ a conexão e a autenticação no servidor SMTP, sem gerar relatório,
-// sem anexo e sem passar pela fila — isola o problema de credencial do resto
-// do fluxo de envio. O `verify()` do nodemailer abre a conexão, faz o AUTH e
-// encerra, sem enviar mensagem nenhuma.
+export type DiagnosticoSmtp = {
+  ok: boolean;
+  resumo: string;
+  checagens: ChecagemSmtp[];
+};
+
+// Descreve o formato de um valor de variável de ambiente SEM revelá-lo:
+// espaço nas pontas, aspas coladas junto e caractere não-ASCII são os três
+// defeitos que o painel de variáveis não mostra e que produzem exatamente o
+// mesmo "535 authentication failed" de uma credencial errada.
+function higiene(valor: string): string[] {
+  const problemas: string[] = [];
+  if (valor !== valor.trim()) problemas.push("espaço em branco nas pontas");
+  if (/^["'].*["']$/.test(valor)) problemas.push("aspas em volta do valor");
+  if (/[^\x20-\x7E]/.test(valor)) problemas.push("caractere fora do ASCII imprimível");
+  return problemas;
+}
+
+function dominioDe(email: string): string {
+  const partes = email.trim().split("@");
+  return partes.length === 2 ? partes[1].toLowerCase() : "";
+}
+
+// Testa a conexão TCP crua, antes e independente de TLS/autenticação: separa
+// "não consigo nem falar com esse servidor" (host errado, porta bloqueada) de
+// "falei e ele recusou a credencial".
+async function testarTcp(host: string, porta: number): Promise<{ ok: boolean; detalhe: string }> {
+  const net = await import("node:net");
+  return new Promise((resolve) => {
+    const inicio = Date.now();
+    const socket = new net.Socket();
+    const encerrar = (ok: boolean, detalhe: string) => {
+      socket.destroy();
+      resolve({ ok, detalhe });
+    };
+    socket.setTimeout(8000);
+    socket.once("connect", () => encerrar(true, `conectou em ${Date.now() - inicio} ms`));
+    socket.once("timeout", () =>
+      encerrar(false, "sem resposta em 8 s (porta bloqueada ou host errado)"),
+    );
+    socket.once("error", (err: Error) => encerrar(false, err.message));
+    socket.connect(porta, host);
+  });
+}
+
+// Diagnóstico completo do envio de e-mail: percorre, em ordem, tudo que
+// precisa estar certo para um e-mail sair — variáveis presentes, formato dos
+// valores, coerência entre usuário e remetente, DNS, TCP, TLS e autenticação.
+// Cada etapa é reportada em separado porque cada uma tem uma correção
+// diferente, e o "535" sozinho não distingue nenhuma delas.
 //
-// Devolve também o TAMANHO do usuário e da senha (nunca os valores): é o que
-// revela espaço sobrando, aspas coladas junto ou valor cortado no painel de
-// variáveis de ambiente — causas invisíveis que produzem o mesmo "535
-// authentication failed" de uma senha genuinamente errada.
+// Nenhum valor de credencial atravessa: da senha sai apenas o comprimento e a
+// descrição de defeitos de formato.
 export async function verificarSmtp(): Promise<DiagnosticoSmtp> {
-  const host = process.env.SMTP_HOST ?? "";
-  const porta = process.env.SMTP_PORT ?? "";
+  const host = (process.env.SMTP_HOST ?? "").trim();
+  const portaTexto = (process.env.SMTP_PORT ?? "").trim();
   const usuario = process.env.SMTP_USER ?? "";
   const senha = process.env.SMTP_PASSWORD ?? "";
-  const base = {
-    host: host || "(vazio)",
-    porta: porta || "(vazio)",
-    conexaoSegura: Number(porta) === 465,
-    usuario: usuario || "(vazio)",
-    usuarioCaracteres: usuario.length,
-    senhaCaracteres: senha.length,
-    remetente: process.env.SMTP_FROM || usuario || "(vazio)",
-  };
-  const faltando = [
+  const remetente = process.env.SMTP_FROM ?? "";
+  const checagens: ChecagemSmtp[] = [];
+  const parar = (resumo: string): DiagnosticoSmtp => ({ ok: false, resumo, checagens });
+
+  // 1. Variáveis presentes
+  const ausentes = [
     !host && "SMTP_HOST",
-    !porta && "SMTP_PORT",
+    !portaTexto && "SMTP_PORT",
     !usuario && "SMTP_USER",
     !senha && "SMTP_PASSWORD",
-  ].filter(Boolean);
-  if (faltando.length > 0) {
-    return { ...base, ok: false, erro: `Variáveis ausentes: ${faltando.join(", ")}.` };
+  ].filter(Boolean) as string[];
+  checagens.push({
+    nome: "Variáveis de ambiente",
+    situacao: ausentes.length > 0 ? "falha" : "ok",
+    detalhe:
+      ausentes.length > 0
+        ? `Ausentes: ${ausentes.join(", ")}. Defina no painel Node.js e reinicie a aplicação.`
+        : `SMTP_HOST, SMTP_PORT, SMTP_USER e SMTP_PASSWORD definidas.${remetente ? "" : " SMTP_FROM vazia — o remetente cai no SMTP_USER."}`,
+  });
+  if (ausentes.length > 0) return parar("Faltam variáveis de ambiente.");
+
+  // 2. Formato dos valores
+  const defeitos = [
+    ...higiene(usuario).map((d) => `SMTP_USER: ${d}`),
+    ...higiene(senha).map((d) => `SMTP_PASSWORD: ${d}`),
+    ...(remetente ? higiene(remetente).map((d) => `SMTP_FROM: ${d}`) : []),
+  ];
+  checagens.push({
+    nome: "Formato dos valores",
+    situacao: defeitos.length > 0 ? "falha" : "ok",
+    detalhe:
+      defeitos.length > 0
+        ? `${defeitos.join("; ")}. Reescreva a variável digitando, sem colar, e reinicie.`
+        : `Sem espaço sobrando, aspas ou caractere invisível. Senha com ${senha.length} caracteres.`,
+  });
+
+  // 3. Usuário é um endereço completo?
+  const dominioUsuario = dominioDe(usuario);
+  checagens.push({
+    nome: "Usuário (SMTP_USER)",
+    situacao: dominioUsuario ? "ok" : "falha",
+    detalhe: dominioUsuario
+      ? `${usuario.trim()} — ${usuario.length} caracteres, domínio ${dominioUsuario}.`
+      : `"${usuario.trim()}" não é um endereço completo. O login SMTP é o e-mail inteiro, com @dominio.`,
+  });
+
+  // 4. Remetente coerente com o usuário
+  const dominioRemetente = remetente
+    ? dominioDe(remetente.replace(/^.*</, "").replace(/>.*$/, ""))
+    : dominioUsuario;
+  checagens.push({
+    nome: "Remetente (SMTP_FROM)",
+    situacao: !dominioRemetente || dominioRemetente === dominioUsuario ? "ok" : "atencao",
+    detalhe:
+      !dominioRemetente || dominioRemetente === dominioUsuario
+        ? `${(remetente || usuario).trim()} — mesmo domínio do usuário.`
+        : `Remetente é do domínio ${dominioRemetente}, mas o login é do domínio ${dominioUsuario}. A maioria dos servidores recusa enviar em nome de outro domínio.`,
+  });
+
+  // 5. DNS
+  const dns = await import("node:dns/promises");
+  let enderecos: string[] = [];
+  try {
+    enderecos = (await dns.lookup(host, { all: true })).map((e) => e.address);
+    checagens.push({
+      nome: "DNS do servidor",
+      situacao: "ok",
+      detalhe: `${host} resolve para ${enderecos.join(", ")}.`,
+    });
+  } catch (err) {
+    checagens.push({
+      nome: "DNS do servidor",
+      situacao: "falha",
+      detalhe: `${host} não resolve: ${err instanceof Error ? err.message : String(err)}. Confira SMTP_HOST.`,
+    });
+    return parar("O nome do servidor SMTP não existe.");
   }
-  // Transporter próprio, fora do cache do módulo: o teste tem que refletir as
-  // variáveis de ambiente atuais deste processo, não uma conexão montada num
-  // envio anterior.
+
+  // 6. Porta e modo de criptografia
+  const porta = Number(portaTexto);
+  const seguro = porta === 465;
+  const portaConhecida = porta === 465 || porta === 587 || porta === 25;
+  checagens.push({
+    nome: "Porta e criptografia",
+    situacao: portaConhecida ? "ok" : "atencao",
+    detalhe: portaConhecida
+      ? `Porta ${porta} — ${seguro ? "SSL direto (correto para 465)" : "STARTTLS (correto para 587/25)"}.`
+      : `Porta ${portaTexto} não é uma porta SMTP usual (465 com SSL, 587 com STARTTLS).`,
+  });
+
+  // 7. Conexão TCP
+  const tcp = await testarTcp(host, porta);
+  checagens.push({
+    nome: "Conexão com o servidor",
+    situacao: tcp.ok ? "ok" : "falha",
+    detalhe: tcp.ok
+      ? `${host}:${porta} — ${tcp.detalhe}.`
+      : `Não foi possível abrir conexão com ${host}:${porta} — ${tcp.detalhe}.`,
+  });
+  if (!tcp.ok) return parar("O servidor não respondeu — o problema é de rede, não de senha.");
+
+  // 8. TLS + autenticação
   const testador = nodemailer.createTransport({
     host,
-    port: Number(porta),
-    secure: Number(porta) === 465,
+    port: porta,
+    secure: seguro,
     auth: { user: usuario, pass: senha },
     // Timeouts curtos e explícitos: os padrões do nodemailer são longos o
     // bastante para o botão parecer travado quando o host está errado ou a
-    // porta bloqueada. Aqui a resposta rápida é o objetivo — inclusive uma
-    // falha de conexão é resposta útil, porque distingue "servidor recusou a
-    // credencial" de "nem cheguei a falar com esse servidor".
+    // porta bloqueada.
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
   });
   try {
     await testador.verify();
-    return { ...base, ok: true };
+    checagens.push({
+      nome: "Autenticação",
+      situacao: "ok",
+      detalhe: `O servidor aceitou o login de ${usuario.trim()}.`,
+    });
+    return { ok: true, resumo: "Tudo certo — o envio de e-mail está funcionando.", checagens };
   } catch (err) {
-    return { ...base, ok: false, erro: err instanceof Error ? err.message : String(err) };
+    const msg = err instanceof Error ? err.message : String(err);
+    const recusaCredencial = /535|invalid login|authentication failed|auth/i.test(msg);
+    checagens.push({
+      nome: "Autenticação",
+      situacao: "falha",
+      detalhe: recusaCredencial
+        ? `${msg} — o servidor conversou normalmente e recusou a credencial. Confira se ${usuario.trim()} é exatamente o endereço da caixa (inclusive o domínio) e se a senha é a dessa caixa.`
+        : msg,
+    });
+    return parar(
+      recusaCredencial
+        ? "O servidor recusou o usuário ou a senha."
+        : "Falha ao concluir a conversa com o servidor.",
+    );
   } finally {
     testador.close();
   }

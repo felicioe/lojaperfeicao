@@ -40,14 +40,8 @@ export const gerarArquivoRelatorio = createServerFn({ method: "POST" })
 export const testarConexaoSmtp = createServerFn({ method: "POST" }).handler(
   async (): Promise<{
     ok: boolean;
-    erro?: string;
-    host: string;
-    porta: string;
-    conexaoSegura: boolean;
-    usuario: string;
-    usuarioCaracteres: number;
-    senhaCaracteres: number;
-    remetente: string;
+    resumo: string;
+    checagens: { nome: string; situacao: "ok" | "atencao" | "falha"; detalhe: string }[];
   }> => {
     return comPapel(PAPEIS, async () => {
       const { verificarSmtp } = await import("../email-dispatch");

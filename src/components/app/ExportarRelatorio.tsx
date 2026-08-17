@@ -81,14 +81,8 @@ export function ExportarRelatorio({
   const [testando, setTestando] = useState(false);
   const [diagnostico, setDiagnostico] = useState<{
     ok: boolean;
-    erro?: string;
-    host: string;
-    porta: string;
-    conexaoSegura: boolean;
-    usuario: string;
-    usuarioCaracteres: number;
-    senhaCaracteres: number;
-    remetente: string;
+    resumo: string;
+    checagens: { nome: string; situacao: "ok" | "atencao" | "falha"; detalhe: string }[];
   } | null>(null);
 
   const exportar = async (formato: FormatoRelatorio) => {
@@ -234,31 +228,40 @@ export function ExportarRelatorio({
                 Testar conexão com o servidor de e-mail
               </Button>
               {diagnostico && (
-                <div className="mt-2 rounded-md border p-3 text-xs space-y-1">
+                <div className="mt-2 rounded-md border p-3 text-xs space-y-2">
                   <p
                     className={
                       diagnostico.ok ? "font-medium text-green-600" : "font-medium text-destructive"
                     }
                   >
-                    {diagnostico.ok
-                      ? "Autenticação aceita pelo servidor."
-                      : `Falhou: ${diagnostico.erro}`}
+                    {diagnostico.resumo}
                   </p>
-                  <p className="text-muted-foreground">
-                    Servidor: {diagnostico.host}:{diagnostico.porta}
-                    {diagnostico.conexaoSegura ? " (SSL)" : " (sem SSL)"}
-                  </p>
-                  <p className="text-muted-foreground">
-                    Usuário: {diagnostico.usuario} — {diagnostico.usuarioCaracteres} caracteres
-                  </p>
-                  <p className="text-muted-foreground">
-                    Senha: {diagnostico.senhaCaracteres} caracteres
-                  </p>
-                  <p className="text-muted-foreground">Remetente: {diagnostico.remetente}</p>
-                  {/* Um número de caracteres diferente do que foi digitado no
-                      painel denuncia espaço sobrando, aspas coladas junto ou
-                      valor cortado — causas que produzem o mesmo erro de
-                      autenticação que uma senha errada. */}
+                  {/* Uma linha por etapa: cada uma tem uma correção diferente,
+                      e o "535" sozinho não distingue nenhuma delas. As etapas
+                      não alcançadas simplesmente não aparecem — a última da
+                      lista é onde parou. */}
+                  <ul className="space-y-1.5">
+                    {diagnostico.checagens.map((c) => (
+                      <li key={c.nome} className="flex gap-2">
+                        <span
+                          aria-hidden
+                          className={
+                            c.situacao === "ok"
+                              ? "text-green-600"
+                              : c.situacao === "atencao"
+                                ? "text-amber-600"
+                                : "text-destructive"
+                          }
+                        >
+                          {c.situacao === "ok" ? "✓" : c.situacao === "atencao" ? "!" : "✕"}
+                        </span>
+                        <span>
+                          <span className="font-medium">{c.nome}:</span>{" "}
+                          <span className="text-muted-foreground">{c.detalhe}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
