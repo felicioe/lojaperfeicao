@@ -18,7 +18,7 @@ export const obterResumoTronco = createServerFn({ method: "GET" }).handler(async
       ? Number(
           (
             await conn.query<RowDataPacket[]>(
-              "SELECT saldo_inicial FROM tronco_beneficencia_config WHERE id = 1",
+              "SELECT saldo_inicial FROM tronco_beneficencia_config WHERE loja_id = @current_loja_id",
             )
           )[0][0]?.saldo_inicial ?? 0,
         )
@@ -28,7 +28,7 @@ export const obterResumoTronco = createServerFn({ method: "GET" }).handler(async
          COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN valor ELSE 0 END), 0) AS entradas,
          COALESCE(SUM(CASE WHEN tipo = 'saida' THEN valor ELSE 0 END), 0) AS saidas
        FROM lancamentos
-       WHERE categoria_recebimento = 'tronco' AND pago = TRUE`,
+       WHERE loja_id = @current_loja_id AND categoria_recebimento = 'tronco' AND pago = TRUE`,
     );
     const entradas = Number(totais.entradas);
     const saidas = Number(totais.saidas);
@@ -41,11 +41,14 @@ export const salvarSaldoInicialTronco = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT saldo_inicial FROM tronco_beneficencia_config WHERE id = 1",
+        "SELECT saldo_inicial FROM tronco_beneficencia_config WHERE loja_id = @current_loja_id",
       );
+      // Singleton que virou uma linha por loja (migração 0092): a PK agora é
+      // loja_id, então o ON DUPLICATE KEY passa a resolver por loja.
       await conn.query(
-        `INSERT INTO tronco_beneficencia_config (id, saldo_inicial, atualizado_por)
-         VALUES (1, ?, ?) ON DUPLICATE KEY UPDATE saldo_inicial = VALUES(saldo_inicial), atualizado_por = VALUES(atualizado_por)`,
+        `INSERT INTO tronco_beneficencia_config (loja_id, id, saldo_inicial, atualizado_por)
+         VALUES (@current_loja_id, 1, ?, ?)
+         ON DUPLICATE KEY UPDATE saldo_inicial = VALUES(saldo_inicial), atualizado_por = VALUES(atualizado_por)`,
         [data.valor, usuarioId],
       );
       await registrarAuditoria(conn, usuarioId, "atualizar", "tronco_saldo_inicial", "1", antes, {
@@ -68,7 +71,7 @@ export const registrarSaidaTronco = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
       const [[conta]] = await conn.query<RowDataPacket[]>(
-        "SELECT plano_conta_id FROM contas_financeiras WHERE id = ? AND ativo = TRUE",
+        "SELECT plano_conta_id FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id AND ativo = TRUE",
         [data.contaFinanceiraId],
       );
       if (!conta?.plano_conta_id)
@@ -78,19 +81,20 @@ export const registrarSaidaTronco = createServerFn({ method: "POST" })
       try {
         const [[disponivel]] = await conn.query<RowDataPacket[]>(
           `SELECT
-             COALESCE((SELECT saldo_inicial FROM tronco_beneficencia_config WHERE id = 1), 0)
+             COALESCE((SELECT saldo_inicial FROM tronco_beneficencia_config
+                        WHERE loja_id = @current_loja_id), 0)
              + COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN valor ELSE -valor END), 0) AS saldo
            FROM lancamentos
-           WHERE categoria_recebimento = 'tronco' AND pago = TRUE`,
+           WHERE loja_id = @current_loja_id AND categoria_recebimento = 'tronco' AND pago = TRUE`,
         );
         if (Number(disponivel.saldo) < data.valor) {
           throw new Error("A saída é maior que o saldo disponível do Tronco.");
         }
         await conn.query(
           `INSERT INTO lancamentos
-             (id, data, data_pagamento, descricao, valor, valor_pago, tipo, conta_id, plano_conta_id,
+             (loja_id, id, data, data_pagamento, descricao, valor, valor_pago, tipo, conta_id, plano_conta_id,
               forma_pagamento, pago, categoria_recebimento, observacoes, criado_por)
-           VALUES (?, ?, ?, ?, ?, ?, 'saida', ?, ?, 'PIX', TRUE, 'tronco', ?, ?)`,
+           VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, 'saida', ?, ?, 'PIX', TRUE, 'tronco', ?, ?)`,
           [
             id,
             data.data,

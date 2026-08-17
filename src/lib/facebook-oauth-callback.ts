@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2";
 import { withUserConnection } from "./backend/db";
+import { usuarioUnicoParaLogin } from "./backend/login-loja";
 
 // Lógica pesada do fluxo OAuth do Facebook — espelha
 // google-oauth-callback.ts (issue #98) quase exatamente, só troca os
@@ -117,7 +118,7 @@ export async function tratarCallbackFacebook(request: Request): Promise<Response
         "SELECT id FROM usuarios WHERE facebook_id = ? AND ativo = TRUE",
         [facebookId],
       );
-      return rows[0] ?? null;
+      return usuarioUnicoParaLogin(rows);
     });
     if (!usuario) {
       return Response.redirect(`${origemPublica()}/auth?erroFacebook=nao_vinculado`, 302);

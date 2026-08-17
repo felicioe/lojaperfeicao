@@ -29,8 +29,9 @@ export const listarFaturasAbertas = createServerFn({ method: "GET" }).handler(
         `SELECT l.id, l.irmao_id, l.descricao, l.valor, l.valor_pago, l.data, l.data_vencimento, l.competencia_mes,
                 l.forma_cobranca, l.pix_chave_id, i.nome_civil, i.telefone, i.celular
          FROM lancamentos l
-         JOIN irmaos i ON i.id = l.irmao_id
-         WHERE l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE
+         JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id
+           AND l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE
          ORDER BY l.data_vencimento`,
       );
       return rows.map((r) => ({
@@ -156,15 +157,19 @@ export const listarPreviewLoteMensalidades = createServerFn({ method: "GET" })
           `SELECT i.id, i.nome_civil,
                   COALESCE(
                     (SELECT tv.valor FROM tabela_valores tv
-                     WHERE tv.tipo = 'mensalidade' AND tv.org_id IS NULL
+                     WHERE tv.loja_id = @current_loja_id
+                       AND tv.tipo = 'mensalidade' AND tv.org_id IS NULL
                        AND tv.vigencia_inicio <= mes_competencia(?)
                      ORDER BY tv.vigencia_inicio DESC LIMIT 1),
                     i.valor_mensalidade
                   ) AS valor_mensalidade
          FROM irmaos i
-         WHERE i.situacao IN ('ativo', 'quite', 'irregular') AND i.valor_mensalidade > 0
+         WHERE i.loja_id = @current_loja_id
+           AND i.situacao IN ('ativo', 'quite', 'irregular') AND i.valor_mensalidade > 0
            AND NOT EXISTS (
-             SELECT 1 FROM lancamentos l WHERE l.irmao_id = i.id AND l.is_mensalidade = TRUE AND l.competencia_mes = ?
+             SELECT 1 FROM lancamentos l
+              WHERE l.loja_id = @current_loja_id AND l.irmao_id = i.id
+                AND l.is_mensalidade = TRUE AND l.competencia_mes = ?
            )
          ORDER BY i.nome_civil`,
           [data.competencia, data.competencia],
