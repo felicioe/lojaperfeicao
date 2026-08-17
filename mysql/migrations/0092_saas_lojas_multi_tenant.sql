@@ -39,6 +39,14 @@
 --     e-mail em duas lojas são contas separadas.
 -- =============================================================================
 
+-- O cliente `mysql` assume latin1 na conexão quando nada é especificado, e o
+-- seed abaixo tem acento ("Perfeição") — sem isto, o nome da loja é gravado
+-- como mojibake de forma permanente (ver mysql/README.md, "Convenções de
+-- migração"). Aconteceu de verdade ao aplicar esta migração no banco de
+-- desenvolvimento. Declarar aqui dispensa depender da flag
+-- --default-character-set=utf8mb4 na linha de comando.
+SET NAMES utf8mb4;
+
 CREATE TABLE IF NOT EXISTS lojas (
   id CHAR(36) NOT NULL DEFAULT (UUID()) PRIMARY KEY,
   -- slug = subdomínio de acesso (issue #338); rótulo DNS: max 63 chars
@@ -61,6 +69,16 @@ INSERT IGNORE INTO lojas (id, slug, nome, razao_social, cnpj) VALUES (
   'ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI',
   '26.649.083/0001-38'
 );
+
+-- O INSERT acima é IGNORE (idempotente), então não corrige uma linha seed já
+-- gravada — inclusive uma gravada com mojibake por aplicação sem utf8mb4.
+-- Este UPDATE reafirma os dados da loja seed a cada aplicação; mexe só nela.
+UPDATE lojas SET
+  slug = 'adonhiram',
+  nome = 'Loja de Perfeição Adonhiram',
+  razao_social = 'ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI',
+  cnpj = '26.649.083/0001-38'
+WHERE id = '00000000-0000-4000-8000-000000000001';
 
 ALTER TABLE auditoria
   ADD COLUMN loja_id CHAR(36) NULL DEFAULT '00000000-0000-4000-8000-000000000001',

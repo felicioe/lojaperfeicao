@@ -49,6 +49,29 @@ migração — ou, se a migração precisa rodar antes por algum motivo, mesclar
 implantar o código na sequência imediatamente, sem deixar o banco "à frente" do
 código implantado por mais que o tempo de um deploy.
 
+#### A exceção: migrações que o código novo **exige** (caso da 0092)
+
+A regra acima vale para migrações que o código velho tolera. A 0092
+(multi-tenant) é do tipo oposto: o código que veio com ela **não roda** sem ela.
+Toda requisição autenticada executa
+`SET @current_loja_id = (SELECT loja_id FROM usuarios WHERE id = ?)` e
+`comSessao`/`comPapel` recusam usuário sem loja — num banco sem a 0092 isso é
+erro de SQL em toda requisição, e nenhuma tela carrega.
+
+Isso também aconteceu de verdade: o merge `1ecc1fc` (16/08/2026) foi implantado
+com o banco de produção ainda sem a 0092 e derrubou o site; `6f26753` reverteu
+`main` para restabelecer o serviço. Para migrações desta categoria a ordem se
+inverte — **migração primeiro, código depois** —, e é justamente por isso que os
+`DEFAULT` transitórios de `loja_id` existem: com a 0092 aplicada e o código
+antigo ainda no ar, tudo continua funcionando (o INSERT sem loja cai na loja
+seed). A janela segura é essa; o inverso não tem janela nenhuma.
+
+Antes de mesclar código que dependa de uma migração assim, rodar
+`mysql/prontidao_multitenant.sql` **contra o banco de produção** e conferir que
+toda linha voltou `OK`. É verificação de pré-deploy: roda em banco que nunca viu
+a 0092 sem dar erro (a etapa 1 só lê `information_schema`), ao contrário de
+`mysql/verificacao_0092.sql`, que confere a migração já aplicada.
+
 ## Decisões de arquitetura (equivalentes ao que o Postgres/Supabase dava de graça)
 
 ### 1. UUIDs
