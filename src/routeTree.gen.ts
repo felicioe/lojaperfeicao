@@ -17,8 +17,10 @@ import { Route as FacebookConcluirRouteImport } from './routes/facebook-concluir
 import { Route as GoogleConcluirRouteImport } from './routes/google-concluir'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
+import { Route as AuthenticatedAdminSaasRouteRouteImport } from './routes/_authenticated/admin-saas/route'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
+import { Route as AuthenticatedAdminSaasLojasRouteImport } from './routes/_authenticated/admin-saas/lojas'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
 import { Route as AuthenticatedAdministracaoDadosEntidadeRouteImport } from './routes/_authenticated/administracao/dados-entidade'
@@ -131,6 +133,12 @@ const TrocarSenhaRoute = TrocarSenhaRouteImport.update({
   path: '/trocar-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminSaasRouteRoute =
+  AuthenticatedAdminSaasRouteRouteImport.update({
+    id: '/admin-saas',
+    path: '/admin-saas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -141,6 +149,12 @@ const AuthenticatedPainelRouteRoute =
     id: '/painel',
     path: '/painel',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdminSaasLojasRoute =
+  AuthenticatedAdminSaasLojasRouteImport.update({
+    id: '/lojas',
+    path: '/lojas',
+    getParentRoute: () => AuthenticatedAdminSaasRouteRoute,
   } as any)
 const AuthenticatedAdministracaoAuditoriaRoute =
   AuthenticatedAdministracaoAuditoriaRouteImport.update({
@@ -579,8 +593,10 @@ export interface FileRoutesByFullPath {
   '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
+  '/admin-saas': typeof AuthenticatedAdminSaasRouteRouteWithChildren
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
@@ -662,7 +678,9 @@ export interface FileRoutesByTo {
   '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
+  '/admin-saas': typeof AuthenticatedAdminSaasRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
@@ -746,8 +764,10 @@ export interface FileRoutesById {
   '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
+  '/_authenticated/admin-saas': typeof AuthenticatedAdminSaasRouteRouteWithChildren
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/_authenticated/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/_authenticated/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
@@ -831,8 +851,10 @@ export interface FileRouteTypes {
     | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
+    | '/admin-saas'
     | '/painel'
     | '/dashboard'
+    | '/admin-saas/lojas'
     | '/administracao/auditoria'
     | '/administracao/backups'
     | '/administracao/dados-entidade'
@@ -914,7 +936,9 @@ export interface FileRouteTypes {
     | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
+    | '/admin-saas'
     | '/dashboard'
+    | '/admin-saas/lojas'
     | '/administracao/auditoria'
     | '/administracao/backups'
     | '/administracao/dados-entidade'
@@ -997,8 +1021,10 @@ export interface FileRouteTypes {
     | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
+    | '/_authenticated/admin-saas'
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
+    | '/_authenticated/admin-saas/lojas'
     | '/_authenticated/administracao/auditoria'
     | '/_authenticated/administracao/backups'
     | '/_authenticated/administracao/dados-entidade'
@@ -1142,6 +1168,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrocarSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin-saas': {
+      id: '/_authenticated/admin-saas'
+      path: '/admin-saas'
+      fullPath: '/admin-saas'
+      preLoaderRoute: typeof AuthenticatedAdminSaasRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -1155,6 +1188,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/painel'
       preLoaderRoute: typeof AuthenticatedPainelRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin-saas/lojas': {
+      id: '/_authenticated/admin-saas/lojas'
+      path: '/lojas'
+      fullPath: '/admin-saas/lojas'
+      preLoaderRoute: typeof AuthenticatedAdminSaasLojasRouteImport
+      parentRoute: typeof AuthenticatedAdminSaasRouteRoute
     }
     '/_authenticated/administracao/auditoria': {
       id: '/_authenticated/administracao/auditoria'
@@ -1663,6 +1703,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAdminSaasRouteRouteChildren {
+  AuthenticatedAdminSaasLojasRoute: typeof AuthenticatedAdminSaasLojasRoute
+}
+
+const AuthenticatedAdminSaasRouteRouteChildren: AuthenticatedAdminSaasRouteRouteChildren =
+  {
+    AuthenticatedAdminSaasLojasRoute: AuthenticatedAdminSaasLojasRoute,
+  }
+
+const AuthenticatedAdminSaasRouteRouteWithChildren =
+  AuthenticatedAdminSaasRouteRoute._addFileChildren(
+    AuthenticatedAdminSaasRouteRouteChildren,
+  )
+
 interface AuthenticatedPainelRouteRouteChildren {
   AuthenticatedPainelComunicacoesRoute: typeof AuthenticatedPainelComunicacoesRoute
   AuthenticatedPainelDadosRoute: typeof AuthenticatedPainelDadosRoute
@@ -1694,6 +1748,7 @@ const AuthenticatedPainelRouteRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminSaasRouteRoute: typeof AuthenticatedAdminSaasRouteRouteWithChildren
   AuthenticatedPainelRouteRoute: typeof AuthenticatedPainelRouteRouteWithChildren
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAdministracaoAuditoriaRoute: typeof AuthenticatedAdministracaoAuditoriaRoute
@@ -1762,6 +1817,8 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminSaasRouteRoute:
+    AuthenticatedAdminSaasRouteRouteWithChildren,
   AuthenticatedPainelRouteRoute: AuthenticatedPainelRouteRouteWithChildren,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedAdministracaoAuditoriaRoute:

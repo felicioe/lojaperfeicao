@@ -15,6 +15,7 @@ import {
   LogOut,
   Landmark,
   ShieldCheck,
+  Globe,
   Building2,
   Award,
   Truck,
@@ -655,7 +656,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     },
   ];
 
-  const groups = can.isMemberOnly ? groupsMemberOnly : groupsAdmin;
+  // Administração da PLATAFORMA (issue #339) — grupo à parte, e anexado aos
+  // dois conjuntos: quem administra o SaaS pode ser, dentro da própria Loja,
+  // um irmão comum (e portanto cair no menu reduzido). Sem anexar aqui, essa
+  // pessoa não teria por onde chegar ao painel.
+  const groupsPlataforma: NavGroup[] = can.isSuperAdmin
+    ? [
+        {
+          id: "plataforma",
+          label: "Plataforma",
+          icon: Globe,
+          items: [{ to: "/admin-saas/lojas", label: "Lojas", icon: Building2, show: true }],
+        },
+      ]
+    : [];
+
+  const groups = [...(can.isMemberOnly ? groupsMemberOnly : groupsAdmin), ...groupsPlataforma];
 
   const isActive = (to: string) =>
     loc.pathname === to ||

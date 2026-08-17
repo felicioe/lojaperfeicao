@@ -107,6 +107,41 @@ export async function comSessao<T>(
   });
 }
 
+/**
+ * Autorização do administrador da PLATAFORMA (papel `super_admin`, issue
+ * #339) — deliberadamente fora do escopo de qualquer loja.
+ *
+ * Por que não é só `comPapel(["super_admin"], ...)`: o callback de comPapel
+ * recebe a loja do usuário e o contrato implícito é "aja dentro dela". Quem
+ * administra o SaaS age sobre o cadastro das lojas, que não pertence a
+ * nenhuma — devolver um lojaId aqui convidaria a escrever query escopada
+ * onde escopo é exatamente o que não se quer. O callback só recebe conexão e
+ * usuário; toda query desta camada nomeia a loja explicitamente.
+ *
+ * As checagens de sessão (troca de senha obrigatória, senha alterada, loja
+ * ativa) são as mesmas — ser dono do SaaS não dispensa nenhuma delas. Vale
+ * notar que a loja do próprio super-admin precisa continuar ativa: é por
+ * isso que `definirLojaAtiva` (saas-lojas.ts) recusa inativar uma loja que
+ * abriga um super-admin, senão ele se trancaria pra fora da plataforma.
+ *
+ * Não dá acesso a dado interno de loja nenhuma: sem impersonação nesta fase
+ * (decisão registrada na issue #339).
+ */
+export async function comSuperAdmin<T>(
+  fn: (conn: PoolConnection, usuarioId: string) => Promise<T>,
+): Promise<T> {
+  const usuarioId = await usuarioIdDaSessao();
+  if (!usuarioId) throw new SemPermissaoError("Não autenticado.");
+  return withUserConnection(usuarioId, async (conn) => {
+    await checarSessaoEResolverLoja(conn, usuarioId, undefined);
+    const [[row]] = await conn.query<RowDataPacket[]>(
+      "SELECT has_role(@current_usuario_id, 'super_admin') AS ok",
+    );
+    if (!row.ok) throw new SemPermissaoError();
+    return fn(conn, usuarioId);
+  });
+}
+
 /** Equivalente a uma policy `USING (has_role(auth.uid(), 'x') OR has_role(auth.uid(), 'y'))`. */
 export async function comPapel<T>(
   papeis: string[],

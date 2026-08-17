@@ -31,6 +31,39 @@ export async function registrarAuditoria(
   );
 }
 
+/**
+ * Auditoria de ação do administrador da PLATAFORMA (issue #339): cadastro,
+ * edição e suspensão de lojas.
+ *
+ * Grava `loja_id` explicitamente como NULL, e é por isso que existe em vez
+ * de reaproveitar registrarAuditoria: `auditoria.loja_id` tem DEFAULT na
+ * loja seed (migração 0092, removido pela #350), então um INSERT que omite a
+ * coluna carimbaria a Adonhiram numa ação que não é dela — e a auditoria da
+ * Adonhiram passaria a mostrar "loja X suspensa", que não é assunto dela.
+ * NULL é o valor certo: a ação aconteceu fora de qualquer loja. A loja
+ * afetada fica em entidade_id, que é o que a tela da plataforma consulta.
+ */
+export async function registrarAuditoriaPlataforma(
+  conn: PoolConnection,
+  usuarioId: string,
+  acao: string,
+  lojaAfetadaId: string | null,
+  dadosAntes: unknown = null,
+  dadosDepois: unknown = null,
+): Promise<void> {
+  await conn.query(
+    `INSERT INTO auditoria (loja_id, usuario_id, acao, entidade_tipo, entidade_id, dados_antes, dados_depois)
+     VALUES (NULL, ?, ?, 'loja', ?, ?, ?)`,
+    [
+      usuarioId,
+      acao,
+      lojaAfetadaId,
+      dadosAntes === null ? null : JSON.stringify(dadosAntes),
+      dadosDepois === null ? null : JSON.stringify(dadosDepois),
+    ],
+  );
+}
+
 type Json = string | number | boolean | null | Json[] | { [chave: string]: Json };
 
 export type EntradaAuditoria = {

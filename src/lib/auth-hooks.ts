@@ -30,11 +30,16 @@ export function useCan() {
   const isAdmin = has("admin");
   const isTesoureiro = isAdmin || has("tesoureiro");
   const isSecretario = isAdmin || has("secretario");
+  // Administrador da plataforma (issue #339). Fica de fora da cascata dos
+  // demais de propósito: administrar o SaaS não dá acesso a dado de loja
+  // nenhuma, então isSuperAdmin não implica isAdmin — nem o contrário.
+  const isSuperAdmin = has("super_admin");
   return {
     roles,
     isAdmin,
     isTesoureiro,
     isSecretario,
+    isSuperAdmin,
     canManageIrmaos: isAdmin || has("secretario"),
     canManageFinancas: isAdmin || has("tesoureiro"),
     // só tem o papel "irmao", sem nenhum papel privilegiado — vai para o

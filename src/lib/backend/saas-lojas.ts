@@ -1,0 +1,266 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import type { RowDataPacket, ResultSetHeader } from "mysql2";
+import { comSuperAdmin } from "./authz";
+import { registrarAuditoriaPlataforma } from "./auditoria";
+
+// Administração do SaaS em si (issue #339): o cadastro das lojas-cliente.
+//
+// Tudo aqui roda sob comSuperAdmin — fora do escopo de qualquer loja. É a
+// única camada do backend que enxerga mais de uma loja ao mesmo tempo, e
+// mesmo assim só metadado: nome, slug, se está ativa, quantos usuários tem.
+// Nenhuma função deste arquivo lê dado interno de loja alguma (financeiro,
+// irmãos, sessões) — sem impersonação nesta fase, decisão registrada na
+// issue.
+
+export type LojaResumo = {
+  id: string;
+  slug: string;
+  nome: string;
+  razao_social: string | null;
+  cnpj: string | null;
+  ativa: boolean;
+  criada_em: string;
+  usuarios_ativos: number;
+  administradores: number;
+  ultimo_acesso: string | null;
+};
+
+export const listarLojas = createServerFn({ method: "GET" }).handler(
+  async (): Promise<LojaResumo[]> =>
+    comSuperAdmin(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.slug, l.nome, l.razao_social, l.cnpj, l.ativa, l.criada_em,
+                COALESCE(c.usuarios_ativos, 0) AS usuarios_ativos,
+                COALESCE(c.administradores, 0) AS administradores,
+                acesso.ultimo_acesso
+           FROM lojas l
+           LEFT JOIN (
+             SELECT u.loja_id,
+                    COUNT(*) AS usuarios_ativos,
+                    COUNT(p.usuario_id) AS administradores
+               FROM usuarios u
+               LEFT JOIN usuarios_papeis p ON p.usuario_id = u.id AND p.papel = 'admin'
+              WHERE u.ativo = TRUE
+              GROUP BY u.loja_id
+           ) c ON c.loja_id = l.id
+           LEFT JOIN (
+             -- Último login de qualquer usuário da loja. A loja sai de
+             -- usuarios.loja_id, e não de auditoria.loja_id, de propósito:
+             -- a coluna da auditoria ainda carrega o DEFAULT de transição da
+             -- migração 0092 (removido só na #350), então hoje ela diria
+             -- "Adonhiram" para o login de qualquer loja. O dono do registro
+             -- é confiável; o carimbo dele ainda não.
+             SELECT u.loja_id, MAX(a.criado_em) AS ultimo_acesso
+               FROM auditoria a
+               JOIN usuarios u ON u.id = a.usuario_id
+              WHERE a.acao = 'login'
+              GROUP BY u.loja_id
+           ) acesso ON acesso.loja_id = l.id
+          ORDER BY l.nome`,
+      );
+      return rows.map((r) => ({
+        id: r.id as string,
+        slug: r.slug as string,
+        nome: r.nome as string,
+        razao_social: r.razao_social as string | null,
+        cnpj: r.cnpj as string | null,
+        ativa: !!r.ativa,
+        criada_em: new Date(r.criada_em).toISOString(),
+        usuarios_ativos: Number(r.usuarios_ativos),
+        administradores: Number(r.administradores),
+        ultimo_acesso: r.ultimo_acesso ? new Date(r.ultimo_acesso).toISOString() : null,
+      }));
+    }),
+);
+
+// O slug é o subdomínio de acesso (issue #338), então precisa ser um rótulo
+// DNS válido: minúsculas, dígitos e hífen, sem hífen nas pontas, até 63
+// caracteres. Validar aqui e não só no banco evita descobrir o problema
+// meses depois, quando o DNS recusar o host.
+const SLUG_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+
+// Nomes que não podem virar subdomínio de loja porque já são (ou virão a
+// ser) endereços da própria plataforma. Reservar agora é barato; renomear
+// uma loja depois que os usuários dela decoraram o endereço, não.
+const SLUGS_RESERVADOS = new Set([
+  "www",
+  "app",
+  "admin",
+  "api",
+  "mail",
+  "smtp",
+  "webmail",
+  "ftp",
+  "cpanel",
+  "painel",
+  "suporte",
+  "status",
+  "static",
+  "assets",
+  "cdn",
+]);
+
+const lojaSchema = z.object({
+  id: z.string().uuid().nullable(),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(2, "O endereço precisa de pelo menos 2 caracteres.")
+    .max(63, "O endereço pode ter no máximo 63 caracteres.")
+    .regex(SLUG_RE, "Use só letras minúsculas, números e hífen (sem hífen no começo ou no fim)."),
+  nome: z.string().trim().min(1, "Informe o nome da Loja."),
+  razaoSocial: z.string().trim().max(255).default(""),
+  cnpj: z.string().trim().max(20).default(""),
+});
+
+function validarLoja(d: unknown) {
+  const r = lojaSchema.safeParse(d);
+  // Mesmo motivo de email-parametros.ts: a `message` de um ZodError é o JSON
+  // inteiro do erro, e a tela mostra err.message.
+  if (!r.success) throw new Error(r.error.issues.map((i) => i.message).join(" "));
+  if (SLUGS_RESERVADOS.has(r.data.slug)) {
+    throw new Error(`"${r.data.slug}" é um endereço reservado da plataforma. Escolha outro.`);
+  }
+  return r.data;
+}
+
+export const salvarLoja = createServerFn({ method: "POST" })
+  .validator(validarLoja)
+  .handler(async ({ data }): Promise<{ id: string }> =>
+    comSuperAdmin(async (conn, usuarioId) => {
+      const [[emUso]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM lojas WHERE slug = ? AND (? IS NULL OR id <> ?)",
+        [data.slug, data.id, data.id],
+      );
+      // O UNIQUE do banco já barraria, mas com "Duplicate entry ... for key
+      // 'slug'" na cara do usuário. A checagem explícita existe pela
+      // mensagem, não pela garantia — a garantia continua sendo o UNIQUE.
+      if (emUso) throw new Error(`O endereço "${data.slug}" já é usado por outra Loja.`);
+
+      const razaoSocial = data.razaoSocial || null;
+      const cnpj = data.cnpj || null;
+
+      if (data.id) {
+        const [[antes]] = await conn.query<RowDataPacket[]>(
+          "SELECT slug, nome, razao_social, cnpj FROM lojas WHERE id = ?",
+          [data.id],
+        );
+        if (!antes) throw new Error("Loja não encontrada.");
+        await conn.query(
+          "UPDATE lojas SET slug = ?, nome = ?, razao_social = ?, cnpj = ? WHERE id = ?",
+          [data.slug, data.nome, razaoSocial, cnpj, data.id],
+        );
+        await registrarAuditoriaPlataforma(conn, usuarioId, "editar_loja", data.id, antes, {
+          slug: data.slug,
+          nome: data.nome,
+          razao_social: razaoSocial,
+          cnpj,
+        });
+        return { id: data.id };
+      }
+
+      // O id é gerado aqui, e não pelo DEFAULT (UUID()) da tabela: sem isso
+      // não há como saber qual linha foi criada (a PK é CHAR(36), então
+      // insertId volta 0) — foi exatamente o bug da fila de e-mail, em que a
+      // função devolvia um id que não existia em lugar nenhum.
+      const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT UUID() AS novo_id");
+      await conn.query(
+        "INSERT INTO lojas (id, slug, nome, razao_social, cnpj, ativa) VALUES (?, ?, ?, ?, ?, 1)",
+        [novo_id, data.slug, data.nome, razaoSocial, cnpj],
+      );
+      await registrarAuditoriaPlataforma(conn, usuarioId, "criar_loja", novo_id as string, null, {
+        slug: data.slug,
+        nome: data.nome,
+        razao_social: razaoSocial,
+        cnpj,
+      });
+      return { id: novo_id as string };
+    }),
+  );
+
+const ativaSchema = z.object({ id: z.string().uuid(), ativa: z.boolean() });
+
+export const definirLojaAtiva = createServerFn({ method: "POST" })
+  .validator((d: unknown) => ativaSchema.parse(d))
+  .handler(async ({ data }): Promise<void> =>
+    comSuperAdmin(async (conn, usuarioId) => {
+      const [[loja]] = await conn.query<RowDataPacket[]>(
+        "SELECT nome, ativa FROM lojas WHERE id = ?",
+        [data.id],
+      );
+      if (!loja) throw new Error("Loja não encontrada.");
+      if (!!loja.ativa === data.ativa) return;
+
+      if (!data.ativa) {
+        // Trava contra se trancar pra fora: suspender uma loja derruba TODOS
+        // os usuários dela (usuario-sessao.ts devolve null quando a loja está
+        // inativa), inclusive um super-admin que more nela — e aí não sobra
+        // ninguém que possa reativá-la, porque reativar exige justamente
+        // entrar na plataforma. A saída seria um UPDATE à mão no banco.
+        const [[{ super_admins }]] = await conn.query<RowDataPacket[]>(
+          `SELECT COUNT(*) AS super_admins
+             FROM usuarios u
+             JOIN usuarios_papeis p ON p.usuario_id = u.id AND p.papel = 'super_admin'
+            WHERE u.loja_id = ? AND u.ativo = TRUE`,
+          [data.id],
+        );
+        if (Number(super_admins) > 0) {
+          throw new Error(
+            "Esta Loja abriga um administrador da plataforma. Suspendê-la tiraria o acesso a este painel — mova o administrador para outra Loja antes.",
+          );
+        }
+      }
+
+      const [r] = await conn.query<ResultSetHeader>("UPDATE lojas SET ativa = ? WHERE id = ?", [
+        data.ativa,
+        data.id,
+      ]);
+      if (r.affectedRows === 0) throw new Error("Loja não encontrada.");
+      await registrarAuditoriaPlataforma(
+        conn,
+        usuarioId,
+        data.ativa ? "reativar_loja" : "suspender_loja",
+        data.id,
+        { nome: loja.nome, ativa: !!loja.ativa },
+        { nome: loja.nome, ativa: data.ativa },
+      );
+    }),
+  );
+
+export type EventoPlataforma = {
+  id: string;
+  acao: string;
+  criado_em: string;
+  usuario_email: string | null;
+  loja_nome: string | null;
+  dados_depois: string | null;
+};
+
+export const listarAuditoriaPlataforma = createServerFn({ method: "GET" }).handler(
+  async (): Promise<EventoPlataforma[]> =>
+    comSuperAdmin(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        // loja_id IS NULL é o que distingue ação de plataforma de ação
+        // interna de loja sobre a entidade "loja" — ver
+        // registrarAuditoriaPlataforma.
+        `SELECT a.id, a.acao, a.criado_em, u.email AS usuario_email,
+                l.nome AS loja_nome, a.dados_depois
+           FROM auditoria a
+           LEFT JOIN usuarios u ON u.id = a.usuario_id
+           LEFT JOIN lojas l ON l.id = a.entidade_id
+          WHERE a.entidade_tipo = 'loja' AND a.loja_id IS NULL
+          ORDER BY a.criado_em DESC
+          LIMIT 100`,
+      );
+      return rows.map((r) => ({
+        id: r.id as string,
+        acao: r.acao as string,
+        criado_em: new Date(r.criado_em).toISOString(),
+        usuario_email: r.usuario_email as string | null,
+        loja_nome: r.loja_nome as string | null,
+        dados_depois: r.dados_depois === null ? null : JSON.stringify(r.dados_depois),
+      }));
+    }),
+);
