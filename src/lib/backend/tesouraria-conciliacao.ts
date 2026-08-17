@@ -39,8 +39,8 @@ export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
                 i.nome_civil AS irmao_nome,
                 l.valor, l.valor_pago, l.tipo
          FROM lancamentos l
-         LEFT JOIN irmaos i ON i.id = l.irmao_id
-         WHERE l.pago = FALSE AND l.tipo IN ('entrada', 'saida')
+         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id AND l.pago = FALSE AND l.tipo IN ('entrada', 'saida')
          ORDER BY l.data_vencimento IS NULL, l.data_vencimento, l.data
          LIMIT 300`,
       );
@@ -68,10 +68,10 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
                   WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
                 )) AS conciliado
          FROM ofx_lancamentos o
-         WHERE o.conta_financeira_id = ?
+         WHERE o.loja_id = @current_loja_id AND o.conta_financeira_id = ?
            AND NOT (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
              SELECT 1 FROM conciliacoes c
-             WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+             WHERE c.loja_id = o.loja_id AND c.id = o.conciliacao_id AND c.status = 'ativa'
            ))
          ORDER BY o.data`,
         [data.contaId],
@@ -93,7 +93,7 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
       try {
         const [extratos] = await conn.query<RowDataPacket[]>(
           `SELECT data_inicial, data_final FROM ofx_extratos
-           WHERE conta_financeira_id = ?
+           WHERE loja_id = @current_loja_id AND conta_financeira_id = ?
            ORDER BY data_final DESC, data_inicial DESC, importado_em DESC, id DESC LIMIT 1`,
           [data.contaId],
         );
@@ -116,10 +116,11 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
                   l_direto.descricao
                 ) AS vinculos
          FROM ofx_lancamentos o
-         LEFT JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = o.conciliacao_id
-         LEFT JOIN lancamentos l_lote ON l_lote.id = cl.lancamento_id
-         LEFT JOIN lancamentos l_direto ON l_direto.id = o.lancamento_id
-         WHERE o.conta_financeira_id = ? ${periodoSql}
+         LEFT JOIN conciliacao_lancamentos cl
+                ON cl.conciliacao_id = o.conciliacao_id AND cl.loja_id = o.loja_id
+         LEFT JOIN lancamentos l_lote ON l_lote.id = cl.lancamento_id AND l_lote.loja_id = o.loja_id
+         LEFT JOIN lancamentos l_direto ON l_direto.id = o.lancamento_id AND l_direto.loja_id = o.loja_id
+         WHERE o.loja_id = @current_loja_id AND o.conta_financeira_id = ? ${periodoSql}
          GROUP BY o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado,
                   o.conciliacao_id, l_direto.descricao
          ORDER BY o.data DESC, o.importado_em DESC LIMIT 500`,
@@ -155,7 +156,7 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
       try {
         const [extratos] = await conn.query<RowDataPacket[]>(
           `SELECT data_inicial, data_final, saldo_inicial, saldo_final
-           FROM ofx_extratos WHERE conta_financeira_id = ?
+           FROM ofx_extratos WHERE loja_id = @current_loja_id AND conta_financeira_id = ?
            ORDER BY data_final DESC, data_inicial DESC, importado_em DESC, id DESC LIMIT 1`,
           [data.contaId],
         );
@@ -185,7 +186,7 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
            )) THEN 1 ELSE 0 END) AS itens_pendentes,
            MIN(o.data) AS data_inicial, MAX(o.data) AS data_final
          FROM ofx_lancamentos o
-         WHERE o.conta_financeira_id = ? ${periodoSql}`,
+         WHERE o.loja_id = @current_loja_id AND o.conta_financeira_id = ? ${periodoSql}`,
         [data.contaId, ...periodoParams],
       );
       let saldoSistema: number | null = null;
@@ -196,52 +197,61 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
            LEFT JOIN (
              SELECT r.conta_financeira_id, r.valor_total AS valor_sinal
              FROM recibos r
-             WHERE r.data <= ?
+             WHERE r.loja_id = @current_loja_id AND r.data <= ?
              UNION ALL
              SELECT c.conta_financeira_id,
                     CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END
              FROM conciliacoes c
-             JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id
-             JOIN lancamentos l ON l.id = cl.lancamento_id
-             WHERE c.status = 'ativa' AND c.data_conciliacao <= ?
+             JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id AND cl.loja_id = c.loja_id
+             JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = c.loja_id
+             WHERE c.loja_id = @current_loja_id AND c.status = 'ativa' AND c.data_conciliacao <= ?
              UNION ALL
              SELECT o.conta_financeira_id,
                     CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END
              FROM ofx_lancamentos o
-             JOIN lancamentos l ON l.id = o.lancamento_id
-             WHERE o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.data <= ?
+             JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
+             WHERE o.loja_id = @current_loja_id
+               AND o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.data <= ?
              UNION ALL
              SELECT l.conta_id,
                     CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END
              FROM lancamentos l
-             WHERE l.pago = TRUE AND l.conta_id IS NOT NULL AND l.data_pagamento <= ?
-               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+             WHERE l.loja_id = @current_loja_id
+               AND l.pago = TRUE AND l.conta_id IS NOT NULL AND l.data_pagamento <= ?
+               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri
+                               WHERE ri.loja_id = l.loja_id AND ri.lancamento_id = l.id)
                AND NOT EXISTS (
                  SELECT 1 FROM conciliacao_lancamentos cl
-                 JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
-                 WHERE cl.lancamento_id = l.id
+                 JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                                    AND c.status = 'ativa'
+                 WHERE cl.loja_id = l.loja_id AND cl.lancamento_id = l.id
                )
                AND NOT EXISTS (
                  SELECT 1 FROM ofx_lancamentos o
-                 WHERE o.lancamento_id = l.id AND o.conciliacao_id IS NULL
+                 WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
+                   AND o.conciliacao_id IS NULL
                )
              UNION ALL
              SELECT l.conta_destino_id, l.valor
              FROM lancamentos l
-             WHERE l.pago = TRUE AND l.tipo = 'transferencia'
+             WHERE l.loja_id = @current_loja_id
+               AND l.pago = TRUE AND l.tipo = 'transferencia'
                AND l.conta_destino_id IS NOT NULL AND l.data_pagamento <= ?
-               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri
+                               WHERE ri.loja_id = l.loja_id AND ri.lancamento_id = l.id)
                AND NOT EXISTS (
                  SELECT 1 FROM conciliacao_lancamentos cl
-                 JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
-                 WHERE cl.lancamento_id = l.id
+                 JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                                    AND c.status = 'ativa'
+                 WHERE cl.loja_id = l.loja_id AND cl.lancamento_id = l.id
                )
                AND NOT EXISTS (
                  SELECT 1 FROM ofx_lancamentos o
-                 WHERE o.lancamento_id = l.id AND o.conciliacao_id IS NULL
+                 WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
+                   AND o.conciliacao_id IS NULL
                )
            ) eventos ON eventos.conta_financeira_id = cf.id
-           WHERE cf.id = ?
+           WHERE cf.loja_id = @current_loja_id AND cf.id = ?
            GROUP BY cf.id, cf.saldo_inicial`,
           [
             extrato.data_final,
@@ -266,14 +276,16 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
       const [[financeiroSemOfx]] = await conn.query<RowDataPacket[]>(
         `SELECT COALESCE(SUM(l.valor_pago), 0) AS valor, COUNT(*) AS itens
          FROM lancamentos l
-         WHERE l.conta_id = ? AND l.pago = TRUE ${periodoFinanceiro}
+         WHERE l.loja_id = @current_loja_id AND l.conta_id = ? AND l.pago = TRUE ${periodoFinanceiro}
            AND NOT EXISTS (
              SELECT 1 FROM ofx_lancamentos o
-             WHERE o.lancamento_id = l.id
+             WHERE o.loja_id = l.loja_id
+               AND (o.lancamento_id = l.id
                 OR (o.conciliacao_id IS NOT NULL AND EXISTS (
                   SELECT 1 FROM conciliacao_lancamentos cl
-                  WHERE cl.conciliacao_id = o.conciliacao_id AND cl.lancamento_id = l.id
-                ))
+                  WHERE cl.loja_id = l.loja_id
+                    AND cl.conciliacao_id = o.conciliacao_id AND cl.lancamento_id = l.id
+                )))
            )`,
         paramsFinanceiro,
       );
@@ -310,7 +322,8 @@ export const conciliarOfxExistente = createServerFn({ method: "POST" })
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       try {
         const [[parcela]] = await conn.query<RowDataPacket[]>(
-          `SELECT recorrente_id, valor_efetivo_confirmado FROM lancamentos WHERE id = ?`,
+          `SELECT recorrente_id, valor_efetivo_confirmado FROM lancamentos
+           WHERE loja_id = @current_loja_id AND id = ?`,
           [data.lancamentoId],
         );
         if (parcela?.recorrente_id && !parcela.valor_efetivo_confirmado) {
@@ -358,7 +371,8 @@ export const conciliarOfxLote = createServerFn({ method: "POST" })
         const ids = data.alocacao.map((item) => item.lancamentoId);
         const [pendentes] = await conn.query<RowDataPacket[]>(
           `SELECT id FROM lancamentos
-           WHERE id IN (?) AND recorrente_id IS NOT NULL AND valor_efetivo_confirmado = FALSE`,
+           WHERE loja_id = @current_loja_id
+             AND id IN (?) AND recorrente_id IS NOT NULL AND valor_efetivo_confirmado = FALSE`,
           [ids],
         );
         if (pendentes.length > 0) {
@@ -456,7 +470,7 @@ export const listarConciliacoesRecentes = createServerFn({ method: "GET" })
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, data_conciliacao, valor_total, criado_em FROM conciliacoes
-         WHERE conta_financeira_id = ? AND status = 'ativa'
+         WHERE loja_id = @current_loja_id AND conta_financeira_id = ? AND status = 'ativa'
          ORDER BY criado_em DESC LIMIT 20`,
         [data.contaId],
       );
@@ -605,7 +619,11 @@ export type ResultadoImportacaoOfx = {
 export const importarOfx = createServerFn({ method: "POST" })
   .validator((d: unknown) => importarOfxSchema.parse(d))
   .handler(async ({ data }): Promise<ResultadoImportacaoOfx> => {
-    return comPapel(PAPEIS, async (conn, usuarioId) => {
+    // lojaId vem do comPapel porque o INSERT em lote usa `VALUES ?` — a
+    // lista de linhas é escapada pelo mysql2 como valores, então não dá pra
+    // usar @current_loja_id ali dentro; nas demais consultas a variável de
+    // sessão continua sendo a fonte do escopo.
+    return comPapel(PAPEIS, async (conn, usuarioId, lojaId) => {
       let bytes: Uint8Array;
       try {
         bytes = Uint8Array.from(Buffer.from(data.arquivoBase64, "base64"));
@@ -694,7 +712,7 @@ export const importarOfx = createServerFn({ method: "POST" })
       if (linhas.length > 0) {
         const [existentes] = await conn.query<RowDataPacket[]>(
           `SELECT chave_dedupe FROM ofx_lancamentos
-           WHERE conta_financeira_id = ? AND chave_dedupe IN (?)`,
+           WHERE loja_id = @current_loja_id AND conta_financeira_id = ? AND chave_dedupe IN (?)`,
           [data.contaFinanceiraId, linhas.map((l) => l.chaveDedupe)],
         );
         for (const row of existentes) chavesJaExistentes.add(row.chave_dedupe as string);
@@ -702,7 +720,7 @@ export const importarOfx = createServerFn({ method: "POST" })
         const [movimentosExistentes] = await conn.query<RowDataPacket[]>(
           `SELECT data, valor, tipo_ofx, descricao
            FROM ofx_lancamentos
-           WHERE conta_financeira_id = ? AND data BETWEEN ? AND ?`,
+           WHERE loja_id = @current_loja_id AND conta_financeira_id = ? AND data BETWEEN ? AND ?`,
           [data.contaFinanceiraId, datas[0], datas.at(-1)],
         );
         for (const row of movimentosExistentes) {
@@ -747,10 +765,11 @@ export const importarOfx = createServerFn({ method: "POST" })
         try {
           await conn.query(
             `INSERT IGNORE INTO ofx_lancamentos
-               (conta_financeira_id, fitid, data, valor, tipo_ofx, descricao, chave_dedupe, importado_por)
+               (loja_id, conta_financeira_id, fitid, data, valor, tipo_ofx, descricao, chave_dedupe, importado_por)
              VALUES ?`,
             [
               lote.map((l) => [
+                lojaId,
                 data.contaFinanceiraId,
                 l.fitid || null,
                 l.dataOfx,
@@ -771,8 +790,8 @@ export const importarOfx = createServerFn({ method: "POST" })
             try {
               await conn.query(
                 `INSERT IGNORE INTO ofx_lancamentos
-                   (conta_financeira_id, fitid, data, valor, tipo_ofx, descricao, chave_dedupe, importado_por)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                   (loja_id, conta_financeira_id, fitid, data, valor, tipo_ofx, descricao, chave_dedupe, importado_por)
+                 VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                   data.contaFinanceiraId,
                   l.fitid || null,
@@ -796,9 +815,9 @@ export const importarOfx = createServerFn({ method: "POST" })
         try {
           await conn.query(
             `INSERT INTO ofx_extratos
-               (conta_financeira_id, data_inicial, data_final, saldo_inicial, saldo_final,
+               (loja_id, conta_financeira_id, data_inicial, data_final, saldo_inicial, saldo_final,
                 total_entradas, total_saidas, quantidade_lancamentos, importado_por)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               data.contaFinanceiraId,
               dataInicial,

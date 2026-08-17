@@ -50,9 +50,68 @@ function getPool(): mysql.Pool {
 }
 
 /**
+ * Erro de banco desatualizado em relação ao código implantado.
+ *
+ * Existe por causa de uma queda real de produção: o código multi-tenant foi
+ * publicado antes da migração 0092 ter sido aplicada até o fim, e como o
+ * `SET @current_loja_id` abaixo é a PRIMEIRA coisa que toda requisição faz,
+ * a falta da coluna `usuarios.loja_id` derrubava TODAS as telas com um
+ * "Unknown column" cru. Nada na tela dizia o que fazer.
+ *
+ * Não é possível degradar graciosamente aqui — as ~350 queries escopadas
+ * precisam da coluna para funcionar. O que é possível, e é o que esta classe
+ * faz, é transformar um erro de SQL indecifrável numa mensagem que diz
+ * exatamente qual migração falta aplicar.
+ */
+export class BancoDesatualizadoError extends Error {
+  constructor(detalhe: string) {
+    super(
+      `Banco de dados desatualizado em relação a esta versão do sistema: ${detalhe}. ` +
+        "Aplique a migração pendente em mysql/migrations/ (a mais recente é a 0092, " +
+        "que cria a tabela `lojas` e a coluna `loja_id`) e reinicie a aplicação.",
+    );
+    this.name = "BancoDesatualizadoError";
+  }
+}
+
+// Registra o diagnóstico no log do servidor UMA vez, não a cada requisição:
+// com o site fora do ar, o log encheria de linhas idênticas e esconderia
+// qualquer outra pista.
+let avisoSchemaEmitido = false;
+
+export function traduzirErroDeSchema(err: unknown): never {
+  const codigo = (err as { code?: string }).code;
+  const mensagem = err instanceof Error ? err.message : String(err);
+  if (codigo === "ER_BAD_FIELD_ERROR" || codigo === "ER_NO_SUCH_TABLE") {
+    if (!avisoSchemaEmitido) {
+      avisoSchemaEmitido = true;
+      console.error(
+        "\n=== SCHEMA INCOMPATÍVEL ===\n" +
+          `O banco não tem a estrutura multi-tenant que este código exige (${mensagem}).\n` +
+          "Aplique a migração 0092 e reinicie a aplicação. Nenhuma tela vai funcionar até então.\n" +
+          "===========================\n",
+      );
+    }
+    throw new BancoDesatualizadoError(mensagem);
+  }
+  throw err;
+}
+
+/**
  * Retira uma conexão do pool, seta @current_usuario_id para o usuário
  * autenticado da requisição atual (ou NULL, contexto de sistema) e a
  * devolve ao pool ao final — sempre, mesmo em caso de erro.
+ *
+ * Também seta @current_loja_id (issue #337), **derivado do próprio usuário**
+ * (`usuarios.loja_id`) em vez de recebido por parâmetro. Isso é deliberado:
+ * a loja do contexto nunca pode divergir de quem está autenticado, e nenhum
+ * chamador precisa lembrar de passar (ou pode passar errado) a loja. Toda
+ * query multi-tenant filtra por `loja_id = @current_loja_id` — SQL puro, sem
+ * parâmetro extra em nenhuma das ~350 server functions.
+ *
+ * Sem usuário (contexto de sistema), @current_loja_id fica NULL e as queries
+ * escopadas não retornam nada — o que é o comportamento correto: um cron que
+ * precisa varrer lojas usa withLojaConnection() e diz explicitamente qual é.
  */
 export async function withUserConnection<T>(
   usuarioId: string | null,
@@ -61,11 +120,59 @@ export async function withUserConnection<T>(
   const conn = await getPool().getConnection();
   try {
     if (usuarioId) {
-      await conn.query("SET @current_usuario_id = ?", [usuarioId]);
+      try {
+        await conn.query(
+          "SET @current_usuario_id = ?, @current_loja_id = (SELECT loja_id FROM usuarios WHERE id = ?)",
+          [usuarioId, usuarioId],
+        );
+      } catch (err) {
+        traduzirErroDeSchema(err);
+      }
     } else {
-      await conn.query("SET @current_usuario_id = NULL");
+      await conn.query("SET @current_usuario_id = NULL, @current_loja_id = NULL");
     }
     return await fn(conn);
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Conexão de contexto de sistema com uma loja explícita — para trabalho sem
+ * usuário autenticado que mesmo assim pertence a uma loja: crons de
+ * notificação/lembrete/backup, fila de e-mail, agenda pública (issue #341).
+ * @current_usuario_id fica NULL (a auditoria registra como ação de sistema),
+ * mas @current_loja_id é setado, então as queries escopadas funcionam
+ * normalmente para aquela loja.
+ */
+export async function withLojaConnection<T>(
+  lojaId: string,
+  fn: (conn: mysql.PoolConnection) => Promise<T>,
+): Promise<T> {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.query("SET @current_usuario_id = NULL, @current_loja_id = ?", [lojaId]);
+    return await fn(conn);
+  } finally {
+    conn.release();
+  }
+}
+
+/** Ids de todas as lojas ativas — ponto de partida dos crons que precisam
+ * iterar loja a loja (issue #341). */
+export async function listarLojasAtivas(): Promise<{ id: string; slug: string; nome: string }[]> {
+  const conn = await getPool().getConnection();
+  try {
+    try {
+      const [rows] = await conn.query(
+        "SELECT id, slug, nome FROM lojas WHERE ativa = TRUE ORDER BY nome",
+      );
+      return rows as { id: string; slug: string; nome: string }[];
+    } catch (err) {
+      // Os crons chamam isto antes de qualquer coisa: sem a tabela `lojas`,
+      // o erro precisa dizer o que fazer em vez de "Table doesn't exist".
+      traduzirErroDeSchema(err);
+    }
   } finally {
     conn.release();
   }

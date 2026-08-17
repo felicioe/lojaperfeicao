@@ -35,14 +35,16 @@ export const listarRecibos = createServerFn({ method: "GET" }).handler(
   async (): Promise<Recibo[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      const where = privilegiado ? "" : "WHERE i.usuario_id = ?";
+      const where = privilegiado
+        ? "WHERE r.loja_id = @current_loja_id"
+        : "WHERE r.loja_id = @current_loja_id AND i.usuario_id = ?";
       const valores = privilegiado ? [] : [usuarioId];
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT r.id, r.data, r.valor_original, r.valor_multa, r.valor_juros, r.desconto, r.valor_total, r.forma_pagamento,
               i.nome_civil, cf.nome AS conta_nome
        FROM recibos r
-       JOIN irmaos i ON i.id = r.irmao_id
-       LEFT JOIN contas_financeiras cf ON cf.id = r.conta_financeira_id
+       JOIN irmaos i ON i.id = r.irmao_id AND i.loja_id = r.loja_id
+       LEFT JOIN contas_financeiras cf ON cf.id = r.conta_financeira_id AND cf.loja_id = r.loja_id
        ${where}
        ORDER BY r.data DESC
        LIMIT 200`,
@@ -79,7 +81,7 @@ export const listarReciboItens = createServerFn({ method: "GET" })
       const privilegiado = await ehPrivilegiado(conn);
       if (!privilegiado) {
         const [[{ ok }]] = await conn.query<RowDataPacket[]>(
-          `SELECT EXISTS(SELECT 1 FROM recibos r JOIN irmaos i ON i.id = r.irmao_id WHERE r.id = ? AND i.usuario_id = ?) AS ok`,
+          `SELECT EXISTS(SELECT 1 FROM recibos r JOIN irmaos i ON i.id = r.irmao_id WHERE r.loja_id = @current_loja_id AND r.id = ? AND i.usuario_id = ?) AS ok`,
           [data.reciboId, usuarioId],
         );
         if (!ok) throw new Error("Sem permissão.");
@@ -87,8 +89,8 @@ export const listarReciboItens = createServerFn({ method: "GET" })
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT ri.id, ri.valor_original, ri.valor_multa, ri.valor_juros, l.descricao, l.data_vencimento
          FROM recibo_itens ri
-         JOIN lancamentos l ON l.id = ri.lancamento_id
-         WHERE ri.recibo_id = ?`,
+         JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+         WHERE ri.loja_id = @current_loja_id AND ri.recibo_id = ?`,
         [data.reciboId],
       );
       return rows.map((r) => ({
@@ -125,7 +127,8 @@ export const listarRecibosAvulsos = createServerFn({ method: "GET" }).handler(
       r.descricao, COALESCE(i.nome_civil, t.nome) AS pessoa_nome, r.forma_pagamento, r.observacoes,
       cf.nome AS conta_nome, r.conciliacao_id FROM recibos_avulsos r
       LEFT JOIN irmaos i ON i.id=r.irmao_id LEFT JOIN terceiros t ON t.id=r.terceiro_id
-      LEFT JOIN contas_financeiras cf ON cf.id=r.conta_financeira_id ORDER BY r.data DESC, r.numero DESC LIMIT 500`);
+      LEFT JOIN contas_financeiras cf ON cf.id=r.conta_financeira_id
+      WHERE r.loja_id = @current_loja_id ORDER BY r.data DESC, r.numero DESC LIMIT 500`);
       return rows as ReciboAvulso[];
     }),
 );
@@ -138,7 +141,7 @@ export const listarConciliacoesParaRecibo = createServerFn({ method: "GET" }).ha
       GROUP_CONCAT(DISTINCT l.descricao SEPARATOR '; ') AS descricao
       FROM conciliacoes c JOIN conciliacao_lancamentos cl ON cl.conciliacao_id=c.id
       JOIN lancamentos l ON l.id=cl.lancamento_id LEFT JOIN recibos_avulsos r ON r.conciliacao_id=c.id
-      WHERE c.status='ativa' AND r.id IS NULL GROUP BY c.id ORDER BY c.data_conciliacao DESC LIMIT 100`);
+      WHERE c.loja_id = @current_loja_id AND c.status='ativa' AND r.id IS NULL GROUP BY c.id ORDER BY c.data_conciliacao DESC LIMIT 100`);
     return rows as { id: string; data: string; valor: number; descricao: string }[];
   }),
 );
@@ -174,9 +177,9 @@ export const criarReciboAvulso = createServerFn({ method: "POST" })
         lancamentoId = crypto.randomUUID();
         const efetivo = data.status === "efetivo";
         await conn.query(
-          `INSERT INTO lancamentos (id,data,data_vencimento,data_pagamento,descricao,valor,valor_pago,tipo,
+          `INSERT INTO lancamentos (loja_id,id,data,data_vencimento,data_pagamento,descricao,valor,valor_pago,tipo,
         plano_conta_id,irmao_id,terceiro_id,conta_id,pago,forma_pagamento,observacoes,criado_por)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        VALUES (@current_loja_id,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           [
             lancamentoId,
             data.data,
@@ -198,7 +201,7 @@ export const criarReciboAvulso = createServerFn({ method: "POST" })
         );
         if (efetivo) {
           const [[conta]] = await conn.query<RowDataPacket[]>(
-            "SELECT plano_conta_id FROM contas_financeiras WHERE id=?",
+            "SELECT plano_conta_id FROM contas_financeiras WHERE id=? AND loja_id = @current_loja_id",
             [data.contaFinanceiraId],
           );
           if (!conta?.plano_conta_id)
@@ -225,9 +228,9 @@ export const criarReciboAvulso = createServerFn({ method: "POST" })
         }
       }
       await conn.query(
-        `INSERT INTO recibos_avulsos (id,tipo,status,data,valor,descricao,irmao_id,terceiro_id,
+        `INSERT INTO recibos_avulsos (loja_id,id,tipo,status,data,valor,descricao,irmao_id,terceiro_id,
       plano_conta_id,conta_financeira_id,forma_pagamento,observacoes,lancamento_id,conciliacao_id,criado_por)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      VALUES (@current_loja_id,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           id,
           data.tipo,

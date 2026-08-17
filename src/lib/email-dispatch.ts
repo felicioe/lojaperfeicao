@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
 import { withUserConnection } from "./backend/db";
+import { decifrar } from "./backend/cripto";
 import { SENHA_PADRAO } from "./backend/usuarios";
 
 // Envio de e-mail com fila (issue #103 + issue #XXX) — SMTP da própria
@@ -16,249 +17,113 @@ import { SENHA_PADRAO } from "./backend/usuarios";
 // 2. Se falhar: fica na fila com retry automático via CRON
 // 3. Lembretes vencidas: apenas @ 12h, apenas faturas vencidas
 
-let transporter: Transporter | undefined;
-
 function origemPublica(): string {
   return process.env.PUBLIC_ORIGIN || "http://localhost:5173";
 }
 
-// Contexto do SMTP para acompanhar a mensagem de erro. Sem saber contra QUAL
-// servidor e com QUAL usuário a tentativa foi feita, um "535 authentication
-// failed" não distingue senha errada de host errado — e quem administra a Loja
-// pelo navegador não tem como conferir as variáveis de ambiente do servidor.
-// A senha nunca entra aqui.
-function contextoSmtp(): string {
-  const host = process.env.SMTP_HOST || "(SMTP_HOST vazio)";
-  const porta = process.env.SMTP_PORT || "(SMTP_PORT vazio)";
-  const usuario = process.env.SMTP_USER || "(SMTP_USER vazio)";
-  const senha = process.env.SMTP_PASSWORD ?? "";
-  const senhaDefinida = senha ? `sim, ${senha.length} caracteres` : "NÃO";
-  return `servidor ${host}:${porta}, usuário ${usuario}, senha definida: ${senhaDefinida}`;
-}
-
-export type ChecagemSmtp = {
-  nome: string;
-  situacao: "ok" | "atencao" | "falha";
-  detalhe: string;
+export type ConfigSmtp = {
+  host: string;
+  porta: number;
+  usuario: string;
+  senha: string;
+  remetente: string;
+  origem: "loja" | "servidor";
 };
 
-export type DiagnosticoSmtp = {
-  ok: boolean;
-  resumo: string;
-  checagens: ChecagemSmtp[];
-};
-
-// Descreve o formato de um valor de variável de ambiente SEM revelá-lo:
-// espaço nas pontas, aspas coladas junto e caractere não-ASCII são os três
-// defeitos que o painel de variáveis não mostra e que produzem exatamente o
-// mesmo "535 authentication failed" de uma credencial errada.
-function higiene(valor: string): string[] {
-  const problemas: string[] = [];
-  if (valor !== valor.trim()) problemas.push("espaço em branco nas pontas");
-  if (/^["'].*["']$/.test(valor)) problemas.push("aspas em volta do valor");
-  if (/[^\x20-\x7E]/.test(valor)) problemas.push("caractere fora do ASCII imprimível");
-  return problemas;
-}
-
-function dominioDe(email: string): string {
-  const partes = email.trim().split("@");
-  return partes.length === 2 ? partes[1].toLowerCase() : "";
-}
-
-// Testa a conexão TCP crua, antes e independente de TLS/autenticação: separa
-// "não consigo nem falar com esse servidor" (host errado, porta bloqueada) de
-// "falei e ele recusou a credencial".
-async function testarTcp(host: string, porta: number): Promise<{ ok: boolean; detalhe: string }> {
-  const net = await import("node:net");
-  return new Promise((resolve) => {
-    const inicio = Date.now();
-    const socket = new net.Socket();
-    const encerrar = (ok: boolean, detalhe: string) => {
-      socket.destroy();
-      resolve({ ok, detalhe });
-    };
-    socket.setTimeout(8000);
-    socket.once("connect", () => encerrar(true, `conectou em ${Date.now() - inicio} ms`));
-    socket.once("timeout", () =>
-      encerrar(false, "sem resposta em 8 s (porta bloqueada ou host errado)"),
+/**
+ * Configuração de SMTP da loja (issue #352), com as variáveis de ambiente do
+ * servidor como fallback.
+ *
+ * O fallback é permanente, não de transição: ele é o "SMTP padrão da
+ * plataforma", para lojas que não queiram usar caixa própria — e é o que
+ * mantém o envio funcionando no instante do deploy, sem ninguém precisar
+ * abrir a tela de parâmetros primeiro.
+ */
+export async function configSmtpDaLoja(
+  conn: PoolConnection,
+  lojaId: string | null,
+): Promise<ConfigSmtp | null> {
+  if (lojaId) {
+    const [[linha]] = await conn.query<RowDataPacket[]>(
+      `SELECT host, porta, usuario, senha_cifrada, remetente_nome, remetente_email
+         FROM loja_parametros_email WHERE loja_id = ?`,
+      [lojaId],
     );
-    socket.once("error", (err: Error) => encerrar(false, err.message));
-    socket.connect(porta, host);
-  });
+    if (linha) {
+      const senha = decifrar(linha.senha_cifrada as string);
+      // Senha ilegível (SESSION_SECRET trocado) cai no fallback em vez de
+      // falhar: a tela mostra "senha não configurada" e pede de novo.
+      if (senha) {
+        const endereco = (linha.remetente_email as string) || (linha.usuario as string);
+        return {
+          host: linha.host as string,
+          porta: Number(linha.porta),
+          usuario: linha.usuario as string,
+          senha,
+          remetente: linha.remetente_nome
+            ? `"${linha.remetente_nome as string}" <${endereco}>`
+            : endereco,
+          origem: "loja",
+        };
+      }
+    }
+  }
+  const host = process.env.SMTP_HOST;
+  const porta = process.env.SMTP_PORT;
+  const usuario = process.env.SMTP_USER;
+  const senha = process.env.SMTP_PASSWORD;
+  if (!host || !porta || !usuario || !senha) return null;
+  return {
+    host,
+    porta: Number(porta),
+    usuario,
+    senha,
+    remetente: process.env.SMTP_FROM || usuario,
+    origem: "servidor",
+  };
 }
 
-// Diagnóstico completo do envio de e-mail: percorre, em ordem, tudo que
-// precisa estar certo para um e-mail sair — variáveis presentes, formato dos
-// valores, coerência entre usuário e remetente, DNS, TCP, TLS e autenticação.
-// Cada etapa é reportada em separado porque cada uma tem uma correção
-// diferente, e o "535" sozinho não distingue nenhuma delas.
-//
-// Nenhum valor de credencial atravessa: da senha sai apenas o comprimento e a
-// descrição de defeitos de formato.
-export async function verificarSmtp(): Promise<DiagnosticoSmtp> {
-  const host = (process.env.SMTP_HOST ?? "").trim();
-  const portaTexto = (process.env.SMTP_PORT ?? "").trim();
-  const usuario = process.env.SMTP_USER ?? "";
-  const senha = process.env.SMTP_PASSWORD ?? "";
-  const remetente = process.env.SMTP_FROM ?? "";
-  const checagens: ChecagemSmtp[] = [];
-  const parar = (resumo: string): DiagnosticoSmtp => ({ ok: false, resumo, checagens });
+// Um transporter por configuração, não mais um por processo: com SMTP por
+// loja, um transporter único mandaria o e-mail de uma loja pela caixa de
+// outra. A chave inclui a senha, então salvar novos parâmetros invalida o
+// cache sozinho — sem precisar de um "limpar cache" explícito que alguém
+// esqueceria de chamar.
+const transporters = new Map<string, Transporter>();
 
-  // 1. Variáveis presentes
-  const ausentes = [
-    !host && "SMTP_HOST",
-    !portaTexto && "SMTP_PORT",
-    !usuario && "SMTP_USER",
-    !senha && "SMTP_PASSWORD",
-  ].filter(Boolean) as string[];
-  checagens.push({
-    nome: "Variáveis de ambiente",
-    situacao: ausentes.length > 0 ? "falha" : "ok",
-    detalhe:
-      ausentes.length > 0
-        ? `Ausentes: ${ausentes.join(", ")}. Defina no painel Node.js e reinicie a aplicação.`
-        : `SMTP_HOST, SMTP_PORT, SMTP_USER e SMTP_PASSWORD definidas.${remetente ? "" : " SMTP_FROM vazia — o remetente cai no SMTP_USER."}`,
-  });
-  if (ausentes.length > 0) return parar("Faltam variáveis de ambiente.");
-
-  // 2. Formato dos valores
-  const defeitos = [
-    ...higiene(usuario).map((d) => `SMTP_USER: ${d}`),
-    ...higiene(senha).map((d) => `SMTP_PASSWORD: ${d}`),
-    ...(remetente ? higiene(remetente).map((d) => `SMTP_FROM: ${d}`) : []),
-  ];
-  checagens.push({
-    nome: "Formato dos valores",
-    situacao: defeitos.length > 0 ? "falha" : "ok",
-    detalhe:
-      defeitos.length > 0
-        ? `${defeitos.join("; ")}. Reescreva a variável digitando, sem colar, e reinicie.`
-        : `Sem espaço sobrando, aspas ou caractere invisível. Senha com ${senha.length} caracteres.`,
-  });
-
-  // 3. Usuário é um endereço completo?
-  const dominioUsuario = dominioDe(usuario);
-  checagens.push({
-    nome: "Usuário (SMTP_USER)",
-    situacao: dominioUsuario ? "ok" : "falha",
-    detalhe: dominioUsuario
-      ? `${usuario.trim()} — ${usuario.length} caracteres, domínio ${dominioUsuario}.`
-      : `"${usuario.trim()}" não é um endereço completo. O login SMTP é o e-mail inteiro, com @dominio.`,
-  });
-
-  // 4. Remetente coerente com o usuário
-  const dominioRemetente = remetente
-    ? dominioDe(remetente.replace(/^.*</, "").replace(/>.*$/, ""))
-    : dominioUsuario;
-  checagens.push({
-    nome: "Remetente (SMTP_FROM)",
-    situacao: !dominioRemetente || dominioRemetente === dominioUsuario ? "ok" : "atencao",
-    detalhe:
-      !dominioRemetente || dominioRemetente === dominioUsuario
-        ? `${(remetente || usuario).trim()} — mesmo domínio do usuário.`
-        : `Remetente é do domínio ${dominioRemetente}, mas o login é do domínio ${dominioUsuario}. A maioria dos servidores recusa enviar em nome de outro domínio.`,
-  });
-
-  // 5. DNS
-  const dns = await import("node:dns/promises");
-  let enderecos: string[] = [];
-  try {
-    enderecos = (await dns.lookup(host, { all: true })).map((e) => e.address);
-    checagens.push({
-      nome: "DNS do servidor",
-      situacao: "ok",
-      detalhe: `${host} resolve para ${enderecos.join(", ")}.`,
-    });
-  } catch (err) {
-    checagens.push({
-      nome: "DNS do servidor",
-      situacao: "falha",
-      detalhe: `${host} não resolve: ${err instanceof Error ? err.message : String(err)}. Confira SMTP_HOST.`,
-    });
-    return parar("O nome do servidor SMTP não existe.");
-  }
-
-  // 6. Porta e modo de criptografia
-  const porta = Number(portaTexto);
-  const seguro = porta === 465;
-  const portaConhecida = porta === 465 || porta === 587 || porta === 25;
-  checagens.push({
-    nome: "Porta e criptografia",
-    situacao: portaConhecida ? "ok" : "atencao",
-    detalhe: portaConhecida
-      ? `Porta ${porta} — ${seguro ? "SSL direto (correto para 465)" : "STARTTLS (correto para 587/25)"}.`
-      : `Porta ${portaTexto} não é uma porta SMTP usual (465 com SSL, 587 com STARTTLS).`,
-  });
-
-  // 7. Conexão TCP
-  const tcp = await testarTcp(host, porta);
-  checagens.push({
-    nome: "Conexão com o servidor",
-    situacao: tcp.ok ? "ok" : "falha",
-    detalhe: tcp.ok
-      ? `${host}:${porta} — ${tcp.detalhe}.`
-      : `Não foi possível abrir conexão com ${host}:${porta} — ${tcp.detalhe}.`,
-  });
-  if (!tcp.ok) return parar("O servidor não respondeu — o problema é de rede, não de senha.");
-
-  // 8. TLS + autenticação
-  const testador = nodemailer.createTransport({
-    host,
-    port: porta,
-    secure: seguro,
-    auth: { user: usuario, pass: senha },
-    // Timeouts curtos e explícitos: os padrões do nodemailer são longos o
-    // bastante para o botão parecer travado quando o host está errado ou a
-    // porta bloqueada.
+export function transporterDe(config: ConfigSmtp): Transporter {
+  const chave = `${config.host}:${config.porta}:${config.usuario}:${config.senha}`;
+  const existente = transporters.get(chave);
+  if (existente) return existente;
+  const options: SMTPTransport.Options = {
+    host: config.host,
+    port: config.porta,
+    secure: config.porta === 465,
+    auth: { user: config.usuario, pass: config.senha },
+    // Timeouts explícitos: os padrões do nodemailer são longos o bastante
+    // para um host errado pendurar a requisição inteira em vez de devolver
+    // erro. Falhar em segundos é o que permite a quem configurou corrigir na
+    // hora, e uma falha de conexão é resposta útil por si só — distingue
+    // "não cheguei nesse servidor" de "cheguei e ele recusou a credencial".
     connectionTimeout: 10000,
     greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
-  try {
-    await testador.verify();
-    checagens.push({
-      nome: "Autenticação",
-      situacao: "ok",
-      detalhe: `O servidor aceitou o login de ${usuario.trim()}.`,
-    });
-    return { ok: true, resumo: "Tudo certo — o envio de e-mail está funcionando.", checagens };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const recusaCredencial = /535|invalid login|authentication failed|auth/i.test(msg);
-    checagens.push({
-      nome: "Autenticação",
-      situacao: "falha",
-      detalhe: recusaCredencial
-        ? `${msg} — o servidor conversou normalmente e recusou a credencial. Confira se ${usuario.trim()} é exatamente o endereço da caixa (inclusive o domínio) e se a senha é a dessa caixa.`
-        : msg,
-    });
-    return parar(
-      recusaCredencial
-        ? "O servidor recusou o usuário ou a senha."
-        : "Falha ao concluir a conversa com o servidor.",
-    );
-  } finally {
-    testador.close();
-  }
+    socketTimeout: 20000,
+  };
+  const novo = nodemailer.createTransport(options);
+  transporters.set(chave, novo);
+  return novo;
 }
 
-function getTransporter(): Transporter {
-  if (transporter) return transporter;
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT;
-  const user = process.env.SMTP_USER;
-  const password = process.env.SMTP_PASSWORD;
-  if (!host || !port || !user || !password) {
-    throw new Error("Envio de e-mail não está configurado neste servidor.");
+async function transporterDaLoja(
+  conn: PoolConnection,
+  lojaId: string | null,
+): Promise<{ transporter: Transporter; remetente: string }> {
+  const config = await configSmtpDaLoja(conn, lojaId);
+  if (!config) {
+    throw new Error(
+      "Envio de e-mail não está configurado. Preencha os parâmetros em Administração › E-mail.",
+    );
   }
-  const options: SMTPTransport.Options = {
-    host,
-    port: Number(port),
-    secure: Number(port) === 465,
-    auth: { user, pass: password },
-  };
-  transporter = nodemailer.createTransport(options);
-  return transporter;
+  return { transporter: transporterDe(config), remetente: config.remetente };
 }
 
 // Tenta enviar email via SMTP e atualiza fila com resultado
@@ -270,15 +135,16 @@ async function tentarEnviarFilaEmail(
   html: string,
   texto: string,
   anexos?: { filename: string; content: Buffer; contentType: string }[],
+  lojaId?: string | null,
 ): Promise<{ sucesso: number; falhas: number; ultimoErro: string | null }> {
-  const remetente = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+  const { transporter, remetente } = await transporterDaLoja(conn, lojaId ?? null);
   let sucesso = 0;
   let falhas = 0;
   let ultimoErro: string | null = null;
 
   for (const dest of destinatarios) {
     try {
-      await getTransporter().sendMail({
+      await transporter.sendMail({
         from: remetente,
         to: dest,
         subject: assunto,
@@ -289,7 +155,7 @@ async function tentarEnviarFilaEmail(
       sucesso++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      ultimoErro = `${msg} (${contextoSmtp()})`.slice(0, 500);
+      ultimoErro = msg.slice(0, 500);
       falhas++;
       console.error(`Falha ao enviar e-mail para ${dest}:`, ultimoErro);
     }
@@ -613,7 +479,7 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
   return withUserConnection(null, async (conn) => {
     // Busca filas prontas para retry (status = erro_permanente, proxima_tentativa <= NOW, tentativas < 3)
     const [filas] = await conn.query<RowDataPacket[]>(
-      `SELECT id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, tentativas
+      `SELECT id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, tentativas, loja_id
        FROM filas_email
        WHERE status = 'erro_permanente'
          AND proxima_tentativa IS NOT NULL
@@ -647,6 +513,9 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
         fila.corpo_html,
         fila.corpo_texto,
         anexos,
+        // A loja da própria linha da fila: o retry precisa sair pela mesma
+        // caixa de onde o envio original sairia, não pela de outra loja.
+        fila.loja_id as string | null,
       );
 
       processadas++;
@@ -800,6 +669,9 @@ export async function enviarArquivoPorEmail(params: {
   anexoBuffer: Buffer;
   anexoNome: string;
   anexoMimeType: string;
+  // A loja de quem pediu o envio: define de qual caixa o relatório sai
+  // (issue #352). Vem do comPapel na server function que chama isto.
+  lojaId: string;
 }): Promise<ResultadoEnvioRelatorio> {
   return withUserConnection(null, async (conn) => {
     const html = `<p>${params.corpoTexto}</p>`;
@@ -820,7 +692,7 @@ export async function enviarArquivoPorEmail(params: {
     });
 
     // Processa síncrono com anexos
-    const remetente = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+    const { transporter, remetente } = await transporterDaLoja(conn, params.lojaId);
     let sucessoCount = 0;
     const resultados: ResultadoEnvioRelatorio = [];
     // O motivo real da falha (senha SMTP recusada, host errado, anexo grande
@@ -833,7 +705,7 @@ export async function enviarArquivoPorEmail(params: {
 
     for (const dest of params.destinatarios) {
       try {
-        await getTransporter().sendMail({
+        await transporter.sendMail({
           from: remetente,
           to: dest,
           subject: params.assunto,
@@ -850,7 +722,7 @@ export async function enviarArquivoPorEmail(params: {
         sucessoCount++;
         resultados.push({ destinatario: dest, sucesso: true });
       } catch (err) {
-        const msg = `${err instanceof Error ? err.message : String(err)} (${contextoSmtp()})`;
+        const msg = err instanceof Error ? err.message : String(err);
         console.error(`Falha ao enviar relatório para ${dest}:`, msg);
         ultimoErro = msg;
         resultados.push({ destinatario: dest, sucesso: false, erro: msg });

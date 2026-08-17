@@ -22,6 +22,7 @@ import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
 import { Route as AuthenticatedAdministracaoDadosEntidadeRouteImport } from './routes/_authenticated/administracao/dados-entidade'
+import { Route as AuthenticatedAdministracaoEmailRouteImport } from './routes/_authenticated/administracao/email'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoFechamentoPeriodoRouteImport } from './routes/_authenticated/administracao/fechamento-periodo'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
@@ -157,6 +158,12 @@ const AuthenticatedAdministracaoDadosEntidadeRoute =
   AuthenticatedAdministracaoDadosEntidadeRouteImport.update({
     id: '/administracao/dados-entidade',
     path: '/administracao/dados-entidade',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdministracaoEmailRoute =
+  AuthenticatedAdministracaoEmailRouteImport.update({
+    id: '/administracao/email',
+    path: '/administracao/email',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdministracaoExportarDadosRoute =
@@ -577,6 +584,7 @@ export interface FileRoutesByFullPath {
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
+  '/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
@@ -658,6 +666,7 @@ export interface FileRoutesByTo {
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
+  '/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
@@ -742,6 +751,7 @@ export interface FileRoutesById {
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/_authenticated/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/_authenticated/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
+  '/_authenticated/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/_authenticated/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/_authenticated/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
   '/_authenticated/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
@@ -826,6 +836,7 @@ export interface FileRouteTypes {
     | '/administracao/auditoria'
     | '/administracao/backups'
     | '/administracao/dados-entidade'
+    | '/administracao/email'
     | '/administracao/exportar-dados'
     | '/administracao/fechamento-periodo'
     | '/administracao/resetar-financeiro'
@@ -907,6 +918,7 @@ export interface FileRouteTypes {
     | '/administracao/auditoria'
     | '/administracao/backups'
     | '/administracao/dados-entidade'
+    | '/administracao/email'
     | '/administracao/exportar-dados'
     | '/administracao/fechamento-periodo'
     | '/administracao/resetar-financeiro'
@@ -990,6 +1002,7 @@ export interface FileRouteTypes {
     | '/_authenticated/administracao/auditoria'
     | '/_authenticated/administracao/backups'
     | '/_authenticated/administracao/dados-entidade'
+    | '/_authenticated/administracao/email'
     | '/_authenticated/administracao/exportar-dados'
     | '/_authenticated/administracao/fechamento-periodo'
     | '/_authenticated/administracao/resetar-financeiro'
@@ -1162,6 +1175,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/dados-entidade'
       fullPath: '/administracao/dados-entidade'
       preLoaderRoute: typeof AuthenticatedAdministracaoDadosEntidadeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/administracao/email': {
+      id: '/_authenticated/administracao/email'
+      path: '/administracao/email'
+      fullPath: '/administracao/email'
+      preLoaderRoute: typeof AuthenticatedAdministracaoEmailRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/administracao/exportar-dados': {
@@ -1679,6 +1699,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdministracaoAuditoriaRoute: typeof AuthenticatedAdministracaoAuditoriaRoute
   AuthenticatedAdministracaoBackupsRoute: typeof AuthenticatedAdministracaoBackupsRoute
   AuthenticatedAdministracaoDadosEntidadeRoute: typeof AuthenticatedAdministracaoDadosEntidadeRoute
+  AuthenticatedAdministracaoEmailRoute: typeof AuthenticatedAdministracaoEmailRoute
   AuthenticatedAdministracaoExportarDadosRoute: typeof AuthenticatedAdministracaoExportarDadosRoute
   AuthenticatedAdministracaoFechamentoPeriodoRoute: typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
   AuthenticatedAdministracaoResetarFinanceiroRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRoute
@@ -1749,6 +1770,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAdministracaoBackupsRoute,
   AuthenticatedAdministracaoDadosEntidadeRoute:
     AuthenticatedAdministracaoDadosEntidadeRoute,
+  AuthenticatedAdministracaoEmailRoute: AuthenticatedAdministracaoEmailRoute,
   AuthenticatedAdministracaoExportarDadosRoute:
     AuthenticatedAdministracaoExportarDadosRoute,
   AuthenticatedAdministracaoFechamentoPeriodoRoute:

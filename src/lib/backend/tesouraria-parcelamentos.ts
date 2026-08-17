@@ -36,12 +36,16 @@ export const listarParcelamentos = createServerFn({ method: "GET" }).handler(
   async (): Promise<Parcelamento[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      const where = privilegiado ? "" : "WHERE i.usuario_id = ?";
+      // O filtro de loja entra sempre; o de usuário só restringe mais (irmão
+      // comum vê apenas os próprios parcelamentos).
+      const where = privilegiado
+        ? "WHERE p.loja_id = @current_loja_id"
+        : "WHERE p.loja_id = @current_loja_id AND i.usuario_id = ?";
       const valores = privilegiado ? [] : [usuarioId];
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT p.*, i.nome_civil
          FROM parcelamentos p
-         JOIN irmaos i ON i.id = p.irmao_id
+         JOIN irmaos i ON i.id = p.irmao_id AND i.loja_id = p.loja_id
          ${where}
          ORDER BY p.data DESC`,
         valores,
@@ -76,7 +80,8 @@ export const listarFaturasAbertasPorIrmao = createServerFn({ method: "GET" })
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, descricao, (valor - valor_pago) AS valor, data_vencimento FROM lancamentos
-         WHERE irmao_id = ? AND tipo = 'entrada' AND pago = FALSE AND valor_pago = 0 ORDER BY data_vencimento`,
+         WHERE loja_id = @current_loja_id AND irmao_id = ? AND tipo = 'entrada'
+           AND pago = FALSE AND valor_pago = 0 ORDER BY data_vencimento`,
         [data.irmaoId],
       );
       return rows as FaturaAbertaIrmao[];
@@ -128,7 +133,7 @@ export const listarLancamentosDoParcelamento = createServerFn({ method: "GET" })
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, descricao, valor, data_vencimento, pago, parcelado FROM lancamentos
-         WHERE parcelamento_id = ? ORDER BY data_vencimento`,
+         WHERE loja_id = @current_loja_id AND parcelamento_id = ? ORDER BY data_vencimento`,
         [data.parcelamentoId],
       );
       return rows as LancamentoParcela[];

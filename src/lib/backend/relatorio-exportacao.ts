@@ -33,23 +33,6 @@ export const gerarArquivoRelatorio = createServerFn({ method: "POST" })
     });
   });
 
-// Diagnóstico de SMTP — mesmo motivo da duplicação de tipo abaixo: importar
-// de email-dispatch arrastaria nodemailer e o pool MySQL pro bundle do
-// navegador. Nenhum valor de credencial atravessa: só host, porta, usuário e
-// os TAMANHOS de usuário e senha.
-export const testarConexaoSmtp = createServerFn({ method: "POST" }).handler(
-  async (): Promise<{
-    ok: boolean;
-    resumo: string;
-    checagens: { nome: string; situacao: "ok" | "atencao" | "falha"; detalhe: string }[];
-  }> => {
-    return comPapel(PAPEIS, async () => {
-      const { verificarSmtp } = await import("../email-dispatch");
-      return verificarSmtp();
-    });
-  },
-);
-
 const enviarSchema = baseSchema.extend({
   destinatarios: z.array(z.string().email()).min(1).max(10),
 });
@@ -62,11 +45,12 @@ export const enviarRelatorioPorEmail = createServerFn({ method: "POST" })
   // `erro` acompanha o resultado para a tela poder dizer POR QUE falhou.
   .handler(
     async ({ data }): Promise<{ destinatario: string; sucesso: boolean; erro?: string }[]> => {
-      return comPapel(PAPEIS, async () => {
+      return comPapel(PAPEIS, async (_conn, _usuarioId, lojaId) => {
         const { gerarArquivo, mimeTypePara, extensaoPara } = await import("../relatorio-export");
         const { enviarArquivoPorEmail } = await import("../email-dispatch");
         const buffer = await gerarArquivo(data.formato, data.titulo, data.colunas, data.linhas);
         return enviarArquivoPorEmail({
+          lojaId,
           destinatarios: data.destinatarios,
           assunto: `Relatório: ${data.titulo}`,
           corpoTexto: `Segue em anexo o relatório "${data.titulo}".`,

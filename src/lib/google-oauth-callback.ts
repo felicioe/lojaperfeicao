@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2";
 import { withUserConnection } from "./backend/db";
+import { usuarioUnicoParaLogin } from "./backend/login-loja";
 
 // Lógica pesada do fluxo OAuth do Google (troca de código por token, leitura
 // do id_token, redirects finais) — isolada aqui e importada só por
@@ -129,7 +130,7 @@ export async function tratarCallbackGoogle(request: Request): Promise<Response> 
         "SELECT id FROM usuarios WHERE google_id = ? AND ativo = TRUE",
         [sub],
       );
-      return rows[0] ?? null;
+      return usuarioUnicoParaLogin(rows);
     });
     if (!usuario) {
       return Response.redirect(`${origemPublica()}/auth?erroGoogle=nao_vinculado`, 302);

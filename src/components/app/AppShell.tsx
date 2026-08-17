@@ -34,6 +34,7 @@ import {
   LineChart,
   Waves,
   Archive,
+  Mail,
   BookMarked,
   FolderKanban,
   ChevronDown,
@@ -620,6 +621,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/administracao/dados-entidade",
           label: "Dados da Entidade",
           icon: FileText,
+          show: can.isAdmin,
+        },
+        {
+          to: "/administracao/email",
+          label: "E-mail",
+          icon: Mail,
           show: can.isAdmin,
         },
         {
