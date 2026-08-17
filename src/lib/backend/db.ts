@@ -50,6 +50,54 @@ function getPool(): mysql.Pool {
 }
 
 /**
+ * Erro de banco desatualizado em relação ao código implantado.
+ *
+ * Existe por causa de uma queda real de produção: o código multi-tenant foi
+ * publicado antes da migração 0092 ter sido aplicada até o fim, e como o
+ * `SET @current_loja_id` abaixo é a PRIMEIRA coisa que toda requisição faz,
+ * a falta da coluna `usuarios.loja_id` derrubava TODAS as telas com um
+ * "Unknown column" cru. Nada na tela dizia o que fazer.
+ *
+ * Não é possível degradar graciosamente aqui — as ~350 queries escopadas
+ * precisam da coluna para funcionar. O que é possível, e é o que esta classe
+ * faz, é transformar um erro de SQL indecifrável numa mensagem que diz
+ * exatamente qual migração falta aplicar.
+ */
+export class BancoDesatualizadoError extends Error {
+  constructor(detalhe: string) {
+    super(
+      `Banco de dados desatualizado em relação a esta versão do sistema: ${detalhe}. ` +
+        "Aplique a migração pendente em mysql/migrations/ (a mais recente é a 0092, " +
+        "que cria a tabela `lojas` e a coluna `loja_id`) e reinicie a aplicação.",
+    );
+    this.name = "BancoDesatualizadoError";
+  }
+}
+
+// Registra o diagnóstico no log do servidor UMA vez, não a cada requisição:
+// com o site fora do ar, o log encheria de linhas idênticas e esconderia
+// qualquer outra pista.
+let avisoSchemaEmitido = false;
+
+export function traduzirErroDeSchema(err: unknown): never {
+  const codigo = (err as { code?: string }).code;
+  const mensagem = err instanceof Error ? err.message : String(err);
+  if (codigo === "ER_BAD_FIELD_ERROR" || codigo === "ER_NO_SUCH_TABLE") {
+    if (!avisoSchemaEmitido) {
+      avisoSchemaEmitido = true;
+      console.error(
+        "\n=== SCHEMA INCOMPATÍVEL ===\n" +
+          `O banco não tem a estrutura multi-tenant que este código exige (${mensagem}).\n` +
+          "Aplique a migração 0092 e reinicie a aplicação. Nenhuma tela vai funcionar até então.\n" +
+          "===========================\n",
+      );
+    }
+    throw new BancoDesatualizadoError(mensagem);
+  }
+  throw err;
+}
+
+/**
  * Retira uma conexão do pool, seta @current_usuario_id para o usuário
  * autenticado da requisição atual (ou NULL, contexto de sistema) e a
  * devolve ao pool ao final — sempre, mesmo em caso de erro.
@@ -72,10 +120,14 @@ export async function withUserConnection<T>(
   const conn = await getPool().getConnection();
   try {
     if (usuarioId) {
-      await conn.query(
-        "SET @current_usuario_id = ?, @current_loja_id = (SELECT loja_id FROM usuarios WHERE id = ?)",
-        [usuarioId, usuarioId],
-      );
+      try {
+        await conn.query(
+          "SET @current_usuario_id = ?, @current_loja_id = (SELECT loja_id FROM usuarios WHERE id = ?)",
+          [usuarioId, usuarioId],
+        );
+      } catch (err) {
+        traduzirErroDeSchema(err);
+      }
     } else {
       await conn.query("SET @current_usuario_id = NULL, @current_loja_id = NULL");
     }
@@ -111,10 +163,16 @@ export async function withLojaConnection<T>(
 export async function listarLojasAtivas(): Promise<{ id: string; slug: string; nome: string }[]> {
   const conn = await getPool().getConnection();
   try {
-    const [rows] = await conn.query(
-      "SELECT id, slug, nome FROM lojas WHERE ativa = TRUE ORDER BY nome",
-    );
-    return rows as { id: string; slug: string; nome: string }[];
+    try {
+      const [rows] = await conn.query(
+        "SELECT id, slug, nome FROM lojas WHERE ativa = TRUE ORDER BY nome",
+      );
+      return rows as { id: string; slug: string; nome: string }[];
+    } catch (err) {
+      // Os crons chamam isto antes de qualquer coisa: sem a tabela `lojas`,
+      // o erro precisa dizer o que fazer em vez de "Table doesn't exist".
+      traduzirErroDeSchema(err);
+    }
   } finally {
     conn.release();
   }
