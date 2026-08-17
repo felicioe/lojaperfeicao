@@ -99,8 +99,7 @@ function Tesouraria() {
     emissao: (l) => l.data,
     vencimento: (l) => l.data_vencimento,
     descricao: (l) => l.descricao,
-    conta: (l) => l.contas_financeiras?.nome,
-    categoria: (l) => l.plano_contas?.nome,
+    irmao: (l) => l.irmao_nome,
     tipo: (l) => l.tipo,
     valor: (l) => Number(l.valor),
     status: (l) => (l.pago ? 1 : 0),
@@ -298,11 +297,8 @@ function Tesouraria() {
                   <TableHeadOrdenavel campo="descricao" ord={ord}>
                     Descrição
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="conta" ord={ord}>
-                    Conta
-                  </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="categoria" ord={ord} className="hidden lg:table-cell">
-                    Categoria
+                  <TableHeadOrdenavel campo="irmao" ord={ord}>
+                    Irmão
                   </TableHeadOrdenavel>
                   <TableHeadOrdenavel campo="tipo" ord={ord}>
                     Tipo
@@ -349,7 +345,7 @@ function Tesouraria() {
                   ))}
                 {lancamentos.isError && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-6 text-destructive">
+                    <TableCell colSpan={8} className="text-center py-6 text-destructive">
                       Erro ao carregar lançamentos.{" "}
                       <button className="underline" onClick={() => lancamentos.refetch()}>
                         Tentar novamente
@@ -361,7 +357,7 @@ function Tesouraria() {
                   !lancamentos.isError &&
                   (lancamentos.data ?? []).length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                         Nenhum lançamento.
                       </TableCell>
                     </TableRow>
@@ -372,13 +368,12 @@ function Tesouraria() {
                     <TableCell>{l.data_vencimento ? fmtDate(l.data_vencimento) : "—"}</TableCell>
                     <TableCell>{l.descricao}</TableCell>
                     <TableCell>
-                      {l.contas_financeiras?.nome ?? "—"}
-                      {l.destino?.nome && (
-                        <span className="text-muted-foreground"> → {l.destino.nome}</span>
+                      {l.irmao_nome ?? "—"}
+                      {l.tipo === "transferencia" && l.destino?.nome && (
+                        <span className="text-muted-foreground">
+                          {l.contas_financeiras?.nome} → {l.destino.nome}
+                        </span>
                       )}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      {l.plano_contas?.nome ?? "—"}
                     </TableCell>
                     <TableCell>
                       <Badge
