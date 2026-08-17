@@ -125,6 +125,7 @@ function EmailPage() {
               value={host}
               onChange={(e) => setHost(e.target.value)}
               placeholder="smtp.hostinger.com"
+              autoComplete="off"
               disabled={!podeEditar}
             />
             <p className="text-xs text-muted-foreground mt-1">
@@ -150,6 +151,7 @@ function EmailPage() {
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               placeholder="secretaria@sualoja.org.br"
+              autoComplete="off"
               disabled={!podeEditar}
             />
             <p className="text-xs text-muted-foreground mt-1">
@@ -163,6 +165,10 @@ function EmailPage() {
               type="password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
+              // "new-password" e não "off": o Chrome ignora "off" em campos
+              // de senha, mas respeita este — sem ele o navegador oferece a
+              // senha de LOGIN do usuário para a caixa de e-mail da Loja.
+              autoComplete="new-password"
               placeholder={
                 data?.senhaConfigurada ? "•••••••• (deixe vazio para manter)" : "Senha da caixa"
               }
@@ -179,6 +185,7 @@ function EmailPage() {
               value={remetenteNome}
               onChange={(e) => setRemetenteNome(e.target.value)}
               placeholder="Loja de Perfeição"
+              autoComplete="off"
               disabled={!podeEditar}
             />
           </div>
@@ -189,6 +196,7 @@ function EmailPage() {
               value={remetenteEmail}
               onChange={(e) => setRemetenteEmail(e.target.value)}
               placeholder="mesmo do usuário, se vazio"
+              autoComplete="off"
               disabled={!podeEditar}
             />
             <p className="text-xs text-muted-foreground mt-1">
