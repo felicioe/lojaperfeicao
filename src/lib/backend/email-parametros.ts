@@ -79,9 +79,19 @@ const salvarSchema = z.object({
   remetenteEmail: z.union([z.string().trim().email(), z.literal("")]).default(""),
 });
 
+// O .parse() do Zod lança um ZodError cuja `message` é o JSON inteiro do
+// erro. Como a tela mostra `err.message`, o usuário recebia um despejo de
+// {"code":"too_small",...} em vez da frase que o próprio schema já define.
+// Aqui as mensagens são extraídas e juntadas numa linha legível.
+function validarOuExplicar(d: unknown) {
+  const resultado = salvarSchema.safeParse(d);
+  if (resultado.success) return resultado.data;
+  throw new Error(resultado.error.issues.map((i) => i.message).join(" "));
+}
+
 export const salvarParametrosEmail = createServerFn({ method: "POST" })
-  .validator((d: unknown) => salvarSchema.parse(d))
-  .handler(async ({ data }): Promise<void> =>
+  .validator(validarOuExplicar)
+  .handler(async ({ data }): Promise<{ aviso?: string }> =>
     comPapel(PAPEIS, async (conn, usuarioId, lojaId) => {
       const { cifrar } = await import("./cripto");
       const [[atual]] = await conn.query<RowDataPacket[]>(
@@ -139,6 +149,17 @@ export const salvarParametrosEmail = createServerFn({ method: "POST" })
           senha_alterada: Boolean(data.senha),
         },
       );
+
+      // Não bloqueia: há servidores que aceitam enviar em nome de outro
+      // domínio. Mas a maioria recusa, e o erro que apareceria depois
+      // ("relay denied", "sender not allowed") não deixa óbvio que a causa
+      // foi este campo — então o aviso sai na hora de salvar.
+      const dominio = (email: string) => email.split("@")[1]?.toLowerCase() ?? "";
+      const aviso =
+        data.remetenteEmail && dominio(data.remetenteEmail) !== dominio(data.usuario)
+          ? `O remetente ${data.remetenteEmail} é de um domínio diferente do login (${dominio(data.usuario)}). A maioria dos servidores recusa enviar assim — se o teste falhar, deixe este campo vazio.`
+          : undefined;
+      return aviso ? { aviso } : {};
     }),
   );
 

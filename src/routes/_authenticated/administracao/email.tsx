@@ -50,7 +50,7 @@ function EmailPage() {
   const salvar = async () => {
     setSalvando(true);
     try {
-      await salvarParametrosEmail({
+      const { aviso } = await salvarParametrosEmail({
         data: {
           host,
           porta: Number(porta),
@@ -64,6 +64,7 @@ function EmailPage() {
       // continua na tela para corrigir, em vez de precisar redigitar.
       setSenha("");
       toast.success("Parâmetros salvos. Use o teste abaixo para confirmar.");
+      if (aviso) toast.warning(aviso, { duration: 15000 });
       await queryClient.invalidateQueries({ queryKey: ["parametros-email"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
