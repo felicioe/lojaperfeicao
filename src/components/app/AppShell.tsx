@@ -65,6 +65,7 @@ import {
   FileText,
   Layers,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { ROLE_LABEL } from "@/lib/format";
@@ -74,8 +75,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { NotificationBell } from "@/components/app/NotificationBell";
 import { PainelShell } from "@/components/app/PainelShell";
 
-type NavItem = { to: string; label: string; icon: any; show: boolean; section?: string };
-type NavGroup = { id: string; label: string; icon: any; items: NavItem[] };
+type NavItem = { to: string; label: string; icon: LucideIcon; show: boolean; section?: string };
+type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
 
 function Brand() {
   return (
@@ -98,7 +99,7 @@ function SidebarIcon({
   onClick,
   to,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   active: boolean;
   onClick?: () => void;
@@ -964,7 +965,7 @@ export function EmptyState({
   description,
   action,
 }: {
-  icon?: any;
+  icon?: LucideIcon;
   title: string;
   description?: string;
   action?: ReactNode;

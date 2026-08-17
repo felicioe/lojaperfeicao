@@ -176,24 +176,32 @@ async function consultarProvedor(cnpj: string): Promise<{ dados: DadosCnpj } | {
         ultimoErro = `HTTP ${resp.status}`;
         continue;
       }
-      const j: any = await resp.json();
-      const nome = j.razao_social ?? j.nome ?? j.fantasia ?? "";
+      // A resposta vem de APIs públicas de CNPJ que divergem nos nomes dos
+      // campos (por isso os vários ?? abaixo). Record<string, unknown> diz a
+      // verdade sobre o que se sabe do formato — que é: nada garantido —, e
+      // `texto()` faz a conversão segura de cada campo lido.
+      const j = (await resp.json()) as Record<string, unknown>;
+      const texto = (valor: unknown): string => (typeof valor === "string" ? valor : "");
+      const primeiraAtividade = Array.isArray(j.atividade_principal)
+        ? (j.atividade_principal[0] as { text?: unknown } | undefined)
+        : undefined;
+      const nome = texto(j.razao_social) || texto(j.nome) || texto(j.fantasia);
       if (!nome) {
-        ultimoErro = j.message ?? j.status ?? "CNPJ não localizado";
+        ultimoErro = texto(j.message) || texto(j.status) || "CNPJ não localizado";
         continue;
       }
       return {
         dados: {
           nome,
-          fantasia: j.nome_fantasia ?? j.fantasia ?? "",
-          contato: [j.ddd_telefone_1, j.telefone].filter(Boolean).join(" ").trim(),
-          categoria: j.cnae_fiscal_descricao ?? j.atividade_principal?.[0]?.text ?? "",
-          logradouro: j.logradouro ?? "",
-          numero: j.numero ?? "",
-          bairro: j.bairro ?? "",
-          municipio: j.municipio ?? j.cidade ?? "",
-          uf: j.uf ?? "",
-          cep: j.cep ?? "",
+          fantasia: texto(j.nome_fantasia) || texto(j.fantasia),
+          contato: [j.ddd_telefone_1, j.telefone].map(texto).filter(Boolean).join(" ").trim(),
+          categoria: texto(j.cnae_fiscal_descricao) || texto(primeiraAtividade?.text),
+          logradouro: texto(j.logradouro),
+          numero: texto(j.numero),
+          bairro: texto(j.bairro),
+          municipio: texto(j.municipio) || texto(j.cidade),
+          uf: texto(j.uf),
+          cep: texto(j.cep),
         },
       };
     } catch (e) {

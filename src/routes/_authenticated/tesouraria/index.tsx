@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import type { ContaFinanceira } from "@/lib/backend/tesouraria-contas";
 import { listarPlanoContas, listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
+import type { Conta } from "@/lib/backend/plano-contas";
 import {
   listarLancamentos,
   criarLancamentoManual,
@@ -424,7 +426,15 @@ function Tesouraria() {
   );
 }
 
-function LancamentoDialog({ contas, planos, onDone }: any) {
+function LancamentoDialog({
+  contas,
+  planos,
+  onDone,
+}: {
+  contas: ContaFinanceira[];
+  planos: Conta[];
+  onDone: () => void;
+}) {
   const [d, setD] = useState({
     data: toISODate(new Date()),
     data_vencimento: toISODate(new Date()),
@@ -520,7 +530,7 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
               <SelectValue placeholder="Selecionar" />
             </SelectTrigger>
             <SelectContent>
-              {contas.map((c: any) => (
+              {contas.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.nome}
                 </SelectItem>
@@ -535,7 +545,7 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
               <SelectValue placeholder="Opcional" />
             </SelectTrigger>
             <SelectContent>
-              {planos.map((p: any) => (
+              {planos.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.codigo} — {p.nome}
                 </SelectItem>
@@ -578,7 +588,13 @@ function LancamentoDialog({ contas, planos, onDone }: any) {
   );
 }
 
-function TransferenciaDialog({ contas, onDone }: any) {
+function TransferenciaDialog({
+  contas,
+  onDone,
+}: {
+  contas: ContaFinanceira[];
+  onDone: () => void;
+}) {
   const [d, setD] = useState({
     data: toISODate(new Date()),
     descricao: "Transferência",
@@ -621,7 +637,7 @@ function TransferenciaDialog({ contas, onDone }: any) {
             onValueChange={(v) => {
               const destino =
                 d.conta_destino_id === v
-                  ? (contas.find((c: any) => c.id !== v)?.id ?? "")
+                  ? (contas.find((c) => c.id !== v)?.id ?? "")
                   : d.conta_destino_id;
               setD({ ...d, conta_id: v, conta_destino_id: destino });
             }}
@@ -630,7 +646,7 @@ function TransferenciaDialog({ contas, onDone }: any) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {contas.map((c: any) => (
+              {contas.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.nome}
                 </SelectItem>
@@ -649,8 +665,8 @@ function TransferenciaDialog({ contas, onDone }: any) {
             </SelectTrigger>
             <SelectContent>
               {contas
-                .filter((c: any) => c.id !== d.conta_id)
-                .map((c: any) => (
+                .filter((c) => c.id !== d.conta_id)
+                .map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
                   </SelectItem>

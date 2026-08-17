@@ -14,6 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import type { BadgeProps } from "@/components/ui/badge";
+
+// A variante aceita pelo Badge, extraída do próprio componente: se as
+// variantes mudarem lá, este tipo acompanha sem ninguém precisar lembrar.
+type VarianteBadge = NonNullable<BadgeProps["variant"]>;
 import { Card } from "@/components/ui/card";
 import { GRAU_LABEL, SITUACAO_LABEL } from "@/lib/format";
 import { ChevronRight, Plus } from "lucide-react";
@@ -48,7 +53,7 @@ function IrmaosList() {
   const filtered = useMemo(
     () =>
       data.filter(
-        (i: any) =>
+        (i) =>
           !q ||
           i.nome_civil?.toLowerCase().includes(q.toLowerCase()) ||
           i.nome_simbolico?.toLowerCase().includes(q.toLowerCase()) ||
@@ -67,15 +72,16 @@ function IrmaosList() {
     ord.itensOrdenados,
   );
 
-  const situacaoVariant = (s: string) =>
-    (
-      ({
-        ativo: "default",
-        quite: "secondary",
-        irregular: "destructive",
-        adormecido: "outline",
-      }) as any
-    )[s] ?? "outline";
+  // As quatro situações do irmão e a variante de Badge de cada uma. O Record
+  // tipado troca o cast por uma checagem real: escrever um nome de variante
+  // que o Badge não tem passa a ser erro de compilação.
+  const VARIANTE_POR_SITUACAO: Record<string, VarianteBadge> = {
+    ativo: "default",
+    quite: "secondary",
+    irregular: "destructive",
+    adormecido: "outline",
+  };
+  const situacaoVariant = (s: string): VarianteBadge => VARIANTE_POR_SITUACAO[s] ?? "outline";
 
   return (
     <>
@@ -144,7 +150,7 @@ function IrmaosList() {
                 </TableCell>
               </TableRow>
             )}
-            {itensPagina.map((i: any) => (
+            {itensPagina.map((i) => (
               <TableRow key={i.id}>
                 <TableCell className="font-medium">
                   {i.nome_civil}

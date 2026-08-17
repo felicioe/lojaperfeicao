@@ -57,7 +57,7 @@ import {
 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
-import { CATEGORIA_LABEL } from "@/components/app/RecebimentoAvulso";
+import { CATEGORIA_LABEL } from "@/components/app/movimentos-filtros";
 import { extrairPossivelNome, normalizarTexto } from "@/lib/conciliacao-match";
 import { AlocacaoParcialTable } from "@/components/app/AlocacaoParcial";
 import { sugerirAlocacao, somaAlocacao } from "@/lib/alocacao-parcial";

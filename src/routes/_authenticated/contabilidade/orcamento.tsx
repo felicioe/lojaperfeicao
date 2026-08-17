@@ -46,6 +46,7 @@ import { toast } from "sonner";
 import { CheckCircle2, Lock, Plus, Unlock } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl } from "@/lib/format";
+import { mensagemDeErro } from "@/lib/erro";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/orcamento")({
   head: () => ({ meta: [{ title: "Orçamento Anual — Gestão Maçônica" }] }),
@@ -127,14 +128,14 @@ function Orcamento() {
       setNovoObs("");
       qc.invalidateQueries({ queryKey: ["orcamentos"] });
     },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao criar orçamento"),
+    onError: (e) => toast.error(mensagemDeErro(e, "Erro ao criar orçamento")),
   });
 
   const salvarValorMutation = useMutation({
     mutationFn: ({ contaId, mes, valor }: { contaId: string; mes: number; valor: number }) =>
       definirValorOrcamento({ data: { orcamentoId: selecionado!.id, contaId, mes, valor } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orcamento_itens", selecionado?.id] }),
-    onError: (e: any) => toast.error(e.message ?? "Erro ao salvar valor"),
+    onError: (e) => toast.error(mensagemDeErro(e, "Erro ao salvar valor")),
   });
 
   const aprovarMutation = useMutation({
@@ -143,7 +144,7 @@ function Orcamento() {
       toast.success("Orçamento aprovado");
       qc.invalidateQueries({ queryKey: ["orcamentos"] });
     },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao aprovar"),
+    onError: (e) => toast.error(mensagemDeErro(e, "Erro ao aprovar")),
   });
 
   const reabrirMutation = useMutation({
@@ -152,7 +153,7 @@ function Orcamento() {
       toast.success("Orçamento reaberto para edição");
       qc.invalidateQueries({ queryKey: ["orcamentos"] });
     },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao reabrir"),
+    onError: (e) => toast.error(mensagemDeErro(e, "Erro ao reabrir")),
   });
 
   const contasReceita = contas.filter((c) => c.tipo === "receita");

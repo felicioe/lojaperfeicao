@@ -33,11 +33,8 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
-import {
-  CATEGORIA_LABEL,
-  RecebimentoAvulsoDialog,
-  useMovimentosFiltrados,
-} from "@/components/app/RecebimentoAvulso";
+import { RecebimentoAvulsoDialog } from "@/components/app/RecebimentoAvulso";
+import { CATEGORIA_LABEL, useMovimentosFiltrados } from "@/components/app/movimentos-filtros";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 

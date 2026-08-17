@@ -45,8 +45,8 @@ function Diario() {
     (s, l) =>
       s +
       (l.lancamentos_contabeis_itens ?? [])
-        .filter((i: any) => i.tipo === "debito")
-        .reduce((s2: number, i: any) => s2 + Number(i.valor), 0),
+        .filter((i) => i.tipo === "debito")
+        .reduce((s2, i) => s2 + Number(i.valor), 0),
     0,
   );
 
@@ -130,7 +130,7 @@ function Diario() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(l.lancamentos_contabeis_itens ?? []).map((it: any) => (
+                {(l.lancamentos_contabeis_itens ?? []).map((it) => (
                   <TableRow key={it.id}>
                     <TableCell>
                       {it.plano_contas?.codigo} — {it.plano_contas?.nome}

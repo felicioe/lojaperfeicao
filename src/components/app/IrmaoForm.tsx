@@ -12,15 +12,18 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+export type GrauIrmao = "aprendiz" | "companheiro" | "mestre";
+export type SituacaoIrmao = "ativo" | "quite" | "irregular" | "adormecido";
+
 export type IrmaoData = {
   nome_civil: string;
   nome_simbolico?: string | null;
   cim?: string | null;
-  grau: "aprendiz" | "companheiro" | "mestre";
+  grau: GrauIrmao;
   data_iniciacao?: string | null;
   data_elevacao?: string | null;
   data_exaltacao?: string | null;
-  situacao: "ativo" | "quite" | "irregular" | "adormecido";
+  situacao: SituacaoIrmao;
   potencia?: string | null;
   loja_origem?: string | null;
   email?: string | null;
@@ -44,11 +47,11 @@ export function IrmaoForm({
     nome_civil: initial?.nome_civil ?? "",
     nome_simbolico: initial?.nome_simbolico ?? "",
     cim: initial?.cim ?? "",
-    grau: (initial?.grau as any) ?? "aprendiz",
+    grau: initial?.grau ?? "aprendiz",
     data_iniciacao: initial?.data_iniciacao ?? "",
     data_elevacao: initial?.data_elevacao ?? "",
     data_exaltacao: initial?.data_exaltacao ?? "",
-    situacao: (initial?.situacao as any) ?? "ativo",
+    situacao: initial?.situacao ?? "ativo",
     potencia: initial?.potencia ?? "",
     loja_origem: initial?.loja_origem ?? "",
     email: initial?.email ?? "",
@@ -59,16 +62,28 @@ export function IrmaoForm({
     valor_mensalidade: initial?.valor_mensalidade ?? 0,
   });
 
-  const set = (k: keyof IrmaoData) => (e: any) =>
-    setD({ ...d, [k]: e?.target ? e.target.value : e });
+  // Aceita tanto o evento de um <input>/<textarea> quanto o valor direto que
+  // um <Select> entrega — daí a união em vez de `any`.
+  const set =
+    (k: keyof IrmaoData) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | string) =>
+      setD({ ...d, [k]: typeof e === "string" ? e : e.target.value });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean: any = { ...d };
-    for (const k of ["data_iniciacao", "data_elevacao", "data_exaltacao", "data_nascimento"]) {
-      if (!clean[k]) clean[k] = null;
+    // Campo de data vazio chega como "" do <input type="date">; o banco espera
+    // NULL. A lista é tipada como (keyof IrmaoData)[] para o compilador
+    // recusar um nome de campo que não exista mais.
+    const camposDeData: (keyof IrmaoData)[] = [
+      "data_iniciacao",
+      "data_elevacao",
+      "data_exaltacao",
+      "data_nascimento",
+    ];
+    const clean: IrmaoData = { ...d, valor_mensalidade: Number(d.valor_mensalidade) || 0 };
+    for (const k of camposDeData) {
+      if (!clean[k]) (clean[k] as string | null) = null;
     }
-    clean.valor_mensalidade = Number(d.valor_mensalidade) || 0;
     onSubmit(clean);
   };
 
@@ -112,7 +127,7 @@ export function IrmaoForm({
             <Input value={d.cim ?? ""} onChange={set("cim")} />
           </Field>
           <Field label="Grau">
-            <Select value={d.grau} onValueChange={(v) => setD({ ...d, grau: v as any })}>
+            <Select value={d.grau} onValueChange={(v) => setD({ ...d, grau: v as GrauIrmao })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -124,7 +139,10 @@ export function IrmaoForm({
             </Select>
           </Field>
           <Field label="Situação">
-            <Select value={d.situacao} onValueChange={(v) => setD({ ...d, situacao: v as any })}>
+            <Select
+              value={d.situacao}
+              onValueChange={(v) => setD({ ...d, situacao: v as SituacaoIrmao })}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

@@ -7,6 +7,18 @@ import { comPapel } from "./authz";
 import type { Papel } from "./auth";
 import { registrarAuditoria } from "./auditoria";
 
+// O mysql2 lança erros que carregam `sqlMessage` (a mensagem do servidor,
+// mais específica que a genérica do driver). O tipo Error do JS não conhece
+// esse campo, e o código pegava `err: any` só para alcançá-lo. Este helper
+// resolve o acesso sem abrir mão da tipagem no resto do bloco.
+function mensagemDeErroSql(err: unknown): string {
+  if (typeof err === "object" && err !== null && "sqlMessage" in err) {
+    const sqlMessage = (err as { sqlMessage?: unknown }).sqlMessage;
+    if (typeof sqlMessage === "string" && sqlMessage) return sqlMessage;
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
 export const SENHA_PADRAO = "123";
 
 // Login = nome.sobrenome (decisão explícita do cliente, fase de testes —
@@ -138,8 +150,8 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
           senhaHash,
           irmao.nome_civil,
         ]);
-      } catch (err: any) {
-        throw new Error(err.sqlMessage || err.message);
+      } catch (err) {
+        throw new Error(mensagemDeErroSql(err));
       }
       const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
       await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, data.irmaoId]);
@@ -213,8 +225,8 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" })
             );
           }
           criados.push({ nome: irmao.nome_civil, login });
-        } catch (err: any) {
-          falhas.push({ nome: irmao.nome_civil, motivo: err.sqlMessage || err.message });
+        } catch (err) {
+          falhas.push({ nome: irmao.nome_civil, motivo: mensagemDeErroSql(err) });
         }
       }
       return { criados, falhas };

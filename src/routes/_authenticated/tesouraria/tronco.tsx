@@ -47,10 +47,8 @@ import { toast } from "sonner";
 import { toISODate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
-import {
-  RecebimentoAvulsoDialog,
-  useMovimentosFiltrados,
-} from "@/components/app/RecebimentoAvulso";
+import { RecebimentoAvulsoDialog } from "@/components/app/RecebimentoAvulso";
+import { useMovimentosFiltrados } from "@/components/app/movimentos-filtros";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";

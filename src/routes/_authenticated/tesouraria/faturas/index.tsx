@@ -70,6 +70,7 @@ import { brl, fmtDate, fmtMesAno, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
+import type { FaturaAberta } from "@/lib/backend/tesouraria-faturas";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/faturas/")({
   head: () => ({ meta: [{ title: "Faturas — Gestão Maçônica" }] }),
@@ -188,7 +189,7 @@ function Faturas() {
   };
 
   const irmaoSelecionadoId = abertas.find((f) => f.id === selecionadas[0])?.irmao_id;
-  const toggleSelecionada = (f: any) => {
+  const toggleSelecionada = (f: FaturaAberta) => {
     if (selecionadas.includes(f.id)) {
       setSelecionadas(selecionadas.filter((id) => id !== f.id));
       return;
@@ -434,7 +435,7 @@ function BaixaDialog({
   onDone,
 }: {
   open: boolean;
-  faturas: any[];
+  faturas: FaturaAberta[];
   receitas: { id: string; codigo: string; nome: string }[];
   onDone: () => void;
 }) {
@@ -1101,7 +1102,7 @@ function LoteForm({
           <div className="md:col-span-4 max-h-40 overflow-y-auto border rounded-md">
             <Table>
               <TableBody>
-                {preview.map((i: any) => (
+                {preview.map((i) => (
                   <TableRow key={i.id}>
                     <TableCell>{i.nome_civil}</TableCell>
                     <TableCell className="text-right">{brl(i.valor_mensalidade)}</TableCell>

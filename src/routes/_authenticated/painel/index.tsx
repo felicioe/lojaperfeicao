@@ -22,6 +22,7 @@ import {
   Scale,
   Fingerprint,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/")({
   component: PainelInicio,
@@ -242,7 +243,7 @@ function MetricCard({
   tone,
   to,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: string;
   hint?: string;

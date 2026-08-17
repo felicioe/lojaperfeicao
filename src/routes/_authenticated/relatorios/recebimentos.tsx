@@ -6,7 +6,7 @@ import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
-import { CATEGORIA_LABEL } from "@/components/app/RecebimentoAvulso";
+import { CATEGORIA_LABEL } from "@/components/app/movimentos-filtros";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

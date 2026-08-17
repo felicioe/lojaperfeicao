@@ -36,5 +36,18 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    // src/components/ui/** é código do shadcn/ui copiado para o projeto, não
+    // autoral. A biblioteca exporta as variantes (buttonVariants,
+    // badgeVariants, useFormField, useSidebar...) no mesmo arquivo do
+    // componente; separá-las faria o projeto divergir do upstream e
+    // transformaria cada atualização do shadcn num merge manual. O custo do
+    // aviso é só de DX em desenvolvimento (recarrega a página em vez de
+    // atualizar o componente no lugar) e não afeta produção.
+    files: ["src/components/ui/**"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
   eslintPluginPrettier,
 );

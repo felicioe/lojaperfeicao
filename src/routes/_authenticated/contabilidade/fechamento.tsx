@@ -38,6 +38,7 @@ import { AlertTriangle, Lock, Plus, Unlock } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { useOrdenacao } from "@/lib/use-ordenacao";
+import { mensagemDeErro } from "@/lib/erro";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/fechamento")({
   head: () => ({ meta: [{ title: "Fechamento de Exercício — Gestão Maçônica" }] }),
@@ -102,7 +103,7 @@ function Fechamento() {
       qc.invalidateQueries({ queryKey: ["fechamentos_exercicio"] });
       qc.invalidateQueries({ queryKey: ["fechamentos_exercicio_eventos"] });
     },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao reabrir exercício"),
+    onError: (e) => toast.error(mensagemDeErro(e, "Erro ao reabrir exercício")),
   });
 
   return (
@@ -271,7 +272,7 @@ function NovoFechamentoDialog({ exercicioSugerido }: { exercicioSugerido: number
       qc.invalidateQueries({ queryKey: ["fechamentos_exercicio"] });
       qc.invalidateQueries({ queryKey: ["fechamentos_exercicio_eventos"] });
     },
-    onError: (e: any) => toast.error(e.message ?? "Erro ao fechar exercício"),
+    onError: (e) => toast.error(mensagemDeErro(e, "Erro ao fechar exercício")),
   });
 
   return (

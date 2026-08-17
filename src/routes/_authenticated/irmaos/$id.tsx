@@ -67,6 +67,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import type { Irmao } from "@/lib/backend/irmaos";
 
 export const Route = createFileRoute("/_authenticated/irmaos/$id")({
   head: () => ({ meta: [{ title: "Irmão — Gestão Maçônica" }] }),
@@ -122,7 +123,7 @@ function IrmaoDetail() {
   const nav = useNavigate();
   const can = useCan();
   const qc = useQueryClient();
-  const [perfil, setPerfil] = useState<Record<string, any> | null>(null);
+  const [perfil, setPerfil] = useState<Irmao | null>(null);
   const [saving, setSaving] = useState(false);
   const podeEditar = can.canManageIrmaos;
 
@@ -137,12 +138,19 @@ function IrmaoDetail() {
 
   if (isLoading || !perfil) return <p className="text-muted-foreground">Carregando…</p>;
 
-  const set = (k: string) => (e: any) =>
-    setPerfil({ ...perfil, [k]: e?.target ? e.target.value : e });
+  // Aceita tanto o evento de um <input>/<textarea> quanto o valor direto de
+  // um <Select> — o mesmo padrão do IrmaoForm.
+  const set =
+    (k: keyof Irmao) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | string | boolean) =>
+      setPerfil({
+        ...perfil,
+        [k]: typeof e === "string" || typeof e === "boolean" ? e : e.target.value,
+      });
 
   const salvarPerfil = async () => {
     setSaving(true);
-    const payload: Record<string, any> = {};
+    const payload: Record<string, unknown> = {};
     for (const k of CAMPOS_PERFIL) payload[k] = perfil[k] === "" ? null : perfil[k];
     try {
       await atualizarPerfilIrmao({ data: { id, perfil: payload } });

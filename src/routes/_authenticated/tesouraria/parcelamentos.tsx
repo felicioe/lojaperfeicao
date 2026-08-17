@@ -231,7 +231,7 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
                     </TableCell>
                   </TableRow>
                 )}
-                {ordFaturasIrmao.itensOrdenados.map((f: any) => (
+                {ordFaturasIrmao.itensOrdenados.map((f) => (
                   <TableRow key={f.id}>
                     <TableCell>
                       <Checkbox
