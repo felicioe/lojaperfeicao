@@ -29,11 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/lib/auth-hooks";
-import {
-  gerarArquivoRelatorio,
-  enviarRelatorioPorEmail,
-  testarConexaoSmtp,
-} from "@/lib/backend/relatorio-exportacao";
+import { gerarArquivoRelatorio, enviarRelatorioPorEmail } from "@/lib/backend/relatorio-exportacao";
 import type { ColunaRelatorio, FormatoRelatorio, LinhaRelatorio } from "@/lib/relatorio-export";
 
 const FORMATO_LABEL: Record<FormatoRelatorio, string> = {
@@ -78,12 +74,6 @@ export function ExportarRelatorio({
   const [openEmail, setOpenEmail] = useState(false);
   const [destinatarios, setDestinatarios] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [testando, setTestando] = useState(false);
-  const [diagnostico, setDiagnostico] = useState<{
-    ok: boolean;
-    resumo: string;
-    checagens: { nome: string; situacao: "ok" | "atencao" | "falha"; detalhe: string }[];
-  } | null>(null);
 
   const exportar = async (formato: FormatoRelatorio) => {
     setExportando(formato);
@@ -101,20 +91,7 @@ export function ExportarRelatorio({
 
   const abrirEmail = () => {
     setDestinatarios(user?.email ?? "");
-    setDiagnostico(null);
     setOpenEmail(true);
-  };
-
-  const testarConexao = async () => {
-    setTestando(true);
-    setDiagnostico(null);
-    try {
-      setDiagnostico(await testarConexaoSmtp());
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao testar a conexão.");
-    } finally {
-      setTestando(false);
-    }
   };
 
   const enviar = async () => {
@@ -220,50 +197,6 @@ export function ExportarRelatorio({
               <p className="text-xs text-muted-foreground mt-1">
                 Separe vários e-mails por vírgula. O arquivo (.xlsx) vai anexado.
               </p>
-            </div>
-
-            <div className="border-t pt-3">
-              <Button variant="outline" size="sm" onClick={testarConexao} disabled={testando}>
-                {testando ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-                Testar conexão com o servidor de e-mail
-              </Button>
-              {diagnostico && (
-                <div className="mt-2 rounded-md border p-3 text-xs space-y-2">
-                  <p
-                    className={
-                      diagnostico.ok ? "font-medium text-green-600" : "font-medium text-destructive"
-                    }
-                  >
-                    {diagnostico.resumo}
-                  </p>
-                  {/* Uma linha por etapa: cada uma tem uma correção diferente,
-                      e o "535" sozinho não distingue nenhuma delas. As etapas
-                      não alcançadas simplesmente não aparecem — a última da
-                      lista é onde parou. */}
-                  <ul className="space-y-1.5">
-                    {diagnostico.checagens.map((c) => (
-                      <li key={c.nome} className="flex gap-2">
-                        <span
-                          aria-hidden
-                          className={
-                            c.situacao === "ok"
-                              ? "text-green-600"
-                              : c.situacao === "atencao"
-                                ? "text-amber-600"
-                                : "text-destructive"
-                          }
-                        >
-                          {c.situacao === "ok" ? "✓" : c.situacao === "atencao" ? "!" : "✕"}
-                        </span>
-                        <span>
-                          <span className="font-medium">{c.nome}:</span>{" "}
-                          <span className="text-muted-foreground">{c.detalhe}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </div>
           </div>
           <DialogFooter>
