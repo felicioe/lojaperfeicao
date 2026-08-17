@@ -269,8 +269,9 @@ function LojasPlataforma() {
           <DialogHeader>
             <DialogTitle>{form.id ? "Editar Loja" : "Nova Loja"}</DialogTitle>
             <DialogDescription>
-              O cadastro cria a Loja vazia. O convite do primeiro administrador dela ainda é feito à
-              mão nesta fase.
+              {form.id
+                ? "Alterar o endereço de acesso muda o subdomínio da Loja — quem já usa o endereço antigo deixa de encontrá-la."
+                : "O cadastro cria a Loja vazia. O convite do primeiro administrador dela ainda é feito à mão nesta fase."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
