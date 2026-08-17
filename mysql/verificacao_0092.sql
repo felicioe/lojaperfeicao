@@ -1,6 +1,14 @@
 -- =============================================================================
 -- Verificação pós-migração 0092 (SaaS fase 1 — fundação multi-tenant).
 -- Rodar com: mysql -u... -p... BANCO < mysql/verificacao_0092.sql
+--
+-- ATENÇÃO — NÃO rode este arquivo pelo phpMyAdmin. As consultas abaixo usam
+-- DATABASE() para se referir ao banco corrente, e no phpMyAdmin da Hostinger
+-- DATABASE() resolve para 'information_schema' mesmo com o banco certo
+-- selecionado na árvore à esquerda. O resultado é uma verificação que reporta
+-- FALTA/0 tabelas num banco já migrado — falso negativo perfeito, e difícil de
+-- desconfiar. Para o phpMyAdmin, use a variante com o nome do banco escrito
+-- literalmente (VERIFICACAO_0092_PHPMYADMIN.sql).
 -- Toda seção imprime OK/FALHA — qualquer FALHA precisa ser investigada antes
 -- de considerar a migração aplicada com sucesso.
 -- =============================================================================
