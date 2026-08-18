@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { comSuperAdmin } from "./authz";
 import { registrarAuditoriaPlataforma } from "./auditoria";
+import { SQL_SITUACAO_CONVITE, type ConviteResumo, type SituacaoConvite } from "./saas-convites";
 
 // Administração do SaaS em si (issue #339): o cadastro das lojas-cliente.
 //
@@ -24,6 +25,10 @@ export type LojaResumo = {
   usuarios_ativos: number;
   administradores: number;
   ultimo_acesso: string | null;
+  /** Convite mais recente do primeiro admin (issue #339, parte 2), ou null se
+   * a Loja nunca recebeu um. É o que diz, na lista, se a Loja está esperando
+   * alguém aceitar, se o link venceu ou se já tem dono. */
+  convite: ConviteResumo | null;
 };
 
 export const listarLojas = createServerFn({ method: "GET" }).handler(
@@ -31,9 +36,13 @@ export const listarLojas = createServerFn({ method: "GET" }).handler(
     comSuperAdmin(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.slug, l.nome, l.razao_social, l.cnpj, l.ativa, l.criada_em,
-                COALESCE(c.usuarios_ativos, 0) AS usuarios_ativos,
-                COALESCE(c.administradores, 0) AS administradores,
-                acesso.ultimo_acesso
+                COALESCE(n.usuarios_ativos, 0) AS usuarios_ativos,
+                COALESCE(n.administradores, 0) AS administradores,
+                acesso.ultimo_acesso,
+                c.id AS convite_id, c.email AS convite_email,
+                c.nome_completo AS convite_nome, c.expira_em AS convite_expira_em,
+                c.criado_em AS convite_criado_em, c.aceito_em AS convite_aceito_em,
+                ${SQL_SITUACAO_CONVITE} AS convite_situacao
            FROM lojas l
            LEFT JOIN (
              SELECT u.loja_id,
@@ -43,7 +52,7 @@ export const listarLojas = createServerFn({ method: "GET" }).handler(
                LEFT JOIN usuarios_papeis p ON p.usuario_id = u.id AND p.papel = 'admin'
               WHERE u.ativo = TRUE
               GROUP BY u.loja_id
-           ) c ON c.loja_id = l.id
+           ) n ON n.loja_id = l.id
            LEFT JOIN (
              -- Último login de qualquer usuário da loja. A loja sai de
              -- usuarios.loja_id, e não de auditoria.loja_id, de propósito:
@@ -57,6 +66,15 @@ export const listarLojas = createServerFn({ method: "GET" }).handler(
               WHERE a.acao = 'login'
               GROUP BY u.loja_id
            ) acesso ON acesso.loja_id = l.id
+           -- Só o convite mais recente de cada Loja: os anteriores (revogados
+           -- ao emitir um novo) são histórico, e quem administra a plataforma
+           -- quer saber o estado de agora.
+           LEFT JOIN loja_convites c ON c.id = (
+             SELECT c2.id FROM loja_convites c2
+              WHERE c2.loja_id = l.id
+              ORDER BY c2.criado_em DESC, c2.id DESC
+              LIMIT 1
+           )
           ORDER BY l.nome`,
       );
       return rows.map((r) => ({
@@ -70,6 +88,17 @@ export const listarLojas = createServerFn({ method: "GET" }).handler(
         usuarios_ativos: Number(r.usuarios_ativos),
         administradores: Number(r.administradores),
         ultimo_acesso: r.ultimo_acesso ? new Date(r.ultimo_acesso).toISOString() : null,
+        convite: r.convite_id
+          ? {
+              id: r.convite_id as string,
+              email: r.convite_email as string,
+              nome_completo: r.convite_nome as string,
+              situacao: r.convite_situacao as SituacaoConvite,
+              expira_em: new Date(r.convite_expira_em).toISOString(),
+              criado_em: new Date(r.convite_criado_em).toISOString(),
+              aceito_em: r.convite_aceito_em ? new Date(r.convite_aceito_em).toISOString() : null,
+            }
+          : null,
       }));
     }),
 );

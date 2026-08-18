@@ -192,13 +192,22 @@ async function gravarNaFila(
       | "comunicado"
       | "cobranca_manual"
       | "relatorio_manual"
-      | "lembrete_vencida";
+      | "lembrete_vencida"
+      | "convite_admin";
     destinatarios: string[];
     assunto: string;
     html: string;
     texto: string;
     anexo?: { buffer: Buffer; nome: string; mimeType: string };
     criadoPor?: string;
+    // Loja a que o envio pertence. Opcional porque a maioria dos chamadores
+    // ainda roda em contexto de sistema sem saber a loja (é o que a #348
+    // resolve); enquanto isso, o DEFAULT de transição da 0092 responde por
+    // eles. Quem SABE a loja precisa informar: o convite (issue #339) é de uma
+    // Loja recém-cadastrada, e sem isto a linha nasceria carimbada na
+    // Adonhiram — o que faria o retry do CRON tentar enviá-lo pela caixa de
+    // SMTP dela, e não pela da plataforma.
+    lojaId?: string;
   },
 ): Promise<string> {
   // O id precisa ser gerado aqui e gravado junto: quem chama usa o retorno
@@ -210,10 +219,15 @@ async function gravarNaFila(
   // 'erro_permanente') nunca via nada para reprocessar.
   const id = randomUUID();
   await conn.query(
-    `INSERT INTO filas_email (id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, criado_por)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    // DEFAULT(loja_id) é o DEFAULT de transição da 0092 (a loja seed), usado
+    // só quando o chamador não sabe a loja. Quando a #350 remover esse DEFAULT
+    // esta expressão passa a falhar — o que é o comportamento desejado: nesse
+    // ponto todo envio já precisa dizer de qual Loja é.
+    `INSERT INTO filas_email (id, loja_id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, criado_por)
+     VALUES (?, COALESCE(?, DEFAULT(loja_id)), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
+      params.lojaId ?? null,
       params.chave,
       params.tipo,
       JSON.stringify(params.destinatarios),
@@ -344,6 +358,93 @@ export async function enviarEmailBoasVindas(usuarioId: string): Promise<boolean>
       texto,
     );
     return resultado.falhas === 0;
+  });
+}
+
+// ---------- Convite do primeiro admin de uma Loja (issue #339, com fila) ----------
+//
+// Único e-mail do sistema que sai de uma ação de PLATAFORMA, não de dentro de
+// uma Loja. A Loja convidada acabou de ser cadastrada e quase nunca tem SMTP
+// próprio configurado, então na prática ele sai pela caixa da plataforma
+// (fallback do servidor em configSmtpDaLoja) — mas passamos a loja mesmo
+// assim: se ela já tiver caixa própria, o convite deve sair de lá, e o retry
+// do CRON precisa reencontrar a mesma origem.
+
+export async function enviarEmailConviteAdminLoja(params: {
+  lojaId: string;
+  lojaNome: string;
+  destinatario: string;
+  nomeCompleto: string;
+  link: string;
+  expiraEm: string;
+  criadoPor: string;
+}): Promise<{ enviado: boolean; erro: string | null }> {
+  return withUserConnection(null, async (conn) => {
+    const validade = new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(params.expiraEm));
+    const assunto = `Convite para administrar ${params.lojaNome}`;
+    const html = `
+      <p>Olá, ${params.nomeCompleto}!</p>
+      <p>Você foi convidado(a) para administrar <strong>${params.lojaNome}</strong> no sistema de gestão.</p>
+      <p>Para criar seu acesso e definir sua senha, abra o link abaixo:</p>
+      <p><a href="${params.link}">${params.link}</a></p>
+      <p>O link vale até <strong>${validade}</strong> e só pode ser usado uma vez.</p>
+      <p>Se você não esperava este convite, ignore esta mensagem — nada será criado.</p>
+    `;
+    const texto = `Olá, ${params.nomeCompleto}! Você foi convidado(a) para administrar ${params.lojaNome}. Crie seu acesso em ${params.link} (o link vale até ${validade} e só pode ser usado uma vez). Se não esperava este convite, ignore esta mensagem.`;
+
+    const filaId = await gravarNaFila(conn, {
+      // O token do link nunca entra na chave: ela vai para o log e para a tela
+      // da fila de e-mails, e quem lesse ali poderia aceitar o convite.
+      chave: `convite_admin:${params.lojaId}:${randomUUID()}`,
+      tipo: "convite_admin",
+      destinatarios: [params.destinatario],
+      assunto,
+      html,
+      texto,
+      criadoPor: params.criadoPor,
+      lojaId: params.lojaId,
+    });
+
+    try {
+      const resultado = await tentarEnviarFilaEmail(
+        conn,
+        filaId,
+        [params.destinatario],
+        assunto,
+        html,
+        texto,
+        undefined,
+        params.lojaId,
+      );
+      return { enviado: resultado.falhas === 0, erro: resultado.ultimoErro };
+    } catch (err) {
+      // Sem NENHUM SMTP configurado (nem o da Loja nem o da plataforma),
+      // tentarEnviarFilaEmail estoura antes do UPDATE e a linha ficaria
+      // 'pendente' para sempre — o retry do CRON só procura 'erro_permanente'.
+      // Marcar aqui é o que faz o convite não enviado aparecer na fila com o
+      // motivo, em vez de sumir sem rastro.
+      const motivo = err instanceof Error ? err.message : String(err);
+      await conn.query(
+        `UPDATE filas_email
+            SET status = 'erro_permanente', tentativas = tentativas + 1, ultimo_erro = ?,
+                atualizado_em = CURRENT_TIMESTAMP
+          WHERE id = ? AND loja_id = ?`,
+        [motivo.slice(0, 500), filaId, params.lojaId],
+      );
+      return {
+        enviado: false,
+        // A mensagem de transporterDaLoja manda "preencher em Administração ›
+        // E-mail", que é a tela DENTRO de uma Loja — inútil para quem está
+        // convidando o primeiro administrador de uma Loja onde ninguém entrou
+        // ainda. Aqui a orientação certa é o SMTP da plataforma.
+        erro: motivo.includes("não está configurado")
+          ? "O servidor de e-mail da plataforma não está configurado (SMTP_HOST, SMTP_PORT, SMTP_USER e SMTP_PASSWORD). Entregue o link por outro meio."
+          : motivo,
+      };
+    }
   });
 }
 

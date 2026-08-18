@@ -9,6 +9,13 @@ import {
   listarAuditoriaPlataforma,
   type LojaResumo,
 } from "@/lib/backend/saas-lojas";
+import {
+  convidarAdminLoja,
+  reenviarConviteLoja,
+  revogarConviteLoja,
+  type ResultadoConvite,
+  type SituacaoConvite,
+} from "@/lib/backend/saas-convites";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +51,19 @@ import {
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { mensagemDeErro } from "@/lib/erro";
-import { Building2, Loader2, Pencil, Plus, Power, PowerOff } from "lucide-react";
+import {
+  AlertTriangle,
+  Building2,
+  Copy,
+  Loader2,
+  Mail,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  RefreshCw,
+  X,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin-saas/lojas")({
   head: () => ({ meta: [{ title: "Lojas — Plataforma" }] }),
@@ -58,9 +77,21 @@ const ACAO_LABEL: Record<string, string> = {
   editar_loja: "Loja editada",
   suspender_loja: "Loja suspensa",
   reativar_loja: "Loja reativada",
+  convidar_admin_loja: "Convite enviado",
+  reenviar_convite_loja: "Convite reenviado",
+  revogar_convite_loja: "Convite cancelado",
+  aceitar_convite_loja: "Convite aceito",
+};
+
+const CONVITE_LABEL: Record<SituacaoConvite, string> = {
+  pendente: "Convite pendente",
+  aceito: "Convite aceito",
+  revogado: "Convite cancelado",
+  expirado: "Convite expirado",
 };
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR");
+const data = (iso: string) => new Date(iso).toLocaleDateString("pt-BR");
 
 function LojasPlataforma() {
   const queryClient = useQueryClient();
@@ -68,6 +99,14 @@ function LojasPlataforma() {
   const [aberto, setAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [confirmar, setConfirmar] = useState<LojaResumo | null>(null);
+  const [convidando, setConvidando] = useState<LojaResumo | null>(null);
+  const [convite, setConvite] = useState({ email: "", nomeCompleto: "" });
+  const [enviandoConvite, setEnviandoConvite] = useState(false);
+  // Resultado do último convite emitido: fica na tela até ser fechado porque
+  // contém o link, que é a única cópia — o token não é recuperável depois
+  // (o banco guarda só o hash).
+  const [resultado, setResultado] = useState<(ResultadoConvite & { loja: string }) | null>(null);
+  const [revogando, setRevogando] = useState<LojaResumo | null>(null);
 
   const { data: lojas = [], isLoading } = useQuery({
     queryKey: ["saas-lojas"],
@@ -123,6 +162,71 @@ function LojasPlataforma() {
     }
   };
 
+  const abrirConvite = (l: LojaResumo) => {
+    setConvite({ email: "", nomeCompleto: "" });
+    setConvidando(l);
+  };
+
+  // Um só caminho para os três resultados possíveis (enviado, enviado com
+  // falha de SMTP, e reenvio), porque a conduta é a mesma: guardar o link e
+  // dizer se o e-mail saiu.
+  const mostrarResultado = (r: ResultadoConvite, lojaNome: string) => {
+    setResultado({ ...r, loja: lojaNome });
+    if (r.enviado) toast.success("Convite enviado por e-mail.");
+    else
+      toast.warning("Convite criado, mas o e-mail não saiu — copie o link.", { duration: 12000 });
+  };
+
+  const enviarConvite = async () => {
+    if (!convidando) return;
+    setEnviandoConvite(true);
+    try {
+      const r = await convidarAdminLoja({ data: { ...convite, lojaId: convidando.id } });
+      setConvidando(null);
+      mostrarResultado(r, convidando.nome);
+      await atualizar();
+    } catch (err) {
+      toast.error(mensagemDeErro(err, "Erro ao enviar o convite."), { duration: 12000 });
+    } finally {
+      setEnviandoConvite(false);
+    }
+  };
+
+  const reenviar = async (l: LojaResumo) => {
+    if (!l.convite) return;
+    try {
+      const r = await reenviarConviteLoja({ data: { conviteId: l.convite.id } });
+      mostrarResultado(r, l.nome);
+      await atualizar();
+    } catch (err) {
+      toast.error(mensagemDeErro(err, "Erro ao reenviar o convite."), { duration: 12000 });
+    }
+  };
+
+  const revogar = async (l: LojaResumo) => {
+    if (!l.convite) return;
+    try {
+      await revogarConviteLoja({ data: { conviteId: l.convite.id } });
+      toast.success("Convite cancelado. O link deixou de funcionar.");
+      await atualizar();
+    } catch (err) {
+      toast.error(mensagemDeErro(err, "Erro ao cancelar o convite."), { duration: 12000 });
+    } finally {
+      setRevogando(null);
+    }
+  };
+
+  const copiarLink = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Link copiado.");
+    } catch {
+      // Área de transferência bloqueada (http sem localhost, permissão negada):
+      // o link continua visível e selecionável na tela.
+      toast.error("Não foi possível copiar — selecione o link e copie à mão.");
+    }
+  };
+
   const alternarAtiva = async (l: LojaResumo) => {
     try {
       await definirLojaAtiva({ data: { id: l.id, ativa: !l.ativa } });
@@ -146,6 +250,26 @@ function LojasPlataforma() {
           </Button>
         }
       />
+
+      {/* O aviso é o oposto de decorativo: esta tela deixa a um clique de
+          distância exatamente a ação que o sistema ainda não sustenta. O
+          isolamento entre Lojas está pela metade (issue #337 — Tesouraria
+          pronta, Cadastros/Relatórios/Contabilidade/Atividades/SGCAB não), e
+          medido ao vivo: o admin de uma Loja nova enxerga a Tesouraria dela
+          vazia, como deve, mas a tela de Irmãos mostra os irmãos da Adonhiram.
+          Some quando a #337 fechar. */}
+      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+        <p className="flex items-start gap-2 font-medium">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500" />O
+          isolamento entre Lojas ainda não está completo.
+        </p>
+        <p className="mt-1 text-muted-foreground">
+          Cadastrar uma segunda Loja e convidar o administrador dela funciona, mas as telas de
+          Cadastros, Relatórios, Contabilidade, Atividades e SGCAB ainda não filtram por Loja — quem
+          entrar na Loja nova vai ver dados da Adonhiram nelas. Use por enquanto só para testes, não
+          com uma Loja real.
+        </p>
+      </div>
 
       <Card>
         <CardHeader>
@@ -172,6 +296,7 @@ function LojasPlataforma() {
                   <TableHeadOrdenavel campo="usuarios" ord={ord} className="text-right">
                     Usuários
                   </TableHeadOrdenavel>
+                  <TableHead>Administrador</TableHead>
                   <TableHeadOrdenavel campo="ultimo" ord={ord}>
                     Último acesso
                   </TableHeadOrdenavel>
@@ -184,7 +309,7 @@ function LojasPlataforma() {
               <TableBody>
                 {ord.itensOrdenados.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
                       Nenhuma Loja cadastrada.
                     </TableCell>
                   </TableRow>
@@ -199,13 +324,63 @@ function LojasPlataforma() {
                     </TableCell>
                     <TableCell className="font-mono text-xs">{l.slug}</TableCell>
                     <TableCell className="text-xs">{l.cnpj ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {l.usuarios_ativos}
-                      {/* Sem administrador ninguém consegue gerir a Loja por
-                          dentro — é o estado normal logo após o cadastro, até
-                          o convite ser aceito (parte 2 da issue #339). */}
-                      {l.administradores === 0 && (
-                        <div className="text-xs text-amber-600 dark:text-amber-500">sem admin</div>
+                    <TableCell className="text-right tabular-nums">{l.usuarios_ativos}</TableCell>
+                    {/* Sem administrador ninguém consegue gerir a Loja por
+                        dentro — é o estado normal logo após o cadastro, até o
+                        convite ser aceito. */}
+                    <TableCell className="text-xs">
+                      {l.administradores > 0 ? (
+                        <span className="text-muted-foreground">
+                          {l.administradores} administrador(es)
+                        </span>
+                      ) : l.convite && l.convite.situacao !== "aceito" ? (
+                        <div className="space-y-1">
+                          <Badge
+                            variant={l.convite.situacao === "pendente" ? "secondary" : "outline"}
+                          >
+                            {CONVITE_LABEL[l.convite.situacao]}
+                          </Badge>
+                          <div className="text-muted-foreground">{l.convite.email}</div>
+                          {l.convite.situacao === "pendente" && (
+                            <div className="text-muted-foreground">
+                              vale até {data(l.convite.expira_em)}
+                            </div>
+                          )}
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2"
+                              onClick={() => reenviar(l)}
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" /> Reenviar
+                            </Button>
+                            {l.convite.situacao === "pendente" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2"
+                                onClick={() => setRevogando(l)}
+                              >
+                                <X className="h-3 w-3 mr-1" /> Cancelar
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <span className="text-amber-600 dark:text-amber-500">sem admin</span>
+                          <div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2"
+                              onClick={() => abrirConvite(l)}
+                            >
+                              <Mail className="h-3 w-3 mr-1" /> Convidar
+                            </Button>
+                          </div>
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-xs">
@@ -271,7 +446,7 @@ function LojasPlataforma() {
             <DialogDescription>
               {form.id
                 ? "Alterar o endereço de acesso muda o subdomínio da Loja — quem já usa o endereço antigo deixa de encontrá-la."
-                : "O cadastro cria a Loja vazia. O convite do primeiro administrador dela ainda é feito à mão nesta fase."}
+                : "O cadastro cria a Loja vazia. Depois de salvar, convide o primeiro administrador dela pela coluna Administrador."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
@@ -326,6 +501,105 @@ function LojasPlataforma() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!convidando} onOpenChange={(o) => !o && setConvidando(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convidar administrador de {convidando?.nome}</DialogTitle>
+            <DialogDescription>
+              Quem receber o convite define a própria senha e vira administrador desta Loja. O
+              convite vale por 7 dias e só pode ser usado uma vez. Esta tela continua sem acesso aos
+              dados internos da Loja.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div>
+              <Label>Nome</Label>
+              <Input
+                value={convite.nomeCompleto}
+                onChange={(e) => setConvite({ ...convite, nomeCompleto: e.target.value })}
+                placeholder="Nome de quem vai administrar"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <Input
+                type="email"
+                value={convite.email}
+                onChange={(e) => setConvite({ ...convite, email: e.target.value })}
+                placeholder="admin@loja.org.br"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Vira o login desta pessoa. Precisa ser um e-mail que ainda não seja login em nenhuma
+                Loja.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvidando(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={enviarConvite} disabled={enviandoConvite}>
+              {enviandoConvite && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Enviar convite
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!resultado} onOpenChange={(o) => !o && setResultado(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convite de {resultado?.loja}</DialogTitle>
+            <DialogDescription>
+              {resultado?.enviado
+                ? "O e-mail saiu. Guarde o link abaixo como reserva — ele não aparece de novo depois que esta janela fechar."
+                : "O convite foi criado, mas o e-mail não saiu. Entregue o link abaixo por outro meio — ele não aparece de novo depois que esta janela fechar."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Input readOnly value={resultado?.link ?? ""} className="font-mono text-xs" />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => resultado && copiarLink(resultado.link)}
+              >
+                <Copy className="h-4 w-4" />
+                <span className="sr-only">Copiar link</span>
+              </Button>
+            </div>
+            {resultado?.erroEnvio && (
+              <p className="text-xs text-destructive">
+                Erro do servidor de e-mail: {resultado.erroEnvio}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResultado(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!revogando} onOpenChange={(o) => !o && setRevogando(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar o convite de {revogando?.nome}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O link enviado para {revogando?.convite?.email} deixa de funcionar na hora. A Loja
+              fica sem administrador até um novo convite ser aceito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => revogando && revogar(revogando)}>
+              Cancelar convite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!confirmar} onOpenChange={(o) => !o && setConfirmar(null)}>
         <AlertDialogContent>

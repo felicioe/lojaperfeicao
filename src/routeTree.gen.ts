@@ -20,6 +20,7 @@ import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
 import { Route as AuthenticatedAdminSaasRouteRouteImport } from './routes/_authenticated/admin-saas/route'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
+import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
 import { Route as AuthenticatedAdminSaasLojasRouteImport } from './routes/_authenticated/admin-saas/lojas'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
@@ -150,6 +151,11 @@ const AuthenticatedPainelRouteRoute =
     path: '/painel',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ConviteTokenRoute = ConviteTokenRouteImport.update({
+  id: '/convite/$token',
+  path: '/convite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminSaasLojasRoute =
   AuthenticatedAdminSaasLojasRouteImport.update({
     id: '/lojas',
@@ -596,6 +602,7 @@ export interface FileRoutesByFullPath {
   '/admin-saas': typeof AuthenticatedAdminSaasRouteRouteWithChildren
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
@@ -680,6 +687,7 @@ export interface FileRoutesByTo {
   '/trocar-senha': typeof TrocarSenhaRoute
   '/admin-saas': typeof AuthenticatedAdminSaasRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
@@ -767,6 +775,7 @@ export interface FileRoutesById {
   '/_authenticated/admin-saas': typeof AuthenticatedAdminSaasRouteRouteWithChildren
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/convite/$token': typeof ConviteTokenRoute
   '/_authenticated/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/_authenticated/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
@@ -854,6 +863,7 @@ export interface FileRouteTypes {
     | '/admin-saas'
     | '/painel'
     | '/dashboard'
+    | '/convite/$token'
     | '/admin-saas/lojas'
     | '/administracao/auditoria'
     | '/administracao/backups'
@@ -938,6 +948,7 @@ export interface FileRouteTypes {
     | '/trocar-senha'
     | '/admin-saas'
     | '/dashboard'
+    | '/convite/$token'
     | '/admin-saas/lojas'
     | '/administracao/auditoria'
     | '/administracao/backups'
@@ -1024,6 +1035,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin-saas'
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
+    | '/convite/$token'
     | '/_authenticated/admin-saas/lojas'
     | '/_authenticated/administracao/auditoria'
     | '/_authenticated/administracao/backups'
@@ -1108,6 +1120,7 @@ export interface RootRouteChildren {
   GoogleConcluirRoute: typeof GoogleConcluirRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TrocarSenhaRoute: typeof TrocarSenhaRoute
+  ConviteTokenRoute: typeof ConviteTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1188,6 +1201,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/painel'
       preLoaderRoute: typeof AuthenticatedPainelRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/convite/$token': {
+      id: '/convite/$token'
+      path: '/convite/$token'
+      fullPath: '/convite/$token'
+      preLoaderRoute: typeof ConviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin-saas/lojas': {
       id: '/_authenticated/admin-saas/lojas'
@@ -1930,6 +1950,7 @@ const rootRouteChildren: RootRouteChildren = {
   GoogleConcluirRoute: GoogleConcluirRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TrocarSenhaRoute: TrocarSenhaRoute,
+  ConviteTokenRoute: ConviteTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
