@@ -52,11 +52,14 @@ async function classificarItens(
   orgId: string,
   itens: z.infer<typeof importarSchema>["itens"],
 ): Promise<ItemPreview[]> {
+  // O corpo vem do request e é o que amarra a importação inteira a uma Loja:
+  // se ele não for desta Loja, nada é lido nem gravado. O loja_id gravado sai
+  // sempre da sessão (comPapel), nunca de nada que venha no arquivo.
   const [[org]] = await conn.query<RowDataPacket[]>(
-    "SELECT grau_min, grau_max FROM orgs WHERE id = ?",
+    "SELECT grau_min, grau_max FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
     [orgId],
   );
-  if (!org) throw new Error("Corpo maçônico não encontrado.");
+  if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
 
   const resultado: ItemPreview[] = [];
   for (const item of itens) {
@@ -68,13 +71,13 @@ async function classificarItens(
 
     if (grau !== null) {
       const [[dup]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM sessoes WHERE data = ? AND observacoes = ? LIMIT 1",
+        "SELECT id FROM sessoes WHERE data = ? AND observacoes = ? AND loja_id = @current_loja_id LIMIT 1",
         [item.data, item.titulo],
       );
       resultado.push({ ...item, tipo: "sessao", grau, duplicado: !!dup });
     } else {
       const [[dup]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM eventos WHERE data = ? AND titulo = ? LIMIT 1",
+        "SELECT id FROM eventos WHERE data = ? AND titulo = ? AND loja_id = @current_loja_id LIMIT 1",
         [item.data, item.titulo],
       );
       resultado.push({ ...item, tipo: "evento", grau: null, duplicado: !!dup });
@@ -98,7 +101,7 @@ export type ResumoImportacao = {
 export const confirmarImportacaoCalendario = createServerFn({ method: "POST" })
   .validator((d: unknown) => importarSchema.parse(d))
   .handler(async ({ data }): Promise<ResumoImportacao> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual, lojaId) => {
       const classificados = await classificarItens(conn, data.orgId, data.itens);
       let sessoesCriadas = 0;
       let eventosCriados = 0;
@@ -111,14 +114,14 @@ export const confirmarImportacaoCalendario = createServerFn({ method: "POST" })
         }
         if (item.tipo === "sessao") {
           await conn.query(
-            "INSERT INTO sessoes (data, tipo, org_id, grau, observacoes) VALUES (?, 'ordinaria', ?, ?, ?)",
-            [item.data, data.orgId, item.grau, item.titulo],
+            "INSERT INTO sessoes (loja_id, data, tipo, org_id, grau, observacoes) VALUES (?, ?, 'ordinaria', ?, ?, ?)",
+            [lojaId, item.data, data.orgId, item.grau, item.titulo],
           );
           sessoesCriadas++;
         } else {
           await conn.query(
-            `INSERT INTO eventos (titulo, data, hora, descricao, publico) VALUES (?, ?, ?, ?, 'todos')`,
-            [item.titulo, item.data, item.hora, item.descricao],
+            `INSERT INTO eventos (loja_id, titulo, data, hora, descricao, publico) VALUES (?, ?, ?, ?, ?, 'todos')`,
+            [lojaId, item.titulo, item.data, item.hora, item.descricao],
           );
           eventosCriados++;
         }

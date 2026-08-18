@@ -44,8 +44,8 @@ export const listarMembrosOrg = createServerFn({ method: "GET" })
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT io.irmao_id, i.nome_civil, i.nome_simbolico, io.grau_atual
-         FROM irmao_orgs io JOIN irmaos i ON i.id = io.irmao_id
-         WHERE io.org_id = ? AND i.situacao <> 'adormecido'
+         FROM irmao_orgs io JOIN irmaos i ON i.id = io.irmao_id AND i.loja_id = @current_loja_id
+         WHERE io.org_id = ? AND io.loja_id = @current_loja_id AND i.situacao <> 'adormecido'
          ORDER BY i.nome_civil`,
         [data.orgId],
       );
@@ -56,8 +56,10 @@ export const listarMembrosOrg = createServerFn({ method: "GET" })
 const SESSAO_SELECT = `
   SELECT s.id, s.data, s.tipo, s.grau, s.org_id, o.nome AS org_nome, og.nome AS nome_grau, s.local, s.observacoes
   FROM sessoes s
-  LEFT JOIN orgs o ON o.id = s.org_id
+  LEFT JOIN orgs o ON o.id = s.org_id AND o.loja_id = @current_loja_id
   LEFT JOIN orgs_graus og ON og.org_id = s.org_id AND og.grau = s.grau
+                         AND og.loja_id = @current_loja_id
+  WHERE s.loja_id = @current_loja_id
 `;
 
 export const listarSessoes = createServerFn({ method: "GET" }).handler(
@@ -88,7 +90,8 @@ export const listarResponsaveisSessoes = createServerFn({ method: "GET" }).handl
         `SELECT sr.sessao_id, sr.nome_extraido, sr.apelido_extraido, sr.atividade, sr.irmao_id,
                 i.nome_civil AS irmao_nome
          FROM sessao_responsaveis sr
-         LEFT JOIN irmaos i ON i.id = sr.irmao_id
+         LEFT JOIN irmaos i ON i.id = sr.irmao_id AND i.loja_id = @current_loja_id
+         WHERE sr.loja_id = @current_loja_id
          ORDER BY sr.criado_em`,
       );
       return rows as ResponsavelSessao[];
@@ -100,9 +103,8 @@ export const obterSessao = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<Sessao | null> => {
     return comSessao(async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>(`${SESSAO_SELECT} WHERE s.id = ?`, [
-        data.id,
-      ]);
+      // SESSAO_SELECT já traz o WHERE do escopo de loja, então aqui é AND.
+      const [rows] = await conn.query<RowDataPacket[]>(`${SESSAO_SELECT} AND s.id = ?`, [data.id]);
       return (rows[0] as Sessao) ?? null;
     });
   });
@@ -119,18 +121,26 @@ const novaSessaoSchema = z.object({
 export const criarSessao = createServerFn({ method: "POST" })
   .validator((d: unknown) => novaSessaoSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       const [[org]] = await conn.query<RowDataPacket[]>(
-        "SELECT grau_min, grau_max FROM orgs WHERE id = ?",
+        "SELECT grau_min, grau_max FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
         [data.orgId],
       );
-      if (!org) throw new Error("Corpo maçônico não encontrado.");
+      if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
       if (data.grau < org.grau_min || data.grau > org.grau_max) {
         throw new Error(`Grau fora da faixa deste corpo (${org.grau_min}–${org.grau_max}).`);
       }
       await conn.query(
-        "INSERT INTO sessoes (data, tipo, org_id, grau, local, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
-        [data.data, data.tipo, data.orgId, data.grau, data.local ?? null, data.observacoes ?? null],
+        "INSERT INTO sessoes (loja_id, data, tipo, org_id, grau, local, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          lojaId,
+          data.data,
+          data.tipo,
+          data.orgId,
+          data.grau,
+          data.local ?? null,
+          data.observacoes ?? null,
+        ],
       );
     });
   });
@@ -148,11 +158,10 @@ export const atualizarDetalhesSessao = createServerFn({ method: "POST" })
   .validator((d: unknown) => detalhesSessaoSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      await conn.query("UPDATE sessoes SET local = ?, observacoes = ? WHERE id = ?", [
-        data.local ?? null,
-        data.observacoes ?? null,
-        data.id,
-      ]);
+      await conn.query(
+        "UPDATE sessoes SET local = ?, observacoes = ? WHERE id = ? AND loja_id = @current_loja_id",
+        [data.local ?? null, data.observacoes ?? null, data.id],
+      );
       await registrarAuditoria(conn, usuarioIdAtual, "atualizar", "sessao", data.id, null, {
         local: data.local ?? null,
         observacoes: data.observacoes ?? null,
@@ -165,7 +174,7 @@ export const listarPresencas = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<Presenca[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM presencas WHERE sessao_id = ?",
+        "SELECT * FROM presencas WHERE sessao_id = ? AND loja_id = @current_loja_id",
         [data.sessaoId],
       );
       return rows as Presenca[];
@@ -184,22 +193,33 @@ export const togglePresenca = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
+      // Presença cruza sessão e irmão: as DUAS pontas precisam ser desta Loja.
+      // Escopar só a sessão deixaria marcar presente um irmão de outra Loja
+      // (e vice-versa) — e o registro nasceria válido no banco, porque não há
+      // FK que ligue as duas à mesma loja.
+      const [[irmao]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
+        [data.irmaoId],
+      );
+      if (!irmao) throw new Error("Irmão não encontrado nesta Loja.");
       const [[elegivel]] = await conn.query<RowDataPacket[]>(
         `SELECT
            CASE WHEN s.org_id IS NULL THEN TRUE ELSE COALESCE(io.grau_atual, 0) >= s.grau END AS ok
          FROM sessoes s
          LEFT JOIN irmao_orgs io ON io.org_id = s.org_id AND io.irmao_id = ?
-         WHERE s.id = ?`,
+                               AND io.loja_id = @current_loja_id
+         WHERE s.id = ? AND s.loja_id = @current_loja_id`,
         [data.irmaoId, data.sessaoId],
       );
-      if (!elegivel?.ok) {
+      if (!elegivel) throw new Error("Sessão não encontrada nesta Loja.");
+      if (!elegivel.ok) {
         throw new Error("Este irmão não tem grau suficiente (neste corpo) para esta sessão.");
       }
       await conn.query(
-        `INSERT INTO presencas (sessao_id, irmao_id, presente) VALUES (?, ?, ?)
+        `INSERT INTO presencas (loja_id, sessao_id, irmao_id, presente) VALUES (?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE presente = VALUES(presente)`,
-        [data.sessaoId, data.irmaoId, data.presente],
+        [lojaId, data.sessaoId, data.irmaoId, data.presente],
       );
     });
   });

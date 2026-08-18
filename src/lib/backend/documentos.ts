@@ -38,7 +38,8 @@ const DOCUMENTO_SELECT = `
          d.arquivo_nome_original, d.arquivo_mime, d.criado_por,
          u.nome_completo AS criador_nome, d.criado_em
   FROM documentos d
-  LEFT JOIN usuarios u ON u.id = d.criado_por
+  LEFT JOIN usuarios u ON u.id = d.criado_por AND u.loja_id = @current_loja_id
+  WHERE d.loja_id = @current_loja_id
 `;
 
 export const listarDocumentos = createServerFn({ method: "GET" }).handler(
@@ -64,14 +65,15 @@ const criarDocumentoSchema = z.object({
 export const criarDocumento = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarDocumentoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId, lojaId) => {
       const id = crypto.randomUUID();
       await conn.query(
         `INSERT INTO documentos
-           (id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
-         VALUES (?, ?, ?, ?, SHA2(CONCAT(?, ?), 256), ?, ?, ?, ?)`,
+           (id, loja_id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
+         VALUES (?, ?, ?, ?, ?, SHA2(CONCAT(?, ?), 256), ?, ?, ?, ?)`,
         [
           id,
+          lojaId,
           data.titulo,
           data.categoria,
           data.conteudo,
@@ -104,7 +106,7 @@ export const atualizarDocumento = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
       const [[documento]] = await conn.query<RowDataPacket[]>(
-        "SELECT titulo, categoria FROM documentos WHERE id = ?",
+        "SELECT titulo, categoria FROM documentos WHERE id = ? AND loja_id = @current_loja_id",
         [data.id],
       );
       if (!documento) throw new Error("Documento não encontrado.");
@@ -113,11 +115,10 @@ export const atualizarDocumento = createServerFn({ method: "POST" })
         data.categoria === "legislacao" && data.anoReferencia
           ? `legislacao:${data.anoReferencia}`
           : data.categoria;
-      await conn.query("UPDATE documentos SET titulo = ?, categoria = ? WHERE id = ?", [
-        data.titulo,
-        categoriaDestino,
-        data.id,
-      ]);
+      await conn.query(
+        "UPDATE documentos SET titulo = ?, categoria = ? WHERE id = ? AND loja_id = @current_loja_id",
+        [data.titulo, categoriaDestino, data.id],
+      );
       await registrarAuditoria(conn, usuarioId, "atualizar", "documento", data.id, documento, {
         titulo: data.titulo,
         categoria: categoriaDestino,
@@ -130,10 +131,13 @@ export const excluirDocumento = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, usuarioId) => {
       const [[documento]] = await conn.query<RowDataPacket[]>(
-        "SELECT titulo, hash_conteudo, criado_por FROM documentos WHERE id = ?",
+        "SELECT titulo, hash_conteudo, criado_por FROM documentos WHERE id = ? AND loja_id = @current_loja_id",
         [data.id],
       );
-      await conn.query("DELETE FROM documentos WHERE id = ?", [data.id]);
+      if (!documento) throw new Error("Documento não encontrado nesta Loja.");
+      await conn.query("DELETE FROM documentos WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
       await registrarAuditoria(conn, usuarioId, "excluir", "documento", data.id, documento);
     });
   });

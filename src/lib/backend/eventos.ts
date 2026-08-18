@@ -33,17 +33,22 @@ export const listarEventos = createServerFn({ method: "GET" }).handler(
         `SELECT e.id, e.titulo, e.data, e.hora, e.local, e.descricao, e.publico, e.org_id,
                 o.nome AS org_nome, e.tem_agape, r.participa AS minha_participacao, r.agape AS meu_agape
          FROM eventos e
-         LEFT JOIN orgs o ON o.id = e.org_id
-         LEFT JOIN irmaos me ON me.usuario_id = ?
+         LEFT JOIN orgs o ON o.id = e.org_id AND o.loja_id = @current_loja_id
+         LEFT JOIN irmaos me ON me.usuario_id = ? AND me.loja_id = @current_loja_id
          LEFT JOIN evento_rsvps r ON r.evento_id = e.id AND r.irmao_id = me.id
-         WHERE e.publico = 'todos'
+                                 AND r.loja_id = @current_loja_id
+         WHERE e.loja_id = @current_loja_id
+           AND (e.publico = 'todos'
             OR (e.publico = 'ativos' AND EXISTS (
-                  SELECT 1 FROM irmaos WHERE usuario_id = ? AND situacao = 'ativo'))
+                  SELECT 1 FROM irmaos WHERE usuario_id = ? AND situacao = 'ativo'
+                    AND loja_id = @current_loja_id))
             OR (e.publico = 'org' AND EXISTS (
-                  SELECT 1 FROM irmao_orgs io JOIN irmaos ii ON ii.id = io.irmao_id
-                  WHERE ii.usuario_id = ? AND io.org_id = e.org_id))
+                  SELECT 1 FROM irmao_orgs io
+                    JOIN irmaos ii ON ii.id = io.irmao_id AND ii.loja_id = @current_loja_id
+                  WHERE ii.usuario_id = ? AND io.org_id = e.org_id
+                    AND io.loja_id = @current_loja_id))
             OR has_role(@current_usuario_id, 'admin')
-            OR has_role(@current_usuario_id, 'secretario')
+            OR has_role(@current_usuario_id, 'secretario'))
          ORDER BY e.data DESC, e.hora DESC`,
         [usuarioId, usuarioId, usuarioId],
       );
@@ -70,7 +75,7 @@ export const salvarEvento = createServerFn({ method: "POST" })
     if (data.publico === "org" && !data.orgId) {
       throw new Error("Selecione o corpo maçônico para eventos restritos a um corpo.");
     }
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual, lojaId) => {
       const valores = [
         data.titulo,
         data.data,
@@ -84,7 +89,7 @@ export const salvarEvento = createServerFn({ method: "POST" })
       if (data.id) {
         await conn.query(
           `UPDATE eventos SET titulo=?, data=?, hora=?, local=?, descricao=?, publico=?, org_id=?, tem_agape=?
-           WHERE id=?`,
+           WHERE id=? AND loja_id = @current_loja_id`,
           [...valores, data.id],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "atualizar", "evento", data.id, null, {
@@ -92,9 +97,9 @@ export const salvarEvento = createServerFn({ method: "POST" })
         });
       } else {
         await conn.query(
-          `INSERT INTO eventos (titulo, data, hora, local, descricao, publico, org_id, tem_agape)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          valores,
+          `INSERT INTO eventos (loja_id, titulo, data, hora, local, descricao, publico, org_id, tem_agape)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [lojaId, ...valores],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "criar", "evento", null, null, {
           ...data,
@@ -107,7 +112,9 @@ export const excluirEvento = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      await conn.query("DELETE FROM eventos WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM eventos WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
       await registrarAuditoria(conn, usuarioIdAtual, "excluir", "evento", data.id, null, null);
     });
   });
@@ -121,17 +128,22 @@ const rsvpSchema = z.object({
 export const registrarRsvp = createServerFn({ method: "POST" })
   .validator((d: unknown) => rsvpSchema.parse(d))
   .handler(async ({ data }) => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn, usuarioId, lojaId) => {
       const [[irmao]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM irmaos WHERE usuario_id = ?",
+        "SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       if (!irmao) throw new Error("Cadastro ainda não vinculado a este usuário.");
+      const [[evento]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM eventos WHERE id = ? AND loja_id = @current_loja_id",
+        [data.eventoId],
+      );
+      if (!evento) throw new Error("Evento não encontrado nesta Loja.");
       await conn.query(
-        `INSERT INTO evento_rsvps (evento_id, irmao_id, participa, agape)
-         VALUES (?, ?, ?, ?)
+        `INSERT INTO evento_rsvps (loja_id, evento_id, irmao_id, participa, agape)
+         VALUES (?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE participa = VALUES(participa), agape = VALUES(agape)`,
-        [data.eventoId, irmao.id, data.participa, data.agape],
+        [lojaId, data.eventoId, irmao.id, data.participa, data.agape],
       );
     });
   });
@@ -149,8 +161,8 @@ export const listarRsvpsEvento = createServerFn({ method: "GET" })
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT r.irmao_id, i.nome_civil AS irmao_nome, r.participa, r.agape
-         FROM evento_rsvps r JOIN irmaos i ON i.id = r.irmao_id
-         WHERE r.evento_id = ?
+         FROM evento_rsvps r JOIN irmaos i ON i.id = r.irmao_id AND i.loja_id = @current_loja_id
+         WHERE r.evento_id = ? AND r.loja_id = @current_loja_id
          ORDER BY i.nome_civil`,
         [data.eventoId],
       );

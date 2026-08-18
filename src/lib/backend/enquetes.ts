@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { comSessao, comPapel, SemPermissaoError } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
@@ -25,13 +25,17 @@ export type Enquete = {
 const ENQUETE_SELECT = `
   SELECT e.id, e.titulo, e.descricao, e.nominal, e.mostrar_resultado_sempre,
          e.data_limite, e.encerrada, e.criado_por, u.nome_completo AS criador_nome, e.criado_em,
-         (SELECT COUNT(*) FROM enquete_opcoes eo WHERE eo.enquete_id = e.id) AS total_opcoes,
-         (SELECT COUNT(*) FROM enquete_votos ev WHERE ev.enquete_id = e.id) AS total_votos,
+         (SELECT COUNT(*) FROM enquete_opcoes eo
+           WHERE eo.enquete_id = e.id AND eo.loja_id = @current_loja_id) AS total_opcoes,
+         (SELECT COUNT(*) FROM enquete_votos ev
+           WHERE ev.enquete_id = e.id AND ev.loja_id = @current_loja_id) AS total_votos,
          (SELECT ev.opcao_id FROM enquete_votos ev
-          JOIN irmaos i ON i.id = ev.irmao_id
-          WHERE ev.enquete_id = e.id AND i.usuario_id = ?) AS meu_voto_opcao_id
+          JOIN irmaos i ON i.id = ev.irmao_id AND i.loja_id = @current_loja_id
+          WHERE ev.enquete_id = e.id AND ev.loja_id = @current_loja_id
+            AND i.usuario_id = ?) AS meu_voto_opcao_id
   FROM enquetes e
-  LEFT JOIN usuarios u ON u.id = e.criado_por
+  LEFT JOIN usuarios u ON u.id = e.criado_por AND u.loja_id = @current_loja_id
+  WHERE e.loja_id = @current_loja_id
 `;
 
 // "Encerrada" efetiva considera tanto o encerramento manual quanto o
@@ -64,7 +68,7 @@ export const listarOpcoesEnquete = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<EnqueteOpcao[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM enquete_opcoes WHERE enquete_id = ? ORDER BY ordem",
+        "SELECT * FROM enquete_opcoes WHERE enquete_id = ? AND loja_id = @current_loja_id ORDER BY ordem",
         [data.enqueteId],
       );
       return rows as EnqueteOpcao[];
@@ -83,13 +87,14 @@ const criarEnqueteSchema = z.object({
 export const criarEnquete = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarEnqueteSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId, lojaId) => {
       const enqueteId = crypto.randomUUID();
       await conn.query(
-        `INSERT INTO enquetes (id, titulo, descricao, nominal, mostrar_resultado_sempre, data_limite, criado_por)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO enquetes (id, loja_id, titulo, descricao, nominal, mostrar_resultado_sempre, data_limite, criado_por)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           enqueteId,
+          lojaId,
           data.titulo,
           data.descricao || null,
           data.nominal,
@@ -100,8 +105,8 @@ export const criarEnquete = createServerFn({ method: "POST" })
       );
       for (const [indice, texto] of data.opcoes.entries()) {
         await conn.query(
-          "INSERT INTO enquete_opcoes (id, enquete_id, texto, ordem) VALUES (?, ?, ?, ?)",
-          [crypto.randomUUID(), enqueteId, texto, indice],
+          "INSERT INTO enquete_opcoes (id, loja_id, enquete_id, texto, ordem) VALUES (?, ?, ?, ?, ?)",
+          [crypto.randomUUID(), lojaId, enqueteId, texto, indice],
         );
       }
       await registrarAuditoria(conn, usuarioId, "criar", "enquete", enqueteId, null, data);
@@ -113,7 +118,11 @@ export const encerrarEnquete = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId) => {
-      await conn.query("UPDATE enquetes SET encerrada = TRUE WHERE id = ?", [data.id]);
+      const [r] = await conn.query<ResultSetHeader>(
+        "UPDATE enquetes SET encerrada = TRUE WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
+      if (r.affectedRows === 0) throw new Error("Enquete não encontrada nesta Loja.");
       await registrarAuditoria(conn, usuarioId, "encerrar", "enquete", data.id);
     });
   });
@@ -123,19 +132,22 @@ export const excluirEnquete = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, usuarioId) => {
       const [[enquete]] = await conn.query<RowDataPacket[]>(
-        "SELECT titulo, descricao, nominal, encerrada, criado_por FROM enquetes WHERE id = ?",
+        "SELECT titulo, descricao, nominal, encerrada, criado_por FROM enquetes WHERE id = ? AND loja_id = @current_loja_id",
         [data.id],
       );
       const [resumoVotos] = await conn.query<RowDataPacket[]>(
         `SELECT eo.texto, COUNT(ev.id) AS votos
          FROM enquete_opcoes eo
-         LEFT JOIN enquete_votos ev ON ev.opcao_id = eo.id
-         WHERE eo.enquete_id = ?
+         LEFT JOIN enquete_votos ev ON ev.opcao_id = eo.id AND ev.loja_id = @current_loja_id
+         WHERE eo.enquete_id = ? AND eo.loja_id = @current_loja_id
          GROUP BY eo.id, eo.texto
          ORDER BY eo.ordem`,
         [data.id],
       );
-      await conn.query("DELETE FROM enquetes WHERE id = ?", [data.id]);
+      if (!enquete) throw new Error("Enquete não encontrada nesta Loja.");
+      await conn.query("DELETE FROM enquetes WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
       await registrarAuditoria(conn, usuarioId, "excluir", "enquete", data.id, {
         ...enquete,
         resumo_votos: resumoVotos,
@@ -148,9 +160,9 @@ const votarSchema = z.object({ enqueteId: z.string().uuid(), opcaoId: z.string()
 export const votar = createServerFn({ method: "POST" })
   .validator((d: unknown) => votarSchema.parse(d))
   .handler(async ({ data }) => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn, usuarioId, lojaId) => {
       const [[meuIrmao]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM irmaos WHERE usuario_id = ?",
+        "SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       if (!meuIrmao) {
@@ -158,7 +170,7 @@ export const votar = createServerFn({ method: "POST" })
       }
 
       const [[enquete]] = await conn.query<RowDataPacket[]>(
-        "SELECT encerrada, data_limite FROM enquetes WHERE id = ?",
+        "SELECT encerrada, data_limite FROM enquetes WHERE id = ? AND loja_id = @current_loja_id",
         [data.enqueteId],
       );
       if (!enquete) throw new Error("Enquete não encontrada.");
@@ -167,16 +179,19 @@ export const votar = createServerFn({ method: "POST" })
       }
 
       const [[opcao]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM enquete_opcoes WHERE id = ? AND enquete_id = ?",
+        "SELECT id FROM enquete_opcoes WHERE id = ? AND enquete_id = ? AND loja_id = @current_loja_id",
         [data.opcaoId, data.enqueteId],
       );
       if (!opcao) throw new Error("Opção inválida.");
 
+      // O UNIQUE de enquete_votos é (enquete_id, irmao_id) e não conhece
+      // loja: sem escopar a enquete, a opção E o irmão acima, um voto poderia
+      // ligar irmão de uma Loja a enquete de outra e ainda assim passar.
       await conn.query(
-        `INSERT INTO enquete_votos (id, enquete_id, opcao_id, irmao_id)
-         VALUES (?, ?, ?, ?)
+        `INSERT INTO enquete_votos (id, loja_id, enquete_id, opcao_id, irmao_id)
+         VALUES (?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE opcao_id = VALUES(opcao_id)`,
-        [crypto.randomUUID(), data.enqueteId, data.opcaoId, meuIrmao.id],
+        [crypto.randomUUID(), lojaId, data.enqueteId, data.opcaoId, meuIrmao.id],
       );
     });
   });
@@ -193,7 +208,7 @@ export const listarResultadoEnquete = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ResultadoOpcao[]> => {
     return comSessao(async (conn, usuarioId) => {
       const [[enquete]] = await conn.query<RowDataPacket[]>(
-        "SELECT nominal, mostrar_resultado_sempre, encerrada, data_limite, criado_por FROM enquetes WHERE id = ?",
+        "SELECT nominal, mostrar_resultado_sempre, encerrada, data_limite, criado_por FROM enquetes WHERE id = ? AND loja_id = @current_loja_id",
         [data.enqueteId],
       );
       if (!enquete) throw new Error("Enquete não encontrada.");
@@ -215,14 +230,14 @@ export const listarResultadoEnquete = createServerFn({ method: "GET" })
       }
 
       const [opcoes] = await conn.query<RowDataPacket[]>(
-        "SELECT id, texto FROM enquete_opcoes WHERE enquete_id = ? ORDER BY ordem",
+        "SELECT id, texto FROM enquete_opcoes WHERE enquete_id = ? AND loja_id = @current_loja_id ORDER BY ordem",
         [data.enqueteId],
       );
       const [votos] = await conn.query<RowDataPacket[]>(
         `SELECT ev.opcao_id, i.nome_civil FROM enquete_votos ev
-         JOIN irmaos i ON i.id = ev.irmao_id
-         JOIN enquete_opcoes eo ON eo.id = ev.opcao_id
-         WHERE eo.enquete_id = ?`,
+         JOIN irmaos i ON i.id = ev.irmao_id AND i.loja_id = @current_loja_id
+         JOIN enquete_opcoes eo ON eo.id = ev.opcao_id AND eo.loja_id = @current_loja_id
+         WHERE eo.enquete_id = ? AND ev.loja_id = @current_loja_id`,
         [data.enqueteId],
       );
       const votosPorOpcao = new Map<string, string[]>();

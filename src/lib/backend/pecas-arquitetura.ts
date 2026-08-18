@@ -22,8 +22,8 @@ async function podeEditarPeca(
   const [[row]] = await conn.query<RowDataPacket[]>(
     `SELECT (${condicoes} OR EXISTS(
        SELECT 1 FROM pecas_arquitetura pa
-       JOIN irmaos i ON i.id = pa.autor_id
-       WHERE pa.id = ? AND i.usuario_id = ?
+       JOIN irmaos i ON i.id = pa.autor_id AND i.loja_id = @current_loja_id
+       WHERE pa.id = ? AND i.usuario_id = ? AND pa.loja_id = @current_loja_id
      )) AS ok`,
     [...PAPEIS_PRIVILEGIADOS, pecaId, usuarioId],
   );
@@ -56,9 +56,9 @@ const PECA_SELECT = `
          pa.titulo, pa.tema, pa.resumo, pa.grau, pa.situacao, ap.nome_civil AS aprovado_por_nome,
          pa.aprovado_em, pa.arquivo_url, pa.arquivo_nome_original, pa.arquivo_mime, pa.criado_em
   FROM pecas_arquitetura pa
-  JOIN irmaos i ON i.id = pa.autor_id
-  LEFT JOIN sessoes s ON s.id = pa.sessao_id
-  LEFT JOIN irmaos ap ON ap.id = pa.aprovado_por
+  JOIN irmaos i ON i.id = pa.autor_id AND i.loja_id = @current_loja_id
+  LEFT JOIN sessoes s ON s.id = pa.sessao_id AND s.loja_id = @current_loja_id
+  LEFT JOIN irmaos ap ON ap.id = pa.aprovado_por AND ap.loja_id = @current_loja_id
 `;
 
 // Acesso por grau (#222) e situação (#224): admin/secretário veem tudo
@@ -81,8 +81,10 @@ const PODE_VER_CONDICAO = `(
   OR (
     pa.situacao = 'aprovado'
     AND pa.grau <= COALESCE(
-          (SELECT MAX(io.grau_atual) FROM irmaos me JOIN irmao_orgs io ON io.irmao_id = me.id
-           WHERE me.usuario_id = @current_usuario_id COLLATE utf8mb4_unicode_ci),
+          (SELECT MAX(io.grau_atual) FROM irmaos me
+             JOIN irmao_orgs io ON io.irmao_id = me.id AND io.loja_id = @current_loja_id
+           WHERE me.usuario_id = @current_usuario_id COLLATE utf8mb4_unicode_ci
+             AND me.loja_id = @current_loja_id),
           0
         )
   )
@@ -92,7 +94,9 @@ export const listarPecasArquitetura = createServerFn({ method: "GET" }).handler(
   async (): Promise<PecaArquitetura[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `${PECA_SELECT} WHERE ${PODE_VER_CONDICAO} ORDER BY pa.criado_em DESC LIMIT 5000`,
+        // O escopo de loja SOMA com a regra de grau/situação — não substitui.
+        `${PECA_SELECT} WHERE pa.loja_id = @current_loja_id AND ${PODE_VER_CONDICAO}
+         ORDER BY pa.criado_em DESC LIMIT 5000`,
       );
       return rows as PecaArquitetura[];
     });
@@ -126,7 +130,7 @@ const criarPecaSchema = z.object({
 export const criarPecaArquitetura = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarPecaSchema.parse(d))
   .handler(async ({ data }) => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn, usuarioId, lojaId) => {
       // Autor só pode ser o próprio (via cadastro vinculado) a menos que
       // seja admin/secretário escolhendo outra pessoa — mesma regra de
       // podeEditarPeca, aplicada aqui na criação.
@@ -134,16 +138,19 @@ export const criarPecaArquitetura = createServerFn({ method: "POST" })
         " OR ",
       );
       const [[row]] = await conn.query<RowDataPacket[]>(
-        `SELECT (${condicoes} OR EXISTS(SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ?)) AS ok`,
+        `SELECT (${condicoes} OR EXISTS(
+           SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ? AND loja_id = @current_loja_id
+         )) AS ok`,
         [...PAPEIS_PRIVILEGIADOS, data.autorId, usuarioId],
       );
       if (!row.ok) throw new SemPermissaoError("Você só pode cadastrar peças em seu próprio nome.");
 
       await conn.query(
         `INSERT INTO pecas_arquitetura
-           (autor_id, sessao_id, titulo, tema, resumo, grau, arquivo_url, arquivo_nome_original, arquivo_mime)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (loja_id, autor_id, sessao_id, titulo, tema, resumo, grau, arquivo_url, arquivo_nome_original, arquivo_mime)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          lojaId,
           data.autorId,
           data.sessaoId || null,
           data.titulo,
@@ -173,7 +180,9 @@ export const atualizarPecaArquitetura = createServerFn({ method: "POST" })
         () => "has_role(@current_usuario_id, ?)",
       ).join(" OR ");
       const [[linhaAutor]] = await conn.query<RowDataPacket[]>(
-        `SELECT (${condicoesAutor} OR EXISTS(SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ?)) AS ok`,
+        `SELECT (${condicoesAutor} OR EXISTS(
+           SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ? AND loja_id = @current_loja_id
+         )) AS ok`,
         [...PAPEIS_PRIVILEGIADOS, data.autorId, usuarioId],
       );
       if (!linhaAutor.ok) {
@@ -194,7 +203,7 @@ export const atualizarPecaArquitetura = createServerFn({ method: "POST" })
              aprovado_por = IF(situacao = 'aprovado', NULL, aprovado_por),
              aprovado_em = IF(situacao = 'aprovado', NULL, aprovado_em),
              situacao = IF(situacao = 'aprovado', 'em_analise', situacao)
-         WHERE id=?`,
+         WHERE id=? AND loja_id = @current_loja_id`,
         [
           data.autorId,
           data.sessaoId || null,
@@ -216,7 +225,9 @@ export const excluirPecaArquitetura = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeEditarPeca(conn, usuarioId, data.id))) throw new SemPermissaoError();
-      await conn.query("DELETE FROM pecas_arquitetura WHERE id=?", [data.id]);
+      await conn.query("DELETE FROM pecas_arquitetura WHERE id=? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
     });
   });
 
@@ -231,12 +242,12 @@ export const aprovarPecaArquitetura = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_PRIVILEGIADOS, async (conn, usuarioId) => {
       const [[aprovador]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM irmaos WHERE usuario_id = ?",
+        "SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       await conn.query(
         `UPDATE pecas_arquitetura SET situacao = 'aprovado', aprovado_por = ?, aprovado_em = NOW()
-         WHERE id = ?`,
+         WHERE id = ? AND loja_id = @current_loja_id`,
         [aprovador?.id ?? null, data.id],
       );
       await registrarAuditoria(
@@ -254,12 +265,12 @@ export const rejeitarPecaArquitetura = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_PRIVILEGIADOS, async (conn, usuarioId) => {
       const [[aprovador]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM irmaos WHERE usuario_id = ?",
+        "SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       await conn.query(
         `UPDATE pecas_arquitetura SET situacao = 'rejeitado', aprovado_por = ?, aprovado_em = NOW()
-         WHERE id = ?`,
+         WHERE id = ? AND loja_id = @current_loja_id`,
         [aprovador?.id ?? null, data.id],
       );
       await registrarAuditoria(

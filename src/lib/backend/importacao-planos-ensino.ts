@@ -68,16 +68,16 @@ export const previewImportacaoPlanosEnsino = createServerFn({ method: "POST" })
       let grauMax = 99;
       if (data.orgId) {
         const [[org]] = await conn.query<RowDataPacket[]>(
-          "SELECT grau_min, grau_max FROM orgs WHERE id = ?",
+          "SELECT grau_min, grau_max FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
           [data.orgId],
         );
-        if (!org) throw new Error("Corpo maçônico não encontrado.");
+        if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
         grauMin = org.grau_min;
         grauMax = org.grau_max;
       }
 
       const [existentesRows] = await conn.query<RowDataPacket[]>(
-        "SELECT grau, titulo FROM planos_ensino WHERE org_id <=> ?",
+        "SELECT grau, titulo FROM planos_ensino WHERE org_id <=> ? AND loja_id = @current_loja_id",
         [data.orgId],
       );
       const existentes = new Set(
@@ -108,21 +108,21 @@ export type ResumoImportacaoPlanos = { criados: number; ignorados: number };
 export const confirmarImportacaoPlanosEnsino = createServerFn({ method: "POST" })
   .validator((d: unknown) => confirmarSchema.parse(d))
   .handler(async ({ data }): Promise<ResumoImportacaoPlanos> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual, lojaId) => {
       let grauMin = 1;
       let grauMax = 99;
       if (data.orgId) {
         const [[org]] = await conn.query<RowDataPacket[]>(
-          "SELECT grau_min, grau_max FROM orgs WHERE id = ?",
+          "SELECT grau_min, grau_max FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
           [data.orgId],
         );
-        if (!org) throw new Error("Corpo maçônico não encontrado.");
+        if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
         grauMin = org.grau_min;
         grauMax = org.grau_max;
       }
 
       const [existentesRows] = await conn.query<RowDataPacket[]>(
-        "SELECT grau, LOWER(titulo) AS titulo_lower, ordem FROM planos_ensino WHERE org_id <=> ?",
+        "SELECT grau, LOWER(titulo) AS titulo_lower, ordem FROM planos_ensino WHERE org_id <=> ? AND loja_id = @current_loja_id",
         [data.orgId],
       );
       const existentesPorGrauTitulo = new Set(
@@ -148,8 +148,8 @@ export const confirmarImportacaoPlanosEnsino = createServerFn({ method: "POST" }
         }
         const ordem = (maxOrdemPorGrau.get(item.grau) ?? 0) + 1;
         await conn.query(
-          "INSERT INTO planos_ensino (grau, org_id, ordem, titulo, conteudo) VALUES (?, ?, ?, ?, NULL)",
-          [item.grau, data.orgId, ordem, item.titulo],
+          "INSERT INTO planos_ensino (loja_id, grau, org_id, ordem, titulo, conteudo) VALUES (?, ?, ?, ?, ?, NULL)",
+          [lojaId, item.grau, data.orgId, ordem, item.titulo],
         );
         existentesPorGrauTitulo.add(chave);
         maxOrdemPorGrau.set(item.grau, ordem);

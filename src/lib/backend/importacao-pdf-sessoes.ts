@@ -342,24 +342,29 @@ async function classificarItensPdf(
   orgId: string,
   itens: ItemPdf[],
 ): Promise<ItemPreviewPdf[]> {
+  // O corpo é o que prende a importação a uma Loja: se não for desta Loja,
+  // nada é lido nem gravado. O loja_id gravado sai da sessão (comPapel), nunca
+  // de algo vindo do PDF.
   const [[org]] = await conn.query<RowDataPacket[]>(
-    "SELECT grau_min, grau_max FROM orgs WHERE id = ?",
+    "SELECT grau_min, grau_max FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
     [orgId],
   );
-  if (!org) throw new Error("Corpo maçônico não encontrado.");
+  if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
 
+  // Sem o escopo aqui, o casamento de nomes do PDF acharia irmãos de outra
+  // Loja e gravaria sessao_responsaveis.irmao_id apontando pra fora.
   const [irmaosRows] = await conn.query<RowDataPacket[]>(
-    "SELECT id, nome_civil, nome_simbolico FROM irmaos",
+    "SELECT id, nome_civil, nome_simbolico FROM irmaos WHERE loja_id = @current_loja_id",
   );
   const irmaos = irmaosRows as { id: string; nome_civil: string; nome_simbolico: string | null }[];
 
   const [sessoesRows] = await conn.query<RowDataPacket[]>(
-    "SELECT data FROM sessoes WHERE org_id = ?",
+    "SELECT data FROM sessoes WHERE org_id = ? AND loja_id = @current_loja_id",
     [orgId],
   );
   const datasSessoesExistentes = new Set(sessoesRows.map((r) => String(r.data)));
   const [eventosRows] = await conn.query<RowDataPacket[]>(
-    "SELECT data, titulo FROM eventos WHERE org_id = ?",
+    "SELECT data, titulo FROM eventos WHERE org_id = ? AND loja_id = @current_loja_id",
     [orgId],
   );
   const eventosExistentes = new Set(eventosRows.map((r) => `${r.data}|${r.titulo}`));
@@ -473,14 +478,42 @@ export type ResumoImportacaoPdf = { sessoesCriadas: number; eventosCriados: numb
 export const confirmarImportacaoPdfSessoes = createServerFn({ method: "POST" })
   .validator((d: unknown) => confirmarSchema.parse(d))
   .handler(async ({ data }): Promise<ResumoImportacaoPdf> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual, lojaId) => {
+      const [[org]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
+        [data.orgId],
+      );
+      if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
+
+      // Os irmãos vinculados aos responsáveis vêm do request (a tela devolve o
+      // que o preview casou, mas nada obriga o cliente a devolver isso). Sem
+      // esta conferência, um request forjado gravaria sessao_responsaveis
+      // apontando para irmão de outra Loja — e o banco aceitaria, porque a FK
+      // olha só a existência do id, não a loja.
+      const idsResponsaveis = [
+        ...new Set(
+          data.itens.flatMap((i) =>
+            i.responsaveis.map((r) => r.irmaoId).filter((id): id is string => !!id),
+          ),
+        ),
+      ];
+      if (idsResponsaveis.length > 0) {
+        const [validos] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM irmaos WHERE loja_id = @current_loja_id AND id IN (?)",
+          [idsResponsaveis],
+        );
+        if (validos.length !== idsResponsaveis.length) {
+          throw new Error("Um dos irmãos vinculados não pertence a esta Loja.");
+        }
+      }
+
       const [sessoesRows] = await conn.query<RowDataPacket[]>(
-        "SELECT data FROM sessoes WHERE org_id = ?",
+        "SELECT data FROM sessoes WHERE org_id = ? AND loja_id = @current_loja_id",
         [data.orgId],
       );
       const datasSessoesExistentes = new Set(sessoesRows.map((r) => String(r.data)));
       const [eventosRows] = await conn.query<RowDataPacket[]>(
-        "SELECT data, titulo FROM eventos WHERE org_id = ?",
+        "SELECT data, titulo FROM eventos WHERE org_id = ? AND loja_id = @current_loja_id",
         [data.orgId],
       );
       const eventosExistentes = new Set(eventosRows.map((r) => `${r.data}|${r.titulo}`));
@@ -492,8 +525,8 @@ export const confirmarImportacaoPdfSessoes = createServerFn({ method: "POST" })
           const chave = `${item.data}|${item.titulo}`;
           if (eventosExistentes.has(chave)) continue;
           await conn.query(
-            "INSERT INTO eventos (titulo, data, descricao, publico, org_id) VALUES (?, ?, ?, 'org', ?)",
-            [item.titulo, item.data, item.textoCompleto, data.orgId],
+            "INSERT INTO eventos (loja_id, titulo, data, descricao, publico, org_id) VALUES (?, ?, ?, ?, 'org', ?)",
+            [lojaId, item.titulo, item.data, item.textoCompleto, data.orgId],
           );
           eventosExistentes.add(chave);
           eventosCriados++;
@@ -506,13 +539,13 @@ export const confirmarImportacaoPdfSessoes = createServerFn({ method: "POST" })
 
         const sessaoId = crypto.randomUUID();
         await conn.query(
-          "INSERT INTO sessoes (id, data, tipo, org_id, grau, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
-          [sessaoId, item.data, item.tipo, data.orgId, item.grau, item.textoCompleto],
+          "INSERT INTO sessoes (id, loja_id, data, tipo, org_id, grau, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [sessaoId, lojaId, item.data, item.tipo, data.orgId, item.grau, item.textoCompleto],
         );
         for (const r of item.responsaveis) {
           await conn.query(
-            "INSERT INTO sessao_responsaveis (sessao_id, irmao_id, nome_extraido, apelido_extraido, atividade) VALUES (?, ?, ?, ?, ?)",
-            [sessaoId, r.irmaoId, r.nomeExtraido, r.apelidoExtraido, r.atividade],
+            "INSERT INTO sessao_responsaveis (loja_id, sessao_id, irmao_id, nome_extraido, apelido_extraido, atividade) VALUES (?, ?, ?, ?, ?, ?)",
+            [lojaId, sessaoId, r.irmaoId, r.nomeExtraido, r.apelidoExtraido, r.atividade],
           );
         }
         sessoesCriadas++;
