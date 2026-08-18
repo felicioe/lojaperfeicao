@@ -2,11 +2,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
+import { exigirLojaUnica } from "./trava-multi-loja";
 
 // RLS original: SELECT admin/tesoureiro. Sem escrita direta — só as
 // procedures fechar_exercicio/reabrir_exercicio (ambas admin-only, checado
 // de novo dentro da procedure).
 const PAPEIS = ["admin", "tesoureiro"];
+
+// `fechar_exercicio` e `reabrir_exercicio` (procedures da 0003) agregam
+// plano_contas + lancamentos_contabeis SEM filtro de loja, e procuram a conta
+// "3.1.01" com `WHERE codigo = '3.1.01'` — que, com duas Lojas, casa a conta de
+// qualquer uma. Fechar o exercício de uma Loja consumiria o movimento contábil
+// das outras e lançaria o resultado apurado na conta errada: escrita
+// destrutiva, não relatório torto. Ver trava-multi-loja.ts.
+const MOTIVO_TRAVA = "a rotina do banco ainda soma o movimento contábil de todas elas";
 
 export type FechamentoExercicio = {
   id: string;
@@ -26,7 +35,9 @@ export const listarFechamentos = createServerFn({ method: "GET" }).handler(
   async (): Promise<FechamentoExercicio[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM fechamentos_exercicio ORDER BY exercicio DESC",
+        `SELECT * FROM fechamentos_exercicio
+          WHERE loja_id = @current_loja_id
+          ORDER BY exercicio DESC`,
       );
       return rows as FechamentoExercicio[];
     });
@@ -46,7 +57,9 @@ export const listarEventosFechamento = createServerFn({ method: "GET" }).handler
   async (): Promise<EventoFechamento[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM fechamentos_exercicio_eventos ORDER BY realizado_em DESC",
+        `SELECT * FROM fechamentos_exercicio_eventos
+          WHERE loja_id = @current_loja_id
+          ORDER BY realizado_em DESC`,
       );
       return rows as EventoFechamento[];
     });
@@ -66,9 +79,10 @@ export const previewResultadoFechamento = createServerFn({ method: "GET" })
                 COALESCE(SUM(CASE WHEN i.tipo = 'debito' THEN i.valor ELSE 0 END), 0) AS debito,
                 COALESCE(SUM(CASE WHEN i.tipo = 'credito' THEN i.valor ELSE 0 END), 0) AS credito
          FROM plano_contas pc
-         JOIN lancamentos_contabeis_itens i ON i.conta_id = pc.id
-         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id
-         WHERE pc.tipo IN ('receita', 'despesa') AND pc.analitica = TRUE AND lc.data <= ?
+         JOIN lancamentos_contabeis_itens i ON i.conta_id = pc.id AND i.loja_id = pc.loja_id
+         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
+         WHERE pc.loja_id = @current_loja_id
+           AND pc.tipo IN ('receita', 'despesa') AND pc.analitica = TRUE AND lc.data <= ?
          GROUP BY pc.tipo`,
         [data.dataCorte],
       );
@@ -98,6 +112,7 @@ export const fecharExercicio = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn) => {
+      await exigirLojaUnica(conn, "Fechar exercício", MOTIVO_TRAVA);
       await conn.query("CALL fechar_exercicio(?, ?, ?, @fechamento_id)", [
         data.exercicio,
         data.dataCorte,
@@ -116,6 +131,7 @@ export const reabrirExercicio = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
+      await exigirLojaUnica(conn, "Reabrir exercício", MOTIVO_TRAVA);
       await conn.query("CALL reabrir_exercicio(?, ?)", [data.exercicio, data.motivo]);
     });
   });
@@ -124,7 +140,9 @@ export const reabrirExercicio = createServerFn({ method: "POST" })
 export const listarNomesUsuarios = createServerFn({ method: "GET" }).handler(
   async (): Promise<{ id: string; nome_completo: string | null }[]> => {
     return comPapel(PAPEIS, async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT id, nome_completo FROM usuarios");
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT id, nome_completo FROM usuarios WHERE loja_id = @current_loja_id",
+      );
       return rows as { id: string; nome_completo: string | null }[];
     });
   },

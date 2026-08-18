@@ -14,7 +14,9 @@ export const listarContasAnaliticas = createServerFn({ method: "GET" }).handler(
   async (): Promise<ContaAnalitica[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, codigo, nome FROM plano_contas WHERE analitica = TRUE ORDER BY codigo",
+        `SELECT id, codigo, nome FROM plano_contas
+          WHERE loja_id = @current_loja_id AND analitica = TRUE
+          ORDER BY codigo`,
       );
       return rows as ContaAnalitica[];
     });
@@ -28,8 +30,8 @@ export const obterSaldoAnteriorConta = createServerFn({ method: "GET" })
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT i.tipo, i.valor FROM lancamentos_contabeis_itens i
-         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id
-         WHERE i.conta_id = ? AND lc.data < ?`,
+         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
+         WHERE i.loja_id = @current_loja_id AND i.conta_id = ? AND lc.data < ?`,
         [data.contaId, data.antesDe],
       );
       return rows.reduce(
@@ -65,16 +67,17 @@ export const listarItensRazao = createServerFn({ method: "GET" })
                   ELSE NULL
                 END AS contraparte_tipo
          FROM lancamentos_contabeis_itens i
-         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id
-         LEFT JOIN lancamentos l ON l.id = lc.origem_id
+         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
+         LEFT JOIN lancamentos l ON l.id = lc.origem_id AND l.loja_id = lc.loja_id
          LEFT JOIN recibos r
-           ON r.id = lc.origem_id
+           ON r.id = lc.origem_id AND r.loja_id = lc.loja_id
           AND lc.origem_tipo IN ('recibo_baixa', 'recibo_baixa_parcial')
          LEFT JOIN parcelamentos p
-           ON p.id = lc.origem_id AND lc.origem_tipo = 'parcelamento'
+           ON p.id = lc.origem_id AND p.loja_id = lc.loja_id AND lc.origem_tipo = 'parcelamento'
          LEFT JOIN irmaos irm ON irm.id = COALESCE(r.irmao_id, p.irmao_id, l.irmao_id)
-         LEFT JOIN terceiros terc ON terc.id = l.terceiro_id
-         WHERE i.conta_id = ? AND lc.data >= ? AND lc.data <= ?
+                             AND irm.loja_id = lc.loja_id
+         LEFT JOIN terceiros terc ON terc.id = l.terceiro_id AND terc.loja_id = lc.loja_id
+         WHERE i.loja_id = @current_loja_id AND i.conta_id = ? AND lc.data >= ? AND lc.data <= ?
          ORDER BY lc.data, lc.criado_em`,
         [data.contaId, data.de, data.ate],
       );
@@ -114,7 +117,9 @@ export const listarLancamentosDiario = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<LancamentoDiario[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [lancamentos] = await conn.query<RowDataPacket[]>(
-        "SELECT id, data, descricao, origem_tipo FROM lancamentos_contabeis WHERE data >= ? AND data <= ? ORDER BY data, criado_em",
+        `SELECT id, data, descricao, origem_tipo FROM lancamentos_contabeis
+          WHERE loja_id = @current_loja_id AND data >= ? AND data <= ?
+          ORDER BY data, criado_em`,
         [data.de, data.ate],
       );
       if (lancamentos.length === 0) return [];
@@ -123,8 +128,8 @@ export const listarLancamentosDiario = createServerFn({ method: "GET" })
       const [itens] = await conn.query<RowDataPacket[]>(
         `SELECT i.id, i.lancamento_id, i.tipo, i.valor, i.descricao, pc.codigo, pc.nome
          FROM lancamentos_contabeis_itens i
-         LEFT JOIN plano_contas pc ON pc.id = i.conta_id
-         WHERE i.lancamento_id IN (?)`,
+         LEFT JOIN plano_contas pc ON pc.id = i.conta_id AND pc.loja_id = i.loja_id
+         WHERE i.loja_id = @current_loja_id AND i.lancamento_id IN (?)`,
         [ids],
       );
       const itensPorLancamento = new Map<string, LancamentoDiario["lancamentos_contabeis_itens"]>();
@@ -172,9 +177,9 @@ export const listarItensContabeisPeriodo = createServerFn({ method: "GET" })
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT i.tipo, i.valor, pc.id AS conta_id, pc.codigo, pc.nome, pc.tipo AS conta_tipo
          FROM lancamentos_contabeis_itens i
-         JOIN plano_contas pc ON pc.id = i.conta_id
-         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id
-         WHERE ${condicoes.join(" AND ")}`,
+         JOIN plano_contas pc ON pc.id = i.conta_id AND pc.loja_id = i.loja_id
+         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
+         WHERE i.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}`,
         valores,
       );
       return rows as ItemContabilBruto[];
@@ -192,11 +197,26 @@ export type SaldoPlanoContas = {
   saldo_devedor: number;
 };
 
+// A consulta abaixo era `SELECT * FROM v_saldo_plano_contas`. A view soma
+// TODAS as Lojas e não expõe loja_id, então não dá pra filtrar de fora dela:
+// o saldo de cada conta vinha com o movimento das outras Lojas somado — um
+// número errado e plausível, que é o pior tipo. Reescrita inline com o mesmo
+// cálculo, agora escopada. A view em si continua existindo pra ser corrigida
+// (ou removida) na #349; o sistema simplesmente não depende mais dela.
 export const listarSaldoPlanoContas = createServerFn({ method: "GET" }).handler(
   async (): Promise<SaldoPlanoContas[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM v_saldo_plano_contas ORDER BY codigo",
+        `SELECT c.id, c.codigo, c.nome, c.tipo,
+                COALESCE(SUM(CASE WHEN i.tipo = 'debito' THEN i.valor ELSE 0 END), 0) AS total_debito,
+                COALESCE(SUM(CASE WHEN i.tipo = 'credito' THEN i.valor ELSE 0 END), 0) AS total_credito,
+                COALESCE(SUM(CASE WHEN i.tipo = 'debito' THEN i.valor ELSE 0 END), 0)
+                  - COALESCE(SUM(CASE WHEN i.tipo = 'credito' THEN i.valor ELSE 0 END), 0) AS saldo_devedor
+           FROM plano_contas c
+           LEFT JOIN lancamentos_contabeis_itens i ON i.conta_id = c.id AND i.loja_id = c.loja_id
+          WHERE c.loja_id = @current_loja_id AND c.analitica = TRUE
+          GROUP BY c.id, c.codigo, c.nome, c.tipo
+          ORDER BY c.codigo`,
       );
       return rows as SaldoPlanoContas[];
     });
@@ -217,8 +237,21 @@ export type AuditoriaDesbalanceado = {
 export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" }).handler(
   async (): Promise<AuditoriaDesbalanceado[]> => {
     return comPapel(PAPEIS, async (conn) => {
+      // Mesmo caso da v_saldo_plano_contas acima: a view não expõe loja_id e
+      // varre todas as Lojas, então a tela de auditoria contábil de uma Loja
+      // apontaria lançamento desbalanceado de outra — sem nem existir tela
+      // onde investigar. Reescrita inline com o mesmo cálculo, escopada.
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM v_auditoria_contabil_desbalanceados",
+        `SELECT l.id AS lancamento_id, l.data, l.descricao, l.origem_tipo, l.origem_id,
+                COALESCE(SUM(CASE WHEN i.tipo = 'debito' THEN i.valor ELSE 0 END), 0) AS total_debito,
+                COALESCE(SUM(CASE WHEN i.tipo = 'credito' THEN i.valor ELSE 0 END), 0) AS total_credito,
+                COALESCE(SUM(CASE WHEN i.tipo = 'debito' THEN i.valor ELSE 0 END), 0)
+                  - COALESCE(SUM(CASE WHEN i.tipo = 'credito' THEN i.valor ELSE 0 END), 0) AS diferenca
+           FROM lancamentos_contabeis l
+           JOIN lancamentos_contabeis_itens i ON i.lancamento_id = l.id AND i.loja_id = l.loja_id
+          WHERE l.loja_id = @current_loja_id
+          GROUP BY l.id, l.data, l.descricao, l.origem_tipo, l.origem_id
+         HAVING total_debito <> total_credito`,
       );
       return rows as AuditoriaDesbalanceado[];
     });
