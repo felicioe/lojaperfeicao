@@ -49,8 +49,11 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
     // encontrava telas vazias, sem explicação nenhuma.
     if (!usuario.loja_ativa) return null;
 
+    // Os papéis são lidos com a loja do próprio usuário: `usuarios_papeis`
+    // ganhou loja_id na 0092, e uma linha de outra Loja aqui viraria papel
+    // concedido onde não deveria.
     const [papeis] = await conn.query<RowDataPacket[]>(
-      "SELECT papel FROM usuarios_papeis WHERE usuario_id = ?",
+      "SELECT papel FROM usuarios_papeis WHERE usuario_id = ? AND loja_id = @current_loja_id",
       [usuarioId],
     );
 

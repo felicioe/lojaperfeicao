@@ -34,8 +34,12 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
   const itens: NotificacaoItem[] = [];
 
   const [aniversariantes] = await conn.query<RowDataPacket[]>(
+    // gerarNotificacoes roda com a conexão de quem pediu (tela) ou com a de
+    // uma loja explícita (cron, via withLojaConnection) — nos dois casos
+    // @current_loja_id está setado, então o escopo vale para os dois.
     `SELECT id, nome_civil FROM irmaos
-     WHERE data_nascimento IS NOT NULL
+     WHERE loja_id = @current_loja_id
+       AND data_nascimento IS NOT NULL
        AND MONTH(data_nascimento) = MONTH(CURRENT_DATE)
        AND DAY(data_nascimento) = DAY(CURRENT_DATE)`,
   );
@@ -50,8 +54,9 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
 
   const [faturasVencidas] = await conn.query<RowDataPacket[]>(
     `SELECT l.id, l.valor, l.data_vencimento, i.nome_civil
-     FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id
-     WHERE l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE
+     FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = @current_loja_id
+     WHERE l.loja_id = @current_loja_id
+       AND l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE
        AND l.data_vencimento < CURRENT_DATE`,
   );
   for (const fatura of faturasVencidas) {
@@ -66,13 +71,15 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
   const [recorrentesPendentes] = await conn.query<RowDataPacket[]>(
     `SELECT dr.id, dr.descricao
      FROM despesas_recorrentes dr
-     WHERE dr.ativo = TRUE
+     WHERE dr.loja_id = @current_loja_id
+       AND dr.ativo = TRUE
        AND dr.data_inicio <= CURRENT_DATE
        AND (dr.data_fim IS NULL OR dr.data_fim >= CURRENT_DATE)
        AND DAYOFMONTH(CURRENT_DATE) >= LEAST(dr.dia_vencimento, DAY(LAST_DAY(CURRENT_DATE)))
        AND NOT EXISTS (
          SELECT 1 FROM lancamentos l
          WHERE l.recorrente_id = dr.id AND l.competencia_mes = mes_competencia(CURRENT_DATE)
+           AND l.loja_id = @current_loja_id
        )`,
   );
   for (const rec of recorrentesPendentes) {
@@ -92,9 +99,12 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
     `SELECT i.id, i.nome_civil, og.nome AS nome_grau, io.grau_atual
      FROM irmaos i
      JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
+                       AND io.loja_id = @current_loja_id
      JOIN orgs_graus og ON og.org_id = io.org_id AND og.grau = io.grau_atual
+                       AND og.loja_id = @current_loja_id
      JOIN irmao_elevacoes ie ON ie.irmao_id = i.id AND ie.grau = io.grau_atual
-     WHERE i.situacao = 'ativo'
+                            AND ie.loja_id = @current_loja_id
+     WHERE i.loja_id = @current_loja_id AND i.situacao = 'ativo'
        AND og.interstico_minimo_meses IS NOT NULL
        AND ie.data IS NOT NULL
        AND DATE_ADD(ie.data, INTERVAL og.interstico_minimo_meses MONTH) = CURRENT_DATE`,
@@ -116,8 +126,9 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
   // novo — a chave da primeira submissão já tinha sido usada.
   const [pecasPendentes] = await conn.query<RowDataPacket[]>(
     `SELECT pa.id, pa.titulo, i.nome_civil AS autor_nome, pa.atualizado_em
-     FROM pecas_arquitetura pa JOIN irmaos i ON i.id = pa.autor_id
-     WHERE pa.situacao = 'em_analise'`,
+     FROM pecas_arquitetura pa
+     JOIN irmaos i ON i.id = pa.autor_id AND i.loja_id = @current_loja_id
+     WHERE pa.loja_id = @current_loja_id AND pa.situacao = 'em_analise'`,
   );
   for (const peca of pecasPendentes) {
     itens.push({
@@ -137,7 +148,7 @@ export const listarNotificacoes = createServerFn({ method: "GET" }).handler(
     return comPapel(PAPEIS_NOTIFICACOES, async (conn, usuarioIdAtual) => {
       const itens = await gerarNotificacoes(conn);
       const [papeisRows] = await conn.query<RowDataPacket[]>(
-        "SELECT papel FROM usuarios_papeis WHERE usuario_id = ?",
+        "SELECT papel FROM usuarios_papeis WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioIdAtual],
       );
       const meusPapeis = new Set(papeisRows.map((r) => r.papel as string));
@@ -163,11 +174,12 @@ const inscricaoSchema = z.object({
 export const salvarInscricaoPush = createServerFn({ method: "POST" })
   .validator((d: unknown) => inscricaoSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_NOTIFICACOES, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_NOTIFICACOES, async (conn, usuarioIdAtual, lojaId) => {
       await conn.query(
-        `INSERT INTO push_subscriptions (usuario_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE usuario_id = VALUES(usuario_id), p256dh = VALUES(p256dh), auth = VALUES(auth)`,
-        [usuarioIdAtual, data.endpoint, data.p256dh, data.auth],
+        `INSERT INTO push_subscriptions (loja_id, usuario_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE loja_id = VALUES(loja_id), usuario_id = VALUES(usuario_id),
+           p256dh = VALUES(p256dh), auth = VALUES(auth)`,
+        [lojaId, usuarioIdAtual, data.endpoint, data.p256dh, data.auth],
       );
     });
   });
@@ -180,9 +192,9 @@ export const removerInscricaoPush = createServerFn({ method: "POST" })
       // pelo endpoint, sem comparar com o usuário logado; quem
       // descobrisse/adivinhasse o endpoint de outra pessoa conseguia
       // cancelar a inscrição dela.
-      await conn.query("DELETE FROM push_subscriptions WHERE endpoint = ? AND usuario_id = ?", [
-        data.endpoint,
-        usuarioIdAtual,
-      ]);
+      await conn.query(
+        "DELETE FROM push_subscriptions WHERE endpoint = ? AND usuario_id = ? AND loja_id = @current_loja_id",
+        [data.endpoint, usuarioIdAtual],
+      );
     });
   });

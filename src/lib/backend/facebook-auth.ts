@@ -74,7 +74,7 @@ export const statusVinculacaoFacebook = createServerFn({ method: "GET" }).handle
   async (): Promise<{ vinculado: boolean }> => {
     return comSessao(async (conn, usuarioId) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
-        "SELECT (facebook_id IS NOT NULL) AS vinculado FROM usuarios WHERE id = ?",
+        "SELECT (facebook_id IS NOT NULL) AS vinculado FROM usuarios WHERE id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       return { vinculado: !!row?.vinculado };
@@ -84,7 +84,10 @@ export const statusVinculacaoFacebook = createServerFn({ method: "GET" }).handle
 
 export const desvincularFacebook = createServerFn({ method: "POST" }).handler(async () => {
   return comSessao(async (conn, usuarioId) => {
-    await conn.query("UPDATE usuarios SET facebook_id = NULL WHERE id = ?", [usuarioId]);
+    await conn.query(
+      "UPDATE usuarios SET facebook_id = NULL WHERE id = ? AND loja_id = @current_loja_id",
+      [usuarioId],
+    );
     await registrarAuditoria(conn, usuarioId, "desvincular_facebook", "usuario", usuarioId);
   });
 });

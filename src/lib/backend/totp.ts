@@ -39,15 +39,15 @@ export type MeuTotpStatus = {
 
 export const meuTotpStatus = createServerFn({ method: "GET" }).handler(
   async (): Promise<MeuTotpStatus> => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn, usuarioId, lojaId) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT ativado_em FROM usuario_totp WHERE usuario_id = ?",
+        "SELECT ativado_em FROM usuario_totp WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       const ativo = !!rows[0]?.ativado_em;
       if (!ativo) return { ativo: false, codigosBackupRestantes: 0 };
       const [[{ total }]] = await conn.query<RowDataPacket[]>(
-        "SELECT COUNT(*) AS total FROM usuario_totp_codigos_backup WHERE usuario_id = ? AND usado_em IS NULL",
+        "SELECT COUNT(*) AS total FROM usuario_totp_codigos_backup WHERE usuario_id = ? AND usado_em IS NULL AND loja_id = @current_loja_id",
         [usuarioId],
       );
       return { ativo: true, codigosBackupRestantes: Number(total) };
@@ -59,15 +59,15 @@ export const meuTotpStatus = createServerFn({ method: "GET" }).handler(
 
 export const iniciarAtivacaoTotp = createServerFn({ method: "POST" }).handler(
   async (): Promise<{ secret: string; otpauthUrl: string }> => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn, usuarioId, lojaId) => {
       const [[usuario]] = await conn.query<RowDataPacket[]>(
-        "SELECT email FROM usuarios WHERE id = ?",
+        "SELECT email FROM usuarios WHERE id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       if (!usuario) throw new Error("Usuário não encontrado.");
 
       const [[existente]] = await conn.query<RowDataPacket[]>(
-        "SELECT ativado_em FROM usuario_totp WHERE usuario_id = ?",
+        "SELECT ativado_em FROM usuario_totp WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       if (existente?.ativado_em) {
@@ -78,10 +78,10 @@ export const iniciarAtivacaoTotp = createServerFn({ method: "POST" }).handler(
       // Upsert: se já existia uma tentativa de ativação anterior não
       // confirmada, substitui pelo novo secret em vez de acumular linhas.
       await conn.query(
-        `INSERT INTO usuario_totp (usuario_id, secret, ativado_em)
-         VALUES (?, ?, NULL)
+        `INSERT INTO usuario_totp (loja_id, usuario_id, secret, ativado_em)
+         VALUES (?, ?, ?, NULL)
          ON DUPLICATE KEY UPDATE secret = VALUES(secret), ativado_em = NULL`,
-        [usuarioId, secret],
+        [lojaId, usuarioId, secret],
       );
 
       const totp = novoTotp(secret, usuario.email);
@@ -95,13 +95,13 @@ const confirmarAtivacaoSchema = z.object({ codigo: z.string().trim().min(6).max(
 export const confirmarAtivacaoTotp = createServerFn({ method: "POST" })
   .validator((d: unknown) => confirmarAtivacaoSchema.parse(d))
   .handler(async ({ data }): Promise<{ codigosBackup: string[] }> => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn, usuarioId, lojaId) => {
       const [[usuario]] = await conn.query<RowDataPacket[]>(
-        "SELECT email FROM usuarios WHERE id = ?",
+        "SELECT email FROM usuarios WHERE id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       const [[pendente]] = await conn.query<RowDataPacket[]>(
-        "SELECT secret FROM usuario_totp WHERE usuario_id = ? AND ativado_em IS NULL",
+        "SELECT secret FROM usuario_totp WHERE usuario_id = ? AND ativado_em IS NULL AND loja_id = @current_loja_id",
         [usuarioId],
       );
       if (!usuario || !pendente) {
@@ -113,16 +113,17 @@ export const confirmarAtivacaoTotp = createServerFn({ method: "POST" })
         throw new Error("Código inválido.");
       }
 
-      await conn.query("UPDATE usuario_totp SET ativado_em = NOW() WHERE usuario_id = ?", [
-        usuarioId,
-      ]);
+      await conn.query(
+        "UPDATE usuario_totp SET ativado_em = NOW() WHERE usuario_id = ? AND loja_id = @current_loja_id",
+        [usuarioId],
+      );
 
       const codigosBackup = gerarCodigosBackup();
       for (const codigo of codigosBackup) {
         const hash = await bcrypt.hash(codigo, 10);
         await conn.query(
-          "INSERT INTO usuario_totp_codigos_backup (usuario_id, codigo_hash) VALUES (?, ?)",
-          [usuarioId, hash],
+          "INSERT INTO usuario_totp_codigos_backup (loja_id, usuario_id, codigo_hash) VALUES (?, ?, ?)",
+          [lojaId, usuarioId, hash],
         );
       }
 
@@ -142,8 +143,14 @@ export const desativarMeuTotp = createServerFn({ method: "POST" })
       if (!(await validarCodigoTotpOuBackup(conn, usuarioId, data.codigo))) {
         throw new Error("Código inválido.");
       }
-      await conn.query("DELETE FROM usuario_totp WHERE usuario_id = ?", [usuarioId]);
-      await conn.query("DELETE FROM usuario_totp_codigos_backup WHERE usuario_id = ?", [usuarioId]);
+      await conn.query(
+        "DELETE FROM usuario_totp WHERE usuario_id = ? AND loja_id = @current_loja_id",
+        [usuarioId],
+      );
+      await conn.query(
+        "DELETE FROM usuario_totp_codigos_backup WHERE usuario_id = ? AND loja_id = @current_loja_id",
+        [usuarioId],
+      );
       await registrarAuditoria(conn, usuarioId, "desativar_2fa", "usuario", usuarioId);
     });
   });
@@ -155,10 +162,14 @@ export const resetarTotpUsuario = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ usuarioId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, adminId) => {
-      await conn.query("DELETE FROM usuario_totp WHERE usuario_id = ?", [data.usuarioId]);
-      await conn.query("DELETE FROM usuario_totp_codigos_backup WHERE usuario_id = ?", [
-        data.usuarioId,
-      ]);
+      await conn.query(
+        "DELETE FROM usuario_totp WHERE usuario_id = ? AND loja_id = @current_loja_id",
+        [data.usuarioId],
+      );
+      await conn.query(
+        "DELETE FROM usuario_totp_codigos_backup WHERE usuario_id = ? AND loja_id = @current_loja_id",
+        [data.usuarioId],
+      );
       await registrarAuditoria(conn, adminId, "resetar_2fa_admin", "usuario", data.usuarioId);
     });
   });
@@ -166,17 +177,20 @@ export const resetarTotpUsuario = createServerFn({ method: "POST" })
 export const regenerarCodigosBackup = createServerFn({ method: "POST" })
   .validator((d: unknown) => desativarSchema.parse(d))
   .handler(async ({ data }): Promise<{ codigosBackup: string[] }> => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn, usuarioId, lojaId) => {
       if (!(await validarCodigoTotpOuBackup(conn, usuarioId, data.codigo))) {
         throw new Error("Código inválido.");
       }
-      await conn.query("DELETE FROM usuario_totp_codigos_backup WHERE usuario_id = ?", [usuarioId]);
+      await conn.query(
+        "DELETE FROM usuario_totp_codigos_backup WHERE usuario_id = ? AND loja_id = @current_loja_id",
+        [usuarioId],
+      );
       const codigosBackup = gerarCodigosBackup();
       for (const codigo of codigosBackup) {
         const hash = await bcrypt.hash(codigo, 10);
         await conn.query(
-          "INSERT INTO usuario_totp_codigos_backup (usuario_id, codigo_hash) VALUES (?, ?)",
-          [usuarioId, hash],
+          "INSERT INTO usuario_totp_codigos_backup (loja_id, usuario_id, codigo_hash) VALUES (?, ?, ?)",
+          [lojaId, usuarioId, hash],
         );
       }
       await registrarAuditoria(
@@ -197,6 +211,10 @@ async function validarCodigoTotpOuBackup(
   usuarioId: string,
   codigo: string,
 ): Promise<boolean> {
+  // SEM escopo de loja, de propósito: este helper é compartilhado com o
+  // login, onde @current_loja_id ainda é NULL — filtrar aqui faria o segundo
+  // fator falhar sempre. O usuario_id vem do ticket de 2FA guardado no cookie
+  // assinado do servidor, não do request.
   const [[usuario]] = await conn.query<RowDataPacket[]>("SELECT email FROM usuarios WHERE id = ?", [
     usuarioId,
   ]);

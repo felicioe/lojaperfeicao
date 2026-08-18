@@ -26,7 +26,7 @@ export const listarPeriodosFechados = createServerFn({ method: "GET" }).handler(
   async (): Promise<PeriodoFechado[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM periodos_fechados ORDER BY competencia DESC",
+        "SELECT * FROM periodos_fechados WHERE loja_id = @current_loja_id ORDER BY competencia DESC",
       );
       return rows as PeriodoFechado[];
     });
@@ -46,7 +46,7 @@ export const listarEventosPeriodosFechados = createServerFn({ method: "GET" }).h
   async (): Promise<EventoPeriodoFechado[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM periodos_fechados_eventos ORDER BY realizado_em DESC",
+        "SELECT * FROM periodos_fechados_eventos WHERE loja_id = @current_loja_id ORDER BY realizado_em DESC",
       );
       return rows as EventoPeriodoFechado[];
     });

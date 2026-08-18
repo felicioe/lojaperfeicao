@@ -46,6 +46,65 @@ const EXCECOES = [
     contem: "SELECT id FROM usuarios WHERE google_id",
     motivo: "Login por Google, pré-autenticação — mesmo caso do login por senha.",
   },
+  // ---- Autenticação por passkey e 2FA: tudo abaixo roda ANTES da sessão
+  // existir, com @current_usuario_id e @current_loja_id ainda NULL. Escopar
+  // por loja aqui não é "mais seguro": é quebrar o login, porque a condição
+  // nunca casaria. O que protege estas consultas é outra coisa — o
+  // usuario_id vem do desafio WebAuthn/do ticket de 2FA guardado no cookie
+  // assinado do servidor, nunca do corpo da requisição.
+  {
+    arquivo: "src/lib/backend/passkeys.ts",
+    contem: "SELECT credential_id, transportes FROM usuario_passkeys WHERE usuario_id = ?",
+    motivo:
+      "iniciarLoginPasskey: monta a lista de credenciais permitidas antes do login. " +
+      "O usuário já foi resolvido por usuarioUnicoParaLogin, que é quem trata a ambiguidade entre lojas.",
+  },
+  {
+    arquivo: "src/lib/backend/passkeys.ts",
+    contem: "FROM usuario_passkeys WHERE credential_id = ? AND usuario_id = ?",
+    motivo:
+      "confirmarLoginPasskey: busca a credencial para verificar a assinatura. " +
+      "O usuario_id vem do desafio guardado no cookie assinado, não do request.",
+  },
+  {
+    arquivo: "src/lib/backend/passkeys.ts",
+    contem: "UPDATE usuario_passkeys SET contador = ?, usado_em = NOW() WHERE id = ?",
+    motivo:
+      "Atualiza o contador anti-replay logo após a verificação, ainda sem sessão. " +
+      "O id é o da linha que acabou de ser verificada.",
+  },
+  {
+    arquivo: "src/lib/backend/totp.ts",
+    contem: "SELECT email FROM usuarios WHERE id = ?",
+    motivo:
+      "validarCodigoTotpOuBackup precisa do e-mail para reconstruir o TOTP, e roda também " +
+      "no login (sem loja no contexto). Escopar aqui derrubaria o segundo fator na entrada.",
+  },
+  {
+    arquivo: "src/lib/backend/totp.ts",
+    contem: "SELECT secret FROM usuario_totp WHERE usuario_id = ? AND ativado_em IS NOT NULL",
+    motivo:
+      "validarCodigoTotpOuBackup é compartilhado entre o login (sem sessão) e as telas " +
+      "autenticadas. Escopar quebraria o segundo fator no login.",
+  },
+  {
+    arquivo: "src/lib/backend/totp.ts",
+    contem:
+      "SELECT id, codigo_hash FROM usuario_totp_codigos_backup WHERE usuario_id = ? AND usado_em IS NULL",
+    motivo: "Mesmo helper compartilhado: códigos de backup conferidos durante o login.",
+  },
+  {
+    arquivo: "src/lib/backend/totp.ts",
+    contem: "UPDATE usuario_totp_codigos_backup SET usado_em = NOW() WHERE id = ?",
+    motivo:
+      "Queima o código de backup recém-conferido, ainda no login. O id é o da linha conferida.",
+  },
+  {
+    arquivo: "src/lib/backend/totp.ts",
+    contem: "SELECT 1 FROM usuario_totp WHERE usuario_id = ? AND ativado_em IS NOT NULL",
+    motivo:
+      "usuarioTemTotpAtivo: decide se o login pede segundo fator — roda entre a senha e a sessão.",
+  },
   {
     arquivo: "src/lib/facebook-oauth-callback.ts",
     contem: "SELECT id FROM usuarios WHERE facebook_id",

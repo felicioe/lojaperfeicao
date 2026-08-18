@@ -80,7 +80,7 @@ export const statusVinculacaoGoogle = createServerFn({ method: "GET" }).handler(
   async (): Promise<{ vinculado: boolean }> => {
     return comSessao(async (conn, usuarioId) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
-        "SELECT (google_id IS NOT NULL) AS vinculado FROM usuarios WHERE id = ?",
+        "SELECT (google_id IS NOT NULL) AS vinculado FROM usuarios WHERE id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       return { vinculado: !!row?.vinculado };
@@ -90,7 +90,10 @@ export const statusVinculacaoGoogle = createServerFn({ method: "GET" }).handler(
 
 export const desvincularGoogle = createServerFn({ method: "POST" }).handler(async () => {
   return comSessao(async (conn, usuarioId) => {
-    await conn.query("UPDATE usuarios SET google_id = NULL WHERE id = ?", [usuarioId]);
+    await conn.query(
+      "UPDATE usuarios SET google_id = NULL WHERE id = ? AND loja_id = @current_loja_id",
+      [usuarioId],
+    );
     await registrarAuditoria(conn, usuarioId, "desvincular_google", "usuario", usuarioId);
   });
 });

@@ -38,13 +38,13 @@ export const iniciarCadastroPasskey = createServerFn({ method: "POST" }).handler
   async (): Promise<PublicKeyCredentialCreationOptionsJSON> => {
     return comSessao(async (conn, usuarioId) => {
       const [[usuario]] = await conn.query<RowDataPacket[]>(
-        "SELECT email, nome_completo FROM usuarios WHERE id = ?",
+        "SELECT email, nome_completo FROM usuarios WHERE id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
       if (!usuario) throw new Error("Usuário não encontrado.");
 
       const [existentes] = await conn.query<RowDataPacket[]>(
-        "SELECT credential_id, transportes FROM usuario_passkeys WHERE usuario_id = ?",
+        "SELECT credential_id, transportes FROM usuario_passkeys WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],
       );
 
@@ -82,7 +82,7 @@ const confirmarCadastroSchema = z.object({
 export const confirmarCadastroPasskey = createServerFn({ method: "POST" })
   .validator((d: unknown) => confirmarCadastroSchema.parse(d))
   .handler(async ({ data }) => {
-    return comSessao(async (conn, usuarioId) => {
+    return comSessao(async (conn, usuarioId, lojaId) => {
       const desafio = await consumirDesafioWebauthn();
       if (!desafio) {
         throw new Error("Cadastro expirado — tente novamente.");
@@ -102,9 +102,10 @@ export const confirmarCadastroPasskey = createServerFn({ method: "POST" })
       const { credential } = verificacao.registrationInfo;
       await conn.query(
         `INSERT INTO usuario_passkeys
-           (usuario_id, credential_id, public_key, contador, transportes, nome_dispositivo)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+           (loja_id, usuario_id, credential_id, public_key, contador, transportes, nome_dispositivo)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
+          lojaId,
           usuarioId,
           credential.id,
           isoBase64URL.fromBuffer(credential.publicKey),
@@ -128,7 +129,7 @@ export const listarMinhasPasskeys = createServerFn({ method: "GET" }).handler(
   async (): Promise<MinhaPasskey[]> => {
     return comSessao(async (conn, usuarioId) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome_dispositivo, criado_em, usado_em FROM usuario_passkeys WHERE usuario_id = ? ORDER BY criado_em DESC",
+        "SELECT id, nome_dispositivo, criado_em, usado_em FROM usuario_passkeys WHERE usuario_id = ? AND loja_id = @current_loja_id ORDER BY criado_em DESC",
         [usuarioId],
       );
       return rows as MinhaPasskey[];
@@ -142,10 +143,10 @@ export const removerPasskey = createServerFn({ method: "POST" })
     return comSessao(async (conn, usuarioId) => {
       // WHERE usuario_id garante que ninguém remove passkey de outra conta
       // trocando o id na requisição.
-      await conn.query("DELETE FROM usuario_passkeys WHERE id = ? AND usuario_id = ?", [
-        data.id,
-        usuarioId,
-      ]);
+      await conn.query(
+        "DELETE FROM usuario_passkeys WHERE id = ? AND usuario_id = ? AND loja_id = @current_loja_id",
+        [data.id, usuarioId],
+      );
     });
   });
 

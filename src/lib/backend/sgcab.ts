@@ -35,7 +35,8 @@ export const listarTaxasGrau = createServerFn({ method: "GET" })
                 tg.sgcab, tg.ritual, tg.diploma, tg.taxa_propria, tg.ativo
          FROM taxas_grau tg
          LEFT JOIN orgs_graus og ON og.org_id = tg.org_id AND og.grau = tg.grau
-         WHERE tg.org_id = ? AND tg.ano = ?
+                                AND og.loja_id = @current_loja_id
+         WHERE tg.org_id = ? AND tg.ano = ? AND tg.loja_id = @current_loja_id
          ORDER BY tg.grau`,
         [data.orgId, data.ano],
       );
@@ -58,11 +59,18 @@ const salvarTaxaGrauSchema = z.object({
 export const salvarTaxaGrau = createServerFn({ method: "POST" })
   .validator((d: unknown) => salvarTaxaGrauSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_GESTAO, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_GESTAO, async (conn, usuarioIdAtual, lojaId) => {
+      // O corpo vem do request; confirmar que é desta Loja antes de mexer nas
+      // taxas dele.
+      const [[org]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
+        [data.orgId],
+      );
+      if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
       if (data.id) {
         await conn.query(
           `UPDATE taxas_grau SET sgcab = ?, ritual = ?, diploma = ?, taxa_propria = ?, ativo = ?
-           WHERE id = ?`,
+           WHERE id = ? AND loja_id = @current_loja_id`,
           [data.sgcab, data.ritual, data.diploma, data.taxaPropria, data.ativo, data.id],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "atualizar", "taxa_grau", data.id, null, {
@@ -70,11 +78,12 @@ export const salvarTaxaGrau = createServerFn({ method: "POST" })
         });
       } else {
         await conn.query(
-          `INSERT INTO taxas_grau (org_id, ano, grau, sgcab, ritual, diploma, taxa_propria, ativo)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `INSERT INTO taxas_grau (loja_id, org_id, ano, grau, sgcab, ritual, diploma, taxa_propria, ativo)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE sgcab = VALUES(sgcab), ritual = VALUES(ritual),
              diploma = VALUES(diploma), taxa_propria = VALUES(taxa_propria), ativo = VALUES(ativo)`,
           [
+            lojaId,
             data.orgId,
             data.ano,
             data.grau,
@@ -86,7 +95,7 @@ export const salvarTaxaGrau = createServerFn({ method: "POST" })
           ],
         );
         const [[novo]] = await conn.query<RowDataPacket[]>(
-          "SELECT id FROM taxas_grau WHERE org_id = ? AND ano = ? AND grau = ?",
+          "SELECT id FROM taxas_grau WHERE org_id = ? AND ano = ? AND grau = ? AND loja_id = @current_loja_id",
           [data.orgId, data.ano, data.grau],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "criar", "taxa_grau", novo.id, null, {
@@ -100,7 +109,9 @@ export const excluirTaxaGrau = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_GESTAO, async (conn, usuarioIdAtual) => {
-      await conn.query("DELETE FROM taxas_grau WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM taxas_grau WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
       await registrarAuditoria(conn, usuarioIdAtual, "excluir", "taxa_grau", data.id, null, null);
     });
   });
@@ -152,7 +163,9 @@ export const listarCobrancasSgcab = createServerFn({ method: "POST" })
   .validator((d: unknown) => listarCobrancasSchema.parse(d))
   .handler(async ({ data }): Promise<SgcabCobranca[]> => {
     return comPapel(PAPEIS_LEITURA, async (conn) => {
-      const condicoes: string[] = [];
+      // Escopo de loja sempre presente, independente dos filtros da tela —
+      // mesmo padrão da Tesouraria (#343).
+      const condicoes: string[] = ["sc.loja_id = @current_loja_id"];
       const valores: unknown[] = [];
       if (data.orgId) {
         condicoes.push("sc.org_id = ?");
@@ -176,9 +189,10 @@ export const listarCobrancasSgcab = createServerFn({ method: "POST" })
                 sc.ano, sc.grau, og.nome AS nome_grau, sc.tipo, sc.valor, sc.vencimento, sc.status,
                 sc.comprovante_url, sc.data_pagamento, sc.observacoes
          FROM sgcab_cobrancas sc
-         JOIN irmaos i ON i.id = sc.irmao_id
-         JOIN orgs o ON o.id = sc.org_id
+         JOIN irmaos i ON i.id = sc.irmao_id AND i.loja_id = @current_loja_id
+         JOIN orgs o ON o.id = sc.org_id AND o.loja_id = @current_loja_id
          LEFT JOIN orgs_graus og ON og.org_id = sc.org_id AND og.grau = sc.grau
+                                AND og.loja_id = @current_loja_id
          ${where}
          ORDER BY i.nome_civil, sc.grau, sc.tipo`,
         valores,
@@ -202,7 +216,7 @@ export const registrarPagamentoSgcab = createServerFn({ method: "POST" })
       await conn.query(
         `UPDATE sgcab_cobrancas
          SET status = ?, data_pagamento = ?, comprovante_url = COALESCE(?, comprovante_url), observacoes = ?
-         WHERE id = ?`,
+         WHERE id = ? AND loja_id = @current_loja_id`,
         [data.status, data.dataPagamento, data.comprovanteUrl, data.observacoes, data.id],
       );
       await registrarAuditoria(
@@ -281,9 +295,10 @@ export const listarFaturasSgcab = createServerFn({ method: "POST" })
       const [faturas] = await conn.query<RowDataPacket[]>(
         `SELECT sf.*, i.nome_civil AS irmao_nome, o.nome AS org_nome, og.nome AS nome_grau
          FROM sgcab_faturas sf
-         JOIN irmaos i ON i.id = sf.irmao_id
-         JOIN orgs o ON o.id = sf.org_id
+         JOIN irmaos i ON i.id = sf.irmao_id AND i.loja_id = @current_loja_id
+         JOIN orgs o ON o.id = sf.org_id AND o.loja_id = @current_loja_id
          LEFT JOIN orgs_graus og ON og.org_id = sf.org_id AND og.grau = sf.grau
+                                AND og.loja_id = @current_loja_id
          ${where}
          ORDER BY sf.vencimento IS NULL, sf.vencimento, sf.criado_em DESC`,
         valores,
@@ -292,7 +307,9 @@ export const listarFaturasSgcab = createServerFn({ method: "POST" })
       const ids = faturas.map((f) => f.id);
       const [itens] = await conn.query<RowDataPacket[]>(
         `SELECT id, fatura_id, tipo, descricao, valor, ordem
-         FROM sgcab_fatura_itens WHERE fatura_id IN (?) ORDER BY ordem, criado_em`,
+         FROM sgcab_fatura_itens
+          WHERE fatura_id IN (?) AND loja_id = @current_loja_id
+          ORDER BY ordem, criado_em`,
         [ids],
       );
       return faturas.map((f) => ({
@@ -310,12 +327,14 @@ export const obterValoresFaturaSgcab = createServerFn({ method: "POST" })
     return comPapel(PAPEIS_LEITURA, async (conn) => {
       const [[taxa]] = await conn.query<RowDataPacket[]>(
         `SELECT sgcab, ritual, diploma FROM taxas_grau
-         WHERE org_id = ? AND ano = ? AND grau = ? AND ativo = TRUE LIMIT 1`,
+         WHERE org_id = ? AND ano = ? AND grau = ? AND ativo = TRUE
+           AND loja_id = @current_loja_id LIMIT 1`,
         [data.orgId, data.ano, data.grau],
       );
       const [[boton]] = await conn.query<RowDataPacket[]>(
         `SELECT valor FROM sgcab_valores_catalogo
          WHERE tipo = ? AND ano = ? AND vigencia_inicio <= ?
+           AND loja_id = @current_loja_id
          ORDER BY vigencia_inicio DESC LIMIT 1`,
         [
           data.grau === 13 ? "sgcab_boton_grau_13_2026" : "sgcab_boton_2026",
@@ -355,17 +374,27 @@ const criarFaturaSchema = z.object({
 export const criarFaturaSgcab = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarFaturaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS_GESTAO, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_GESTAO, async (conn, usuarioIdAtual, lojaId) => {
+      // Irmão e corpo vêm do request: os dois precisam ser desta Loja, senão
+      // a fatura nasceria cobrando o irmão de outra.
+      const [[valido]] = await conn.query<RowDataPacket[]>(
+        `SELECT 1 AS ok FROM irmaos i
+           JOIN orgs o ON o.id = ? AND o.loja_id = @current_loja_id
+          WHERE i.id = ? AND i.loja_id = @current_loja_id`,
+        [data.orgId, data.irmaoId],
+      );
+      if (!valido) throw new Error("Irmão ou corpo maçônico não encontrado nesta Loja.");
       const total = data.itens.reduce((soma, item) => soma + item.valor, 0);
       await conn.beginTransaction();
       try {
         const [[novoId]] = await conn.query<RowDataPacket[]>("SELECT UUID() AS id");
         await conn.query(
           `INSERT INTO sgcab_faturas
-             (id, irmao_id, org_id, ano, grau, titulo, data_sessao, vencimento, total, observacoes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (id, loja_id, irmao_id, org_id, ano, grau, titulo, data_sessao, vencimento, total, observacoes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             novoId.id,
+            lojaId,
             data.irmaoId,
             data.orgId,
             data.ano,
@@ -379,9 +408,9 @@ export const criarFaturaSgcab = createServerFn({ method: "POST" })
         );
         for (const [ordem, item] of data.itens.entries()) {
           await conn.query(
-            `INSERT INTO sgcab_fatura_itens (fatura_id, tipo, descricao, valor, ordem)
-             VALUES (?, ?, ?, ?, ?)`,
-            [novoId.id, item.tipo, item.descricao, item.valor, ordem],
+            `INSERT INTO sgcab_fatura_itens (loja_id, fatura_id, tipo, descricao, valor, ordem)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [lojaId, novoId.id, item.tipo, item.descricao, item.valor, ordem],
           );
         }
         await registrarAuditoria(conn, usuarioIdAtual, "criar", "sgcab_fatura", novoId.id, null, {
@@ -411,7 +440,8 @@ export const atualizarFaturaSgcab = createServerFn({ method: "POST" })
     return comPapel(PAPEIS_GESTAO, async (conn, usuarioIdAtual) => {
       await conn.query(
         `UPDATE sgcab_faturas SET status = ?, data_pagamento = ?,
-           comprovante_url = COALESCE(?, comprovante_url), observacoes = ? WHERE id = ?`,
+           comprovante_url = COALESCE(?, comprovante_url), observacoes = ?
+         WHERE id = ? AND loja_id = @current_loja_id`,
         [data.status, data.dataPagamento, data.comprovanteUrl, data.observacoes, data.id],
       );
       await registrarAuditoria(

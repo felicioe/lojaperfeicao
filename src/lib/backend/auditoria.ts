@@ -17,9 +17,13 @@ export async function registrarAuditoria(
   dadosAntes: unknown = null,
   dadosDepois: unknown = null,
 ): Promise<void> {
+  // A loja sai de @current_loja_id, que a conexão já traz (db.ts a deriva do
+  // usuário autenticado). Fica NULL só em contexto de sistema de verdade —
+  // um cron sem loja —, e nunca é informada por quem chama: um parâmetro aqui
+  // seria mais uma coisa para 90 chamadas diferentes errarem.
   await conn.query(
-    `INSERT INTO auditoria (usuario_id, acao, entidade_tipo, entidade_id, dados_antes, dados_depois)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO auditoria (loja_id, usuario_id, acao, entidade_tipo, entidade_id, dados_antes, dados_depois)
+     VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?)`,
     [
       usuarioId,
       acao,
@@ -87,11 +91,18 @@ export const listarAuditoria = createServerFn({ method: "GET" })
   .validator((d: unknown) => listarSchema.parse(d ?? {}))
   .handler(async ({ data }): Promise<EntradaAuditoria[]> => {
     return comPapel(["admin"], async (conn) => {
+      // Mostra a trilha DESTA Loja mais as ações de sistema (loja_id NULL,
+      // vindas de crons sem loja). As ações de PLATAFORMA — cadastrar,
+      // suspender e reativar Loja (issue #339) — também têm loja_id NULL, mas
+      // são excluídas por entidade_tipo: a auditoria de uma Loja não é lugar
+      // para "Loja X suspensa", que é assunto de outra.
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT a.id, a.usuario_id, u.email AS usuario_email, a.acao, a.entidade_tipo,
                 a.entidade_id, a.dados_antes, a.dados_depois, a.criado_em
          FROM auditoria a
-         LEFT JOIN usuarios u ON u.id = a.usuario_id
+         LEFT JOIN usuarios u ON u.id = a.usuario_id AND u.loja_id = @current_loja_id
+         WHERE a.loja_id = @current_loja_id
+            OR (a.loja_id IS NULL AND a.entidade_tipo <> 'loja')
          ORDER BY a.criado_em DESC
          LIMIT ?`,
         [data.limite],

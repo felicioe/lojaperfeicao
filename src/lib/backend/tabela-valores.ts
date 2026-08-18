@@ -34,7 +34,8 @@ export const listarTabelaValores = createServerFn({ method: "GET" }).handler(
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT tv.id, tv.tipo, tv.org_id, o.nome AS org_nome, tv.valor, tv.vigencia_inicio, tv.observacoes
          FROM tabela_valores tv
-         LEFT JOIN orgs o ON o.id = tv.org_id
+         LEFT JOIN orgs o ON o.id = tv.org_id AND o.loja_id = @current_loja_id
+         WHERE tv.loja_id = @current_loja_id
          ORDER BY tv.tipo, tv.vigencia_inicio DESC`,
       );
       return rows as ValorVigente[];
@@ -53,10 +54,17 @@ const criarValorSchema = z.object({
 export const criarValorVigente = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarValorSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual, lojaId) => {
+      if (data.orgId) {
+        const [[org]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
+          [data.orgId],
+        );
+        if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
+      }
       await conn.query(
-        "INSERT INTO tabela_valores (tipo, org_id, valor, vigencia_inicio, observacoes) VALUES (?, ?, ?, ?, ?)",
-        [data.tipo, data.orgId, data.valor, data.vigenciaInicio, data.observacoes],
+        "INSERT INTO tabela_valores (loja_id, tipo, org_id, valor, vigencia_inicio, observacoes) VALUES (?, ?, ?, ?, ?, ?)",
+        [lojaId, data.tipo, data.orgId, data.valor, data.vigenciaInicio, data.observacoes],
       );
       await registrarAuditoria(conn, usuarioIdAtual, "criar", "tabela_valores", null, null, {
         ...data,
@@ -68,7 +76,9 @@ export const excluirValorVigente = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      await conn.query("DELETE FROM tabela_valores WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM tabela_valores WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
@@ -87,6 +97,9 @@ export const contarIrmaosParaReajuste = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<number> => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      // O escopo de loja entra como primeira condição, não como filtro
+      // opcional: sem ele o reajuste em massa mudaria a mensalidade dos
+      // irmãos de TODAS as Lojas de uma vez.
       const condicoes = [
         "situacao IN ('ativo', 'quite', 'irregular')",
         "valor_mensalidade_customizado = FALSE",
@@ -97,7 +110,10 @@ export const contarIrmaosParaReajuste = createServerFn({ method: "POST" })
         valores.push(data.apenasComValorAtual);
       }
       const [[row]] = await conn.query<RowDataPacket[]>(
-        `SELECT COUNT(*) AS total FROM irmaos WHERE ${condicoes.join(" AND ")}`,
+        // O escopo de loja fica no literal, e não no array acima, para ficar
+        // visível na query — e para o verificador estático enxergá-lo.
+        `SELECT COUNT(*) AS total FROM irmaos
+          WHERE loja_id = @current_loja_id AND ${condicoes.join(" AND ")}`,
         valores,
       );
       return Number(row.total);
@@ -126,12 +142,15 @@ export type ResultadoReajuste = { irmaosAtualizados: number };
 export const reajustarMensalidadeEmMassa = createServerFn({ method: "POST" })
   .validator((d: unknown) => reajusteSchema.parse(d))
   .handler(async ({ data }): Promise<ResultadoReajuste> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual, lojaId) => {
       await conn.query(
-        "INSERT INTO tabela_valores (tipo, org_id, valor, vigencia_inicio, observacoes) VALUES ('mensalidade', NULL, ?, ?, ?)",
-        [data.novoValor, data.vigenciaInicio, data.observacoes],
+        "INSERT INTO tabela_valores (loja_id, tipo, org_id, valor, vigencia_inicio, observacoes) VALUES (?, 'mensalidade', NULL, ?, ?, ?)",
+        [lojaId, data.novoValor, data.vigenciaInicio, data.observacoes],
       );
 
+      // O escopo de loja entra como primeira condição, não como filtro
+      // opcional: sem ele o reajuste em massa mudaria a mensalidade dos
+      // irmãos de TODAS as Lojas de uma vez.
       const condicoes = [
         "situacao IN ('ativo', 'quite', 'irregular')",
         "valor_mensalidade_customizado = FALSE",
@@ -142,7 +161,10 @@ export const reajustarMensalidadeEmMassa = createServerFn({ method: "POST" })
         valores.push(data.apenasComValorAtual);
       }
       const [resultado] = await conn.query<ResultSetHeader>(
-        `UPDATE irmaos SET valor_mensalidade = ? WHERE ${condicoes.join(" AND ")}`,
+        // Sem o escopo aqui, o reajuste em massa mudaria a mensalidade dos
+        // irmãos de TODAS as Lojas de uma vez.
+        `UPDATE irmaos SET valor_mensalidade = ?
+          WHERE loja_id = @current_loja_id AND ${condicoes.join(" AND ")}`,
         [data.novoValor, ...valores],
       );
 

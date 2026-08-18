@@ -20,7 +20,7 @@ export const listarBackupsGerados = createServerFn({ method: "GET" }).handler(
   async (): Promise<BackupGerado[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM backups_gerados ORDER BY criado_em DESC",
+        "SELECT * FROM backups_gerados WHERE loja_id = @current_loja_id ORDER BY criado_em DESC",
       );
       return rows as BackupGerado[];
     });
@@ -28,9 +28,10 @@ export const listarBackupsGerados = createServerFn({ method: "GET" }).handler(
 );
 
 export const gerarBackupAgora = createServerFn({ method: "POST" }).handler(async () => {
-  return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
-    const { executarBackupAgendado } = await import("../backup-dispatch");
-    const resultado = await executarBackupAgendado("manual");
+  return comPapel(PAPEIS, async (conn, usuarioIdAtual, lojaId) => {
+    // Backup DESTA Loja: a loja vem da sessão, nunca do request.
+    const { executarBackupDaLoja } = await import("../backup-dispatch");
+    const resultado = await executarBackupDaLoja("manual", lojaId);
     await registrarAuditoria(conn, usuarioIdAtual, "gerar", "backup", null, null, resultado);
     return resultado;
   });
@@ -43,10 +44,10 @@ export const baixarBackup = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ nomeArquivo: string; conteudo: string }> => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       const [[registro]] = await conn.query<RowDataPacket[]>(
-        "SELECT nome_arquivo FROM backups_gerados WHERE id = ?",
+        "SELECT nome_arquivo FROM backups_gerados WHERE id = ? AND loja_id = @current_loja_id",
         [data.id],
       );
-      if (!registro) throw new Error("Backup não encontrado.");
+      if (!registro) throw new Error("Backup não encontrado nesta Loja.");
       // nome_arquivo só é lido do banco (nunca do client) — sem risco de
       // path traversal apontando pra fora de BACKUPS_DIR.
       const { lerConteudoBackup } = await import("../backup-dispatch");

@@ -35,10 +35,13 @@ export const listarElegibilidadeInterstico = createServerFn({ method: "GET" }).h
            DATEDIFF(DATE_ADD(ie.data, INTERVAL og.interstico_minimo_meses MONTH), CURDATE()) AS dias_restantes
          FROM irmaos i
          JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE
-         JOIN orgs o ON o.id = io.org_id
+                           AND io.loja_id = @current_loja_id
+         JOIN orgs o ON o.id = io.org_id AND o.loja_id = @current_loja_id
          JOIN orgs_graus og ON og.org_id = io.org_id AND og.grau = io.grau_atual
+                           AND og.loja_id = @current_loja_id
          JOIN irmao_elevacoes ie ON ie.irmao_id = i.id AND ie.grau = io.grau_atual
-         WHERE i.situacao = 'ativo'
+                                AND ie.loja_id = @current_loja_id
+         WHERE i.loja_id = @current_loja_id AND i.situacao = 'ativo'
            AND og.interstico_minimo_meses IS NOT NULL
            AND ie.data IS NOT NULL
            AND DATE_ADD(ie.data, INTERVAL og.interstico_minimo_meses MONTH) <= DATE_ADD(CURDATE(), INTERVAL ? DAY)

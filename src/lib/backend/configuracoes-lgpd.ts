@@ -21,7 +21,9 @@ export const obterConfiguracoesLgpd = createServerFn({ method: "GET" }).handler(
   async (): Promise<ConfiguracoesLgpd> => {
     return withUserConnection(null, async (conn) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
-        "SELECT nome_entidade, cnpj, email_dpo FROM configuracoes_lgpd WHERE id = 1",
+        // Singleton que virou "uma linha por Loja" na 0092 (a PK passou a ser
+        // loja_id). O `id = 1` sozinho traria a linha de qualquer Loja.
+        "SELECT nome_entidade, cnpj, email_dpo FROM configuracoes_lgpd WHERE loja_id = @current_loja_id",
       );
       return row as ConfiguracoesLgpd;
     });
@@ -39,10 +41,12 @@ export const salvarConfiguracoesLgpd = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT nome_entidade, cnpj, email_dpo FROM configuracoes_lgpd WHERE id = 1",
+        // Singleton que virou "uma linha por Loja" na 0092 (a PK passou a ser
+        // loja_id). O `id = 1` sozinho traria a linha de qualquer Loja.
+        "SELECT nome_entidade, cnpj, email_dpo FROM configuracoes_lgpd WHERE loja_id = @current_loja_id",
       );
       await conn.query(
-        "UPDATE configuracoes_lgpd SET nome_entidade=?, cnpj=?, email_dpo=? WHERE id = 1",
+        "UPDATE configuracoes_lgpd SET nome_entidade=?, cnpj=?, email_dpo=? WHERE loja_id = @current_loja_id",
         [data.nome_entidade, data.cnpj, data.email_dpo],
       );
       await registrarAuditoria(
