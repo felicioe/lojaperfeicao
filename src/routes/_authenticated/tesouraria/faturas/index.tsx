@@ -233,9 +233,11 @@ function Faturas() {
 
         <TabsContent value="abertas">
           <Card className="mb-4 p-4 max-w-xs">
-            <Label className="text-xs">Irmão</Label>
+            <Label className="text-xs" htmlFor="fatura-irmao">
+              Irmão
+            </Label>
             <Select value={irmaoFiltroId} onValueChange={setIrmaoFiltroId}>
-              <SelectTrigger>
+              <SelectTrigger id="fatura-irmao">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -647,8 +649,9 @@ function BaixaDialog({
               quita as mais antigas primeiro; ajuste os valores por fatura se precisar.
             </p>
             <div>
-              <Label>Valor recebido</Label>
+              <Label htmlFor="fatura-valor-recebido">Valor recebido</Label>
               <Input
+                id="fatura-valor-recebido"
                 type="number"
                 step="0.01"
                 min="0"

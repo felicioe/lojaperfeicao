@@ -451,8 +451,9 @@ function LojasPlataforma() {
           </DialogHeader>
           <div className="grid gap-4">
             <div>
-              <Label>Nome</Label>
+              <Label htmlFor="lojas-nome-2">Nome</Label>
               <Input
+                id="lojas-nome-2"
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 placeholder="Loja de Perfeição Adonhiram"
@@ -460,8 +461,9 @@ function LojasPlataforma() {
               />
             </div>
             <div>
-              <Label>Endereço de acesso</Label>
+              <Label htmlFor="lojas-endereco-de-acesso">Endereço de acesso</Label>
               <Input
+                id="lojas-endereco-de-acesso"
                 value={form.slug}
                 onChange={(e) => setForm({ ...form, slug: e.target.value })}
                 placeholder="adonhiram"
@@ -473,16 +475,18 @@ function LojasPlataforma() {
               </p>
             </div>
             <div>
-              <Label>Razão social (opcional)</Label>
+              <Label htmlFor="lojas-razao-social-opcional">Razão social (opcional)</Label>
               <Input
+                id="lojas-razao-social-opcional"
                 value={form.razaoSocial}
                 onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })}
                 autoComplete="off"
               />
             </div>
             <div>
-              <Label>CNPJ (opcional)</Label>
+              <Label htmlFor="lojas-cnpj-opcional">CNPJ (opcional)</Label>
               <Input
+                id="lojas-cnpj-opcional"
                 value={form.cnpj}
                 onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
                 placeholder="00.000.000/0001-00"
@@ -514,8 +518,9 @@ function LojasPlataforma() {
           </DialogHeader>
           <div className="grid gap-4">
             <div>
-              <Label>Nome</Label>
+              <Label htmlFor="lojas-nome">Nome</Label>
               <Input
+                id="lojas-nome"
                 value={convite.nomeCompleto}
                 onChange={(e) => setConvite({ ...convite, nomeCompleto: e.target.value })}
                 placeholder="Nome de quem vai administrar"
@@ -523,8 +528,9 @@ function LojasPlataforma() {
               />
             </div>
             <div>
-              <Label>E-mail</Label>
+              <Label htmlFor="lojas-e-mail">E-mail</Label>
               <Input
+                id="lojas-e-mail"
                 type="email"
                 value={convite.email}
                 onChange={(e) => setConvite({ ...convite, email: e.target.value })}

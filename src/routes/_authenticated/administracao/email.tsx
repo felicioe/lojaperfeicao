@@ -120,8 +120,9 @@ function EmailPage() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Label>Servidor de saída (SMTP)</Label>
+            <Label htmlFor="email-servidor-de-saida-smtp">Servidor de saída (SMTP)</Label>
             <Input
+              id="email-servidor-de-saida-smtp"
               value={host}
               onChange={(e) => setHost(e.target.value)}
               placeholder="smtp.hostinger.com"
@@ -134,8 +135,9 @@ function EmailPage() {
           </div>
 
           <div>
-            <Label>Porta</Label>
+            <Label htmlFor="email-porta">Porta</Label>
             <Input
+              id="email-porta"
               value={porta}
               onChange={(e) => setPorta(e.target.value)}
               placeholder="465"
@@ -146,8 +148,9 @@ function EmailPage() {
           </div>
 
           <div>
-            <Label>Usuário</Label>
+            <Label htmlFor="email-usuario">Usuário</Label>
             <Input
+              id="email-usuario"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               placeholder="secretaria@sualoja.org.br"
@@ -160,8 +163,9 @@ function EmailPage() {
           </div>
 
           <div className="sm:col-span-2">
-            <Label>Senha da caixa de e-mail</Label>
+            <Label htmlFor="email-senha-da-caixa-de">Senha da caixa de e-mail</Label>
             <Input
+              id="email-senha-da-caixa-de"
               type="password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
@@ -180,8 +184,9 @@ function EmailPage() {
           </div>
 
           <div>
-            <Label>Nome do remetente (opcional)</Label>
+            <Label htmlFor="email-nome-do-remetente-opcional">Nome do remetente (opcional)</Label>
             <Input
+              id="email-nome-do-remetente-opcional"
               value={remetenteNome}
               onChange={(e) => setRemetenteNome(e.target.value)}
               placeholder="Loja de Perfeição"
@@ -191,8 +196,9 @@ function EmailPage() {
           </div>
 
           <div>
-            <Label>E-mail do remetente (opcional)</Label>
+            <Label htmlFor="email-e-mail-do-remetente">E-mail do remetente (opcional)</Label>
             <Input
+              id="email-e-mail-do-remetente"
               value={remetenteEmail}
               onChange={(e) => setRemetenteEmail(e.target.value)}
               placeholder="mesmo do usuário, se vazio"

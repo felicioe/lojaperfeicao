@@ -188,8 +188,9 @@ export function ExportarRelatorio({
           </DialogHeader>
           <div className="grid gap-3">
             <div>
-              <Label>Destinatário(s)</Label>
+              <Label htmlFor="exportar-destinatario-s">Destinatário(s)</Label>
               <Input
+                id="exportar-destinatario-s"
                 value={destinatarios}
                 onChange={(e) => setDestinatarios(e.target.value)}
                 placeholder="email@exemplo.com, outro@exemplo.com"

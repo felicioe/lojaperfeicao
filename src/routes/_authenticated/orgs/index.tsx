@@ -539,12 +539,14 @@ function Orgs() {
                               {usoDesc && (
                                 <div className="flex items-end gap-2">
                                   <div className="flex-1">
-                                    <Label>Transferir dados para</Label>
+                                    <Label htmlFor="org-transferir-dados-para">
+                                      Transferir dados para
+                                    </Label>
                                     <Select
                                       value={destinoTransferencia}
                                       onValueChange={setDestinoTransferencia}
                                     >
-                                      <SelectTrigger>
+                                      <SelectTrigger id="org-transferir-dados-para">
                                         <SelectValue placeholder="Selecione o corpo destino…" />
                                       </SelectTrigger>
                                       <SelectContent>

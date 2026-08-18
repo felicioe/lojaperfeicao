@@ -144,9 +144,11 @@ function ExtratoBancario() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
         <div>
-          <Label className="text-xs">Conta bancária</Label>
+          <Label className="text-xs" htmlFor="extrato-bancario-conta-bancaria">
+            Conta bancária
+          </Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="extrato-bancario-conta-bancaria">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -159,17 +161,33 @@ function ExtratoBancario() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          <Label className="text-xs" htmlFor="extrato-bancario-de">
+            De
+          </Label>
+          <Input
+            id="extrato-bancario-de"
+            type="date"
+            value={de}
+            onChange={(e) => setDe(e.target.value)}
+          />
         </div>
         <div>
-          <Label className="text-xs">Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          <Label className="text-xs" htmlFor="extrato-bancario-ate">
+            Até
+          </Label>
+          <Input
+            id="extrato-bancario-ate"
+            type="date"
+            value={ate}
+            onChange={(e) => setAte(e.target.value)}
+          />
         </div>
         <div>
-          <Label className="text-xs">Tipo</Label>
+          <Label className="text-xs" htmlFor="extrato-bancario-tipo">
+            Tipo
+          </Label>
           <Select value={tipo} onValueChange={setTipo}>
-            <SelectTrigger>
+            <SelectTrigger id="extrato-bancario-tipo">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -181,9 +199,11 @@ function ExtratoBancario() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Categoria</Label>
+          <Label className="text-xs" htmlFor="extrato-bancario-categoria">
+            Categoria
+          </Label>
           <Select value={categoria} onValueChange={setCategoria}>
-            <SelectTrigger>
+            <SelectTrigger id="extrato-bancario-categoria">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -197,9 +217,11 @@ function ExtratoBancario() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Irmão</Label>
+          <Label className="text-xs" htmlFor="extrato-bancario-irmao">
+            Irmão
+          </Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="extrato-bancario-irmao">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -213,9 +235,11 @@ function ExtratoBancario() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Valores exibidos</Label>
+          <Label className="text-xs" htmlFor="extrato-bancario-valores-exibidos">
+            Valores exibidos
+          </Label>
           <Select value={modo} onValueChange={(v) => setModo(v as "compensado" | "creditado")}>
-            <SelectTrigger>
+            <SelectTrigger id="extrato-bancario-valores-exibidos">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

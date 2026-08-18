@@ -387,19 +387,28 @@ function NovaEnqueteDialog({ onCriada }: { onCriada: () => void }) {
       </DialogHeader>
       <div className="grid gap-3">
         <div>
-          <Label>Pergunta</Label>
-          <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          <Label htmlFor="enquete-pergunta">Pergunta</Label>
+          <Input id="enquete-pergunta" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         </div>
         <div>
-          <Label>Descrição (opcional)</Label>
-          <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} />
+          <Label htmlFor="enquete-descricao-opcional">Descrição (opcional)</Label>
+          <Textarea
+            id="enquete-descricao-opcional"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            rows={2}
+          />
         </div>
         <div>
-          <Label>Opções</Label>
-          <div className="space-y-2">
+          {/* "Opções" nomeia o conjunto, não um campo: são N inputs. Daí
+              role="group" + aria-labelledby, e cada linha com seu próprio
+              nome ("Opção 1", "Opção 2"…). */}
+          <Label id="enquete-opcoes">Opções</Label>
+          <div className="space-y-2" role="group" aria-labelledby="enquete-opcoes">
             {opcoes.map((o, i) => (
               <Input
                 key={i}
+                aria-label={`Opção ${i + 1}`}
                 value={o}
                 placeholder={`Opção ${i + 1}`}
                 onChange={(e) => atualizarOpcao(i, e.target.value)}
@@ -417,26 +426,39 @@ function NovaEnqueteDialog({ onCriada }: { onCriada: () => void }) {
           </Button>
         </div>
         <div>
-          <Label>Prazo (opcional)</Label>
-          <Input type="date" value={dataLimite} onChange={(e) => setDataLimite(e.target.value)} />
+          <Label htmlFor="enquete-prazo-opcional">Prazo (opcional)</Label>
+          <Input
+            id="enquete-prazo-opcional"
+            type="date"
+            value={dataLimite}
+            onChange={(e) => setDataLimite(e.target.value)}
+          />
         </div>
         <div className="flex items-center justify-between rounded-md border p-3">
           <div>
-            <Label className="text-sm">Votos nominais</Label>
+            <Label className="text-sm" htmlFor="enquete-votos-nominais">
+              Votos nominais
+            </Label>
             <p className="text-xs text-muted-foreground">
               Mostra quem votou em cada opção. Desligado = sempre anônima.
             </p>
           </div>
-          <Switch checked={nominal} onCheckedChange={setNominal} />
+          <Switch id="enquete-votos-nominais" checked={nominal} onCheckedChange={setNominal} />
         </div>
         <div className="flex items-center justify-between rounded-md border p-3">
           <div>
-            <Label className="text-sm">Resultado visível durante a votação</Label>
+            <Label className="text-sm" htmlFor="enquete-resultado-visivel">
+              Resultado visível durante a votação
+            </Label>
             <p className="text-xs text-muted-foreground">
               Desligado = só aparece depois de encerrada (pra quem não gerencia).
             </p>
           </div>
-          <Switch checked={mostrarResultadoSempre} onCheckedChange={setMostrarResultadoSempre} />
+          <Switch
+            id="enquete-resultado-visivel"
+            checked={mostrarResultadoSempre}
+            onCheckedChange={setMostrarResultadoSempre}
+          />
         </div>
       </div>
       <DialogFooter>

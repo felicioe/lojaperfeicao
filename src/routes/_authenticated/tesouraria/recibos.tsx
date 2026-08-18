@@ -468,8 +468,11 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
       </DialogHeader>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Label>Usar movimentação já conciliada (opcional)</Label>
+          <Label htmlFor="recibos-usar-movimentacao-ja-conciliada">
+            Usar movimentação já conciliada (opcional)
+          </Label>
           <select
+            id="recibos-usar-movimentacao-ja-conciliada"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.conciliacaoId}
             onChange={(e) => {
@@ -496,8 +499,9 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
           </p>
         </div>
         <div>
-          <Label>Tipo</Label>
+          <Label htmlFor="recibos-tipo">Tipo</Label>
           <select
+            id="recibos-tipo"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.tipo}
             onChange={(e) =>
@@ -509,8 +513,9 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
           </select>
         </div>
         <div>
-          <Label>Situação</Label>
+          <Label htmlFor="recibos-situacao">Situação</Label>
           <select
+            id="recibos-situacao"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.status}
             onChange={(e) => setD({ ...d, status: e.target.value as typeof d.status })}
@@ -520,16 +525,18 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
           </select>
         </div>
         <div>
-          <Label>Data</Label>
+          <Label htmlFor="recibos-data">Data</Label>
           <Input
+            id="recibos-data"
             type="date"
             value={d.data}
             onChange={(e) => setD({ ...d, data: e.target.value })}
           />
         </div>
         <div>
-          <Label>Valor</Label>
+          <Label htmlFor="recibos-valor">Valor</Label>
           <Input
+            id="recibos-valor"
             type="number"
             min="0.01"
             step="0.01"
@@ -538,8 +545,9 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
           />
         </div>
         <div>
-          <Label>Vincular a</Label>
+          <Label htmlFor="recibos-vincular-a">Vincular a</Label>
           <select
+            id="recibos-vincular-a"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.pessoaTipo}
             onChange={(e) => setD({ ...d, pessoaTipo: e.target.value, pessoaId: "" })}
@@ -549,8 +557,9 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
           </select>
         </div>
         <div>
-          <Label>Nome</Label>
+          <Label htmlFor="recibos-nome">Nome</Label>
           <select
+            id="recibos-nome"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.pessoaId}
             onChange={(e) => setD({ ...d, pessoaId: e.target.value })}
@@ -567,8 +576,9 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
           </select>
         </div>
         <div>
-          <Label>Categoria contábil</Label>
+          <Label htmlFor="recibos-categoria-contabil">Categoria contábil</Label>
           <select
+            id="recibos-categoria-contabil"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.planoContaId}
             onChange={(e) => setD({ ...d, planoContaId: e.target.value })}
@@ -583,8 +593,9 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
         </div>
         {d.status === "efetivo" && (
           <div>
-            <Label>Conta financeira</Label>
+            <Label htmlFor="recibos-conta-financeira">Conta financeira</Label>
             <select
+              id="recibos-conta-financeira"
               className="h-10 w-full rounded-md border bg-background px-3"
               value={d.contaFinanceiraId}
               onChange={(e) => setD({ ...d, contaFinanceiraId: e.target.value })}
@@ -599,19 +610,25 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
           </div>
         )}
         <div className="sm:col-span-2">
-          <Label>Referente a</Label>
-          <Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} />
+          <Label htmlFor="recibos-referente-a">Referente a</Label>
+          <Input
+            id="recibos-referente-a"
+            value={d.descricao}
+            onChange={(e) => setD({ ...d, descricao: e.target.value })}
+          />
         </div>
         <div>
-          <Label>Forma de pagamento</Label>
+          <Label htmlFor="recibos-forma-de-pagamento">Forma de pagamento</Label>
           <Input
+            id="recibos-forma-de-pagamento"
             value={d.formaPagamento}
             onChange={(e) => setD({ ...d, formaPagamento: e.target.value })}
           />
         </div>
         <div className="sm:col-span-2">
-          <Label>Observações</Label>
+          <Label htmlFor="recibos-observacoes">Observações</Label>
           <Textarea
+            id="recibos-observacoes"
             value={d.observacoes}
             onChange={(e) => setD({ ...d, observacoes: e.target.value })}
           />

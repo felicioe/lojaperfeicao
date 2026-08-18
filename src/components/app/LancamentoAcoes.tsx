@@ -116,17 +116,27 @@ function EditarLancamentoDialog({
         </DialogHeader>
         <div className="grid gap-3">
           <div>
-            <Label>Descrição</Label>
-            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+            <Label htmlFor="lancamento-descricao">Descrição</Label>
+            <Input
+              id="lancamento-descricao"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Data</Label>
-              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+              <Label htmlFor="lancamento-data-2">Data</Label>
+              <Input
+                id="lancamento-data-2"
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+              />
             </div>
             <div>
-              <Label>Vencimento</Label>
+              <Label htmlFor="lancamento-vencimento">Vencimento</Label>
               <Input
+                id="lancamento-vencimento"
                 type="date"
                 value={dataVencimento}
                 onChange={(e) => setDataVencimento(e.target.value)}
@@ -134,8 +144,9 @@ function EditarLancamentoDialog({
             </div>
           </div>
           <div>
-            <Label>Valor</Label>
+            <Label htmlFor="lancamento-valor">Valor</Label>
             <Input
+              id="lancamento-valor"
               type="number"
               step="0.01"
               min="0.01"
@@ -211,12 +222,12 @@ export function AtribuirIrmaoDialog({
           <DialogTitle>Atribuir irmão — "{lancamento.descricao}"</DialogTitle>
         </DialogHeader>
         <div>
-          <Label>Irmão</Label>
+          <Label htmlFor="lancamento-irmao">Irmão</Label>
           <Select
             value={irmaoId || "__nenhum__"}
             onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
           >
-            <SelectTrigger>
+            <SelectTrigger id="lancamento-irmao">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -413,9 +424,11 @@ function BaixarLancamentoDialog({
         <div className="grid gap-3">
           {precisaConta && (
             <div>
-              <Label>Conta que {lancamento.tipo === "saida" ? "pagou" : "recebeu"}</Label>
+              <Label htmlFor="lancamento-conta-que">
+                Conta que {lancamento.tipo === "saida" ? "pagou" : "recebeu"}
+              </Label>
               <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-                <SelectTrigger>
+                <SelectTrigger id="lancamento-conta-que">
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -431,16 +444,18 @@ function BaixarLancamentoDialog({
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Forma de pagamento</Label>
+              <Label htmlFor="lancamento-forma-de-pagamento">Forma de pagamento</Label>
               <Input
+                id="lancamento-forma-de-pagamento"
                 value={formaPagamento}
                 onChange={(e) => setFormaPagamento(e.target.value)}
                 placeholder="PIX, dinheiro…"
               />
             </div>
             <div>
-              <Label>Data</Label>
+              <Label htmlFor="lancamento-data">Data</Label>
               <Input
+                id="lancamento-data"
                 type="date"
                 value={dataPagamento}
                 onChange={(e) => setDataPagamento(e.target.value)}
@@ -457,8 +472,9 @@ function BaixarLancamentoDialog({
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Desconto (opcional)</Label>
+                  <Label htmlFor="lancamento-desconto-opcional">Desconto (opcional)</Label>
                   <Input
+                    id="lancamento-desconto-opcional"
                     type="number"
                     step="0.01"
                     min="0"
@@ -467,8 +483,11 @@ function BaixarLancamentoDialog({
                   />
                 </div>
                 <div>
-                  <Label>Juros adicional (opcional)</Label>
+                  <Label htmlFor="lancamento-juros-adicional-opcional">
+                    Juros adicional (opcional)
+                  </Label>
                   <Input
+                    id="lancamento-juros-adicional-opcional"
                     type="number"
                     step="0.01"
                     min="0"
@@ -480,8 +499,11 @@ function BaixarLancamentoDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Outra receita recebida junto (opcional)</Label>
+                  <Label htmlFor="lancamento-outra-receita-recebida-junto">
+                    Outra receita recebida junto (opcional)
+                  </Label>
                   <Input
+                    id="lancamento-outra-receita-recebida-junto"
                     type="number"
                     step="0.01"
                     min="0"
@@ -491,13 +513,15 @@ function BaixarLancamentoDialog({
                   />
                 </div>
                 <div>
-                  <Label>Conta de receita do valor extra</Label>
+                  <Label htmlFor="lancamento-conta-de-receita-do">
+                    Conta de receita do valor extra
+                  </Label>
                   <Select
                     value={planoContaExtraId}
                     onValueChange={setPlanoContaExtraId}
                     disabled={!(Number(valorExtra) > 0)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="lancamento-conta-de-receita-do">
                       <SelectValue placeholder="Selecione…" />
                     </SelectTrigger>
                     <SelectContent>
@@ -522,8 +546,11 @@ function BaixarLancamentoDialog({
                 Sem cálculo automático de multa/juros — só o principal da fatura.
               </p>
               <div>
-                <Label>Valor recebido (saldo: {brl(saldo)})</Label>
+                <Label htmlFor="lancamento-valor-recebido-saldo">
+                  Valor recebido (saldo: {brl(saldo)})
+                </Label>
                 <Input
+                  id="lancamento-valor-recebido-saldo"
                   type="number"
                   step="0.01"
                   min="0.01"

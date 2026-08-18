@@ -114,9 +114,11 @@ function ImportarPlanosEnsinoPage() {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           <div>
-            <Label>Corpo maçônico (opcional)</Label>
+            <Label htmlFor="importar-planos-corpo-maconico-opcional">
+              Corpo maçônico (opcional)
+            </Label>
             <Select value={orgId} onValueChange={setOrgId}>
-              <SelectTrigger>
+              <SelectTrigger id="importar-planos-corpo-maconico-opcional">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -130,8 +132,9 @@ function ImportarPlanosEnsinoPage() {
             </Select>
           </div>
           <div>
-            <Label>Arquivo PDF</Label>
+            <Label htmlFor="importar-planos-arquivo-pdf">Arquivo PDF</Label>
             <Input
+              id="importar-planos-arquivo-pdf"
               type="file"
               accept=".pdf,application/pdf"
               disabled={carregando}

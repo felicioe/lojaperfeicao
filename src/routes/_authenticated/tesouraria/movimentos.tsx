@@ -221,9 +221,11 @@ function Movimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Irmão</Label>
+          <Label className="text-xs" htmlFor="movimentos-irmao">
+            Irmão
+          </Label>
           <Select value={f.irmaoId} onValueChange={f.setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="movimentos-irmao">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -237,14 +239,16 @@ function Movimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Status</Label>
+          <Label className="text-xs" htmlFor="movimentos-status">
+            Status
+          </Label>
           <Select
             value={f.status}
             onValueChange={(v) =>
               f.setStatus(v as "todos" | "pago" | "nao_pago" | "vencido" | "a_vencer")
             }
           >
-            <SelectTrigger>
+            <SelectTrigger id="movimentos-status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

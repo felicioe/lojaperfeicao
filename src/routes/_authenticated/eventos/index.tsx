@@ -182,16 +182,18 @@ function EventosPage() {
               />
             </div>
             <div>
-              <Label>Local</Label>
+              <Label htmlFor="evento-local">Local</Label>
               <Input
+                id="evento-local"
                 placeholder="Endereço ou local do evento"
                 value={form.local}
                 onChange={(e) => setForm({ ...form, local: e.target.value })}
               />
             </div>
             <div className="md:col-span-4">
-              <Label>Descrição</Label>
+              <Label id="evento-descricao">Descrição</Label>
               <RichTextEditor
+                ariaLabelledBy="evento-descricao"
                 value={form.descricao}
                 onChange={(html) => setForm({ ...form, descricao: html })}
               />

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { listarEventos, registrarRsvp, type Evento } from "@/lib/backend/eventos";
 import { useIsDesktop } from "@/lib/use-media-query";
@@ -71,6 +71,9 @@ function EventoCard({ evento, onDone }: { evento: Evento; onDone: () => void }) 
   const [agape, setAgape] = useState(evento.meu_agape ?? false);
   const [enviando, setEnviando] = useState<string | null>(null);
   const status = statusEvento(evento);
+  // Um card por evento na mesma tela, então o id do checkbox precisa ser
+  // único por instância — id fixo colidiria entre os cards.
+  const idAgape = useId();
 
   const responder = async (participa: "sim" | "nao" | "talvez") => {
     setEnviando(participa);
@@ -120,12 +123,12 @@ function EventoCard({ evento, onDone }: { evento: Evento; onDone: () => void }) 
               </Button>
             ))}
             {evento.tem_agape && (
-              <label className="ml-2 flex items-center gap-1.5 text-sm">
-                <Checkbox checked={agape} onCheckedChange={(v) => setAgape(!!v)} />
-                <Label className="cursor-pointer font-normal">
+              <span className="ml-2 flex items-center gap-1.5 text-sm">
+                <Checkbox id={idAgape} checked={agape} onCheckedChange={(v) => setAgape(!!v)} />
+                <Label htmlFor={idAgape} className="cursor-pointer font-normal">
                   <PartyPopper className="mr-1 inline h-3.5 w-3.5" /> Vou ao ágape
                 </Label>
-              </label>
+              </span>
             )}
           </div>
         )}

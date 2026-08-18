@@ -755,9 +755,9 @@ function EditarDocumento({
           />
         </div>
         <div>
-          <Label>Pasta de destino</Label>
+          <Label htmlFor="documento-pasta-de-destino">Pasta de destino</Label>
           <Select value={categoria} onValueChange={setCategoria}>
-            <SelectTrigger>
+            <SelectTrigger id="documento-pasta-de-destino">
               <FolderInput className="mr-2 h-4 w-4" />
               <SelectValue />
             </SelectTrigger>
@@ -859,9 +859,9 @@ function NovoDocumento({ onCriado }: { onCriado: () => Promise<void> }) {
       </DialogHeader>
       <div className="grid gap-4">
         <div>
-          <Label>Pasta</Label>
+          <Label htmlFor="documento-pasta">Pasta</Label>
           <Select value={categoria} onValueChange={setCategoria}>
-            <SelectTrigger>
+            <SelectTrigger id="documento-pasta">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -874,8 +874,9 @@ function NovoDocumento({ onCriado }: { onCriado: () => Promise<void> }) {
           </Select>
         </div>
         <div>
-          <Label>Arquivo</Label>
+          <Label htmlFor="documento-arquivo">Arquivo</Label>
           <Input
+            id="documento-arquivo"
             type="file"
             accept=".pdf,application/pdf"
             disabled={ocupado}
@@ -887,12 +888,17 @@ function NovoDocumento({ onCriado }: { onCriado: () => Promise<void> }) {
           {arquivo && <p className="mt-1 text-xs text-muted-foreground">{arquivo.nomeOriginal}</p>}
         </div>
         <div>
-          <Label>Título</Label>
-          <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          <Label htmlFor="documento-titulo">Título</Label>
+          <Input id="documento-titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         </div>
         <div>
-          <Label>Descrição (opcional)</Label>
-          <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} />
+          <Label htmlFor="documento-descricao-opcional">Descrição (opcional)</Label>
+          <Textarea
+            id="documento-descricao-opcional"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            rows={3}
+          />
         </div>
       </div>
       <DialogFooter>

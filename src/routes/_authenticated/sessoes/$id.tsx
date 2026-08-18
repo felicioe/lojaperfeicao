@@ -123,16 +123,21 @@ function SessaoDetail() {
             {editandoDetalhes ? (
               <>
                 <div>
-                  <Label>Local</Label>
+                  <Label htmlFor="sessao-local">Local</Label>
                   <Input
+                    id="sessao-local"
                     placeholder="Endereço ou local da sessão"
                     value={rascunhoLocal}
                     onChange={(e) => setRascunhoLocal(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label>Informações</Label>
-                  <RichTextEditor value={rascunhoObservacoes} onChange={setRascunhoObservacoes} />
+                  <Label id="sessao-informacoes">Informações</Label>
+                  <RichTextEditor
+                    ariaLabelledBy="sessao-informacoes"
+                    value={rascunhoObservacoes}
+                    onChange={setRascunhoObservacoes}
+                  />
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={salvarDetalhes} disabled={salvandoDetalhes}>

@@ -79,9 +79,9 @@ export function RecebimentoAvulsoDialog({
       </DialogHeader>
       <div className="grid gap-3 md:grid-cols-2">
         <div>
-          <Label>Categoria</Label>
+          <Label htmlFor="recebimento-avulso-categoria">Categoria</Label>
           <Select value={categoria} onValueChange={setCategoria} disabled={isTronco}>
-            <SelectTrigger>
+            <SelectTrigger id="recebimento-avulso-categoria">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -94,8 +94,9 @@ export function RecebimentoAvulsoDialog({
           </Select>
         </div>
         <div>
-          <Label>Valor</Label>
+          <Label htmlFor="recebimento-avulso-valor">Valor</Label>
           <Input
+            id="recebimento-avulso-valor"
             type="number"
             step="0.01"
             value={valor}
@@ -103,9 +104,9 @@ export function RecebimentoAvulsoDialog({
           />
         </div>
         <div>
-          <Label>Conta de receita</Label>
+          <Label htmlFor="recebimento-avulso-conta-de-receita">Conta de receita</Label>
           <Select value={planoContaId} onValueChange={setPlanoContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="recebimento-avulso-conta-de-receita">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -118,9 +119,9 @@ export function RecebimentoAvulsoDialog({
           </Select>
         </div>
         <div>
-          <Label>Conta que recebeu</Label>
+          <Label htmlFor="recebimento-avulso-conta-que-recebeu">Conta que recebeu</Label>
           <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-            <SelectTrigger>
+            <SelectTrigger id="recebimento-avulso-conta-que-recebeu">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -133,8 +134,13 @@ export function RecebimentoAvulsoDialog({
           </Select>
         </div>
         <div>
-          <Label>Data</Label>
-          <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+          <Label htmlFor="recebimento-avulso-data">Data</Label>
+          <Input
+            id="recebimento-avulso-data"
+            type="date"
+            value={data}
+            onChange={(e) => setData(e.target.value)}
+          />
         </div>
         {isTronco ? (
           <div className="rounded-lg border bg-muted/30 p-3 text-sm md:col-span-2">
@@ -144,18 +150,30 @@ export function RecebimentoAvulsoDialog({
         ) : (
           <>
             <div>
-              <Label>Forma de pagamento</Label>
-              <Input value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)} />
+              <Label htmlFor="recebimento-avulso-forma-de-pagamento">Forma de pagamento</Label>
+              <Input
+                id="recebimento-avulso-forma-de-pagamento"
+                value={formaPagamento}
+                onChange={(e) => setFormaPagamento(e.target.value)}
+              />
             </div>
             <div className="md:col-span-2">
-              <Label>Descrição (opcional)</Label>
-              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+              <Label htmlFor="recebimento-avulso-descricao-opcional">Descrição (opcional)</Label>
+              <Input
+                id="recebimento-avulso-descricao-opcional"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+              />
             </div>
           </>
         )}
         <div className="md:col-span-2">
-          <Label>Observações</Label>
-          <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+          <Label htmlFor="recebimento-avulso-observacoes">Observações</Label>
+          <Textarea
+            id="recebimento-avulso-observacoes"
+            value={observacoes}
+            onChange={(e) => setObservacoes(e.target.value)}
+          />
         </div>
       </div>
       <DialogFooter>

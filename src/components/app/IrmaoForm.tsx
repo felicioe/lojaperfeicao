@@ -94,23 +94,46 @@ export function IrmaoForm({
           <CardTitle className="text-base">Dados pessoais</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <Field label="Nome civil *">
-            <Input required value={d.nome_civil} onChange={set("nome_civil")} />
+          <Field label="Nome civil *" id="irmao-form-nome-civil">
+            <Input
+              id="irmao-form-nome-civil"
+              required
+              value={d.nome_civil}
+              onChange={set("nome_civil")}
+            />
           </Field>
-          <Field label="Data de nascimento">
-            <Input type="date" value={d.data_nascimento ?? ""} onChange={set("data_nascimento")} />
+          <Field label="Data de nascimento" id="irmao-form-data-de-nascimento">
+            <Input
+              id="irmao-form-data-de-nascimento"
+              type="date"
+              value={d.data_nascimento ?? ""}
+              onChange={set("data_nascimento")}
+            />
           </Field>
-          <Field label="E-mail">
-            <Input type="email" value={d.email ?? ""} onChange={set("email")} />
+          <Field label="E-mail" id="irmao-form-e-mail">
+            <Input
+              id="irmao-form-e-mail"
+              type="email"
+              value={d.email ?? ""}
+              onChange={set("email")}
+            />
           </Field>
-          <Field label="Telefone">
-            <Input value={d.telefone ?? ""} onChange={set("telefone")} />
+          <Field label="Telefone" id="irmao-form-telefone">
+            <Input id="irmao-form-telefone" value={d.telefone ?? ""} onChange={set("telefone")} />
           </Field>
-          <Field label="Profissão">
-            <Input value={d.profissao ?? ""} onChange={set("profissao")} />
+          <Field label="Profissão" id="irmao-form-profissao">
+            <Input
+              id="irmao-form-profissao"
+              value={d.profissao ?? ""}
+              onChange={set("profissao")}
+            />
           </Field>
-          <Field label="Endereço" className="md:col-span-2">
-            <Textarea value={d.endereco ?? ""} onChange={set("endereco")} />
+          <Field label="Endereço" className="md:col-span-2" id="irmao-form-endereco">
+            <Textarea
+              id="irmao-form-endereco"
+              value={d.endereco ?? ""}
+              onChange={set("endereco")}
+            />
           </Field>
         </CardContent>
       </Card>
@@ -120,15 +143,19 @@ export function IrmaoForm({
           <CardTitle className="text-base">Dados maçônicos</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <Field label="Nome simbólico">
-            <Input value={d.nome_simbolico ?? ""} onChange={set("nome_simbolico")} />
+          <Field label="Nome simbólico" id="irmao-form-nome-simbolico">
+            <Input
+              id="irmao-form-nome-simbolico"
+              value={d.nome_simbolico ?? ""}
+              onChange={set("nome_simbolico")}
+            />
           </Field>
-          <Field label="CIM">
-            <Input value={d.cim ?? ""} onChange={set("cim")} />
+          <Field label="CIM" id="irmao-form-cim">
+            <Input id="irmao-form-cim" value={d.cim ?? ""} onChange={set("cim")} />
           </Field>
-          <Field label="Grau">
+          <Field label="Grau" id="irmao-form-grau">
             <Select value={d.grau} onValueChange={(v) => setD({ ...d, grau: v as GrauIrmao })}>
-              <SelectTrigger>
+              <SelectTrigger id="irmao-form-grau">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -138,12 +165,12 @@ export function IrmaoForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Situação">
+          <Field label="Situação" id="irmao-form-situacao">
             <Select
               value={d.situacao}
               onValueChange={(v) => setD({ ...d, situacao: v as SituacaoIrmao })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="irmao-form-situacao">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -154,23 +181,43 @@ export function IrmaoForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Data de iniciação">
-            <Input type="date" value={d.data_iniciacao ?? ""} onChange={set("data_iniciacao")} />
-          </Field>
-          <Field label="Data de elevação">
-            <Input type="date" value={d.data_elevacao ?? ""} onChange={set("data_elevacao")} />
-          </Field>
-          <Field label="Data de exaltação">
-            <Input type="date" value={d.data_exaltacao ?? ""} onChange={set("data_exaltacao")} />
-          </Field>
-          <Field label="Potência">
-            <Input value={d.potencia ?? ""} onChange={set("potencia")} />
-          </Field>
-          <Field label="Loja de origem">
-            <Input value={d.loja_origem ?? ""} onChange={set("loja_origem")} />
-          </Field>
-          <Field label="Valor da mensalidade (R$)">
+          <Field label="Data de iniciação" id="irmao-form-data-de-iniciacao">
             <Input
+              id="irmao-form-data-de-iniciacao"
+              type="date"
+              value={d.data_iniciacao ?? ""}
+              onChange={set("data_iniciacao")}
+            />
+          </Field>
+          <Field label="Data de elevação" id="irmao-form-data-de-elevacao">
+            <Input
+              id="irmao-form-data-de-elevacao"
+              type="date"
+              value={d.data_elevacao ?? ""}
+              onChange={set("data_elevacao")}
+            />
+          </Field>
+          <Field label="Data de exaltação" id="irmao-form-data-de-exaltacao">
+            <Input
+              id="irmao-form-data-de-exaltacao"
+              type="date"
+              value={d.data_exaltacao ?? ""}
+              onChange={set("data_exaltacao")}
+            />
+          </Field>
+          <Field label="Potência" id="irmao-form-potencia">
+            <Input id="irmao-form-potencia" value={d.potencia ?? ""} onChange={set("potencia")} />
+          </Field>
+          <Field label="Loja de origem" id="irmao-form-loja-de-origem">
+            <Input
+              id="irmao-form-loja-de-origem"
+              value={d.loja_origem ?? ""}
+              onChange={set("loja_origem")}
+            />
+          </Field>
+          <Field label="Valor da mensalidade (R$)" id="irmao-form-valor-da-mensalidade-r">
+            <Input
+              id="irmao-form-valor-da-mensalidade-r"
               type="number"
               step="0.01"
               min="0"
@@ -194,14 +241,18 @@ function Field({
   label,
   className,
   children,
+  id,
 }: {
   label: string;
   className?: string;
   children: React.ReactNode;
+  id?: string;
 }) {
   return (
     <div className={className}>
-      <Label className="mb-1 block">{label}</Label>
+      <Label htmlFor={id} className="mb-1 block">
+        {label}
+      </Label>
       {children}
     </div>
   );

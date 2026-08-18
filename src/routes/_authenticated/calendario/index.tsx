@@ -359,8 +359,9 @@ function CalendarioPage() {
                       />
                     </div>
                     <div>
-                      <Label>Informações</Label>
+                      <Label id="calendario-informacoes">Informações</Label>
                       <RichTextEditor
+                        ariaLabelledBy="calendario-informacoes"
                         value={novaSessao.observacoes}
                         onChange={(html) => setNovaSessao({ ...novaSessao, observacoes: html })}
                       />

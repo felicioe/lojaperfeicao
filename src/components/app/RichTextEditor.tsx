@@ -12,6 +12,12 @@ type Props = {
   value: string;
   onChange: (html: string) => void;
   disabled?: boolean;
+  /**
+   * Id do <Label> que nomeia este editor. O campo editável é um
+   * contenteditable, não um <input>, então `htmlFor` não associa nada — a
+   * ligação tem que ser feita por aria-labelledby do lado do editor.
+   */
+  ariaLabelledBy?: string;
 };
 
 function ToolbarButton({
@@ -46,7 +52,7 @@ function ToolbarButton({
 // Tiptap/ProseMirror — usado nos campos de informações livres de sessões e
 // eventos (issue #228). O HTML salvo é sanitizado só na exibição
 // (RichTextView), nunca aqui.
-export function RichTextEditor({ value, onChange, disabled }: Props) {
+export function RichTextEditor({ value, onChange, disabled, ariaLabelledBy }: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: false }),
@@ -62,6 +68,7 @@ export function RichTextEditor({ value, onChange, disabled }: Props) {
           RICH_TEXT_CLASSES,
           "min-h-[120px] rounded-b-md border border-t-0 px-3 py-2 focus:outline-none",
         ),
+        ...(ariaLabelledBy ? { "aria-labelledby": ariaLabelledBy } : {}),
       },
     },
   });

@@ -130,25 +130,44 @@ function Recebimentos() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
         <div>
-          <Label className="text-xs">Competência (mês)</Label>
+          <Label className="text-xs" htmlFor="recebimentos-competencia-mes">
+            Competência (mês)
+          </Label>
           <Input
+            id="recebimentos-competencia-mes"
             type="month"
             value={competenciaMes ? competenciaMes.slice(0, 7) : ""}
             onChange={(e) => setCompetenciaMes(e.target.value ? `${e.target.value}-01` : "")}
           />
         </div>
         <div>
-          <Label className="text-xs">De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          <Label className="text-xs" htmlFor="recebimentos-de">
+            De
+          </Label>
+          <Input
+            id="recebimentos-de"
+            type="date"
+            value={de}
+            onChange={(e) => setDe(e.target.value)}
+          />
         </div>
         <div>
-          <Label className="text-xs">Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          <Label className="text-xs" htmlFor="recebimentos-ate">
+            Até
+          </Label>
+          <Input
+            id="recebimentos-ate"
+            type="date"
+            value={ate}
+            onChange={(e) => setAte(e.target.value)}
+          />
         </div>
         <div>
-          <Label className="text-xs">Conta</Label>
+          <Label className="text-xs" htmlFor="recebimentos-conta">
+            Conta
+          </Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="recebimentos-conta">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -162,9 +181,11 @@ function Recebimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Categoria</Label>
+          <Label className="text-xs" htmlFor="recebimentos-categoria">
+            Categoria
+          </Label>
           <Select value={categoria} onValueChange={setCategoria}>
-            <SelectTrigger>
+            <SelectTrigger id="recebimentos-categoria">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -178,9 +199,11 @@ function Recebimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Irmão</Label>
+          <Label className="text-xs" htmlFor="recebimentos-irmao">
+            Irmão
+          </Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="recebimentos-irmao">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -194,8 +217,11 @@ function Recebimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Forma de pagamento</Label>
+          <Label className="text-xs" htmlFor="recebimentos-forma-de-pagamento">
+            Forma de pagamento
+          </Label>
           <Input
+            id="recebimentos-forma-de-pagamento"
             placeholder="PIX, dinheiro…"
             value={formaPagamento}
             onChange={(e) => setFormaPagamento(e.target.value)}
