@@ -305,9 +305,9 @@ function Conciliacao() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3 items-end">
         <div>
-          <Label>Conta bancária</Label>
+          <Label htmlFor="conciliacao-conta">Conta bancária</Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="conciliacao-conta">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -322,8 +322,8 @@ function Conciliacao() {
         {podeEditar && (
           <>
             <div>
-              <Label>Arquivo OFX</Label>
-              <Input ref={fileRef} type="file" accept=".ofx,.qfx" />
+              <Label htmlFor="conciliacao-arquivo-ofx">Arquivo OFX</Label>
+              <Input id="conciliacao-arquivo-ofx" ref={fileRef} type="file" accept=".ofx,.qfx" />
             </div>
             <div>
               <Button onClick={importar} disabled={importando || !contaId}>
@@ -953,9 +953,9 @@ function CriarLancamentoDialog({
           <>
             {isEntrada && (
               <div>
-                <Label>Categoria</Label>
+                <Label htmlFor="conciliacao-categoria">Categoria</Label>
                 <Select value={categoria} onValueChange={setCategoria}>
-                  <SelectTrigger>
+                  <SelectTrigger id="conciliacao-categoria">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -970,12 +970,12 @@ function CriarLancamentoDialog({
             )}
             {isEntrada && (
               <div>
-                <Label>Irmão (opcional)</Label>
+                <Label htmlFor="conciliacao-irmao">Irmão (opcional)</Label>
                 <Select
                   value={irmaoId || "__nenhum__"}
                   onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="conciliacao-irmao">
                     <SelectValue placeholder="Selecione…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -992,9 +992,11 @@ function CriarLancamentoDialog({
               </div>
             )}
             <div>
-              <Label>Categoria contábil ({isEntrada ? "receita" : "despesa"})</Label>
+              <Label htmlFor="conciliacao-plano-conta">
+                Categoria contábil ({isEntrada ? "receita" : "despesa"})
+              </Label>
               <Select value={planoContaId} onValueChange={setPlanoContaId}>
-                <SelectTrigger>
+                <SelectTrigger id="conciliacao-plano-conta">
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1007,8 +1009,12 @@ function CriarLancamentoDialog({
               </Select>
             </div>
             <div>
-              <Label>Descrição</Label>
-              <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+              <Label htmlFor="conciliacao-descricao">Descrição</Label>
+              <Input
+                id="conciliacao-descricao"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+              />
             </div>
           </>
         ) : (
@@ -1036,12 +1042,14 @@ function CriarLancamentoDialog({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label>Categoria contábil ({isEntrada ? "receita" : "despesa"})</Label>
+                    <Label htmlFor={`conciliacao-rateio-plano-${it.chave}`}>
+                      Categoria contábil ({isEntrada ? "receita" : "despesa"})
+                    </Label>
                     <Select
                       value={it.planoContaId}
                       onValueChange={(v) => atualizarItem(it.chave, { planoContaId: v })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id={`conciliacao-rateio-plano-${it.chave}`}>
                         <SelectValue placeholder="Selecione…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1054,8 +1062,9 @@ function CriarLancamentoDialog({
                     </Select>
                   </div>
                   <div>
-                    <Label>Valor</Label>
+                    <Label htmlFor={`conciliacao-rateio-valor-${it.chave}`}>Valor</Label>
                     <Input
+                      id={`conciliacao-rateio-valor-${it.chave}`}
                       type="number"
                       step="0.01"
                       min="0.01"
@@ -1067,12 +1076,12 @@ function CriarLancamentoDialog({
                 {isEntrada && (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label>Categoria</Label>
+                      <Label htmlFor={`conciliacao-rateio-categoria-${it.chave}`}>Categoria</Label>
                       <Select
                         value={it.categoria}
                         onValueChange={(v) => atualizarItem(it.chave, { categoria: v })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id={`conciliacao-rateio-categoria-${it.chave}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1085,14 +1094,16 @@ function CriarLancamentoDialog({
                       </Select>
                     </div>
                     <div>
-                      <Label>Irmão (opcional)</Label>
+                      <Label htmlFor={`conciliacao-rateio-irmao-${it.chave}`}>
+                        Irmão (opcional)
+                      </Label>
                       <Select
                         value={it.irmaoId || "__nenhum__"}
                         onValueChange={(v) =>
                           atualizarItem(it.chave, { irmaoId: v === "__nenhum__" ? "" : v })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id={`conciliacao-rateio-irmao-${it.chave}`}>
                           <SelectValue placeholder="Selecione…" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1108,8 +1119,11 @@ function CriarLancamentoDialog({
                   </div>
                 )}
                 <div>
-                  <Label>Descrição (opcional)</Label>
+                  <Label htmlFor={`conciliacao-rateio-descricao-${it.chave}`}>
+                    Descrição (opcional)
+                  </Label>
                   <Input
+                    id={`conciliacao-rateio-descricao-${it.chave}`}
                     value={it.descricao}
                     onChange={(e) => atualizarItem(it.chave, { descricao: e.target.value })}
                   />

@@ -152,17 +152,33 @@ function Movimentos() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4 lg:grid-cols-7">
         <div>
-          <Label className="text-xs">De</Label>
-          <Input type="date" value={f.de} onChange={(e) => f.setDe(e.target.value)} />
+          <Label htmlFor="mov-de" className="text-xs">
+            De
+          </Label>
+          <Input
+            id="mov-de"
+            type="date"
+            value={f.de}
+            onChange={(e) => f.setDe(e.target.value)}
+          />
         </div>
         <div>
-          <Label className="text-xs">Até</Label>
-          <Input type="date" value={f.ate} onChange={(e) => f.setAte(e.target.value)} />
+          <Label htmlFor="mov-ate" className="text-xs">
+            Até
+          </Label>
+          <Input
+            id="mov-ate"
+            type="date"
+            value={f.ate}
+            onChange={(e) => f.setAte(e.target.value)}
+          />
         </div>
         <div>
-          <Label className="text-xs">Conta</Label>
+          <Label htmlFor="mov-conta" className="text-xs">
+            Conta
+          </Label>
           <Select value={f.contaId} onValueChange={f.setContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="mov-conta">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -176,9 +192,11 @@ function Movimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Tipo</Label>
+          <Label htmlFor="mov-tipo" className="text-xs">
+            Tipo
+          </Label>
           <Select value={f.tipo} onValueChange={f.setTipo}>
-            <SelectTrigger>
+            <SelectTrigger id="mov-tipo">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -190,9 +208,11 @@ function Movimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Categoria</Label>
+          <Label htmlFor="mov-categoria" className="text-xs">
+            Categoria
+          </Label>
           <Select value={f.categoria} onValueChange={f.setCategoria}>
-            <SelectTrigger>
+            <SelectTrigger id="mov-categoria">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

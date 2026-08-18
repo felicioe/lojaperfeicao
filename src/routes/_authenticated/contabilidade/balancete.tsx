@@ -111,8 +111,13 @@ function Balancete() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4 items-end">
         <div>
-          <Label>Data de corte</Label>
-          <Input type="date" value={dataCorte} onChange={(e) => setDataCorte(e.target.value)} />
+          <Label htmlFor="balancete-data-corte">Data de corte</Label>
+          <Input
+            id="balancete-data-corte"
+            type="date"
+            value={dataCorte}
+            onChange={(e) => setDataCorte(e.target.value)}
+          />
         </div>
         <div className="md:col-span-3 flex items-center gap-2">
           {fechado ? (

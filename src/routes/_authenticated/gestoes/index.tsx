@@ -121,9 +121,9 @@ function Gestoes() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-5">
             <div>
-              <Label>Corpo</Label>
+              <Label htmlFor="gestao-corpo">Corpo</Label>
               <Select value={form.org_id} onValueChange={(v) => setForm({ ...form, org_id: v })}>
-                <SelectTrigger>
+                <SelectTrigger id="gestao-corpo">
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -136,24 +136,27 @@ function Gestoes() {
               </Select>
             </div>
             <div>
-              <Label>Nome</Label>
+              <Label htmlFor="gestao-nome">Nome</Label>
               <Input
+                id="gestao-nome"
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 placeholder="2026-2028"
               />
             </div>
             <div>
-              <Label>Início</Label>
+              <Label htmlFor="gestao-inicio">Início</Label>
               <Input
+                id="gestao-inicio"
                 type="date"
                 value={form.data_inicio}
                 onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
               />
             </div>
             <div>
-              <Label>Fim</Label>
+              <Label htmlFor="gestao-fim">Fim</Label>
               <Input
+                id="gestao-fim"
                 type="date"
                 value={form.data_fim}
                 onChange={(e) => setForm({ ...form, data_fim: e.target.value })}
@@ -336,9 +339,11 @@ function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: 
       {podeEditar && (
         <div className="flex items-end gap-2">
           <div className="flex-1">
-            <Label className="text-xs">Cargo</Label>
+            <Label htmlFor="gestao-membro-cargo" className="text-xs">
+              Cargo
+            </Label>
             <Select value={novo.cargo_id} onValueChange={(v) => setNovo({ ...novo, cargo_id: v })}>
-              <SelectTrigger className="h-8">
+              <SelectTrigger id="gestao-membro-cargo" className="h-8">
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>
@@ -351,9 +356,11 @@ function OrganogramaPanel({ gestao, podeEditar }: { gestao: Gestao; podeEditar: 
             </Select>
           </div>
           <div className="flex-1">
-            <Label className="text-xs">Irmão</Label>
+            <Label htmlFor="gestao-membro-irmao" className="text-xs">
+              Irmão
+            </Label>
             <Select value={novo.irmao_id} onValueChange={(v) => setNovo({ ...novo, irmao_id: v })}>
-              <SelectTrigger className="h-8">
+              <SelectTrigger id="gestao-membro-irmao" className="h-8">
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>

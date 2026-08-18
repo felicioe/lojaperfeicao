@@ -175,9 +175,9 @@ function ImportarPdfSessoesPage() {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           <div>
-            <Label>Corpo maçônico</Label>
+            <Label htmlFor="importar-pdf-corpo">Corpo maçônico</Label>
             <Select value={orgId} onValueChange={setOrgId}>
-              <SelectTrigger>
+              <SelectTrigger id="importar-pdf-corpo">
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>
@@ -190,8 +190,9 @@ function ImportarPdfSessoesPage() {
             </Select>
           </div>
           <div>
-            <Label>Arquivo PDF</Label>
+            <Label htmlFor="importar-pdf-arquivo">Arquivo PDF</Label>
             <Input
+              id="importar-pdf-arquivo"
               type="file"
               accept=".pdf,application/pdf"
               disabled={carregando || !orgId}

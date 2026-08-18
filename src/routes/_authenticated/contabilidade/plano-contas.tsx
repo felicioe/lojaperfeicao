@@ -165,24 +165,29 @@ function PlanoContas() {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-5">
           <div>
-            <Label>Código</Label>
+            <Label htmlFor="plano-conta-codigo">Código</Label>
             <Input
+              id="plano-conta-codigo"
               value={form.codigo}
               onChange={(e) => setForm({ ...form, codigo: e.target.value })}
               placeholder="5.1.06"
             />
           </div>
           <div className="md:col-span-2">
-            <Label>Nome</Label>
-            <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+            <Label htmlFor="plano-conta-nome">Nome</Label>
+            <Input
+              id="plano-conta-nome"
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+            />
           </div>
           <div>
-            <Label>Tipo</Label>
+            <Label htmlFor="plano-conta-tipo">Tipo</Label>
             <Select
               value={form.tipo}
               onValueChange={(v) => setForm({ ...form, tipo: v as TipoConta, parent_id: "none" })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="plano-conta-tipo">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -195,12 +200,12 @@ function PlanoContas() {
             </Select>
           </div>
           <div>
-            <Label>Conta pai</Label>
+            <Label htmlFor="plano-conta-pai">Conta pai</Label>
             <Select
               value={form.parent_id}
               onValueChange={(v) => setForm({ ...form, parent_id: v })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="plano-conta-pai">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -217,10 +222,13 @@ function PlanoContas() {
           </div>
           <div className="flex items-center gap-2 md:col-span-2">
             <Switch
+              id="plano-conta-analitica"
               checked={form.analitica}
               onCheckedChange={(v) => setForm({ ...form, analitica: v })}
             />
-            <Label className="!m-0">Analítica (recebe lançamento)</Label>
+            <Label htmlFor="plano-conta-analitica" className="!m-0">
+              Analítica (recebe lançamento)
+            </Label>
           </div>
           <div className="md:col-span-5 flex gap-2">
             <Button onClick={salvar} disabled={!form.codigo || !form.nome}>
@@ -256,8 +264,14 @@ function PlanoContas() {
           </SelectContent>
         </Select>
         <div className="flex items-center gap-2">
-          <Switch checked={mostrarInativas} onCheckedChange={setMostrarInativas} />
-          <Label className="!m-0">Mostrar inativas</Label>
+          <Switch
+            id="plano-conta-mostrar-inativas"
+            checked={mostrarInativas}
+            onCheckedChange={setMostrarInativas}
+          />
+          <Label htmlFor="plano-conta-mostrar-inativas" className="!m-0">
+            Mostrar inativas
+          </Label>
         </div>
       </Card>
 

@@ -179,16 +179,21 @@ function Orcamento() {
                 </DialogHeader>
                 <div className="space-y-3">
                   <div>
-                    <Label>Ano</Label>
+                    <Label htmlFor="orcamento-novo-ano">Ano</Label>
                     <Input
+                      id="orcamento-novo-ano"
                       type="number"
                       value={novoAno}
                       onChange={(e) => setNovoAno(e.target.value)}
                     />
                   </div>
                   <div>
-                    <Label>Observações</Label>
-                    <Textarea value={novoObs} onChange={(e) => setNovoObs(e.target.value)} />
+                    <Label htmlFor="orcamento-novo-obs">Observações</Label>
+                    <Textarea
+                      id="orcamento-novo-obs"
+                      value={novoObs}
+                      onChange={(e) => setNovoObs(e.target.value)}
+                    />
                   </div>
                 </div>
                 <DialogFooter>
@@ -204,9 +209,9 @@ function Orcamento() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4 items-end">
         <div className="md:col-span-2">
-          <Label>Orçamento</Label>
+          <Label htmlFor="orcamento-selecionado">Orçamento</Label>
           <Select value={selecionado?.id ?? ""} onValueChange={setSelecionadoId}>
-            <SelectTrigger>
+            <SelectTrigger id="orcamento-selecionado">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>

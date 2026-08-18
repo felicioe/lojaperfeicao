@@ -27,10 +27,12 @@ export function FornecedorSelect({
   value,
   onValueChange,
   permitirNenhum = true,
+  triggerId,
 }: {
   value: string;
   onValueChange: (value: string) => void;
   permitirNenhum?: boolean;
+  triggerId?: string;
 }) {
   const qc = useQueryClient();
   const [aberto, setAberto] = useState(false);
@@ -78,7 +80,7 @@ export function FornecedorSelect({
   return (
     <>
       <Select value={value} onValueChange={selecionar}>
-        <SelectTrigger>
+        <SelectTrigger id={triggerId}>
           <SelectValue placeholder="Selecione um fornecedor" />
         </SelectTrigger>
         <SelectContent>

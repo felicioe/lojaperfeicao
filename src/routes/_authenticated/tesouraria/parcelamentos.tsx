@@ -191,8 +191,9 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
         <div className="md:col-span-2">
-          <Label>Irmão</Label>
+          <Label htmlFor="parcelamento-irmao">Irmão</Label>
           <select
+            id="parcelamento-irmao"
             value={irmaoId}
             onChange={(e) => setIrmaoId(e.target.value)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -250,8 +251,9 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
         )}
 
         <div>
-          <Label>Número de parcelas</Label>
+          <Label htmlFor="parcelamento-numero-parcelas">Número de parcelas</Label>
           <Input
+            id="parcelamento-numero-parcelas"
             type="number"
             min={1}
             value={numeroParcelas}
@@ -259,8 +261,9 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
           />
         </div>
         <div>
-          <Label>Entrada (opcional)</Label>
+          <Label htmlFor="parcelamento-entrada">Entrada (opcional)</Label>
           <Input
+            id="parcelamento-entrada"
             type="number"
             step="0.01"
             min="0"
@@ -270,8 +273,9 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
         </div>
         {entrada > 0 && (
           <div>
-            <Label>Conta que recebeu a entrada</Label>
+            <Label htmlFor="parcelamento-conta-entrada">Conta que recebeu a entrada</Label>
             <select
+              id="parcelamento-conta-entrada"
               value={contaFinanceiraId}
               onChange={(e) => setContaFinanceiraId(e.target.value)}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -287,16 +291,31 @@ function NovoParcelamentoForm({ onDone }: { onDone: () => void }) {
           </div>
         )}
         <div>
-          <Label>Data do acordo</Label>
-          <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+          <Label htmlFor="parcelamento-data">Data do acordo</Label>
+          <Input
+            id="parcelamento-data"
+            type="date"
+            value={data}
+            onChange={(e) => setData(e.target.value)}
+          />
         </div>
         <div className="flex items-center gap-2">
-          <Switch checked={incluirMultaJuros} onCheckedChange={setIncluirMultaJuros} />
-          <Label className="!m-0">Incorporar multa/juros já vencidos</Label>
+          <Switch
+            id="parcelamento-multa-juros"
+            checked={incluirMultaJuros}
+            onCheckedChange={setIncluirMultaJuros}
+          />
+          <Label htmlFor="parcelamento-multa-juros" className="!m-0">
+            Incorporar multa/juros já vencidos
+          </Label>
         </div>
         <div className="md:col-span-4">
-          <Label>Observações</Label>
-          <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+          <Label htmlFor="parcelamento-observacoes">Observações</Label>
+          <Textarea
+            id="parcelamento-observacoes"
+            value={observacoes}
+            onChange={(e) => setObservacoes(e.target.value)}
+          />
         </div>
 
         {selecionadas.length > 0 && (

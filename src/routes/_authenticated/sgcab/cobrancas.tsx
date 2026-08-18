@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   atualizarFaturaSgcab,
@@ -131,8 +131,13 @@ function ControleSgcabPage() {
             options={[{ id: "todos", nome: "Todos os corpos" }, ...orgs]}
           />
           <div>
-            <Label>Ano</Label>
-            <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} />
+            <Label htmlFor="cobrancas-ano">Ano</Label>
+            <Input
+              id="cobrancas-ano"
+              type="number"
+              value={ano}
+              onChange={(e) => setAno(Number(e.target.value))}
+            />
           </div>
           <FiltroSelect
             label="Situação no SGCAB"
@@ -266,11 +271,12 @@ function FiltroSelect({
   onChange: (v: string) => void;
   options: { id: string; nome: string }[];
 }) {
+  const id = useId();
   return (
     <div>
-      <Label>{label}</Label>
+      <Label htmlFor={id}>{label}</Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
+        <SelectTrigger id={id}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -396,8 +402,13 @@ function NovaFaturaDialog({
             options={orgs}
           />
           <div>
-            <Label>Ano</Label>
-            <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} />
+            <Label htmlFor="sgcab-nova-ano">Ano</Label>
+            <Input
+              id="sgcab-nova-ano"
+              type="number"
+              value={ano}
+              onChange={(e) => setAno(Number(e.target.value))}
+            />
           </div>
           <FiltroSelect
             label="Grau da evolução"
@@ -406,12 +417,18 @@ function NovaFaturaDialog({
             options={graus.map((g) => ({ id: String(g.grau), nome: `${g.grau} — ${g.nome}` }))}
           />
           <div>
-            <Label>Vencimento no SGCAB</Label>
-            <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+            <Label htmlFor="sgcab-nova-vencimento">Vencimento no SGCAB</Label>
+            <Input
+              id="sgcab-nova-vencimento"
+              type="date"
+              value={vencimento}
+              onChange={(e) => setVencimento(e.target.value)}
+            />
           </div>
           <div>
-            <Label>Data e hora da sessão</Label>
+            <Label htmlFor="sgcab-nova-data-sessao">Data e hora da sessão</Label>
             <Input
+              id="sgcab-nova-data-sessao"
               type="datetime-local"
               value={dataSessao}
               onChange={(e) => setDataSessao(e.target.value)}
@@ -419,10 +436,12 @@ function NovaFaturaDialog({
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Composição da cobrança</Label>
+          <Label id="sgcab-nova-composicao-label">Composição da cobrança</Label>
           {itens.map((item, index) => (
             <div
               key={item.tipo}
+              role="group"
+              aria-labelledby="sgcab-nova-composicao-label"
               className="grid grid-cols-[auto_1fr_130px] items-center gap-3 rounded-lg border px-3 py-2"
             >
               <input
@@ -465,8 +484,9 @@ function NovaFaturaDialog({
           </div>
         </div>
         <div>
-          <Label>Observações</Label>
+          <Label htmlFor="sgcab-nova-observacoes">Observações</Label>
           <Textarea
+            id="sgcab-nova-observacoes"
             value={observacoes}
             onChange={(e) => setObservacoes(e.target.value)}
             placeholder="Informações complementares da solicitação ao SGCAB"
@@ -548,12 +568,18 @@ function AtualizarStatusDialog({ fatura, onDone }: { fatura: SgcabFatura; onDone
           {status === "pago" && (
             <>
               <div>
-                <Label>Data do pagamento ao SGCAB</Label>
-                <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+                <Label htmlFor="cobrancas-data-pagamento">Data do pagamento ao SGCAB</Label>
+                <Input
+                  id="cobrancas-data-pagamento"
+                  type="date"
+                  value={data}
+                  onChange={(e) => setData(e.target.value)}
+                />
               </div>
               <div>
-                <Label>Comprovante do SGCAB</Label>
+                <Label htmlFor="cobrancas-comprovante">Comprovante do SGCAB</Label>
                 <Input
+                  id="cobrancas-comprovante"
                   type="file"
                   accept="image/*,application/pdf"
                   onChange={(e) => e.target.files?.[0] && anexar(e.target.files[0])}
@@ -562,8 +588,12 @@ function AtualizarStatusDialog({ fatura, onDone }: { fatura: SgcabFatura; onDone
             </>
           )}
           <div>
-            <Label>Observações</Label>
-            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+            <Label htmlFor="cobrancas-observacoes">Observações</Label>
+            <Textarea
+              id="cobrancas-observacoes"
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+            />
           </div>
         </div>
         <DialogFooter>

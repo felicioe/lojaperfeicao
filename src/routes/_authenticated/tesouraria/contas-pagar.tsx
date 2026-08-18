@@ -458,12 +458,17 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
       </DialogHeader>
       <div className="grid gap-3 md:grid-cols-2">
         <div className="md:col-span-2">
-          <Label>Descrição</Label>
-          <Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} />
+          <Label htmlFor="conta-pagar-descricao">Descrição</Label>
+          <Input
+            id="conta-pagar-descricao"
+            value={d.descricao}
+            onChange={(e) => setD({ ...d, descricao: e.target.value })}
+          />
         </div>
         <div>
-          <Label>Valor</Label>
+          <Label htmlFor="conta-pagar-valor">Valor</Label>
           <Input
+            id="conta-pagar-valor"
             type="number"
             step="0.01"
             min="0"
@@ -472,9 +477,9 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
           />
         </div>
         <div>
-          <Label>Categoria</Label>
+          <Label htmlFor="conta-pagar-categoria">Categoria</Label>
           <Select value={d.plano_conta_id} onValueChange={(v) => setD({ ...d, plano_conta_id: v })}>
-            <SelectTrigger>
+            <SelectTrigger id="conta-pagar-categoria">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -487,31 +492,35 @@ function NovaContaPagarDialog({ onDone }: { onDone: () => void }) {
           </Select>
         </div>
         <div>
-          <Label>Fornecedor (opcional)</Label>
+          <Label htmlFor="conta-pagar-fornecedor">Fornecedor (opcional)</Label>
           <FornecedorSelect
+            triggerId="conta-pagar-fornecedor"
             value={d.terceiro_id}
             onValueChange={(v) => setD({ ...d, terceiro_id: v })}
           />
         </div>
         <div>
-          <Label>Emissão</Label>
+          <Label htmlFor="conta-pagar-emissao">Emissão</Label>
           <Input
+            id="conta-pagar-emissao"
             type="date"
             value={d.data}
             onChange={(e) => setD({ ...d, data: e.target.value })}
           />
         </div>
         <div>
-          <Label>Vencimento</Label>
+          <Label htmlFor="conta-pagar-vencimento">Vencimento</Label>
           <Input
+            id="conta-pagar-vencimento"
             type="date"
             value={d.data_vencimento}
             onChange={(e) => setD({ ...d, data_vencimento: e.target.value })}
           />
         </div>
         <div className="md:col-span-2">
-          <Label>Observações</Label>
+          <Label htmlFor="conta-pagar-observacoes">Observações</Label>
           <Textarea
+            id="conta-pagar-observacoes"
             value={d.observacoes}
             onChange={(e) => setD({ ...d, observacoes: e.target.value })}
           />
@@ -700,9 +709,9 @@ function BaixarContaPagarDialog({
           Valor: <span className="font-medium text-foreground">{brl(lancamento.valor)}</span>
         </div>
         <div>
-          <Label>Conta que pagou</Label>
+          <Label htmlFor="conta-pagar-conta-financeira">Conta que pagou</Label>
           <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-            <SelectTrigger>
+            <SelectTrigger id="conta-pagar-conta-financeira">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -716,16 +725,18 @@ function BaixarContaPagarDialog({
           </Select>
         </div>
         <div>
-          <Label>Forma de pagamento</Label>
+          <Label htmlFor="conta-pagar-forma-pagamento">Forma de pagamento</Label>
           <Input
+            id="conta-pagar-forma-pagamento"
             value={formaPagamento}
             onChange={(e) => setFormaPagamento(e.target.value)}
             placeholder="PIX, boleto, débito…"
           />
         </div>
         <div>
-          <Label>Data do pagamento</Label>
+          <Label htmlFor="conta-pagar-data-pagamento">Data do pagamento</Label>
           <Input
+            id="conta-pagar-data-pagamento"
             type="date"
             value={dataPagamento}
             onChange={(e) => setDataPagamento(e.target.value)}

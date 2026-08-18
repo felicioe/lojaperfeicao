@@ -288,16 +288,30 @@ function NovoFechamentoDialog({ exercicioSugerido }: { exercicioSugerido: number
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label>Exercício (ano)</Label>
-            <Input type="number" value={exercicio} onChange={(e) => setExercicio(e.target.value)} />
+            <Label htmlFor="fechamento-exercicio">Exercício (ano)</Label>
+            <Input
+              id="fechamento-exercicio"
+              type="number"
+              value={exercicio}
+              onChange={(e) => setExercicio(e.target.value)}
+            />
           </div>
           <div>
-            <Label>Data de corte</Label>
-            <Input type="date" value={dataCorte} onChange={(e) => setDataCorte(e.target.value)} />
+            <Label htmlFor="fechamento-data-corte">Data de corte</Label>
+            <Input
+              id="fechamento-data-corte"
+              type="date"
+              value={dataCorte}
+              onChange={(e) => setDataCorte(e.target.value)}
+            />
           </div>
           <div>
-            <Label>Observações</Label>
-            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+            <Label htmlFor="fechamento-observacoes">Observações</Label>
+            <Textarea
+              id="fechamento-observacoes"
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+            />
           </div>
           {preview && (
             <Card className="p-3 text-sm space-y-1">
@@ -359,8 +373,13 @@ function ReabrirDialog({
             lançamentos com data dentro deste exercício. Informe o motivo.
           </p>
           <div>
-            <Label>Motivo da reabertura</Label>
-            <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} required />
+            <Label htmlFor="fechamento-motivo">Motivo da reabertura</Label>
+            <Textarea
+              id="fechamento-motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              required
+            />
           </div>
         </div>
         <DialogFooter>

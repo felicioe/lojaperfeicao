@@ -190,9 +190,9 @@ function TaxasCorpoPanel() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-6">
             <div>
-              <Label>Tipo</Label>
+              <Label htmlFor="valor-tipo">Tipo</Label>
               <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
-                <SelectTrigger>
+                <SelectTrigger id="valor-tipo">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -207,17 +207,18 @@ function TaxasCorpoPanel() {
             </div>
             {form.tipo === "outro" && (
               <div>
-                <Label>Nome do tipo</Label>
+                <Label htmlFor="valor-tipo-custom">Nome do tipo</Label>
                 <Input
+                  id="valor-tipo-custom"
                   value={form.tipoCustom}
                   onChange={(e) => setForm({ ...form, tipoCustom: e.target.value })}
                 />
               </div>
             )}
             <div>
-              <Label>Corpo (opcional)</Label>
+              <Label htmlFor="valor-corpo">Corpo (opcional)</Label>
               <Select value={form.orgId} onValueChange={(v) => setForm({ ...form, orgId: v })}>
-                <SelectTrigger>
+                <SelectTrigger id="valor-corpo">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -231,8 +232,9 @@ function TaxasCorpoPanel() {
               </Select>
             </div>
             <div>
-              <Label>Valor</Label>
+              <Label htmlFor="valor-valor">Valor</Label>
               <Input
+                id="valor-valor"
                 type="number"
                 step="0.01"
                 value={form.valor}
@@ -240,16 +242,18 @@ function TaxasCorpoPanel() {
               />
             </div>
             <div>
-              <Label>Vigência a partir de</Label>
+              <Label htmlFor="valor-vigencia">Vigência a partir de</Label>
               <Input
+                id="valor-vigencia"
                 type="date"
                 value={form.vigenciaInicio}
                 onChange={(e) => setForm({ ...form, vigenciaInicio: e.target.value })}
               />
             </div>
             <div className="md:col-span-2">
-              <Label>Observações</Label>
+              <Label htmlFor="valor-observacoes">Observações</Label>
               <Input
+                id="valor-observacoes"
                 value={form.observacoes}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
               />
@@ -497,8 +501,9 @@ function ReajustarMensalidadeDialog({ onDone }: { onDone: () => void }) {
             Mensalidades já geradas não são alteradas — só as próximas gerações usam o valor novo.
           </p>
           <div>
-            <Label>Novo valor</Label>
+            <Label htmlFor="lote-novo-valor">Novo valor</Label>
             <Input
+              id="lote-novo-valor"
               type="number"
               step="0.01"
               value={novoValor}
@@ -506,16 +511,20 @@ function ReajustarMensalidadeDialog({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <Label>Vigência a partir de</Label>
+            <Label htmlFor="lote-vigencia">Vigência a partir de</Label>
             <Input
+              id="lote-vigencia"
               type="date"
               value={vigenciaInicio}
               onChange={(e) => setVigenciaInicio(e.target.value)}
             />
           </div>
           <div>
-            <Label>Só atualizar quem está no valor (opcional)</Label>
+            <Label htmlFor="lote-somente-valor-atual">
+              Só atualizar quem está no valor (opcional)
+            </Label>
             <Input
+              id="lote-somente-valor-atual"
               type="number"
               step="0.01"
               placeholder="Deixe em branco para atualizar todos"
@@ -527,8 +536,12 @@ function ReajustarMensalidadeDialog({ onDone }: { onDone: () => void }) {
             />
           </div>
           <div>
-            <Label>Observações</Label>
-            <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+            <Label htmlFor="lote-observacoes">Observações</Label>
+            <Textarea
+              id="lote-observacoes"
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+            />
           </div>
           <Button variant="outline" size="sm" onClick={consultarContagem} disabled={consultando}>
             Consultar quantos irmãos serão afetados
@@ -658,9 +671,9 @@ function TaxasPotenciaPanel() {
       <Card className="mb-4">
         <CardContent className="grid gap-3 pt-6 md:grid-cols-3">
           <div>
-            <Label>Corpo maçônico</Label>
+            <Label htmlFor="taxas-corpo">Corpo maçônico</Label>
             <Select value={orgId} onValueChange={setOrgId}>
-              <SelectTrigger>
+              <SelectTrigger id="taxas-corpo">
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>
@@ -674,8 +687,13 @@ function TaxasPotenciaPanel() {
             </Select>
           </div>
           <div>
-            <Label>Ano</Label>
-            <Input type="number" value={ano} onChange={(e) => setAno(Number(e.target.value))} />
+            <Label htmlFor="taxas-ano">Ano</Label>
+            <Input
+              id="taxas-ano"
+              type="number"
+              value={ano}
+              onChange={(e) => setAno(Number(e.target.value))}
+            />
           </div>
           {can.canManageIrmaos && (
             <div className="flex items-end">
@@ -700,10 +718,10 @@ function TaxasPotenciaPanel() {
               </CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-6">
                 <div>
-                  <Label>Grau</Label>
+                  <Label htmlFor="taxa-grau">Grau</Label>
                   {graus.length > 0 ? (
                     <Select value={form.grau} onValueChange={(v) => setForm({ ...form, grau: v })}>
-                      <SelectTrigger>
+                      <SelectTrigger id="taxa-grau">
                         <SelectValue placeholder="Grau…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -716,6 +734,7 @@ function TaxasPotenciaPanel() {
                     </Select>
                   ) : (
                     <Input
+                      id="taxa-grau"
                       type="number"
                       min={1}
                       max={33}
@@ -725,8 +744,9 @@ function TaxasPotenciaPanel() {
                   )}
                 </div>
                 <div>
-                  <Label>SGCAB</Label>
+                  <Label htmlFor="taxa-sgcab">SGCAB</Label>
                   <Input
+                    id="taxa-sgcab"
                     type="number"
                     step="0.01"
                     value={form.sgcab}
@@ -734,8 +754,9 @@ function TaxasPotenciaPanel() {
                   />
                 </div>
                 <div>
-                  <Label>Ritual</Label>
+                  <Label htmlFor="taxa-ritual">Ritual</Label>
                   <Input
+                    id="taxa-ritual"
                     type="number"
                     step="0.01"
                     value={form.ritual}
@@ -743,8 +764,9 @@ function TaxasPotenciaPanel() {
                   />
                 </div>
                 <div>
-                  <Label>Diploma</Label>
+                  <Label htmlFor="taxa-diploma">Diploma</Label>
                   <Input
+                    id="taxa-diploma"
                     type="number"
                     step="0.01"
                     value={form.diploma}
@@ -752,8 +774,9 @@ function TaxasPotenciaPanel() {
                   />
                 </div>
                 <div>
-                  <Label>Taxa própria</Label>
+                  <Label htmlFor="taxa-propria">Taxa própria</Label>
                   <Input
+                    id="taxa-propria"
                     type="number"
                     step="0.01"
                     value={form.taxaPropria}

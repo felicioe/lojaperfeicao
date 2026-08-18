@@ -156,23 +156,26 @@ function EventosPage() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
             <div className="md:col-span-2">
-              <Label>Título</Label>
+              <Label htmlFor="evento-titulo">Título</Label>
               <Input
+                id="evento-titulo"
                 value={form.titulo}
                 onChange={(e) => setForm({ ...form, titulo: e.target.value })}
               />
             </div>
             <div>
-              <Label>Data</Label>
+              <Label htmlFor="evento-data">Data</Label>
               <Input
+                id="evento-data"
                 type="date"
                 value={form.data}
                 onChange={(e) => setForm({ ...form, data: e.target.value })}
               />
             </div>
             <div>
-              <Label>Hora</Label>
+              <Label htmlFor="evento-hora">Hora</Label>
               <Input
+                id="evento-hora"
                 type="time"
                 value={form.hora}
                 onChange={(e) => setForm({ ...form, hora: e.target.value })}
@@ -194,12 +197,12 @@ function EventosPage() {
               />
             </div>
             <div>
-              <Label>Público</Label>
+              <Label htmlFor="evento-publico">Público</Label>
               <Select
                 value={form.publico}
                 onValueChange={(v) => setForm({ ...form, publico: v as Evento["publico"] })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="evento-publico">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -213,9 +216,9 @@ function EventosPage() {
             </div>
             {form.publico === "org" && (
               <div>
-                <Label>Corpo maçônico</Label>
+                <Label htmlFor="evento-corpo">Corpo maçônico</Label>
                 <Select value={form.orgId} onValueChange={(v) => setForm({ ...form, orgId: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="evento-corpo">
                     <SelectValue placeholder="Selecione…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -230,10 +233,13 @@ function EventosPage() {
             )}
             <div className="flex items-center gap-2">
               <Checkbox
+                id="evento-tem-agape"
                 checked={form.temAgape}
                 onCheckedChange={(v) => setForm({ ...form, temAgape: !!v })}
               />
-              <Label className="font-normal">Tem ágape</Label>
+              <Label htmlFor="evento-tem-agape" className="font-normal">
+                Tem ágape
+              </Label>
             </div>
 
             <div className="flex gap-2 md:col-span-4">

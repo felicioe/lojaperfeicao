@@ -105,16 +105,20 @@ function Contas() {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-5">
           <div>
-            <Label>Nome</Label>
-            <Input value={nova.nome} onChange={(e) => setNova({ ...nova, nome: e.target.value })} />
+            <Label htmlFor="conta-nome">Nome</Label>
+            <Input
+              id="conta-nome"
+              value={nova.nome}
+              onChange={(e) => setNova({ ...nova, nome: e.target.value })}
+            />
           </div>
           <div>
-            <Label>Tipo</Label>
+            <Label htmlFor="conta-tipo">Tipo</Label>
             <Select
               value={nova.tipo}
               onValueChange={(v) => setNova({ ...nova, tipo: v as typeof nova.tipo })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="conta-tipo">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -125,15 +129,17 @@ function Contas() {
             </Select>
           </div>
           <div>
-            <Label>Banco</Label>
+            <Label htmlFor="conta-banco">Banco</Label>
             <Input
+              id="conta-banco"
               value={nova.banco}
               onChange={(e) => setNova({ ...nova, banco: e.target.value })}
             />
           </div>
           <div>
-            <Label>Saldo inicial</Label>
+            <Label htmlFor="conta-saldo-inicial">Saldo inicial</Label>
             <Input
+              id="conta-saldo-inicial"
               type="number"
               step="0.01"
               value={nova.saldo_inicial}
@@ -214,6 +220,8 @@ function Contas() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        aria-label={expandido === c.id ? "Recolher chaves Pix" : "Expandir chaves Pix"}
+                        aria-expanded={expandido === c.id}
                         onClick={() => setExpandido(expandido === c.id ? null : c.id)}
                       >
                         {expandido === c.id ? (
@@ -474,12 +482,14 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
       </div>
       <div className="grid gap-3 rounded-lg border p-4 md:grid-cols-2 xl:grid-cols-4">
         <div>
-          <Label className="text-xs">Tipo</Label>
+          <Label htmlFor="pix-tipo" className="text-xs">
+            Tipo
+          </Label>
           <Select
             value={nova.tipo}
             onValueChange={(v) => setNova({ ...nova, tipo: v as ChavePix["tipo"] })}
           >
-            <SelectTrigger className="h-8">
+            <SelectTrigger id="pix-tipo" className="h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -492,8 +502,11 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Chave PIX (opcional)</Label>
+          <Label htmlFor="pix-chave" className="text-xs">
+            Chave PIX (opcional)
+          </Label>
           <Input
+            id="pix-chave"
             className="h-8"
             value={nova.chave}
             onChange={(e) => setNova({ ...nova, chave: e.target.value })}
@@ -503,8 +516,11 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           </p>
         </div>
         <div>
-          <Label className="text-xs">Beneficiário</Label>
+          <Label htmlFor="pix-beneficiario" className="text-xs">
+            Beneficiário
+          </Label>
           <Input
+            id="pix-beneficiario"
             className="h-8"
             maxLength={25}
             value={nova.nome_beneficiario}
@@ -512,8 +528,11 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           />
         </div>
         <div>
-          <Label className="text-xs">Cidade</Label>
+          <Label htmlFor="pix-cidade" className="text-xs">
+            Cidade
+          </Label>
           <Input
+            id="pix-cidade"
             className="h-8"
             maxLength={15}
             value={nova.cidade}
@@ -521,8 +540,11 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           />
         </div>
         <div className="md:col-span-2 xl:col-span-4">
-          <Label className="text-xs">PIX copia e cola (opcional)</Label>
+          <Label htmlFor="pix-copia-cola" className="text-xs">
+            PIX copia e cola (opcional)
+          </Label>
           <Textarea
+            id="pix-copia-cola"
             rows={3}
             maxLength={1000}
             value={nova.pix_copia_cola}
@@ -532,8 +554,11 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
           />
         </div>
         <div className="md:col-span-2">
-          <Label className="text-xs">Imagem do QR Code (opcional)</Label>
+          <Label htmlFor="pix-qr-code" className="text-xs">
+            Imagem do QR Code (opcional)
+          </Label>
           <Input
+            id="pix-qr-code"
             type="file"
             accept="image/png,image/jpeg,image/webp"
             disabled={enviandoQr}

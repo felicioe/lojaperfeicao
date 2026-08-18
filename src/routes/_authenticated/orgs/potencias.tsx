@@ -98,29 +98,33 @@ function Potencias() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
             <div>
-              <Label>Nome</Label>
+              <Label htmlFor="potencia-nome">Nome</Label>
               <Input
+                id="potencia-nome"
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
               />
             </div>
             <div>
-              <Label>Sigla</Label>
+              <Label htmlFor="potencia-sigla">Sigla</Label>
               <Input
+                id="potencia-sigla"
                 value={form.sigla}
                 onChange={(e) => setForm({ ...form, sigla: e.target.value })}
               />
             </div>
             <div>
-              <Label>Jurisdição</Label>
+              <Label htmlFor="potencia-jurisdicao">Jurisdição</Label>
               <Input
+                id="potencia-jurisdicao"
                 value={form.jurisdicao}
                 onChange={(e) => setForm({ ...form, jurisdicao: e.target.value })}
               />
             </div>
             <div>
-              <Label>Site</Label>
+              <Label htmlFor="potencia-site">Site</Label>
               <Input
+                id="potencia-site"
                 value={form.site}
                 onChange={(e) => setForm({ ...form, site: e.target.value })}
               />

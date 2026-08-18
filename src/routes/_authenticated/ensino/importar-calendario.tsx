@@ -115,9 +115,9 @@ function ImportarCalendarioPage() {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           <div>
-            <Label>Corpo maçônico</Label>
+            <Label htmlFor="importar-cal-corpo">Corpo maçônico</Label>
             <Select value={orgId} onValueChange={setOrgId}>
-              <SelectTrigger>
+              <SelectTrigger id="importar-cal-corpo">
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>
@@ -130,8 +130,9 @@ function ImportarCalendarioPage() {
             </Select>
           </div>
           <div>
-            <Label>Selecione um arquivo .ics ou .csv</Label>
+            <Label htmlFor="importar-cal-arquivo">Selecione um arquivo .ics ou .csv</Label>
             <Input
+              id="importar-cal-arquivo"
               type="file"
               accept=".ics,.csv,text/calendar,text/csv"
               disabled={carregando || !orgId}

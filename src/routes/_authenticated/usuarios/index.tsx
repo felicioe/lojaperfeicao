@@ -502,8 +502,9 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
-              <Label>Nova senha</Label>
+              <Label htmlFor="nova-senha">Nova senha</Label>
               <Input
+                id="nova-senha"
                 value={novaSenha}
                 onChange={(e) => setNovaSenha(e.target.value)}
                 placeholder="123"
@@ -518,8 +519,9 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
               </Button>
             </div>
             <div className="space-y-2">
-              <Label>Depois de definida</Label>
+              <Label id="depois-definida-label">Depois de definida</Label>
               <RadioGroup
+                aria-labelledby="depois-definida-label"
                 value={obrigarTroca ? "obrigar" : "fixar"}
                 onValueChange={(v) => setObrigarTroca(v === "obrigar")}
               >

@@ -91,12 +91,17 @@ function Diario() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3">
         <div>
-          <Label>De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          <Label htmlFor="diario-de">De</Label>
+          <Input id="diario-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
         </div>
         <div>
-          <Label>Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          <Label htmlFor="diario-ate">Até</Label>
+          <Input
+            id="diario-ate"
+            type="date"
+            value={ate}
+            onChange={(e) => setAte(e.target.value)}
+          />
         </div>
         <div className="flex flex-col justify-end">
           <div className="text-sm text-muted-foreground">Total de débitos no período</div>

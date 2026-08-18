@@ -78,8 +78,9 @@ function TrocarSenha() {
         >
           <CardContent className="space-y-3">
             <div>
-              <Label>Nova senha</Label>
+              <Label htmlFor="nova-senha">Nova senha</Label>
               <Input
+                id="nova-senha"
                 type="password"
                 autoComplete="new-password"
                 value={novaSenha}
@@ -88,8 +89,9 @@ function TrocarSenha() {
               />
             </div>
             <div>
-              <Label>Confirmar nova senha</Label>
+              <Label htmlFor="confirmar-senha">Confirmar nova senha</Label>
               <Input
+                id="confirmar-senha"
                 type="password"
                 autoComplete="new-password"
                 value={confirmacao}

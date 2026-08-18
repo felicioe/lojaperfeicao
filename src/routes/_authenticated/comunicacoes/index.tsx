@@ -115,15 +115,17 @@ function ComunicacoesPage() {
           </CardHeader>
           <CardContent className="grid gap-3">
             <div>
-              <Label>Título</Label>
+              <Label htmlFor="comunicado-titulo">Título</Label>
               <Input
+                id="comunicado-titulo"
                 value={form.titulo}
                 onChange={(e) => setForm({ ...form, titulo: e.target.value })}
               />
             </div>
             <div>
-              <Label>Corpo</Label>
+              <Label htmlFor="comunicado-corpo">Corpo</Label>
               <Textarea
+                id="comunicado-corpo"
                 rows={4}
                 value={form.corpo}
                 onChange={(e) => setForm({ ...form, corpo: e.target.value })}
@@ -131,12 +133,12 @@ function ComunicacoesPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <Label>Público</Label>
+                <Label htmlFor="comunicado-publico">Público</Label>
                 <Select
                   value={form.publico}
                   onValueChange={(v) => setForm({ ...form, publico: v as Comunicado["publico"] })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="comunicado-publico">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -150,9 +152,9 @@ function ComunicacoesPage() {
               </div>
               {form.publico === "org" && (
                 <div>
-                  <Label>Corpo maçônico</Label>
+                  <Label htmlFor="comunicado-org">Corpo maçônico</Label>
                   <Select value={form.orgId} onValueChange={(v) => setForm({ ...form, orgId: v })}>
-                    <SelectTrigger>
+                    <SelectTrigger id="comunicado-org">
                       <SelectValue placeholder="Selecione…" />
                     </SelectTrigger>
                     <SelectContent>

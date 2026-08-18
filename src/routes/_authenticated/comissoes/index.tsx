@@ -115,9 +115,9 @@ function Comissoes() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
             <div>
-              <Label>Corpo</Label>
+              <Label htmlFor="comissao-corpo">Corpo</Label>
               <Select value={form.org_id} onValueChange={(v) => setForm({ ...form, org_id: v })}>
-                <SelectTrigger>
+                <SelectTrigger id="comissao-corpo">
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -130,8 +130,9 @@ function Comissoes() {
               </Select>
             </div>
             <div className="md:col-span-2">
-              <Label>Nome</Label>
+              <Label htmlFor="comissao-nome">Nome</Label>
               <Input
+                id="comissao-nome"
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 placeholder="Ensino, Ritualística, Liturgia e Graus"
@@ -303,8 +304,11 @@ function MembrosPanel({ comissao, podeEditar }: { comissao: Comissao; podeEditar
       {podeEditar && (
         <div className="flex items-end gap-2">
           <div className="flex-1">
-            <Label className="text-xs">Papel</Label>
+            <Label htmlFor="comissao-membro-papel" className="text-xs">
+              Papel
+            </Label>
             <Input
+              id="comissao-membro-papel"
               className="h-8"
               list="papeis-sugeridos"
               value={novo.papel}
@@ -318,9 +322,11 @@ function MembrosPanel({ comissao, podeEditar }: { comissao: Comissao; podeEditar
             </datalist>
           </div>
           <div className="flex-1">
-            <Label className="text-xs">Irmão</Label>
+            <Label htmlFor="comissao-membro-irmao" className="text-xs">
+              Irmão
+            </Label>
             <Select value={novo.irmao_id} onValueChange={(v) => setNovo({ ...novo, irmao_id: v })}>
-              <SelectTrigger className="h-8">
+              <SelectTrigger id="comissao-membro-irmao" className="h-8">
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>

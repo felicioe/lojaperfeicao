@@ -213,12 +213,12 @@ function Terceiros() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
             <div>
-              <Label>Tipo</Label>
+              <Label htmlFor="terceiro-tipo">Tipo</Label>
               <Select
                 value={form.tipo}
                 onValueChange={(v) => setForm({ ...form, tipo: v as Tipo })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="terceiro-tipo">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -231,9 +231,10 @@ function Terceiros() {
               </Select>
             </div>
             <div className="md:col-span-2">
-              <Label>CNPJ</Label>
+              <Label htmlFor="terceiro-cnpj">CNPJ</Label>
               <div className="flex gap-2">
                 <Input
+                  id="terceiro-cnpj"
                   value={form.cnpj}
                   onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
                   placeholder="00.000.000/0000-00"
@@ -248,88 +249,110 @@ function Terceiros() {
               </div>
             </div>
             <div>
-              <Label>CPF (se pessoa física)</Label>
-              <Input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
+              <Label htmlFor="terceiro-cpf">CPF (se pessoa física)</Label>
+              <Input
+                id="terceiro-cpf"
+                value={form.cpf}
+                onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+              />
             </div>
 
             <div className="md:col-span-2">
-              <Label>Razão social / Nome</Label>
+              <Label htmlFor="terceiro-nome">Razão social / Nome</Label>
               <Input
+                id="terceiro-nome"
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
               />
             </div>
             <div className="md:col-span-2">
-              <Label>Nome fantasia</Label>
+              <Label htmlFor="terceiro-nome-fantasia">Nome fantasia</Label>
               <Input
+                id="terceiro-nome-fantasia"
                 value={form.nome_fantasia}
                 onChange={(e) => setForm({ ...form, nome_fantasia: e.target.value })}
               />
             </div>
 
             <div>
-              <Label>Contato</Label>
+              <Label htmlFor="terceiro-contato">Contato</Label>
               <Input
+                id="terceiro-contato"
                 value={form.contato}
                 onChange={(e) => setForm({ ...form, contato: e.target.value })}
               />
             </div>
             <div>
-              <Label>E-mail</Label>
+              <Label htmlFor="terceiro-email">E-mail</Label>
               <Input
+                id="terceiro-email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
             <div className="md:col-span-2">
-              <Label>Categoria</Label>
+              <Label htmlFor="terceiro-categoria">Categoria</Label>
               <Input
+                id="terceiro-categoria"
                 value={form.categoria}
                 onChange={(e) => setForm({ ...form, categoria: e.target.value })}
               />
             </div>
 
             <div>
-              <Label>CEP</Label>
-              <Input value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} />
+              <Label htmlFor="terceiro-cep">CEP</Label>
+              <Input
+                id="terceiro-cep"
+                value={form.cep}
+                onChange={(e) => setForm({ ...form, cep: e.target.value })}
+              />
             </div>
             <div className="md:col-span-2">
-              <Label>Logradouro</Label>
+              <Label htmlFor="terceiro-logradouro">Logradouro</Label>
               <Input
+                id="terceiro-logradouro"
                 value={form.logradouro}
                 onChange={(e) => setForm({ ...form, logradouro: e.target.value })}
               />
             </div>
             <div>
-              <Label>Número</Label>
+              <Label htmlFor="terceiro-numero">Número</Label>
               <Input
+                id="terceiro-numero"
                 value={form.numero}
                 onChange={(e) => setForm({ ...form, numero: e.target.value })}
               />
             </div>
             <div>
-              <Label>Bairro</Label>
+              <Label htmlFor="terceiro-bairro">Bairro</Label>
               <Input
+                id="terceiro-bairro"
                 value={form.bairro}
                 onChange={(e) => setForm({ ...form, bairro: e.target.value })}
               />
             </div>
             <div>
-              <Label>Município</Label>
+              <Label htmlFor="terceiro-municipio">Município</Label>
               <Input
+                id="terceiro-municipio"
                 value={form.municipio}
                 onChange={(e) => setForm({ ...form, municipio: e.target.value })}
               />
             </div>
             <div>
-              <Label>UF</Label>
-              <Input value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} />
+              <Label htmlFor="terceiro-uf">UF</Label>
+              <Input
+                id="terceiro-uf"
+                value={form.uf}
+                onChange={(e) => setForm({ ...form, uf: e.target.value })}
+              />
             </div>
 
             <div className="md:col-span-4">
-              <Label>Observações</Label>
+              <Label htmlFor="terceiro-observacoes">Observações</Label>
               <Input
+                id="terceiro-observacoes"
                 value={form.observacoes}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
               />

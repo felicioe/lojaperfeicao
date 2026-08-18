@@ -137,8 +137,9 @@ function EditarPerfilDialog({ irmao }: { irmao: Irmao }) {
         <div className="grid gap-3 sm:grid-cols-2">
           {CAMPOS_EDITAVEIS.map(({ campo, label }) => (
             <div key={campo}>
-              <Label>{label}</Label>
+              <Label htmlFor={`dados-${campo}`}>{label}</Label>
               <Input
+                id={`dados-${campo}`}
                 value={valores[campo] ?? ""}
                 onChange={(e) => setValores((prev) => ({ ...prev, [campo]: e.target.value }))}
               />

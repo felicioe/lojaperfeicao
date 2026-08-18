@@ -140,12 +140,12 @@ function FluxoRealizado() {
     <>
       <Card className="my-4 p-4 grid gap-3 md:grid-cols-4 items-end">
         <div>
-          <Label>De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          <Label htmlFor="fluxo-de">De</Label>
+          <Input id="fluxo-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
         </div>
         <div>
-          <Label>Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          <Label htmlFor="fluxo-ate">Até</Label>
+          <Input id="fluxo-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
         </div>
         <div className="md:col-span-2 flex justify-end">
           <Button variant="outline" onClick={exportarCSV} disabled={linhas.length === 0}>
@@ -273,9 +273,9 @@ function FluxoProjetado() {
     <>
       <Card className="my-4 p-4 grid gap-3 md:grid-cols-4 items-end">
         <div>
-          <Label>Horizonte</Label>
+          <Label htmlFor="fluxo-horizonte">Horizonte</Label>
           <Select value={horizonte} onValueChange={setHorizonte}>
-            <SelectTrigger>
+            <SelectTrigger id="fluxo-horizonte">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -273,8 +273,9 @@ function IrmaoDetail() {
                 )}
                 {podeEditar && (
                   <div>
-                    <Label>Foto</Label>
+                    <Label htmlFor="irmao-foto">Foto</Label>
                     <Input
+                      id="irmao-foto"
                       type="file"
                       accept="image/*"
                       disabled={!podeEditar}
@@ -283,38 +284,46 @@ function IrmaoDetail() {
                   </div>
                 )}
               </div>
-              <Field label="Nome civil *">
+              <Field label="Nome civil *" id="irmao-nome-civil">
                 <Input
+                  id="irmao-nome-civil"
                   required
                   value={perfil.nome_civil ?? ""}
                   onChange={set("nome_civil")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Nome simbólico">
+              <Field label="Nome simbólico" id="irmao-nome-simbolico">
                 <Input
+                  id="irmao-nome-simbolico"
                   value={perfil.nome_simbolico ?? ""}
                   onChange={set("nome_simbolico")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="CIM">
-                <Input value={perfil.cim ?? ""} onChange={set("cim")} disabled={!podeEditar} />
-              </Field>
-              <Field label="Matrícula">
+              <Field label="CIM" id="irmao-cim">
                 <Input
+                  id="irmao-cim"
+                  value={perfil.cim ?? ""}
+                  onChange={set("cim")}
+                  disabled={!podeEditar}
+                />
+              </Field>
+              <Field label="Matrícula" id="irmao-matricula">
+                <Input
+                  id="irmao-matricula"
                   value={perfil.numero_matricula ?? ""}
                   onChange={set("numero_matricula")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Estado civil">
+              <Field label="Estado civil" id="irmao-estado-civil">
                 <Select
                   value={perfil.estado_civil ?? ""}
                   onValueChange={set("estado_civil")}
                   disabled={!podeEditar}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="irmao-estado-civil">
                     <SelectValue placeholder="Selecione…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -326,43 +335,58 @@ function IrmaoDetail() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Data de nascimento">
+              <Field label="Data de nascimento" id="irmao-data-nascimento">
                 <Input
+                  id="irmao-data-nascimento"
                   type="date"
                   value={perfil.data_nascimento ?? ""}
                   onChange={set("data_nascimento")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="CPF">
-                <Input value={perfil.cpf ?? ""} onChange={set("cpf")} disabled={!podeEditar} />
-              </Field>
-              <Field label="RG">
-                <Input value={perfil.rg ?? ""} onChange={set("rg")} disabled={!podeEditar} />
-              </Field>
-              <Field label="Naturalidade">
+              <Field label="CPF" id="irmao-cpf">
                 <Input
+                  id="irmao-cpf"
+                  value={perfil.cpf ?? ""}
+                  onChange={set("cpf")}
+                  disabled={!podeEditar}
+                />
+              </Field>
+              <Field label="RG" id="irmao-rg">
+                <Input
+                  id="irmao-rg"
+                  value={perfil.rg ?? ""}
+                  onChange={set("rg")}
+                  disabled={!podeEditar}
+                />
+              </Field>
+              <Field label="Naturalidade" id="irmao-naturalidade">
+                <Input
+                  id="irmao-naturalidade"
                   value={perfil.naturalidade ?? ""}
                   onChange={set("naturalidade")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Nacionalidade">
+              <Field label="Nacionalidade" id="irmao-nacionalidade">
                 <Input
+                  id="irmao-nacionalidade"
                   value={perfil.nacionalidade ?? ""}
                   onChange={set("nacionalidade")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Religião">
+              <Field label="Religião" id="irmao-religiao">
                 <Input
+                  id="irmao-religiao"
                   value={perfil.religiao ?? ""}
                   onChange={set("religiao")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Observações" className="md:col-span-3">
+              <Field label="Observações" className="md:col-span-3" id="irmao-observacoes">
                 <Textarea
+                  id="irmao-observacoes"
                   value={perfil.observacoes ?? ""}
                   onChange={set("observacoes")}
                   disabled={!podeEditar}
@@ -375,13 +399,13 @@ function IrmaoDetail() {
         <TabsContent value="maconico">
           <Card className="mb-4">
             <CardContent className="grid gap-4 md:grid-cols-3 pt-6">
-              <Field label="Grau">
+              <Field label="Grau" id="irmao-grau">
                 <Select
                   value={perfil.grau ?? "aprendiz"}
                   onValueChange={set("grau")}
                   disabled={!podeEditar}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="irmao-grau">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -393,13 +417,13 @@ function IrmaoDetail() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Situação">
+              <Field label="Situação" id="irmao-situacao">
                 <Select
                   value={perfil.situacao ?? "ativo"}
                   onValueChange={set("situacao")}
                   disabled={!podeEditar}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="irmao-situacao">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -411,46 +435,52 @@ function IrmaoDetail() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Potência (texto livre)">
+              <Field label="Potência (texto livre)" id="irmao-potencia">
                 <Input
+                  id="irmao-potencia"
                   value={perfil.potencia ?? ""}
                   onChange={set("potencia")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Data de iniciação">
+              <Field label="Data de iniciação" id="irmao-data-iniciacao">
                 <Input
+                  id="irmao-data-iniciacao"
                   type="date"
                   value={perfil.data_iniciacao ?? ""}
                   onChange={set("data_iniciacao")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Data de elevação">
+              <Field label="Data de elevação" id="irmao-data-elevacao">
                 <Input
+                  id="irmao-data-elevacao"
                   type="date"
                   value={perfil.data_elevacao ?? ""}
                   onChange={set("data_elevacao")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Data de exaltação">
+              <Field label="Data de exaltação" id="irmao-data-exaltacao">
                 <Input
+                  id="irmao-data-exaltacao"
                   type="date"
                   value={perfil.data_exaltacao ?? ""}
                   onChange={set("data_exaltacao")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Loja de origem">
+              <Field label="Loja de origem" id="irmao-loja-origem">
                 <Input
+                  id="irmao-loja-origem"
                   value={perfil.loja_origem ?? ""}
                   onChange={set("loja_origem")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Número (Grande Oriente)">
+              <Field label="Número (Grande Oriente)" id="irmao-numero-grande-oriente">
                 <Input
+                  id="irmao-numero-grande-oriente"
                   value={perfil.numero_grande_oriente ?? ""}
                   onChange={set("numero_grande_oriente")}
                   disabled={!podeEditar}
@@ -459,8 +489,15 @@ function IrmaoDetail() {
               <div className="flex flex-wrap gap-4 md:col-span-3">
                 {(["fundador", "benemerito", "honorario", "licenciado"] as const).map((k) => (
                   <div key={k} className="flex items-center gap-2">
-                    <Switch checked={!!perfil[k]} onCheckedChange={set(k)} disabled={!podeEditar} />
-                    <Label className="!m-0 capitalize">{k}</Label>
+                    <Switch
+                      id={`irmao-flag-${k}`}
+                      checked={!!perfil[k]}
+                      onCheckedChange={set(k)}
+                      disabled={!podeEditar}
+                    />
+                    <Label htmlFor={`irmao-flag-${k}`} className="!m-0 capitalize">
+                      {k}
+                    </Label>
                   </div>
                 ))}
               </div>
@@ -475,36 +512,41 @@ function IrmaoDetail() {
         <TabsContent value="profissional">
           <Card className="mb-4">
             <CardContent className="grid gap-4 md:grid-cols-3 pt-6">
-              <Field label="Profissão">
+              <Field label="Profissão" id="irmao-profissao">
                 <Input
+                  id="irmao-profissao"
                   value={perfil.profissao ?? ""}
                   onChange={set("profissao")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Empresa">
+              <Field label="Empresa" id="irmao-empresa">
                 <Input
+                  id="irmao-empresa"
                   value={perfil.empresa ?? ""}
                   onChange={set("empresa")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Cargo">
+              <Field label="Cargo" id="irmao-cargo-profissional">
                 <Input
+                  id="irmao-cargo-profissional"
                   value={perfil.cargo_profissional ?? ""}
                   onChange={set("cargo_profissional")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Área de atuação">
+              <Field label="Área de atuação" id="irmao-area-atuacao">
                 <Input
+                  id="irmao-area-atuacao"
                   value={perfil.area_atuacao ?? ""}
                   onChange={set("area_atuacao")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Mensalidade">
+              <Field label="Mensalidade" id="irmao-mensalidade">
                 <Input
+                  id="irmao-mensalidade"
                   type="number"
                   step="0.01"
                   value={perfil.valor_mensalidade ?? 0}
@@ -550,31 +592,39 @@ function IrmaoDetail() {
         <TabsContent value="contato">
           <Card>
             <CardContent className="grid gap-4 md:grid-cols-3 pt-6">
-              <Field label="E-mail">
+              <Field label="E-mail" id="irmao-email">
                 <Input
+                  id="irmao-email"
                   type="email"
                   value={perfil.email ?? ""}
                   onChange={set("email")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Telefone">
+              <Field label="Telefone" id="irmao-telefone">
                 <Input
+                  id="irmao-telefone"
                   value={perfil.telefone ?? ""}
                   onChange={set("telefone")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Celular">
+              <Field label="Celular" id="irmao-celular">
                 <Input
+                  id="irmao-celular"
                   value={perfil.celular ?? ""}
                   onChange={set("celular")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="CEP">
+              <Field label="CEP" id="irmao-cep">
                 <div className="flex gap-2">
-                  <Input value={perfil.cep ?? ""} onChange={set("cep")} disabled={!podeEditar} />
+                  <Input
+                    id="irmao-cep"
+                    value={perfil.cep ?? ""}
+                    onChange={set("cep")}
+                    disabled={!podeEditar}
+                  />
                   <Button
                     type="button"
                     variant="outline"
@@ -585,43 +635,49 @@ function IrmaoDetail() {
                   </Button>
                 </div>
               </Field>
-              <Field label="Logradouro">
+              <Field label="Logradouro" id="irmao-logradouro">
                 <Input
+                  id="irmao-logradouro"
                   value={perfil.logradouro ?? ""}
                   onChange={set("logradouro")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Número">
+              <Field label="Número" id="irmao-numero-endereco">
                 <Input
+                  id="irmao-numero-endereco"
                   value={perfil.numero_endereco ?? ""}
                   onChange={set("numero_endereco")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Complemento">
+              <Field label="Complemento" id="irmao-complemento">
                 <Input
+                  id="irmao-complemento"
                   value={perfil.complemento ?? ""}
                   onChange={set("complemento")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Bairro">
+              <Field label="Bairro" id="irmao-bairro">
                 <Input
+                  id="irmao-bairro"
                   value={perfil.bairro ?? ""}
                   onChange={set("bairro")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Cidade">
+              <Field label="Cidade" id="irmao-cidade">
                 <Input
+                  id="irmao-cidade"
                   value={perfil.cidade ?? ""}
                   onChange={set("cidade")}
                   disabled={!podeEditar}
                 />
               </Field>
-              <Field label="Estado">
+              <Field label="Estado" id="irmao-estado">
                 <Input
+                  id="irmao-estado"
                   value={perfil.estado ?? ""}
                   onChange={set("estado")}
                   disabled={!podeEditar}
@@ -647,14 +703,16 @@ function Field({
   label,
   children,
   className,
+  id,
 }: {
   label: string;
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <div className={className}>
-      <Label>{label}</Label>
+      <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
   );
@@ -760,9 +818,11 @@ function CorposPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
         {podeEditar && (
           <div className="flex items-end gap-2 flex-wrap">
             <div className="flex-1 min-w-32">
-              <Label className="text-xs">Corpo</Label>
+              <Label htmlFor="corpo-org" className="text-xs">
+                Corpo
+              </Label>
               <Select value={novo.org_id} onValueChange={(v) => setNovo({ ...novo, org_id: v })}>
-                <SelectTrigger className="h-8">
+                <SelectTrigger id="corpo-org" className="h-8">
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -775,8 +835,11 @@ function CorposPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
               </Select>
             </div>
             <div className="w-20">
-              <Label className="text-xs">Grau</Label>
+              <Label htmlFor="corpo-grau" className="text-xs">
+                Grau
+              </Label>
               <Input
+                id="corpo-grau"
                 type="number"
                 className="h-8"
                 value={novo.grau_atual}
@@ -785,10 +848,13 @@ function CorposPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
             </div>
             <div className="flex items-center gap-1">
               <Switch
+                id="corpo-principal"
                 checked={novo.principal}
                 onCheckedChange={(v) => setNovo({ ...novo, principal: v })}
               />
-              <Label className="text-xs !m-0">Principal</Label>
+              <Label htmlFor="corpo-principal" className="text-xs !m-0">
+                Principal
+              </Label>
             </div>
             <Button size="sm" onClick={adicionar}>
               <Plus className="h-4 w-4" />
@@ -884,8 +950,11 @@ function ElevacoesPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: 
         {podeEditar && (
           <div className="flex items-end gap-2">
             <div className="w-20">
-              <Label className="text-xs">Grau</Label>
+              <Label htmlFor="elevacao-grau" className="text-xs">
+                Grau
+              </Label>
               <Input
+                id="elevacao-grau"
                 type="number"
                 className="h-8"
                 value={novo.grau}
@@ -893,8 +962,11 @@ function ElevacoesPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: 
               />
             </div>
             <div>
-              <Label className="text-xs">Data</Label>
+              <Label htmlFor="elevacao-data" className="text-xs">
+                Data
+              </Label>
               <Input
+                id="elevacao-data"
                 type="date"
                 className="h-8"
                 value={novo.data}
@@ -1012,32 +1084,44 @@ function FormacaoPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: b
         {podeEditar && (
           <div className="flex items-end gap-2 flex-wrap">
             <div className="flex-1 min-w-32">
-              <Label className="text-xs">Curso</Label>
+              <Label htmlFor="formacao-curso" className="text-xs">
+                Curso
+              </Label>
               <Input
+                id="formacao-curso"
                 className="h-8"
                 value={novo.curso}
                 onChange={(e) => setNovo({ ...novo, curso: e.target.value })}
               />
             </div>
             <div className="flex-1 min-w-32">
-              <Label className="text-xs">Instituição</Label>
+              <Label htmlFor="formacao-instituicao" className="text-xs">
+                Instituição
+              </Label>
               <Input
+                id="formacao-instituicao"
                 className="h-8"
                 value={novo.instituicao}
                 onChange={(e) => setNovo({ ...novo, instituicao: e.target.value })}
               />
             </div>
             <div className="w-32">
-              <Label className="text-xs">Nível</Label>
+              <Label htmlFor="formacao-nivel" className="text-xs">
+                Nível
+              </Label>
               <Input
+                id="formacao-nivel"
                 className="h-8"
                 value={novo.nivel}
                 onChange={(e) => setNovo({ ...novo, nivel: e.target.value })}
               />
             </div>
             <div className="w-24">
-              <Label className="text-xs">Ano</Label>
+              <Label htmlFor="formacao-ano" className="text-xs">
+                Ano
+              </Label>
               <Input
+                id="formacao-ano"
                 type="number"
                 className="h-8"
                 value={novo.ano_conclusao}
@@ -1139,16 +1223,22 @@ function FilhosPanel({ irmaoId, podeEditar }: { irmaoId: string; podeEditar: boo
         {podeEditar && (
           <div className="flex items-end gap-2">
             <div className="flex-1">
-              <Label className="text-xs">Nome</Label>
+              <Label htmlFor="filho-nome" className="text-xs">
+                Nome
+              </Label>
               <Input
+                id="filho-nome"
                 className="h-8"
                 value={novo.nome}
                 onChange={(e) => setNovo({ ...novo, nome: e.target.value })}
               />
             </div>
             <div>
-              <Label className="text-xs">Nascimento</Label>
+              <Label htmlFor="filho-nascimento" className="text-xs">
+                Nascimento
+              </Label>
               <Input
+                id="filho-nascimento"
                 type="date"
                 className="h-8"
                 value={novo.data_nascimento}
@@ -1286,16 +1376,22 @@ function ParentesPanel({
         {podeEditar && podeAdicionar && (
           <div className="flex items-end gap-2 flex-wrap">
             <div className="flex-1 min-w-24">
-              <Label className="text-xs">Nome</Label>
+              <Label htmlFor={`parente-${tipo}-nome`} className="text-xs">
+                Nome
+              </Label>
               <Input
+                id={`parente-${tipo}-nome`}
                 className="h-8"
                 value={novo.nome}
                 onChange={(e) => setNovo({ ...novo, nome: e.target.value })}
               />
             </div>
             <div>
-              <Label className="text-xs">Nascimento</Label>
+              <Label htmlFor={`parente-${tipo}-nascimento`} className="text-xs">
+                Nascimento
+              </Label>
               <Input
+                id={`parente-${tipo}-nascimento`}
                 type="date"
                 className="h-8"
                 value={novo.data_nascimento}
@@ -1303,8 +1399,11 @@ function ParentesPanel({
               />
             </div>
             <div className="w-32">
-              <Label className="text-xs">Telefone</Label>
+              <Label htmlFor={`parente-${tipo}-telefone`} className="text-xs">
+                Telefone
+              </Label>
               <Input
+                id={`parente-${tipo}-telefone`}
                 className="h-8"
                 value={novo.telefone}
                 onChange={(e) => setNovo({ ...novo, telefone: e.target.value })}

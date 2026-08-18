@@ -130,9 +130,9 @@ function Razao() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
         <div className="md:col-span-2">
-          <Label>Conta</Label>
+          <Label htmlFor="razao-conta">Conta</Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="razao-conta">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -145,12 +145,12 @@ function Razao() {
           </Select>
         </div>
         <div>
-          <Label>De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          <Label htmlFor="razao-de">De</Label>
+          <Input id="razao-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
         </div>
         <div>
-          <Label>Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          <Label htmlFor="razao-ate">Até</Label>
+          <Input id="razao-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
         </div>
       </Card>
 

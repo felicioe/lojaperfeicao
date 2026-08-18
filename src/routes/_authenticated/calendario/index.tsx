@@ -274,22 +274,23 @@ function CalendarioPage() {
                   </DialogHeader>
                   <div className="grid gap-3">
                     <div>
-                      <Label>Data</Label>
+                      <Label htmlFor="nova-sessao-data">Data</Label>
                       <Input
+                        id="nova-sessao-data"
                         type="date"
                         value={novaSessao.data}
                         onChange={(e) => setNovaSessao({ ...novaSessao, data: e.target.value })}
                       />
                     </div>
                     <div>
-                      <Label>Tipo</Label>
+                      <Label htmlFor="nova-sessao-tipo">Tipo</Label>
                       <Select
                         value={novaSessao.tipo}
                         onValueChange={(v) =>
                           setNovaSessao({ ...novaSessao, tipo: v as typeof novaSessao.tipo })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="nova-sessao-tipo">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -302,12 +303,12 @@ function CalendarioPage() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Corpo</Label>
+                      <Label htmlFor="nova-sessao-corpo">Corpo</Label>
                       <Select
                         value={novaSessao.orgId}
                         onValueChange={(v) => setNovaSessao({ ...novaSessao, orgId: v, grau: "" })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="nova-sessao-corpo">
                           <SelectValue placeholder="Selecione…" />
                         </SelectTrigger>
                         <SelectContent>
@@ -320,13 +321,13 @@ function CalendarioPage() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Grau</Label>
+                      <Label htmlFor="nova-sessao-grau">Grau</Label>
                       {grausNovaSessao.length > 0 ? (
                         <Select
                           value={novaSessao.grau}
                           onValueChange={(v) => setNovaSessao({ ...novaSessao, grau: v })}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="nova-sessao-grau">
                             <SelectValue placeholder="Grau…" />
                           </SelectTrigger>
                           <SelectContent>
@@ -339,6 +340,7 @@ function CalendarioPage() {
                         </Select>
                       ) : (
                         <Input
+                          id="nova-sessao-grau"
                           type="number"
                           min={1}
                           disabled={!novaSessao.orgId}
@@ -348,8 +350,9 @@ function CalendarioPage() {
                       )}
                     </div>
                     <div>
-                      <Label>Local</Label>
+                      <Label htmlFor="nova-sessao-local">Local</Label>
                       <Input
+                        id="nova-sessao-local"
                         placeholder="Endereço ou local da sessão"
                         value={novaSessao.local}
                         onChange={(e) => setNovaSessao({ ...novaSessao, local: e.target.value })}

@@ -73,15 +73,19 @@ function Parametros() {
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="flex items-center gap-2">
             <Switch
+              id="param-multa-ativa"
               checked={form.multa_ativa}
               onCheckedChange={(v) => setForm({ ...form, multa_ativa: v })}
               disabled={!can.canManageFinancas}
             />
-            <Label className="!m-0">Cobrar multa por atraso</Label>
+            <Label htmlFor="param-multa-ativa" className="!m-0">
+              Cobrar multa por atraso
+            </Label>
           </div>
           <div>
-            <Label>Multa (% fixo sobre o valor)</Label>
+            <Label htmlFor="param-multa-percentual">Multa (% fixo sobre o valor)</Label>
             <Input
+              id="param-multa-percentual"
               type="number"
               step="0.01"
               value={form.multa_percentual}
@@ -91,15 +95,19 @@ function Parametros() {
           </div>
           <div className="flex items-center gap-2">
             <Switch
+              id="param-juros-ativo"
               checked={form.juros_ativo}
               onCheckedChange={(v) => setForm({ ...form, juros_ativo: v })}
               disabled={!can.canManageFinancas}
             />
-            <Label className="!m-0">Cobrar juros por dia de atraso</Label>
+            <Label htmlFor="param-juros-ativo" className="!m-0">
+              Cobrar juros por dia de atraso
+            </Label>
           </div>
           <div>
-            <Label>Juros diário (% ao dia)</Label>
+            <Label htmlFor="param-juros-diario">Juros diário (% ao dia)</Label>
             <Input
+              id="param-juros-diario"
               type="number"
               step="0.0001"
               value={form.juros_diario_percentual}

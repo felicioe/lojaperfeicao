@@ -139,14 +139,14 @@ function PlanosEnsinoPage() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-6">
             <div>
-              <Label>Corpo (opcional)</Label>
+              <Label htmlFor="plano-corpo">Corpo (opcional)</Label>
               <Select
                 value={form.orgId || "nenhum"}
                 onValueChange={(v) =>
                   setForm({ ...form, orgId: v === "nenhum" ? "" : v, grau: "" })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="plano-corpo">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -160,10 +160,10 @@ function PlanosEnsinoPage() {
               </Select>
             </div>
             <div>
-              <Label>Grau</Label>
+              <Label htmlFor="plano-grau">Grau</Label>
               {form.orgId ? (
                 <Select value={form.grau} onValueChange={(v) => setForm({ ...form, grau: v })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="plano-grau">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -176,6 +176,7 @@ function PlanosEnsinoPage() {
                 </Select>
               ) : (
                 <Input
+                  id="plano-grau"
                   type="number"
                   min={1}
                   value={form.grau}
@@ -185,23 +186,26 @@ function PlanosEnsinoPage() {
               )}
             </div>
             <div>
-              <Label>Ordem</Label>
+              <Label htmlFor="plano-ordem">Ordem</Label>
               <Input
+                id="plano-ordem"
                 type="number"
                 value={form.ordem}
                 onChange={(e) => setForm({ ...form, ordem: Number(e.target.value) })}
               />
             </div>
             <div className="md:col-span-3">
-              <Label>Título</Label>
+              <Label htmlFor="plano-titulo">Título</Label>
               <Input
+                id="plano-titulo"
                 value={form.titulo}
                 onChange={(e) => setForm({ ...form, titulo: e.target.value })}
               />
             </div>
             <div className="md:col-span-6">
-              <Label>Conteúdo</Label>
+              <Label htmlFor="plano-conteudo">Conteúdo</Label>
               <Textarea
+                id="plano-conteudo"
                 value={form.conteudo}
                 onChange={(e) => setForm({ ...form, conteudo: e.target.value })}
               />

@@ -86,21 +86,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting.",
+          "Sistema de gestão para lojas maçônicas: cadastro de irmãos, tesouraria e contabilidade.",
       },
-      { property: "og:title", content: "Fraternity Ledger" },
+      { property: "og:title", content: "Gestão Maçônica" },
       {
         property: "og:description",
         content:
-          "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting.",
+          "Sistema de gestão para lojas maçônicas: cadastro de irmãos, tesouraria e contabilidade.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Fraternity Ledger" },
+      { name: "twitter:title", content: "Gestão Maçônica" },
       {
         name: "twitter:description",
         content:
-          "Fraternity Ledger is a management system for Masonic lodges, handling member data, finances, and accounting.",
+          "Sistema de gestão para lojas maçônicas: cadastro de irmãos, tesouraria e contabilidade.",
       },
     ],
     links: [
@@ -108,7 +108,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap",
       },
       {
         rel: "stylesheet",

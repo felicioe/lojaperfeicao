@@ -276,8 +276,9 @@ function Orgs() {
                   />
                 )}
                 <div>
-                  <Label>Logo (usado na fatura impressa)</Label>
+                  <Label htmlFor="org-logo">Logo (usado na fatura impressa)</Label>
                   <Input
+                    id="org-logo"
                     type="file"
                     accept="image/*"
                     onChange={(e) => {
@@ -289,34 +290,37 @@ function Orgs() {
               </div>
             )}
             <div className="md:col-span-2">
-              <Label>Nome</Label>
+              <Label htmlFor="org-nome">Nome</Label>
               <Input
+                id="org-nome"
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
               />
             </div>
             <div>
-              <Label>Sigla</Label>
+              <Label htmlFor="org-sigla">Sigla</Label>
               <Input
+                id="org-sigla"
                 value={form.sigla}
                 onChange={(e) => setForm({ ...form, sigla: e.target.value })}
               />
             </div>
             <div>
-              <Label>Número</Label>
+              <Label htmlFor="org-numero">Número</Label>
               <Input
+                id="org-numero"
                 value={form.numero}
                 onChange={(e) => setForm({ ...form, numero: e.target.value })}
               />
             </div>
 
             <div>
-              <Label>Natureza</Label>
+              <Label htmlFor="org-natureza">Natureza</Label>
               <Select
                 value={form.natureza}
                 onValueChange={(v) => setForm({ ...form, natureza: v as Natureza })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="org-natureza">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -329,16 +333,18 @@ function Orgs() {
               </Select>
             </div>
             <div>
-              <Label>Rito</Label>
+              <Label htmlFor="org-rito">Rito</Label>
               <Input
+                id="org-rito"
                 value={form.rito}
                 onChange={(e) => setForm({ ...form, rito: e.target.value })}
                 placeholder="REAA"
               />
             </div>
             <div>
-              <Label>Grau mínimo</Label>
+              <Label htmlFor="org-grau-min">Grau mínimo</Label>
               <Input
+                id="org-grau-min"
                 type="number"
                 min={1}
                 value={form.grau_min}
@@ -346,8 +352,9 @@ function Orgs() {
               />
             </div>
             <div>
-              <Label>Grau máximo</Label>
+              <Label htmlFor="org-grau-max">Grau máximo</Label>
               <Input
+                id="org-grau-max"
                 type="number"
                 min={1}
                 value={form.grau_max}
@@ -356,12 +363,12 @@ function Orgs() {
             </div>
 
             <div>
-              <Label>Potência</Label>
+              <Label htmlFor="org-potencia">Potência</Label>
               <Select
                 value={form.potencia_id}
                 onValueChange={(v) => setForm({ ...form, potencia_id: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="org-potencia">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -375,8 +382,9 @@ function Orgs() {
               </Select>
             </div>
             <div>
-              <Label>Mensalidade padrão</Label>
+              <Label htmlFor="org-mensalidade">Mensalidade padrão</Label>
               <Input
+                id="org-mensalidade"
                 type="number"
                 step="0.01"
                 value={form.mensalidade_padrao}
@@ -384,23 +392,26 @@ function Orgs() {
               />
             </div>
             <div>
-              <Label>CNPJ</Label>
+              <Label htmlFor="org-cnpj">CNPJ</Label>
               <Input
+                id="org-cnpj"
                 value={form.cnpj}
                 onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
               />
             </div>
             <div>
-              <Label>Fundação</Label>
+              <Label htmlFor="org-fundacao">Fundação</Label>
               <Input
+                id="org-fundacao"
                 type="date"
                 value={form.fundacao}
                 onChange={(e) => setForm({ ...form, fundacao: e.target.value })}
               />
             </div>
             <div className="md:col-span-4">
-              <Label>Endereço</Label>
+              <Label htmlFor="org-endereco">Endereço</Label>
               <Input
+                id="org-endereco"
                 value={form.endereco}
                 onChange={(e) => setForm({ ...form, endereco: e.target.value })}
               />
@@ -732,8 +743,11 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
       {podeEditar && (
         <div className="flex items-end gap-2">
           <div>
-            <Label className="text-xs">Grau</Label>
+            <Label htmlFor="org-novo-grau-numero" className="text-xs">
+              Grau
+            </Label>
             <Input
+              id="org-novo-grau-numero"
               type="number"
               className="h-8 w-20"
               value={novoGrau.grau}
@@ -741,8 +755,11 @@ function GrausPanel({ org, podeEditar }: { org: Org; podeEditar: boolean }) {
             />
           </div>
           <div className="flex-1">
-            <Label className="text-xs">Nome</Label>
+            <Label htmlFor="org-novo-grau-nome" className="text-xs">
+              Nome
+            </Label>
             <Input
+              id="org-novo-grau-nome"
               className="h-8"
               value={novoGrau.nome}
               onChange={(e) => setNovoGrau({ ...novoGrau, nome: e.target.value })}

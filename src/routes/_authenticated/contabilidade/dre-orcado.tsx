@@ -145,9 +145,9 @@ function DreOrcado() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4 items-end">
         <div className="md:col-span-2">
-          <Label>Orçamento</Label>
+          <Label htmlFor="dre-orcado-orcamento">Orçamento</Label>
           <Select value={selecionado?.id ?? ""} onValueChange={setOrcamentoId}>
-            <SelectTrigger>
+            <SelectTrigger id="dre-orcado-orcamento">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>

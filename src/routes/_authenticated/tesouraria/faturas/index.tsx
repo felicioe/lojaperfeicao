@@ -95,9 +95,11 @@ function RateioBuilder({
   const remove = (i: number) => setRateio(rateio.filter((_, idx) => idx !== i));
 
   return (
-    <div className="space-y-2 md:col-span-4">
+    <div className="space-y-2 md:col-span-4" role="group" aria-labelledby="rateio-label">
       <div className="flex items-center justify-between">
-        <Label>Rateio entre contas de receita (opcional — vazio usa 100% Mensalidades)</Label>
+        <Label id="rateio-label">
+          Rateio entre contas de receita (opcional — vazio usa 100% Mensalidades)
+        </Label>
         <Button type="button" variant="outline" size="sm" onClick={add}>
           <Plus className="h-3 w-3 mr-1" /> Linha
         </Button>
@@ -673,9 +675,9 @@ function BaixaDialog({
           </>
         )}
         <div>
-          <Label>Conta que recebeu</Label>
+          <Label htmlFor="fatura-pag-conta">Conta que recebeu</Label>
           <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-            <SelectTrigger>
+            <SelectTrigger id="fatura-pag-conta">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -690,16 +692,18 @@ function BaixaDialog({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Forma de pagamento</Label>
+            <Label htmlFor="fatura-pag-forma">Forma de pagamento</Label>
             <Input
+              id="fatura-pag-forma"
               value={formaPagamento}
               onChange={(e) => setFormaPagamento(e.target.value)}
               placeholder="PIX, dinheiro…"
             />
           </div>
           <div>
-            <Label>Data do pagamento</Label>
+            <Label htmlFor="fatura-pag-data">Data do pagamento</Label>
             <Input
+              id="fatura-pag-data"
               type="date"
               value={dataPagamento}
               onChange={(e) => setDataPagamento(e.target.value)}
@@ -710,8 +714,9 @@ function BaixaDialog({
           <>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Desconto (opcional)</Label>
+                <Label htmlFor="fatura-pag-desconto">Desconto (opcional)</Label>
                 <Input
+                  id="fatura-pag-desconto"
                   type="number"
                   step="0.01"
                   min="0"
@@ -720,8 +725,9 @@ function BaixaDialog({
                 />
               </div>
               <div>
-                <Label>Juros adicional (opcional)</Label>
+                <Label htmlFor="fatura-pag-juros">Juros adicional (opcional)</Label>
                 <Input
+                  id="fatura-pag-juros"
                   type="number"
                   step="0.01"
                   min="0"
@@ -733,8 +739,11 @@ function BaixaDialog({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Outra receita recebida junto (opcional)</Label>
+                <Label htmlFor="fatura-pag-valor-extra">
+                  Outra receita recebida junto (opcional)
+                </Label>
                 <Input
+                  id="fatura-pag-valor-extra"
                   type="number"
                   step="0.01"
                   min="0"
@@ -744,13 +753,13 @@ function BaixaDialog({
                 />
               </div>
               <div>
-                <Label>Conta de receita do valor extra</Label>
+                <Label htmlFor="fatura-pag-conta-extra">Conta de receita do valor extra</Label>
                 <Select
                   value={planoContaExtraId}
                   onValueChange={setPlanoContaExtraId}
                   disabled={!(Number(valorExtra) > 0)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="fatura-pag-conta-extra">
                     <SelectValue placeholder="Selecione…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -766,8 +775,12 @@ function BaixaDialog({
           </>
         )}
         <div>
-          <Label>Observações</Label>
-          <Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+          <Label htmlFor="fatura-pag-observacoes">Observações</Label>
+          <Input
+            id="fatura-pag-observacoes"
+            value={observacoes}
+            onChange={(e) => setObservacoes(e.target.value)}
+          />
         </div>
         {modo === "integral" && (
           <div className="text-lg font-semibold flex justify-between border-t pt-3">
@@ -896,17 +909,27 @@ function EditarFaturaDialog({
         </DialogHeader>
         <div className="grid gap-3">
           <div>
-            <Label>Descrição</Label>
-            <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+            <Label htmlFor="fatura-item-descricao">Descrição</Label>
+            <Input
+              id="fatura-item-descricao"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Data</Label>
-              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+              <Label htmlFor="fatura-item-data">Data</Label>
+              <Input
+                id="fatura-item-data"
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+              />
             </div>
             <div>
-              <Label>Vencimento</Label>
+              <Label htmlFor="fatura-item-vencimento">Vencimento</Label>
               <Input
+                id="fatura-item-vencimento"
                 type="date"
                 value={dataVencimento}
                 onChange={(e) => setDataVencimento(e.target.value)}
@@ -914,8 +937,9 @@ function EditarFaturaDialog({
             </div>
           </div>
           <div>
-            <Label>Valor</Label>
+            <Label htmlFor="fatura-item-valor">Valor</Label>
             <Input
+              id="fatura-item-valor"
               type="number"
               step="0.01"
               min="0.01"
@@ -925,12 +949,12 @@ function EditarFaturaDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Forma de cobrança</Label>
+              <Label htmlFor="fatura-item-forma-cobranca">Forma de cobrança</Label>
               <Select
                 value={formaCobranca}
                 onValueChange={(v) => setFormaCobranca(v as typeof formaCobranca)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="fatura-item-forma-cobranca">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -941,13 +965,13 @@ function EditarFaturaDialog({
               </Select>
             </div>
             <div>
-              <Label>Chave PIX</Label>
+              <Label htmlFor="fatura-item-pix">Chave PIX</Label>
               <Select
                 value={pixChaveId}
                 onValueChange={setPixChaveId}
                 disabled={formaCobranca === "nenhuma"}
               >
-                <SelectTrigger>
+                <SelectTrigger id="fatura-item-pix">
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1068,8 +1092,9 @@ function LoteForm({
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
         <div>
-          <Label>Competência inicial</Label>
+          <Label htmlFor="gerar-competencia-inicial">Competência inicial</Label>
           <Input
+            id="gerar-competencia-inicial"
             type="month"
             value={inicio}
             onChange={(e) => {
@@ -1079,12 +1104,20 @@ function LoteForm({
           />
         </div>
         <div>
-          <Label>Competência final</Label>
-          <Input type="month" value={fim} onChange={(e) => setFim(e.target.value)} />
+          <Label htmlFor="gerar-competencia-final">Competência final</Label>
+          <Input
+            id="gerar-competencia-final"
+            type="month"
+            value={fim}
+            onChange={(e) => setFim(e.target.value)}
+          />
         </div>
         <div>
-          <Label>Vencimento (opcional){!unicaCompetencia && " — só pra 1 mês"}</Label>
+          <Label htmlFor="gerar-vencimento">
+            Vencimento (opcional){!unicaCompetencia && " — só pra 1 mês"}
+          </Label>
           <Input
+            id="gerar-vencimento"
             type="date"
             value={vencimento}
             onChange={(e) => setVencimento(e.target.value)}
@@ -1200,9 +1233,9 @@ function IndividualForm({
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-4">
         <div className="md:col-span-2">
-          <Label>Irmão</Label>
+          <Label htmlFor="avulsa-irmao">Irmão</Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="avulsa-irmao">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -1215,8 +1248,9 @@ function IndividualForm({
           </Select>
         </div>
         <div>
-          <Label>Valor</Label>
+          <Label htmlFor="avulsa-valor">Valor</Label>
           <Input
+            id="avulsa-valor"
             type="number"
             step="0.01"
             value={valor}
@@ -1224,20 +1258,30 @@ function IndividualForm({
           />
         </div>
         <div>
-          <Label>Competência</Label>
+          <Label htmlFor="avulsa-competencia">Competência</Label>
           <Input
+            id="avulsa-competencia"
             type="month"
             value={competencia.slice(0, 7)}
             onChange={(e) => setCompetencia(e.target.value + "-01")}
           />
         </div>
         <div>
-          <Label>Vencimento</Label>
-          <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+          <Label htmlFor="avulsa-vencimento">Vencimento</Label>
+          <Input
+            id="avulsa-vencimento"
+            type="date"
+            value={vencimento}
+            onChange={(e) => setVencimento(e.target.value)}
+          />
         </div>
         <div className="md:col-span-3">
-          <Label>Descrição (opcional)</Label>
-          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+          <Label htmlFor="avulsa-descricao">Descrição (opcional)</Label>
+          <Input
+            id="avulsa-descricao"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+          />
         </div>
         <RateioBuilder rateio={rateio} setRateio={setRateio} receitas={receitas} />
         <div className="md:col-span-4">

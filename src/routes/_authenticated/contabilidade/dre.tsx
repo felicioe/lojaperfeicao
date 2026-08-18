@@ -108,12 +108,12 @@ function Dre() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
         <div>
-          <Label>De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          <Label htmlFor="dre-de">De</Label>
+          <Input id="dre-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
         </div>
         <div>
-          <Label>Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          <Label htmlFor="dre-ate">Até</Label>
+          <Input id="dre-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
         </div>
       </Card>
 

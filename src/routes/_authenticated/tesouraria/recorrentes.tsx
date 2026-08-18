@@ -215,15 +215,17 @@ function Recorrentes() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
             <div className="md:col-span-2">
-              <Label>Descrição</Label>
+              <Label htmlFor="recorrente-descricao">Descrição</Label>
               <Input
+                id="recorrente-descricao"
                 value={form.descricao}
                 onChange={(e) => setForm({ ...form, descricao: e.target.value })}
               />
             </div>
             <div>
-              <Label>Valor</Label>
+              <Label htmlFor="recorrente-valor">Valor</Label>
               <Input
+                id="recorrente-valor"
                 type="number"
                 step="0.01"
                 min="0"
@@ -232,8 +234,9 @@ function Recorrentes() {
               />
             </div>
             <div>
-              <Label>Dia do vencimento</Label>
+              <Label htmlFor="recorrente-dia-vencimento">Dia do vencimento</Label>
               <Input
+                id="recorrente-dia-vencimento"
                 type="number"
                 min={1}
                 max={31}
@@ -242,12 +245,12 @@ function Recorrentes() {
               />
             </div>
             <div>
-              <Label>Categoria</Label>
+              <Label htmlFor="recorrente-categoria">Categoria</Label>
               <Select
                 value={form.plano_conta_id}
                 onValueChange={(v) => setForm({ ...form, plano_conta_id: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="recorrente-categoria">
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -260,31 +263,35 @@ function Recorrentes() {
               </Select>
             </div>
             <div>
-              <Label>Fornecedor (opcional)</Label>
+              <Label htmlFor="recorrente-fornecedor">Fornecedor (opcional)</Label>
               <FornecedorSelect
+                triggerId="recorrente-fornecedor"
                 value={form.terceiro_id}
                 onValueChange={(v) => setForm({ ...form, terceiro_id: v })}
               />
             </div>
             <div>
-              <Label>Início</Label>
+              <Label htmlFor="recorrente-inicio">Início</Label>
               <Input
+                id="recorrente-inicio"
                 type="date"
                 value={form.data_inicio}
                 onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
               />
             </div>
             <div>
-              <Label>Fim (opcional)</Label>
+              <Label htmlFor="recorrente-fim">Fim (opcional)</Label>
               <Input
+                id="recorrente-fim"
                 type="date"
                 value={form.data_fim}
                 onChange={(e) => setForm({ ...form, data_fim: e.target.value })}
               />
             </div>
             <div className="md:col-span-4">
-              <Label>Observações</Label>
+              <Label htmlFor="recorrente-observacoes">Observações</Label>
               <Textarea
+                id="recorrente-observacoes"
                 value={form.observacoes}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
               />

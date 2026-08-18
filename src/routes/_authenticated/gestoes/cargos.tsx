@@ -106,16 +106,17 @@ function Cargos() {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
             <div className="md:col-span-2">
-              <Label>Nome</Label>
+              <Label htmlFor="cargo-nome">Nome</Label>
               <Input
+                id="cargo-nome"
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
               />
             </div>
             <div>
-              <Label>Corpo (opcional)</Label>
+              <Label htmlFor="cargo-corpo">Corpo (opcional)</Label>
               <Select value={form.org_id} onValueChange={(v) => setForm({ ...form, org_id: v })}>
-                <SelectTrigger>
+                <SelectTrigger id="cargo-corpo">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -129,8 +130,9 @@ function Cargos() {
               </Select>
             </div>
             <div>
-              <Label>Ordem</Label>
+              <Label htmlFor="cargo-ordem">Ordem</Label>
               <Input
+                id="cargo-ordem"
                 type="number"
                 value={form.ordem}
                 onChange={(e) => setForm({ ...form, ordem: Number(e.target.value) })}

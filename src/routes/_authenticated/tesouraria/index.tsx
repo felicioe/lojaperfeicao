@@ -368,7 +368,15 @@ function Tesouraria() {
                   <TableRow key={l.id}>
                     <TableCell className="hidden sm:table-cell">{fmtDate(l.data)}</TableCell>
                     <TableCell>{l.data_vencimento ? fmtDate(l.data_vencimento) : "—"}</TableCell>
-                    <TableCell>{l.descricao}</TableCell>
+                    <TableCell>
+                      {l.descricao}
+                      <div className="sm:hidden text-xs text-muted-foreground mt-0.5">
+                        Emissão: {fmtDate(l.data)}
+                      </div>
+                      <div className="lg:hidden text-xs text-muted-foreground mt-0.5">
+                        Categoria: {l.plano_contas?.nome ?? "—"}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {l.irmao_nome ?? "—"}
                       {l.tipo === "transferencia" && l.destino?.nome && (
@@ -491,8 +499,9 @@ function LancamentoDialog({
           </Select>
         </div>
         <div>
-          <Label>Valor</Label>
+          <Label htmlFor="lanc-valor">Valor</Label>
           <Input
+            id="lanc-valor"
             type="number"
             step="0.01"
             min="0"
@@ -504,20 +513,26 @@ function LancamentoDialog({
           )}
         </div>
         <div className="md:col-span-2">
-          <Label>Descrição</Label>
-          <Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} />
+          <Label htmlFor="lanc-descricao">Descrição</Label>
+          <Input
+            id="lanc-descricao"
+            value={d.descricao}
+            onChange={(e) => setD({ ...d, descricao: e.target.value })}
+          />
         </div>
         <div>
-          <Label>Data</Label>
+          <Label htmlFor="lanc-data">Data</Label>
           <Input
+            id="lanc-data"
             type="date"
             value={d.data}
             onChange={(e) => setD({ ...d, data: e.target.value })}
           />
         </div>
         <div>
-          <Label>Vencimento</Label>
+          <Label htmlFor="lanc-vencimento">Vencimento</Label>
           <Input
+            id="lanc-vencimento"
             type="date"
             value={d.data_vencimento}
             onChange={(e) => setD({ ...d, data_vencimento: e.target.value })}
@@ -564,8 +579,9 @@ function LancamentoDialog({
           </Label>
         </div>
         <div className="md:col-span-2">
-          <Label>Observações</Label>
+          <Label htmlFor="lanc-observacoes">Observações</Label>
           <Textarea
+            id="lanc-observacoes"
             value={d.observacoes}
             onChange={(e) => setD({ ...d, observacoes: e.target.value })}
           />
@@ -675,8 +691,9 @@ function TransferenciaDialog({
           </Select>
         </div>
         <div>
-          <Label>Valor</Label>
+          <Label htmlFor="transf-valor">Valor</Label>
           <Input
+            id="transf-valor"
             type="number"
             step="0.01"
             value={d.valor}
@@ -684,16 +701,21 @@ function TransferenciaDialog({
           />
         </div>
         <div>
-          <Label>Data</Label>
+          <Label htmlFor="transf-data">Data</Label>
           <Input
+            id="transf-data"
             type="date"
             value={d.data}
             onChange={(e) => setD({ ...d, data: e.target.value })}
           />
         </div>
         <div>
-          <Label>Descrição</Label>
-          <Input value={d.descricao} onChange={(e) => setD({ ...d, descricao: e.target.value })} />
+          <Label htmlFor="transf-descricao">Descrição</Label>
+          <Input
+            id="transf-descricao"
+            value={d.descricao}
+            onChange={(e) => setD({ ...d, descricao: e.target.value })}
+          />
         </div>
       </div>
       <DialogFooter>
