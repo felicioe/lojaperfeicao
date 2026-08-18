@@ -41,12 +41,14 @@ export const listarContasAPagarProximas = createServerFn({ method: "GET" })
       ];
       const valores: unknown[] = [data.de, data.ate];
       if (!privilegiado) {
-        condicoes.push("irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
+        condicoes.push(
+          "irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)",
+        );
         valores.push(usuarioId);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, descricao, (valor - valor_pago) AS valor, data_vencimento, tipo, recorrente_id FROM lancamentos
-         WHERE ${condicoes.join(" AND ")}
+         WHERE loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
          ORDER BY data_vencimento`,
         valores,
       );
@@ -58,7 +60,8 @@ export const contarMembrosAtivos = createServerFn({ method: "GET" }).handler(
   async (): Promise<number> => {
     return comPapel(PAPEIS_PRIVILEGIADOS, async (conn) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
-        "SELECT COUNT(*) AS total FROM irmaos WHERE situacao IN ('ativo', 'quite', 'irregular')",
+        `SELECT COUNT(*) AS total FROM irmaos
+          WHERE loja_id = @current_loja_id AND situacao IN ('ativo', 'quite', 'irregular')`,
       );
       return Number(row.total);
     });
@@ -70,7 +73,8 @@ export const contarSessoesMes = createServerFn({ method: "GET" }).handler(
     return comSessao(async (conn) => {
       const [[row]] = await conn.query<RowDataPacket[]>(
         `SELECT COUNT(*) AS total FROM sessoes
-         WHERE YEAR(data) = YEAR(CURRENT_DATE) AND MONTH(data) = MONTH(CURRENT_DATE)`,
+         WHERE loja_id = @current_loja_id
+           AND YEAR(data) = YEAR(CURRENT_DATE) AND MONTH(data) = MONTH(CURRENT_DATE)`,
       );
       return Number(row.total);
     });
@@ -86,7 +90,8 @@ export const listarAniversariantesMes = createServerFn({ method: "GET" }).handle
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, nome_civil, data_nascimento FROM irmaos
-         WHERE situacao IN ('ativo', 'quite', 'irregular')
+         WHERE loja_id = @current_loja_id
+           AND situacao IN ('ativo', 'quite', 'irregular')
            AND data_nascimento IS NOT NULL
            AND MONTH(data_nascimento) = MONTH(CURRENT_DATE)
          ORDER BY DAY(data_nascimento)`,
@@ -111,33 +116,44 @@ export const obterResumoContasReceber = createServerFn({ method: "GET" }).handle
         `SELECT COALESCE(SUM(valor - valor_pago), 0) AS valor,
                 COUNT(DISTINCT irmao_id) AS quantidade
          FROM lancamentos
-         WHERE tipo = 'entrada' AND pago = FALSE AND data_vencimento < CURRENT_DATE`,
+         WHERE loja_id = @current_loja_id
+           AND tipo = 'entrada' AND pago = FALSE AND data_vencimento < CURRENT_DATE`,
       );
       const [[recebido]] = await conn.query<RowDataPacket[]>(
         `SELECT COALESCE(SUM(valor), 0) AS valor FROM (
            SELECT (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor
            FROM recibo_itens ri
-           JOIN recibos r ON r.id = ri.recibo_id
-           JOIN lancamentos l ON l.id = ri.lancamento_id AND l.tipo = 'entrada'
-           WHERE YEAR(r.data) = YEAR(CURRENT_DATE) AND MONTH(r.data) = MONTH(CURRENT_DATE)
+           JOIN recibos r ON r.id = ri.recibo_id AND r.loja_id = ri.loja_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+                             AND l.tipo = 'entrada'
+           WHERE ri.loja_id = @current_loja_id
+             AND YEAR(r.data) = YEAR(CURRENT_DATE) AND MONTH(r.data) = MONTH(CURRENT_DATE)
            UNION ALL
            SELECT cl.valor_aplicado
            FROM conciliacao_lancamentos cl
-           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
-           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.tipo = 'entrada'
-           WHERE YEAR(c.data_conciliacao) = YEAR(CURRENT_DATE)
+           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                              AND c.status = 'ativa'
+           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+                             AND l.tipo = 'entrada'
+           WHERE cl.loja_id = @current_loja_id
+             AND YEAR(c.data_conciliacao) = YEAR(CURRENT_DATE)
              AND MONTH(c.data_conciliacao) = MONTH(CURRENT_DATE)
            UNION ALL
            SELECT l.valor
            FROM lancamentos l
-           WHERE l.tipo = 'entrada' AND l.pago = TRUE AND l.parcelado = FALSE
+           WHERE l.loja_id = @current_loja_id
+             AND l.tipo = 'entrada' AND l.pago = TRUE AND l.parcelado = FALSE
              AND YEAR(l.data_pagamento) = YEAR(CURRENT_DATE)
              AND MONTH(l.data_pagamento) = MONTH(CURRENT_DATE)
-             AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
+             AND NOT EXISTS (
+               SELECT 1 FROM recibo_itens ri
+               WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id
+             )
              AND NOT EXISTS (
                SELECT 1 FROM conciliacao_lancamentos cl
-               JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
-               WHERE cl.lancamento_id = l.id
+               JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                                  AND c.status = 'ativa'
+               WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id
              )
          ) recebimentos`,
       );
@@ -159,12 +175,15 @@ export const obterProjecaoFluxo = createServerFn({ method: "GET" })
       const condicoes = ["pago = FALSE", "data_vencimento >= ?", "data_vencimento <= ?"];
       const valores: unknown[] = [data.de, data.ate];
       if (!privilegiado) {
-        condicoes.push("irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
+        condicoes.push(
+          "irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)",
+        );
         valores.push(usuarioId);
       }
       const where = condicoes.join(" AND ");
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT tipo, (valor - valor_pago) AS valor FROM lancamentos WHERE tipo IN ('entrada','saida') AND ${where}`,
+        `SELECT tipo, (valor - valor_pago) AS valor FROM lancamentos
+          WHERE loja_id = @current_loja_id AND tipo IN ('entrada','saida') AND ${where}`,
         valores,
       );
       let somaE = 0;

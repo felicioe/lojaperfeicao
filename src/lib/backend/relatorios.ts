@@ -21,10 +21,13 @@ export const relatorioFrequencia = createServerFn({ method: "GET" }).handler(
     const irmaosVisiveis = await listarIrmaos();
     return comSessao(async (conn) => {
       const [[{ total }]] = await conn.query<RowDataPacket[]>(
-        "SELECT COUNT(*) AS total FROM sessoes",
+        "SELECT COUNT(*) AS total FROM sessoes WHERE loja_id = @current_loja_id",
       );
       const [presencas] = await conn.query<RowDataPacket[]>(
-        "SELECT irmao_id, COUNT(*) AS presencas FROM presencas WHERE presente = TRUE GROUP BY irmao_id",
+        `SELECT irmao_id, COUNT(*) AS presencas
+           FROM presencas
+          WHERE presente = TRUE AND loja_id = @current_loja_id
+          GROUP BY irmao_id`,
       );
       const mapa = new Map(presencas.map((p) => [p.irmao_id as string, Number(p.presencas)]));
       return {
@@ -73,15 +76,17 @@ export const relatorioInadimplentes = createServerFn({ method: "GET" })
       const condicoes = ["l.tipo = 'entrada'", "l.pago = FALSE", "l.data_vencimento < ?"];
       const valores: unknown[] = [data.hoje];
       if (!privilegiado) {
-        condicoes.push("l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
+        condicoes.push(
+          "l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)",
+        );
         valores.push(usuarioId);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.irmao_id, (l.valor - l.valor_pago) AS valor, l.data_vencimento, l.competencia_mes, l.descricao,
                 i.nome_civil, i.nome_simbolico
          FROM lancamentos l
-         JOIN irmaos i ON i.id = l.irmao_id
-         WHERE ${condicoes.join(" AND ")}
+         JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
          ORDER BY l.data_vencimento`,
         valores,
       );
@@ -186,8 +191,8 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
           // e de novo quando cada parcela fosse paga (achado #7 da
           // auditoria financeira: recebimento em dobro).
           "l.parcelado = FALSE",
-          "NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)",
-          "NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id)",
+          "NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)",
+          "NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id)",
         ],
         "l.conta_id",
         "l.forma_pagamento",
@@ -212,30 +217,30 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
                   r.forma_pagamento, l.categoria_recebimento,
                   cf.nome AS conta_nome, i.nome_civil AS irmao_nome
            FROM recibo_itens ri
-           JOIN recibos r ON r.id = ri.recibo_id
-           JOIN lancamentos l ON l.id = ri.lancamento_id
-           LEFT JOIN contas_financeiras cf ON cf.id = r.conta_financeira_id
-           LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE ${recibo.where}
+           JOIN recibos r ON r.id = ri.recibo_id AND r.loja_id = ri.loja_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+           LEFT JOIN contas_financeiras cf ON cf.id = r.conta_financeira_id AND cf.loja_id = r.loja_id
+           LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+           WHERE ri.loja_id = @current_loja_id AND ${recibo.where}
            UNION ALL
            SELECT cl.id, l.data, c.data_conciliacao AS data_pagamento, l.descricao,
                   cl.valor_aplicado AS valor,
                   l.forma_pagamento, l.categoria_recebimento,
                   cf.nome AS conta_nome, i.nome_civil AS irmao_nome
            FROM conciliacao_lancamentos cl
-           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
-           JOIN lancamentos l ON l.id = cl.lancamento_id
-           LEFT JOIN contas_financeiras cf ON cf.id = c.conta_financeira_id
-           LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE ${conciliacao.where}
+           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id AND c.status = 'ativa'
+           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+           LEFT JOIN contas_financeiras cf ON cf.id = c.conta_financeira_id AND cf.loja_id = c.loja_id
+           LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+           WHERE cl.loja_id = @current_loja_id AND ${conciliacao.where}
            UNION ALL
            SELECT l.id, l.data, l.data_pagamento, l.descricao, l.valor,
                   l.forma_pagamento, l.categoria_recebimento,
                   cf.nome AS conta_nome, i.nome_civil AS irmao_nome
            FROM lancamentos l
-           LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id
-           LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE ${fora.where}
+           LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id AND cf.loja_id = l.loja_id
+           LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+           WHERE l.loja_id = @current_loja_id AND ${fora.where}
          ) rec
          ${havingData}
          ORDER BY data_pagamento DESC
@@ -305,11 +310,11 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
         `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao,
                 (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
                   SELECT 1 FROM conciliacoes c
-                  WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
+                  WHERE c.id = o.conciliacao_id AND c.loja_id = o.loja_id AND c.status = 'ativa'
                 )) AS conciliado,
                 o.lancamento_id, o.conciliacao_id
          FROM ofx_lancamentos o
-         WHERE ${condicoes.join(" AND ")}
+         WHERE o.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
          ORDER BY o.data DESC
          LIMIT 2000`,
         valores,
@@ -326,8 +331,8 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
       if (idsLegado.length > 0) {
         const [rows] = await conn.query<RowDataPacket[]>(
           `SELECT l.id, l.descricao, l.valor, l.tipo, l.irmao_id, i.nome_civil AS irmao_nome
-           FROM lancamentos l LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE l.id IN (?)`,
+           FROM lancamentos l LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+           WHERE l.id IN (?) AND l.loja_id = @current_loja_id`,
           [idsLegado],
         );
         for (const r of rows)
@@ -353,9 +358,9 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
           `SELECT l.id, l.descricao, cl.valor_aplicado AS valor, l.tipo, l.irmao_id,
                   cl.conciliacao_id, i.nome_civil AS irmao_nome
            FROM conciliacao_lancamentos cl
-           JOIN lancamentos l ON l.id = cl.lancamento_id
-           LEFT JOIN irmaos i ON i.id = l.irmao_id
-           WHERE cl.conciliacao_id IN (?)`,
+           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+           LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+           WHERE cl.conciliacao_id IN (?) AND cl.loja_id = @current_loja_id`,
           [idsConciliacao],
         );
         for (const r of rows) {
@@ -432,7 +437,7 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
         `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago,
                 l.tipo, l.pago, l.forma_pagamento
          FROM lancamentos l
-         WHERE ${condicoes.join(" AND ")}
+         WHERE l.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
          ORDER BY l.data DESC
          LIMIT 2000`,
         valores,
@@ -476,8 +481,8 @@ export const relatorioExtratoSgcabIrmao = createServerFn({ method: "GET" })
                 sf.titulo, sf.total, sf.status,
                 GROUP_CONCAT(sfi.descricao ORDER BY sfi.ordem, sfi.criado_em SEPARATOR ' · ') AS itens_descricao
          FROM sgcab_faturas sf
-         LEFT JOIN sgcab_fatura_itens sfi ON sfi.fatura_id = sf.id
-         WHERE ${condicoes.join(" AND ")}
+         LEFT JOIN sgcab_fatura_itens sfi ON sfi.fatura_id = sf.id AND sfi.loja_id = sf.loja_id
+         WHERE sf.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
          GROUP BY sf.id
          ORDER BY sf.vencimento IS NULL, sf.vencimento, sf.criado_em DESC
          LIMIT 2000`,
@@ -514,6 +519,13 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
   async (): Promise<ItemInadimplenciaDetalhado[]> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
       const hoje = new Date().toISOString().slice(0, 10);
+      // parametros_financeiros era um singleton global (pf.id = 1, CROSS JOIN).
+      // Depois da 0092 é uma linha POR LOJA, e uma Loja recém-criada só ganha a
+      // dela quando alguém salva a tela de parâmetros — com CROSS JOIN o
+      // relatório inteiro sairia vazio nesse meio-tempo, escondendo justamente
+      // os inadimplentes. Com LEFT JOIN as faturas continuam aparecendo e
+      // multa/juros ficam zerados, que é a leitura certa de "sem multa e juros
+      // configurados".
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, irmao_id, valor, data_vencimento, descricao, nome_civil, nome_simbolico,
                 dias_atraso,
@@ -527,9 +539,10 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
                   GREATEST(0, DATEDIFF(?, l.data_vencimento)) AS dias_atraso,
                   pf.multa_ativa, pf.multa_percentual, pf.juros_ativo, pf.juros_diario_percentual
            FROM lancamentos l
-           JOIN irmaos i ON i.id = l.irmao_id
-           CROSS JOIN parametros_financeiros pf
-           WHERE pf.id = 1 AND l.tipo = 'entrada' AND l.pago = FALSE AND l.data_vencimento < ?
+           JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+           LEFT JOIN parametros_financeiros pf ON pf.loja_id = l.loja_id
+           WHERE l.loja_id = @current_loja_id
+             AND l.tipo = 'entrada' AND l.pago = FALSE AND l.data_vencimento < ?
            ORDER BY l.data_vencimento
            LIMIT 500
          ) t`,
@@ -632,9 +645,10 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
                       ELSE -l.valor
                     END AS valor_sinal
              FROM lancamentos l
-             LEFT JOIN irmaos i ON i.id = l.irmao_id
-             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
-             WHERE l.pago = TRUE AND (l.conta_id = ? OR l.conta_destino_id = ?)`
+             LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
+             WHERE l.loja_id = @current_loja_id
+               AND l.pago = TRUE AND (l.conta_id = ? OR l.conta_destino_id = ?)`
           : `SELECT r.id, r.data AS data, r.criado_em,
                     CASE WHEN COUNT(*) = 1 THEN MAX(l.descricao)
                          ELSE CONCAT(COUNT(*), ' fatura(s) quitada(s)') END AS descricao,
@@ -643,10 +657,10 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
                     MAX(i.nome_civil) AS irmao_nome, GROUP_CONCAT(DISTINCT l.irmao_id) AS irmao_ids,
                     NULL AS plano_conta_nome, r.valor_total AS valor_sinal
              FROM recibos r
-             JOIN recibo_itens ri ON ri.recibo_id = r.id
-             JOIN lancamentos l ON l.id = ri.lancamento_id
-             LEFT JOIN irmaos i ON i.id = r.irmao_id
-             WHERE r.conta_financeira_id = ?
+             JOIN recibo_itens ri ON ri.recibo_id = r.id AND ri.loja_id = r.loja_id
+             JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+             LEFT JOIN irmaos i ON i.id = r.irmao_id AND i.loja_id = r.loja_id
+             WHERE r.loja_id = @current_loja_id AND r.conta_financeira_id = ?
              GROUP BY r.id, r.data, r.criado_em, r.valor_total
 
              UNION ALL
@@ -662,10 +676,10 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
                     NULL AS plano_conta_nome,
                     SUM(CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END) AS valor_sinal
              FROM conciliacoes c
-             JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id
-             JOIN lancamentos l ON l.id = cl.lancamento_id
-             LEFT JOIN irmaos i ON i.id = l.irmao_id
-             WHERE c.conta_financeira_id = ? AND c.status = 'ativa'
+             JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id AND cl.loja_id = c.loja_id
+             JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+             LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+             WHERE c.loja_id = @current_loja_id AND c.conta_financeira_id = ? AND c.status = 'ativa'
              GROUP BY c.id, c.data_conciliacao, c.criado_em
 
              UNION ALL
@@ -675,10 +689,11 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
                     pc.nome AS plano_conta_nome,
                     CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
              FROM ofx_lancamentos o
-             JOIN lancamentos l ON l.id = o.lancamento_id
-             LEFT JOIN irmaos i ON i.id = l.irmao_id
-             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
-             WHERE o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.conta_financeira_id = ?
+             JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
+             LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
+             WHERE o.loja_id = @current_loja_id
+               AND o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.conta_financeira_id = ?
 
              UNION ALL
 
@@ -691,14 +706,16 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
                       ELSE -l.valor
                     END AS valor_sinal
              FROM lancamentos l
-             LEFT JOIN irmaos i ON i.id = l.irmao_id
-             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id
-             WHERE l.pago = TRUE
+             LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
+             WHERE l.loja_id = @current_loja_id
+               AND l.pago = TRUE
                AND (l.conta_id = ? OR l.conta_destino_id = ?)
-               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
-               AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id)
+               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
+               AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id)
                AND NOT EXISTS (
-                 SELECT 1 FROM ofx_lancamentos o WHERE o.lancamento_id = l.id AND o.conciliacao_id IS NULL
+                 SELECT 1 FROM ofx_lancamentos o
+                  WHERE o.lancamento_id = l.id AND o.loja_id = l.loja_id AND o.conciliacao_id IS NULL
                )`;
 
       const movimentosParams =
@@ -709,7 +726,8 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, data, criado_em, descricao, tipo, categoria_recebimento, irmao_nome, irmao_ids,
                 plano_conta_nome, valor_sinal,
-                (SELECT saldo_inicial FROM contas_financeiras WHERE id = ?)
+                (SELECT saldo_inicial FROM contas_financeiras
+                  WHERE id = ? AND loja_id = @current_loja_id)
                   + SUM(valor_sinal) OVER (ORDER BY data, criado_em, id) AS saldo_corrente
          FROM (${movimentosSql}) movimentos
          WHERE ? IS NULL OR data <= ?
@@ -724,9 +742,9 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
           `SELECT r.id AS recibo_id, l.id, l.descricao,
                   (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor
            FROM recibos r
-           JOIN recibo_itens ri ON ri.recibo_id = r.id
-           JOIN lancamentos l ON l.id = ri.lancamento_id
-           WHERE r.conta_financeira_id = ?`,
+           JOIN recibo_itens ri ON ri.recibo_id = r.id AND ri.loja_id = r.loja_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+           WHERE r.loja_id = @current_loja_id AND r.conta_financeira_id = ?`,
           [data.contaId],
         );
         faturasPorRecibo = agruparFaturas(reciboRows, "recibo_id");
@@ -734,9 +752,9 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
         const [conciliacaoRows] = await conn.query<RowDataPacket[]>(
           `SELECT c.id AS conciliacao_id, l.id, l.descricao, cl.valor_aplicado AS valor
            FROM conciliacoes c
-           JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id
-           JOIN lancamentos l ON l.id = cl.lancamento_id
-           WHERE c.conta_financeira_id = ? AND c.status = 'ativa'`,
+           JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id AND cl.loja_id = c.loja_id
+           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+           WHERE c.loja_id = @current_loja_id AND c.conta_financeira_id = ? AND c.status = 'ativa'`,
           [data.contaId],
         );
         faturasPorConciliacao = agruparFaturas(conciliacaoRows, "conciliacao_id");

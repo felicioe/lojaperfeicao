@@ -9,6 +9,11 @@ import { registrarAuditoria } from "./auditoria";
 // (nunca nome de tabela vindo do client) para não abrir superfície de SQL
 // arbitrário mesmo sendo admin-only. usuarios propositalmente não expõe
 // senha_hash.
+//
+// TODA consulta aqui filtra por @current_loja_id (issue #345). Este é o pior
+// lugar do sistema para faltar escopo: não vaza uma linha, vaza a base inteira
+// da outra Loja num arquivo pronto pra sair do sistema — e "admin" aqui é
+// admin DA Loja, não da plataforma.
 const PAPEIS = ["admin"];
 
 type Modulo = {
@@ -26,54 +31,60 @@ const MODULOS: Record<string, Modulo> = {
     query: `SELECT id, nome_civil, nome_simbolico, cim, grau, situacao, potencia, loja_origem,
                     email, telefone, celular, data_nascimento, data_iniciacao, data_elevacao,
                     data_exaltacao, valor_mensalidade, criado_em
-             FROM irmaos ORDER BY nome_civil`,
+             FROM irmaos WHERE loja_id = @current_loja_id ORDER BY nome_civil`,
   },
   orgs: {
     label: "Corpos Maçônicos",
-    query:
-      "SELECT id, nome, sigla, natureza, numero, grau_min, grau_max, ativo, criado_em FROM orgs ORDER BY nome",
+    query: `SELECT id, nome, sigla, natureza, numero, grau_min, grau_max, ativo, criado_em
+             FROM orgs WHERE loja_id = @current_loja_id ORDER BY nome`,
   },
   gestoes: {
     label: "Gestões",
-    query:
-      "SELECT id, org_id, nome, data_inicio, data_fim, ativo FROM gestoes ORDER BY data_inicio DESC",
+    query: `SELECT id, org_id, nome, data_inicio, data_fim, ativo
+             FROM gestoes WHERE loja_id = @current_loja_id ORDER BY data_inicio DESC`,
   },
   sessoes: {
     label: "Sessões",
-    query: "SELECT id, data, tipo, grau, local, observacoes FROM sessoes ORDER BY data DESC",
+    query: `SELECT id, data, tipo, grau, local, observacoes
+             FROM sessoes WHERE loja_id = @current_loja_id ORDER BY data DESC`,
     colunasRicas: ["observacoes"],
   },
   presencas: {
     label: "Presenças",
-    query: "SELECT sessao_id, irmao_id, presente, justificado FROM presencas ORDER BY sessao_id",
+    query: `SELECT sessao_id, irmao_id, presente, justificado
+             FROM presencas WHERE loja_id = @current_loja_id ORDER BY sessao_id`,
   },
   terceiros: {
     label: "Fornecedores/Clientes",
-    query: "SELECT id, nome, cnpj, cpf, tipo, email, contato FROM terceiros ORDER BY nome",
+    query: `SELECT id, nome, cnpj, cpf, tipo, email, contato
+             FROM terceiros WHERE loja_id = @current_loja_id ORDER BY nome`,
   },
   usuarios: {
     label: "Usuários",
-    query: "SELECT id, email, nome_completo, ativo, criado_em FROM usuarios ORDER BY email",
+    query: `SELECT id, email, nome_completo, ativo, criado_em
+             FROM usuarios WHERE loja_id = @current_loja_id ORDER BY email`,
   },
   plano_contas: {
     label: "Plano de Contas",
-    query: "SELECT id, codigo, nome, tipo, analitica FROM plano_contas ORDER BY codigo",
+    query: `SELECT id, codigo, nome, tipo, analitica
+             FROM plano_contas WHERE loja_id = @current_loja_id ORDER BY codigo`,
   },
   contas_financeiras: {
     label: "Contas Financeiras",
-    query: "SELECT id, nome, tipo, saldo_inicial, ativo FROM contas_financeiras ORDER BY nome",
+    query: `SELECT id, nome, tipo, saldo_inicial, ativo
+             FROM contas_financeiras WHERE loja_id = @current_loja_id ORDER BY nome`,
   },
   lancamentos: {
     label: "Movimento Financeiro",
     query: `SELECT id, data, data_vencimento, data_pagamento, descricao, valor, tipo, pago,
                     is_mensalidade, categoria_recebimento, irmao_id, terceiro_id
-             FROM lancamentos ORDER BY data DESC`,
+             FROM lancamentos WHERE loja_id = @current_loja_id ORDER BY data DESC`,
   },
   recibos: {
     label: "Recibos",
     query: `SELECT id, irmao_id, data, valor_original, valor_multa, valor_juros, desconto,
                     valor_total, forma_pagamento
-             FROM recibos ORDER BY data DESC`,
+             FROM recibos WHERE loja_id = @current_loja_id ORDER BY data DESC`,
   },
 };
 

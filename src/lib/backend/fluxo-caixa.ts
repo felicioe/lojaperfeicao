@@ -23,7 +23,7 @@ export const obterSaldoBaseContas = createServerFn({ method: "GET" }).handler(
   async (): Promise<number> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT saldo_inicial FROM contas_financeiras",
+        "SELECT saldo_inicial FROM contas_financeiras WHERE loja_id = @current_loja_id",
       );
       return rows.reduce((s, r) => s + Number(r.saldo_inicial), 0);
     });
@@ -43,34 +43,38 @@ export const obterFluxoAnteriores = createServerFn({ method: "GET" })
       if (privilegiado) await garantirPrevisoesRecorrentes(conn);
       const condicaoIrmao = privilegiado
         ? ""
-        : "AND l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)";
+        : "AND l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)";
       const valoresIrmao = privilegiado ? [] : [usuarioId];
 
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT valor, tipo FROM (
            SELECT (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor, l.tipo, r.data AS data_pagamento
            FROM recibo_itens ri
-           JOIN recibos r ON r.id = ri.recibo_id
-           JOIN lancamentos l ON l.id = ri.lancamento_id
-           WHERE l.tipo IN ('entrada','saida') ${condicaoIrmao}
+           JOIN recibos r ON r.id = ri.recibo_id AND r.loja_id = ri.loja_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+           WHERE ri.loja_id = @current_loja_id
+             AND l.tipo IN ('entrada','saida') ${condicaoIrmao}
            UNION ALL
            SELECT cl.valor_aplicado AS valor, l.tipo, c.data_conciliacao AS data_pagamento
            FROM conciliacao_lancamentos cl
-           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
-           JOIN lancamentos l ON l.id = cl.lancamento_id
-           WHERE l.tipo IN ('entrada','saida') ${condicaoIrmao}
+           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                              AND c.status = 'ativa'
+           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+           WHERE cl.loja_id = @current_loja_id
+             AND l.tipo IN ('entrada','saida') ${condicaoIrmao}
            UNION ALL
            SELECT l.valor, l.tipo, l.data_pagamento
            FROM lancamentos l
-           WHERE l.pago = TRUE AND l.tipo IN ('entrada','saida')
+           WHERE l.loja_id = @current_loja_id
+             AND l.pago = TRUE AND l.tipo IN ('entrada','saida')
              -- criar_parcelamento marca as faturas originais como pago=TRUE
              -- (parcelado=TRUE) sem nenhum evento de caixa — a dívida foi
              -- restruturada em parcelas, não recebida (achado #7 da
              -- auditoria financeira: entrava aqui E de novo quando cada
              -- parcela fosse paga, dobrando o valor recebido no relatório).
              AND l.parcelado = FALSE
-             AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
-             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id)
+             AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
+             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id)
              ${condicaoIrmao}
          ) mov
          WHERE data_pagamento < ?`,
@@ -102,34 +106,38 @@ export const listarMovimentosRealizados = createServerFn({ method: "GET" })
       const privilegiado = await ehPrivilegiado(conn);
       const condicaoIrmao = privilegiado
         ? ""
-        : "AND l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)";
+        : "AND l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)";
       const valoresIrmao = privilegiado ? [] : [usuarioId];
 
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT valor, tipo, data_pagamento FROM (
            SELECT (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor, l.tipo, r.data AS data_pagamento
            FROM recibo_itens ri
-           JOIN recibos r ON r.id = ri.recibo_id
-           JOIN lancamentos l ON l.id = ri.lancamento_id
-           WHERE l.tipo IN ('entrada','saida') ${condicaoIrmao}
+           JOIN recibos r ON r.id = ri.recibo_id AND r.loja_id = ri.loja_id
+           JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+           WHERE ri.loja_id = @current_loja_id
+             AND l.tipo IN ('entrada','saida') ${condicaoIrmao}
            UNION ALL
            SELECT cl.valor_aplicado AS valor, l.tipo, c.data_conciliacao AS data_pagamento
            FROM conciliacao_lancamentos cl
-           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.status = 'ativa'
-           JOIN lancamentos l ON l.id = cl.lancamento_id
-           WHERE l.tipo IN ('entrada','saida') ${condicaoIrmao}
+           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                              AND c.status = 'ativa'
+           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+           WHERE cl.loja_id = @current_loja_id
+             AND l.tipo IN ('entrada','saida') ${condicaoIrmao}
            UNION ALL
            SELECT l.valor, l.tipo, l.data_pagamento
            FROM lancamentos l
-           WHERE l.pago = TRUE AND l.tipo IN ('entrada','saida')
+           WHERE l.loja_id = @current_loja_id
+             AND l.pago = TRUE AND l.tipo IN ('entrada','saida')
              -- criar_parcelamento marca as faturas originais como pago=TRUE
              -- (parcelado=TRUE) sem nenhum evento de caixa — a dívida foi
              -- restruturada em parcelas, não recebida (achado #7 da
              -- auditoria financeira: entrava aqui E de novo quando cada
              -- parcela fosse paga, dobrando o valor recebido no relatório).
              AND l.parcelado = FALSE
-             AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id)
-             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id)
+             AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
+             AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id)
              ${condicaoIrmao}
          ) mov
          WHERE data_pagamento >= ? AND data_pagamento <= ?
@@ -162,12 +170,16 @@ export const listarMovimentosPendentes = createServerFn({ method: "GET" })
       ];
       const valores: unknown[] = [data.hoje, data.dataLimite];
       if (!privilegiado) {
-        condicoes.push("irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ?)");
+        condicoes.push(
+          "irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)",
+        );
         valores.push(usuarioId);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT descricao, (valor - valor_pago) AS valor, tipo, data_vencimento, recorrente_id
-         FROM lancamentos WHERE ${condicoes.join(" AND ")} ORDER BY data_vencimento`,
+         FROM lancamentos
+         WHERE loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
+         ORDER BY data_vencimento`,
         valores,
       );
       return rows as MovimentoPendente[];
