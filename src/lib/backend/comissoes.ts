@@ -26,7 +26,9 @@ export const PAPEIS_SUGERIDOS = ["Presidente", "Suplente", "Secretário", "Membr
 export const listarComissoes = createServerFn({ method: "GET" }).handler(
   async (): Promise<Comissao[]> => {
     return comSessao(async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM comissoes ORDER BY nome");
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM comissoes WHERE loja_id = @current_loja_id ORDER BY nome",
+      );
       return rows as Comissao[];
     });
   },
@@ -40,8 +42,16 @@ const criarComissaoSchema = z.object({
 export const criarComissao = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarComissaoSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("INSERT INTO comissoes (org_id, nome) VALUES (?, ?)", [
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
+      // O corpo vem do request: confirmar que é desta Loja antes de criar uma
+      // comissão pendurada nele.
+      const [[org]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
+        [data.orgId],
+      );
+      if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
+      await conn.query("INSERT INTO comissoes (loja_id, org_id, nome) VALUES (?, ?, ?)", [
+        lojaId,
         data.orgId,
         data.nome,
       ]);
@@ -52,7 +62,10 @@ export const alternarAtivoComissao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("UPDATE comissoes SET ativo=? WHERE id=?", [data.ativo, data.id]);
+      await conn.query("UPDATE comissoes SET ativo=? WHERE id=? AND loja_id = @current_loja_id", [
+        data.ativo,
+        data.id,
+      ]);
     });
   });
 
@@ -60,7 +73,9 @@ export const excluirComissao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("DELETE FROM comissoes WHERE id=?", [data.id]);
+      await conn.query("DELETE FROM comissoes WHERE id=? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
     });
   });
 
@@ -71,8 +86,8 @@ export const listarComissaoMembros = createServerFn({ method: "GET" })
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT cm.id, cm.comissao_id, cm.papel, cm.irmao_id, i.nome_civil
          FROM comissao_membros cm
-         JOIN irmaos i ON i.id = cm.irmao_id
-         WHERE cm.comissao_id = ?
+         JOIN irmaos i ON i.id = cm.irmao_id AND i.loja_id = @current_loja_id
+         WHERE cm.comissao_id = ? AND cm.loja_id = @current_loja_id
          ORDER BY FIELD(cm.papel, 'Presidente', 'Suplente', 'Secretário'), cm.papel`,
         [data.comissaoId],
       );
@@ -89,10 +104,22 @@ const criarComissaoMembroSchema = z.object({
 export const criarComissaoMembro = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarComissaoMembroSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual, lojaId) => {
+      // Comissão e irmão vêm do request; os dois precisam ser desta Loja,
+      // senão o vínculo cruzaria fronteiras nos dois sentidos.
+      const [[comissao]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM comissoes WHERE id = ? AND loja_id = @current_loja_id",
+        [data.comissaoId],
+      );
+      if (!comissao) throw new Error("Comissão não encontrada nesta Loja.");
+      const [[irmao]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
+        [data.irmaoId],
+      );
+      if (!irmao) throw new Error("Irmão não encontrado nesta Loja.");
       await conn.query(
-        "INSERT INTO comissao_membros (comissao_id, papel, irmao_id) VALUES (?, ?, ?)",
-        [data.comissaoId, data.papel, data.irmaoId],
+        "INSERT INTO comissao_membros (loja_id, comissao_id, papel, irmao_id) VALUES (?, ?, ?, ?)",
+        [lojaId, data.comissaoId, data.papel, data.irmaoId],
       );
       await registrarAuditoria(conn, usuarioIdAtual, "criar", "comissao_membro", null, null, data);
     });
@@ -102,7 +129,9 @@ export const removerComissaoMembro = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      await conn.query("DELETE FROM comissao_membros WHERE id=?", [data.id]);
+      await conn.query("DELETE FROM comissao_membros WHERE id=? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
       await registrarAuditoria(conn, usuarioIdAtual, "remover", "comissao_membro", data.id);
     });
   });

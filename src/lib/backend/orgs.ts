@@ -51,7 +51,7 @@ export const listarPotencias = createServerFn({ method: "GET" }).handler(
   async (): Promise<Potencia[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome, sigla, jurisdicao, site, ativo FROM potencias ORDER BY nome",
+        "SELECT id, nome, sigla, jurisdicao, site, ativo FROM potencias WHERE loja_id = @current_loja_id ORDER BY nome",
       );
       return rows as Potencia[];
     });
@@ -69,19 +69,18 @@ const potenciaSchema = z.object({
 export const salvarPotencia = createServerFn({ method: "POST" })
   .validator((d: unknown) => potenciaSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       if (data.id) {
-        await conn.query("UPDATE potencias SET nome=?, sigla=?, jurisdicao=?, site=? WHERE id=?", [
-          data.nome,
-          data.sigla,
-          data.jurisdicao,
-          data.site,
-          data.id,
-        ]);
-      } else {
         await conn.query(
-          "INSERT INTO potencias (nome, sigla, jurisdicao, site) VALUES (?, ?, ?, ?)",
-          [data.nome, data.sigla, data.jurisdicao, data.site],
+          "UPDATE potencias SET nome=?, sigla=?, jurisdicao=?, site=? WHERE id=? AND loja_id = @current_loja_id",
+          [data.nome, data.sigla, data.jurisdicao, data.site, data.id],
+        );
+      } else {
+        // A loja vem da sessão (comPapel), nunca do request — o schema sequer
+        // aceita loja_id.
+        await conn.query(
+          "INSERT INTO potencias (loja_id, nome, sigla, jurisdicao, site) VALUES (?, ?, ?, ?, ?)",
+          [lojaId, data.nome, data.sigla, data.jurisdicao, data.site],
         );
       }
     });
@@ -91,13 +90,18 @@ export const alternarAtivoPotencia = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("UPDATE potencias SET ativo=? WHERE id=?", [data.ativo, data.id]);
+      await conn.query("UPDATE potencias SET ativo=? WHERE id=? AND loja_id = @current_loja_id", [
+        data.ativo,
+        data.id,
+      ]);
     });
   });
 
 export const listarOrgs = createServerFn({ method: "GET" }).handler(async (): Promise<Org[]> => {
   return comSessao(async (conn) => {
-    const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM orgs ORDER BY nome");
+    const [rows] = await conn.query<RowDataPacket[]>(
+      "SELECT * FROM orgs WHERE loja_id = @current_loja_id ORDER BY nome",
+    );
     return rows as Org[];
   });
 });
@@ -122,7 +126,7 @@ const orgSchema = z.object({
 export const salvarOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => orgSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       const valores = [
         data.potencia_id,
         data.nome,
@@ -141,14 +145,14 @@ export const salvarOrg = createServerFn({ method: "POST" })
       if (data.id) {
         await conn.query(
           `UPDATE orgs SET potencia_id=?, nome=?, sigla=?, natureza=?, numero=?, rito=?, grau_min=?, grau_max=?,
-           mensalidade_padrao=?, cnpj=?, fundacao=?, endereco=?, logo_url=? WHERE id=?`,
+           mensalidade_padrao=?, cnpj=?, fundacao=?, endereco=?, logo_url=? WHERE id=? AND loja_id = @current_loja_id`,
           [...valores, data.id],
         );
       } else {
         await conn.query(
-          `INSERT INTO orgs (potencia_id, nome, sigla, natureza, numero, rito, grau_min, grau_max,
-           mensalidade_padrao, cnpj, fundacao, endereco, logo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          valores,
+          `INSERT INTO orgs (loja_id, potencia_id, nome, sigla, natureza, numero, rito, grau_min, grau_max,
+           mensalidade_padrao, cnpj, fundacao, endereco, logo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [lojaId, ...valores],
         );
       }
     });
@@ -158,7 +162,10 @@ export const alternarAtivoOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("UPDATE orgs SET ativo=? WHERE id=?", [data.ativo, data.id]);
+      await conn.query("UPDATE orgs SET ativo=? WHERE id=? AND loja_id = @current_loja_id", [
+        data.ativo,
+        data.id,
+      ]);
     });
   });
 
@@ -203,17 +210,21 @@ export const listarUsoOrgs = createServerFn({ method: "GET" }).handler(
   async (): Promise<UsoOrg[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
+        // Toda subconsulta leva o filtro de loja, não só o FROM externo: são
+        // elas que decidem se o corpo "tem uso" e portanto se pode ser
+        // excluído. Uma contagem que enxergasse outra Loja travaria uma
+        // exclusão legítima aqui — e, pior, contaria dado alheio.
         `SELECT o.id AS org_id,
-                (SELECT COUNT(*) FROM irmao_orgs WHERE org_id = o.id) AS irmaos,
-                (SELECT COUNT(*) FROM gestoes WHERE org_id = o.id) AS gestoes,
-                (SELECT COUNT(*) FROM sgcab_cobrancas WHERE org_id = o.id) AS cobrancas,
-                (SELECT COUNT(*) FROM eventos WHERE org_id = o.id) AS eventos,
-                (SELECT COUNT(*) FROM comissoes WHERE org_id = o.id) AS comissoes,
-                (SELECT COUNT(*) FROM cargos WHERE org_id = o.id) AS cargos,
-                (SELECT COUNT(*) FROM taxas_grau WHERE org_id = o.id) AS taxasGrau,
-                (SELECT COUNT(*) FROM comunicados WHERE org_id = o.id) AS comunicados,
-                (SELECT COUNT(*) FROM tabela_valores WHERE org_id = o.id) AS tabelaValores
-         FROM orgs o`,
+                (SELECT COUNT(*) FROM irmao_orgs WHERE org_id = o.id AND loja_id = @current_loja_id) AS irmaos,
+                (SELECT COUNT(*) FROM gestoes WHERE org_id = o.id AND loja_id = @current_loja_id) AS gestoes,
+                (SELECT COUNT(*) FROM sgcab_cobrancas WHERE org_id = o.id AND loja_id = @current_loja_id) AS cobrancas,
+                (SELECT COUNT(*) FROM eventos WHERE org_id = o.id AND loja_id = @current_loja_id) AS eventos,
+                (SELECT COUNT(*) FROM comissoes WHERE org_id = o.id AND loja_id = @current_loja_id) AS comissoes,
+                (SELECT COUNT(*) FROM cargos WHERE org_id = o.id AND loja_id = @current_loja_id) AS cargos,
+                (SELECT COUNT(*) FROM taxas_grau WHERE org_id = o.id AND loja_id = @current_loja_id) AS taxasGrau,
+                (SELECT COUNT(*) FROM comunicados WHERE org_id = o.id AND loja_id = @current_loja_id) AS comunicados,
+                (SELECT COUNT(*) FROM tabela_valores WHERE org_id = o.id AND loja_id = @current_loja_id) AS tabelaValores
+         FROM orgs o WHERE o.loja_id = @current_loja_id`,
       );
       return rows as UsoOrg[];
     });
@@ -248,7 +259,7 @@ export const transferirDadosOrg = createServerFn({ method: "POST" })
     }
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[destino]] = await conn.query<RowDataPacket[]>(
-        "SELECT id, grau_min, grau_max FROM orgs WHERE id = ?",
+        "SELECT id, grau_min, grau_max FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
         [data.destinoId],
       );
       if (!destino) throw new Error("Corpo de destino não encontrado.");
@@ -260,12 +271,12 @@ export const transferirDadosOrg = createServerFn({ method: "POST" })
       const [[faixaUsada]] = await conn.query<RowDataPacket[]>(
         `SELECT
            GREATEST(
-             COALESCE((SELECT MAX(grau_atual) FROM irmao_orgs WHERE org_id = ?), 0),
-             COALESCE((SELECT MAX(grau) FROM sessoes WHERE org_id = ?), 0)
+             COALESCE((SELECT MAX(grau_atual) FROM irmao_orgs WHERE org_id = ? AND loja_id = @current_loja_id), 0),
+             COALESCE((SELECT MAX(grau) FROM sessoes WHERE org_id = ? AND loja_id = @current_loja_id), 0)
            ) AS grau_max_usado,
            LEAST(
-             COALESCE((SELECT MIN(grau_atual) FROM irmao_orgs WHERE org_id = ?), 999),
-             COALESCE((SELECT MIN(grau) FROM sessoes WHERE org_id = ?), 999)
+             COALESCE((SELECT MIN(grau_atual) FROM irmao_orgs WHERE org_id = ? AND loja_id = @current_loja_id), 999),
+             COALESCE((SELECT MIN(grau) FROM sessoes WHERE org_id = ? AND loja_id = @current_loja_id), 999)
            ) AS grau_min_usado`,
         [data.origemId, data.origemId, data.origemId, data.origemId],
       );
@@ -280,17 +291,17 @@ export const transferirDadosOrg = createServerFn({ method: "POST" })
         );
       }
 
-      await conn.query("UPDATE IGNORE irmao_orgs SET org_id = ? WHERE org_id = ?", [
-        data.destinoId,
-        data.origemId,
-      ]);
+      await conn.query(
+        "UPDATE IGNORE irmao_orgs SET org_id = ? WHERE org_id = ? AND loja_id = @current_loja_id",
+        [data.destinoId, data.origemId],
+      );
       // taxas_grau tem UNIQUE(org_id, ano, grau) — se o destino já tiver uma
       // taxa pro mesmo ano/grau, IGNORE descarta a linha da origem em vez de
       // travar a transferência inteira (mesmo raciocínio de irmao_orgs acima).
-      await conn.query("UPDATE IGNORE taxas_grau SET org_id = ? WHERE org_id = ?", [
-        data.destinoId,
-        data.origemId,
-      ]);
+      await conn.query(
+        "UPDATE IGNORE taxas_grau SET org_id = ? WHERE org_id = ? AND loja_id = @current_loja_id",
+        [data.destinoId, data.origemId],
+      );
       for (const tabela of [
         "gestoes",
         "sgcab_cobrancas",
@@ -301,15 +312,15 @@ export const transferirDadosOrg = createServerFn({ method: "POST" })
         "comunicados",
         "tabela_valores",
       ]) {
-        await conn.query(`UPDATE ${tabela} SET org_id = ? WHERE org_id = ?`, [
-          data.destinoId,
-          data.origemId,
-        ]);
+        await conn.query(
+          `UPDATE ${tabela} SET org_id = ? WHERE org_id = ? AND loja_id = @current_loja_id`,
+          [data.destinoId, data.origemId],
+        );
       }
-      await conn.query("UPDATE planos_ensino SET org_id = ? WHERE org_id = ?", [
-        data.destinoId,
-        data.origemId,
-      ]);
+      await conn.query(
+        "UPDATE planos_ensino SET org_id = ? WHERE org_id = ? AND loja_id = @current_loja_id",
+        [data.destinoId, data.origemId],
+      );
 
       await registrarAuditoria(
         conn,
@@ -329,15 +340,15 @@ export const excluirOrg = createServerFn({ method: "POST" })
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[uso]] = await conn.query<RowDataPacket[]>(
         `SELECT
-           (SELECT COUNT(*) FROM irmao_orgs WHERE org_id = ?) AS irmaos,
-           (SELECT COUNT(*) FROM gestoes WHERE org_id = ?) AS gestoes,
-           (SELECT COUNT(*) FROM sgcab_cobrancas WHERE org_id = ?) AS cobrancas,
-           (SELECT COUNT(*) FROM eventos WHERE org_id = ?) AS eventos,
-           (SELECT COUNT(*) FROM comissoes WHERE org_id = ?) AS comissoes,
-           (SELECT COUNT(*) FROM cargos WHERE org_id = ?) AS cargos,
-           (SELECT COUNT(*) FROM taxas_grau WHERE org_id = ?) AS taxasGrau,
-           (SELECT COUNT(*) FROM comunicados WHERE org_id = ?) AS comunicados,
-           (SELECT COUNT(*) FROM tabela_valores WHERE org_id = ?) AS tabelaValores`,
+           (SELECT COUNT(*) FROM irmao_orgs WHERE org_id = ? AND loja_id = @current_loja_id) AS irmaos,
+           (SELECT COUNT(*) FROM gestoes WHERE org_id = ? AND loja_id = @current_loja_id) AS gestoes,
+           (SELECT COUNT(*) FROM sgcab_cobrancas WHERE org_id = ? AND loja_id = @current_loja_id) AS cobrancas,
+           (SELECT COUNT(*) FROM eventos WHERE org_id = ? AND loja_id = @current_loja_id) AS eventos,
+           (SELECT COUNT(*) FROM comissoes WHERE org_id = ? AND loja_id = @current_loja_id) AS comissoes,
+           (SELECT COUNT(*) FROM cargos WHERE org_id = ? AND loja_id = @current_loja_id) AS cargos,
+           (SELECT COUNT(*) FROM taxas_grau WHERE org_id = ? AND loja_id = @current_loja_id) AS taxasGrau,
+           (SELECT COUNT(*) FROM comunicados WHERE org_id = ? AND loja_id = @current_loja_id) AS comunicados,
+           (SELECT COUNT(*) FROM tabela_valores WHERE org_id = ? AND loja_id = @current_loja_id) AS tabelaValores`,
         [data.id, data.id, data.id, data.id, data.id, data.id, data.id, data.id, data.id],
       );
       const descricao = descreverUso(uso as Omit<UsoOrg, "org_id">);
@@ -346,10 +357,12 @@ export const excluirOrg = createServerFn({ method: "POST" })
           `Este corpo tem ${descricao} e não pode ser excluído — desative-o em vez disso.`,
         );
       }
-      const [[org]] = await conn.query<RowDataPacket[]>("SELECT * FROM orgs WHERE id = ?", [
-        data.id,
-      ]);
-      await conn.query("DELETE FROM orgs WHERE id = ?", [data.id]);
+      const [[org]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
+      if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
+      await conn.query("DELETE FROM orgs WHERE id = ? AND loja_id = @current_loja_id", [data.id]);
       await registrarAuditoria(conn, usuarioIdAtual, "excluir", "org", data.id, org, null);
     });
   });
@@ -359,7 +372,7 @@ export const listarOrgsGraus = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<OrgGrau[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM orgs_graus WHERE org_id = ? ORDER BY grau",
+        "SELECT * FROM orgs_graus WHERE org_id = ? AND loja_id = @current_loja_id ORDER BY grau",
         [data.orgId],
       );
       return rows as OrgGrau[];
@@ -370,6 +383,15 @@ export const gerarGrausPadraoOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<number> => {
     return comSessao(async (conn) => {
+      // A procedure (0002) não conhece loja: ela lê grau_min/grau_max do org e
+      // insere em orgs_graus sem filtro nenhum. Reescrevê-la é a issue #349;
+      // até lá, a garantia é esta — o org precisa ser desta Loja, e como a
+      // procedure só age sobre esse org, o resultado fica dentro do escopo.
+      const [[org]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
+        [data.orgId],
+      );
+      if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
       await conn.query("CALL gerar_graus_padrao_org(?, @total)", [data.orgId]);
       const [[{ total }]] = await conn.query<RowDataPacket[]>("SELECT @total AS total");
       return Number(total);
@@ -387,8 +409,16 @@ export const criarOrgGrau = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("INSERT INTO orgs_graus (org_id, grau, nome) VALUES (?, ?, ?)", [
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
+      // O org vem do request: confirmar que é desta Loja antes de pendurar um
+      // grau nele — mesmo raciocínio de exigirIrmaoDaLoja em irmaos.ts.
+      const [[org]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
+        [data.orgId],
+      );
+      if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
+      await conn.query("INSERT INTO orgs_graus (loja_id, org_id, grau, nome) VALUES (?, ?, ?, ?)", [
+        lojaId,
         data.orgId,
         data.grau,
         data.nome,
@@ -400,7 +430,10 @@ export const renomearOrgGrau = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), nome: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("UPDATE orgs_graus SET nome=? WHERE id=?", [data.nome, data.id]);
+      await conn.query("UPDATE orgs_graus SET nome=? WHERE id=? AND loja_id = @current_loja_id", [
+        data.nome,
+        data.id,
+      ]);
     });
   });
 
@@ -410,10 +443,10 @@ export const atualizarIntersticioOrgGrau = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("UPDATE orgs_graus SET interstico_minimo_meses=? WHERE id=?", [
-        data.meses,
-        data.id,
-      ]);
+      await conn.query(
+        "UPDATE orgs_graus SET interstico_minimo_meses=? WHERE id=? AND loja_id = @current_loja_id",
+        [data.meses, data.id],
+      );
     });
   });
 
@@ -421,7 +454,9 @@ export const removerOrgGrau = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("DELETE FROM orgs_graus WHERE id=?", [data.id]);
+      await conn.query("DELETE FROM orgs_graus WHERE id=? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
     });
   });
 

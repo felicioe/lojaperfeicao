@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { randomUUID } from "node:crypto";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
@@ -39,19 +40,64 @@ function gerarLoginBase(nomeCivil: string): string {
   return (ultimo ? `${primeiro}.${ultimo}` : primeiro) || "irmao";
 }
 
+/**
+ * Login livre DENTRO da Loja (issue #344).
+ *
+ * A unicidade passou a ser por Loja na migração 0092 — `joao.silva` da
+ * Adonhiram e `joao.silva` de outra Loja são contas distintas. Checar global,
+ * como era antes, produziria `joao.silva2` numa Loja onde `joao.silva` está
+ * livre: sufixo feio, e a cada Loja nova o problema piora.
+ */
 async function gerarLoginUnico(conn: PoolConnection, nomeCivil: string): Promise<string> {
   const base = gerarLoginBase(nomeCivil);
   let candidato = base;
   let sufixo = 2;
   while (true) {
     const [[existe]] = await conn.query<RowDataPacket[]>(
-      "SELECT 1 AS x FROM usuarios WHERE email = ? LIMIT 1",
+      "SELECT 1 AS x FROM usuarios WHERE email = ? AND loja_id = @current_loja_id LIMIT 1",
       [candidato],
     );
     if (!existe) return candidato;
     candidato = `${base}${sufixo}`;
     sufixo++;
   }
+}
+
+/**
+ * Cria a conta na Loja informada, no lugar da procedure `criar_usuario` (0006).
+ *
+ * A procedure é anterior ao multi-tenant e faz duas coisas erradas hoje: o
+ * INSERT não informa `loja_id`, então a conta cai no DEFAULT de transição da
+ * 0092 — a Adonhiram —, e o papel sai de uma contagem global de
+ * usuarios_papeis, que numa base com dados é sempre 'irmao'. Juntas, elas fariam o
+ * admin de uma Loja criar acessos que nascem na Loja de outra pessoa: escrita
+ * cruzada, não só leitura. Reescrever a procedure é a issue #349; aqui a loja
+ * e o papel são explícitos, que é o que a #350 vai exigir de todo INSERT.
+ *
+ * O erro de e-mail duplicado é traduzido para a mesma frase que a procedure
+ * emitia, porque a tela já a mostra.
+ */
+async function criarUsuarioNaLoja(
+  conn: PoolConnection,
+  lojaId: string,
+  dados: { login: string; senhaHash: string; nomeCompleto: string },
+): Promise<string> {
+  const [[jaExiste]] = await conn.query<RowDataPacket[]>(
+    "SELECT 1 AS x FROM usuarios WHERE email = ? AND loja_id = ? LIMIT 1",
+    [dados.login, lojaId],
+  );
+  if (jaExiste) throw new Error("Já existe uma conta com este e-mail.");
+
+  const novoId = randomUUID();
+  await conn.query(
+    "INSERT INTO usuarios (id, loja_id, email, senha_hash, nome_completo) VALUES (?, ?, ?, ?, ?)",
+    [novoId, lojaId, dados.login, dados.senhaHash, dados.nomeCompleto],
+  );
+  await conn.query(
+    "INSERT INTO usuarios_papeis (loja_id, usuario_id, papel) VALUES (?, ?, 'irmao')",
+    [lojaId, novoId],
+  );
+  return novoId;
 }
 
 export type UsuarioAdmin = {
@@ -73,8 +119,9 @@ export const listarUsuarios = createServerFn({ method: "GET" }).handler(
               GROUP_CONCAT(DISTINCT up.papel) AS papeis,
               i.id AS irmao_id, i.nome_civil AS irmao_nome
        FROM usuarios u
-       LEFT JOIN usuarios_papeis up ON up.usuario_id = u.id
-       LEFT JOIN irmaos i ON i.usuario_id = u.id
+       LEFT JOIN usuarios_papeis up ON up.usuario_id = u.id AND up.loja_id = @current_loja_id
+       LEFT JOIN irmaos i ON i.usuario_id = u.id AND i.loja_id = @current_loja_id
+       WHERE u.loja_id = @current_loja_id
        GROUP BY u.id, u.email, u.nome_completo, u.ativo, u.deve_trocar_senha, i.id, i.nome_civil
        ORDER BY u.email`,
       );
@@ -100,7 +147,7 @@ export const listarIrmaosSemAcesso = createServerFn({ method: "GET" }).handler(
   async (): Promise<IrmaoSemAcesso[]> => {
     return comPapel(["admin"], async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL ORDER BY nome_civil",
+        "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL AND loja_id = @current_loja_id ORDER BY nome_civil",
       );
       const comLogin = await Promise.all(
         rows.map(async (r) => ({
@@ -134,9 +181,9 @@ const criarAcessoSchema = z.object({
 export const criarAcessoIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarAcessoSchema.parse(d))
   .handler(async ({ data }): Promise<{ usuarioId: string; login: string }> => {
-    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual, lojaId) => {
       const [[irmao]] = await conn.query<RowDataPacket[]>(
-        "SELECT nome_civil, usuario_id FROM irmaos WHERE id = ?",
+        "SELECT nome_civil, usuario_id FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
         [data.irmaoId],
       );
       if (!irmao) throw new Error("Irmão não encontrado.");
@@ -144,32 +191,38 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
 
       const login = await gerarLoginUnico(conn, irmao.nome_civil);
       const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+      let novoId: string;
       try {
-        await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [
+        novoId = await criarUsuarioNaLoja(conn, lojaId, {
           login,
           senhaHash,
-          irmao.nome_civil,
-        ]);
+          nomeCompleto: irmao.nome_civil,
+        });
       } catch (err) {
         throw new Error(mensagemDeErroSql(err));
       }
-      const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
-      await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, data.irmaoId]);
+      await conn.query(
+        "UPDATE irmaos SET usuario_id = ? WHERE id = ? AND loja_id = @current_loja_id",
+        [novoId, data.irmaoId],
+      );
       if (data.obrigarTrocaSenha) {
-        await conn.query("UPDATE usuarios SET deve_trocar_senha = TRUE WHERE id = ?", [novo_id]);
+        await conn.query(
+          "UPDATE usuarios SET deve_trocar_senha = TRUE WHERE id = ? AND loja_id = @current_loja_id",
+          [novoId],
+        );
       }
-      await registrarAuditoria(conn, usuarioIdAtual, "criar_acesso", "usuario", novo_id, null, {
+      await registrarAuditoria(conn, usuarioIdAtual, "criar_acesso", "usuario", novoId, null, {
         login,
         nome_civil: irmao.nome_civil,
         obrigar_troca_senha: data.obrigarTrocaSenha,
       });
       if (data.enviarBoasVindas) {
         const { enviarEmailBoasVindas } = await import("../email-dispatch");
-        enviarEmailBoasVindas(novo_id as string).catch((err) =>
+        enviarEmailBoasVindas(novoId).catch((err) =>
           console.error("Falha ao enviar e-mail de boas-vindas:", err),
         );
       }
-      return { usuarioId: novo_id as string, login };
+      return { usuarioId: novoId, login };
     });
   });
 
@@ -190,9 +243,9 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" })
       .parse(d ?? {}),
   )
   .handler(async ({ data }): Promise<RelatorioAcessosLote> => {
-    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual, lojaId) => {
       const [irmaos] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL ORDER BY nome_civil",
+        "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL AND loja_id = @current_loja_id ORDER BY nome_civil",
       );
       const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
       const criados: { nome: string; login: string }[] = [];
@@ -201,26 +254,29 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" })
       for (const irmao of irmaos) {
         try {
           const login = await gerarLoginUnico(conn, irmao.nome_civil);
-          await conn.query("CALL criar_usuario(?, ?, ?, @novo_id)", [
+          const novoId = await criarUsuarioNaLoja(conn, lojaId, {
             login,
             senhaHash,
-            irmao.nome_civil,
-          ]);
-          const [[{ novo_id }]] = await conn.query<RowDataPacket[]>("SELECT @novo_id AS novo_id");
-          await conn.query("UPDATE irmaos SET usuario_id = ? WHERE id = ?", [novo_id, irmao.id]);
+            nomeCompleto: irmao.nome_civil,
+          });
+          await conn.query(
+            "UPDATE irmaos SET usuario_id = ? WHERE id = ? AND loja_id = @current_loja_id",
+            [novoId, irmao.id],
+          );
           if (data.obrigarTrocaSenha) {
-            await conn.query("UPDATE usuarios SET deve_trocar_senha = TRUE WHERE id = ?", [
-              novo_id,
-            ]);
+            await conn.query(
+              "UPDATE usuarios SET deve_trocar_senha = TRUE WHERE id = ? AND loja_id = @current_loja_id",
+              [novoId],
+            );
           }
-          await registrarAuditoria(conn, usuarioIdAtual, "criar_acesso", "usuario", novo_id, null, {
+          await registrarAuditoria(conn, usuarioIdAtual, "criar_acesso", "usuario", novoId, null, {
             login,
             nome_civil: irmao.nome_civil,
             obrigar_troca_senha: data.obrigarTrocaSenha,
           });
           if (data.enviarBoasVindas) {
             const { enviarEmailBoasVindas } = await import("../email-dispatch");
-            enviarEmailBoasVindas(novo_id as string).catch((err) =>
+            enviarEmailBoasVindas(novoId).catch((err) =>
               console.error("Falha ao enviar e-mail de boas-vindas:", err),
             );
           }
@@ -243,20 +299,23 @@ const papeisSchema = z.object({
 export const atualizarPapeisUsuario = createServerFn({ method: "POST" })
   .validator((d: unknown) => papeisSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(["admin"], async (conn, usuarioIdAtual) => {
+    return comPapel(["admin"], async (conn, usuarioIdAtual, lojaId) => {
       if (data.usuarioId === usuarioIdAtual && !data.papeis.includes("admin")) {
         throw new Error("Você não pode remover seu próprio papel de administrador.");
       }
       const [antes] = await conn.query<RowDataPacket[]>(
-        "SELECT papel FROM usuarios_papeis WHERE usuario_id = ?",
+        "SELECT papel FROM usuarios_papeis WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [data.usuarioId],
       );
-      await conn.query("DELETE FROM usuarios_papeis WHERE usuario_id = ?", [data.usuarioId]);
+      await conn.query(
+        "DELETE FROM usuarios_papeis WHERE usuario_id = ? AND loja_id = @current_loja_id",
+        [data.usuarioId],
+      );
       for (const papel of data.papeis) {
-        await conn.query("INSERT INTO usuarios_papeis (usuario_id, papel) VALUES (?, ?)", [
-          data.usuarioId,
-          papel,
-        ]);
+        await conn.query(
+          "INSERT INTO usuarios_papeis (loja_id, usuario_id, papel) VALUES (?, ?, ?)",
+          [lojaId, data.usuarioId, papel],
+        );
       }
       await registrarAuditoria(
         conn,
@@ -285,7 +344,10 @@ export const alternarAtivoUsuario = createServerFn({ method: "POST" })
       if (data.usuarioId === usuarioIdAtual && !data.ativo) {
         throw new Error("Você não pode inativar seu próprio usuário.");
       }
-      await conn.query("UPDATE usuarios SET ativo = ? WHERE id = ?", [data.ativo, data.usuarioId]);
+      await conn.query(
+        "UPDATE usuarios SET ativo = ? WHERE id = ? AND loja_id = @current_loja_id",
+        [data.ativo, data.usuarioId],
+      );
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
@@ -314,7 +376,7 @@ export const redefinirSenhaUsuario = createServerFn({ method: "POST" })
     return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const hash = await bcrypt.hash(data.novaSenha, 10);
       await conn.query(
-        "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = ?, senha_alterada_em = NOW() WHERE id = ?",
+        "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = ?, senha_alterada_em = NOW() WHERE id = ? AND loja_id = @current_loja_id",
         [hash, data.obrigarTrocaSenha, data.usuarioId],
       );
       // nunca loga a senha em si, só o fato de ter sido redefinida.

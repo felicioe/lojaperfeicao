@@ -24,6 +24,17 @@ async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
   return !!row.ok;
 }
 
+/**
+ * Autorização por PAPEL, que é ortogonal ao escopo de loja (issue #344).
+ *
+ * Ser secretário não é permissão para ver o irmão de outra Loja: papel diz o
+ * que a pessoa pode fazer, `loja_id = @current_loja_id` diz sobre quais linhas.
+ * Por isso a checagem de loja não vive aqui — vive em cada query, junto do
+ * dado. Esta função só responde "tem papel privilegiado, ou é o próprio
+ * irmão?", e o `AND loja_id = @current_loja_id` no EXISTS existe para o caso
+ * de o id vir de outra Loja: sem ele, alguém com o id certo passaria pelo
+ * "é o próprio" olhando uma linha que não é dele.
+ */
 async function podeVerIrmao(
   conn: PoolConnection,
   usuarioId: string,
@@ -31,10 +42,31 @@ async function podeVerIrmao(
 ): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
   const [[row]] = await conn.query<RowDataPacket[]>(
-    `SELECT (${condicoes} OR EXISTS(SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ?)) AS ok`,
+    `SELECT (${condicoes} OR EXISTS(
+       SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ? AND loja_id = @current_loja_id
+     )) AS ok`,
     [...PAPEIS_PRIVILEGIADOS, irmaoId, usuarioId],
   );
   return !!row.ok;
+}
+
+/**
+ * Confirma que o irmão pertence à Loja da sessão e devolve a loja para o
+ * INSERT (issue #344).
+ *
+ * As tabelas-filhas (irmao_orgs, irmao_elevacoes, irmao_formacao, irmao_filhos,
+ * irmao_parentes) recebem `irmao_id` direto do request. Sem esta checagem, o
+ * secretário de uma Loja podia pendurar uma elevação, uma formação ou um
+ * parente no irmão de OUTRA Loja — escrita cruzada, não só leitura. Não basta
+ * escopar o SELECT: quem escreve também precisa provar que o alvo é dele.
+ */
+async function exigirIrmaoDaLoja(conn: PoolConnection, irmaoId: string): Promise<string> {
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    "SELECT loja_id FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
+    [irmaoId],
+  );
+  if (!row) throw new SemPermissaoError("Irmão não encontrado nesta Loja.");
+  return row.loja_id as string;
 }
 
 export type Irmao = {
@@ -90,9 +122,11 @@ export const listarIrmaos = createServerFn({ method: "GET" }).handler(
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
       const [rows] = privilegiado
-        ? await conn.query<RowDataPacket[]>("SELECT * FROM irmaos ORDER BY nome_civil LIMIT 5000")
+        ? await conn.query<RowDataPacket[]>(
+            "SELECT * FROM irmaos WHERE loja_id = @current_loja_id ORDER BY nome_civil LIMIT 5000",
+          )
         : await conn.query<RowDataPacket[]>(
-            "SELECT * FROM irmaos WHERE usuario_id = ? ORDER BY nome_civil LIMIT 5000",
+            "SELECT * FROM irmaos WHERE loja_id = @current_loja_id AND usuario_id = ? ORDER BY nome_civil LIMIT 5000",
             [usuarioId],
           );
       return rows as Irmao[];
@@ -106,9 +140,11 @@ export const listarIrmaosNomes = createServerFn({ method: "GET" }).handler(
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
       const [rows] = privilegiado
-        ? await conn.query<RowDataPacket[]>("SELECT id, nome_civil FROM irmaos ORDER BY nome_civil")
+        ? await conn.query<RowDataPacket[]>(
+            "SELECT id, nome_civil FROM irmaos WHERE loja_id = @current_loja_id ORDER BY nome_civil",
+          )
         : await conn.query<RowDataPacket[]>(
-            "SELECT id, nome_civil FROM irmaos WHERE usuario_id = ? ORDER BY nome_civil",
+            "SELECT id, nome_civil FROM irmaos WHERE loja_id = @current_loja_id AND usuario_id = ? ORDER BY nome_civil",
             [usuarioId],
           );
       return rows as { id: string; nome_civil: string }[];
@@ -121,9 +157,14 @@ export const obterIrmao = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<Irmao | null> => {
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeVerIrmao(conn, usuarioId, data.id))) throw new SemPermissaoError();
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM irmaos WHERE id = ?", [
-        data.id,
-      ]);
+      // O filtro de loja é o que impede o IDOR: o id vem do request, e sem ele
+      // um secretário (privilegiado, portanto aprovado acima) leria a ficha
+      // completa — CPF, endereço, filiação — de um irmão de outra Loja só por
+      // adivinhar/obter o UUID.
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
       return (rows[0] as Irmao) ?? null;
     });
   });
@@ -150,15 +191,20 @@ const novoIrmaoSchema = z.object({
 export const criarIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => novoIrmaoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       const id = crypto.randomUUID();
       const campos = Object.keys(data) as (keyof typeof data)[];
       const colunas = campos.join(", ");
       const placeholders = campos.map(() => "?").join(", ");
-      await conn.query(`INSERT INTO irmaos (id, ${colunas}) VALUES (?, ${placeholders})`, [
-        id,
-        ...campos.map((c) => data[c] ?? null),
-      ]);
+      // A loja vem do comPapel — quer dizer, da sessão —, nunca do request: o
+      // schema acima sequer aceita loja_id, então não há como um cliente
+      // adulterado cadastrar um irmão na Loja de outra pessoa. Hoje a coluna
+      // ainda tem DEFAULT (migração 0092), mas informar explicitamente é o que
+      // a #350 vai exigir quando esse DEFAULT sair.
+      await conn.query(
+        `INSERT INTO irmaos (id, loja_id, ${colunas}) VALUES (?, ?, ${placeholders})`,
+        [id, lojaId, ...campos.map((c) => data[c] ?? null)],
+      );
       return { id };
     });
   });
@@ -227,9 +273,13 @@ export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
         ? [...new Set([...campos, "valor_mensalidade_customizado"])]
         : campos;
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        `SELECT ${colunasAntes.join(", ")} FROM irmaos WHERE id = ?`,
+        `SELECT ${colunasAntes.join(", ")} FROM irmaos WHERE id = ? AND loja_id = @current_loja_id`,
         [data.id],
       );
+      // Sem linha, o id não é desta Loja (ou não existe). Recusar aqui e não
+      // deixar o UPDATE abaixo simplesmente não casar nada é o que evita uma
+      // auditoria com `antes` nulo registrando uma edição que nunca aconteceu.
+      if (!antes) throw new SemPermissaoError("Irmão não encontrado nesta Loja.");
       // Editar a mensalidade aqui (fora do reajuste em massa) só conta como
       // negociação individual quando o valor DE FATO muda — a tela de
       // perfil (irmaos/$id.tsx) manda TODOS os campos em toda edição, então
@@ -245,7 +295,10 @@ export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
       }
       const set = campos.map((c) => `${c} = ?`).join(", ");
       const valores = campos.map((c) => data.perfil[c] ?? null);
-      await conn.query(`UPDATE irmaos SET ${set} WHERE id = ?`, [...valores, data.id]);
+      await conn.query(`UPDATE irmaos SET ${set} WHERE id = ? AND loja_id = @current_loja_id`, [
+        ...valores,
+        data.id,
+      ]);
       const depois = Object.fromEntries(campos.map((c) => [c, data.perfil[c] ?? null]));
       await registrarAuditoria(
         conn,
@@ -264,10 +317,11 @@ export const excluirIrmao = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, usuarioIdAtual) => {
       const [[irmao]] = await conn.query<RowDataPacket[]>(
-        "SELECT nome_civil, cim FROM irmaos WHERE id = ?",
+        "SELECT nome_civil, cim FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
         [data.id],
       );
-      await conn.query("DELETE FROM irmaos WHERE id = ?", [data.id]);
+      if (!irmao) throw new SemPermissaoError("Irmão não encontrado nesta Loja.");
+      await conn.query("DELETE FROM irmaos WHERE id = ? AND loja_id = @current_loja_id", [data.id]);
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
@@ -322,7 +376,8 @@ export const listarIrmaoOrgs = createServerFn({ method: "GET" })
       if (!(await podeVerIrmao(conn, usuarioId, data.irmaoId))) throw new SemPermissaoError();
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT io.id, io.org_id, io.principal, io.grau_atual, o.nome AS org_nome, o.sigla AS org_sigla
-         FROM irmao_orgs io JOIN orgs o ON o.id = io.org_id WHERE io.irmao_id = ?`,
+         FROM irmao_orgs io JOIN orgs o ON o.id = io.org_id AND o.loja_id = @current_loja_id
+        WHERE io.irmao_id = ? AND io.loja_id = @current_loja_id`,
         [data.irmaoId],
       );
       return rows.map((r) => ({
@@ -348,9 +403,17 @@ export const criarIrmaoOrg = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      const lojaId = await exigirIrmaoDaLoja(conn, data.irmaoId);
+      // O corpo maçônico também vem do request e também precisa ser desta
+      // Loja — senão o vínculo apontaria para um org de outra.
+      const [[org]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
+        [data.orgId],
+      );
+      if (!org) throw new SemPermissaoError("Corpo maçônico não encontrado nesta Loja.");
       await conn.query(
-        "INSERT INTO irmao_orgs (irmao_id, org_id, principal, grau_atual) VALUES (?, ?, ?, ?)",
-        [data.irmaoId, data.orgId, data.principal, data.grauAtual],
+        "INSERT INTO irmao_orgs (loja_id, irmao_id, org_id, principal, grau_atual) VALUES (?, ?, ?, ?, ?)",
+        [lojaId, data.irmaoId, data.orgId, data.principal, data.grauAtual],
       );
     });
   });
@@ -359,7 +422,9 @@ export const removerIrmaoOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("DELETE FROM irmao_orgs WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM irmao_orgs WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
     });
   });
 
@@ -372,7 +437,7 @@ export const listarIrmaoElevacoes = createServerFn({ method: "GET" })
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeVerIrmao(conn, usuarioId, data.irmaoId))) throw new SemPermissaoError();
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, grau, data FROM irmao_elevacoes WHERE irmao_id = ? ORDER BY grau",
+        "SELECT id, grau, data FROM irmao_elevacoes WHERE irmao_id = ? AND loja_id = @current_loja_id ORDER BY grau",
         [data.irmaoId],
       );
       return rows as IrmaoElevacao[];
@@ -391,11 +456,11 @@ export const criarIrmaoElevacao = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("INSERT INTO irmao_elevacoes (irmao_id, grau, data) VALUES (?, ?, ?)", [
-        data.irmaoId,
-        data.grau,
-        data.data,
-      ]);
+      const lojaId = await exigirIrmaoDaLoja(conn, data.irmaoId);
+      await conn.query(
+        "INSERT INTO irmao_elevacoes (loja_id, irmao_id, grau, data) VALUES (?, ?, ?, ?)",
+        [lojaId, data.irmaoId, data.grau, data.data],
+      );
     });
   });
 
@@ -403,7 +468,9 @@ export const removerIrmaoElevacao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("DELETE FROM irmao_elevacoes WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM irmao_elevacoes WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
     });
   });
 
@@ -422,7 +489,7 @@ export const listarIrmaoFormacao = createServerFn({ method: "GET" })
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeVerIrmao(conn, usuarioId, data.irmaoId))) throw new SemPermissaoError();
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, curso, instituicao, nivel, ano_conclusao FROM irmao_formacao WHERE irmao_id = ? ORDER BY ano_conclusao DESC",
+        "SELECT id, curso, instituicao, nivel, ano_conclusao FROM irmao_formacao WHERE irmao_id = ? AND loja_id = @current_loja_id ORDER BY ano_conclusao DESC",
         [data.irmaoId],
       );
       return rows as IrmaoFormacao[];
@@ -443,9 +510,10 @@ export const criarIrmaoFormacao = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      const lojaId = await exigirIrmaoDaLoja(conn, data.irmaoId);
       await conn.query(
-        "INSERT INTO irmao_formacao (irmao_id, curso, instituicao, nivel, ano_conclusao) VALUES (?, ?, ?, ?, ?)",
-        [data.irmaoId, data.curso, data.instituicao, data.nivel, data.anoConclusao],
+        "INSERT INTO irmao_formacao (loja_id, irmao_id, curso, instituicao, nivel, ano_conclusao) VALUES (?, ?, ?, ?, ?, ?)",
+        [lojaId, data.irmaoId, data.curso, data.instituicao, data.nivel, data.anoConclusao],
       );
     });
   });
@@ -454,7 +522,9 @@ export const removerIrmaoFormacao = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("DELETE FROM irmao_formacao WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM irmao_formacao WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
     });
   });
 
@@ -467,7 +537,7 @@ export const listarIrmaoFilhos = createServerFn({ method: "GET" })
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeVerIrmao(conn, usuarioId, data.irmaoId))) throw new SemPermissaoError();
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome, data_nascimento FROM irmao_filhos WHERE irmao_id = ? ORDER BY data_nascimento",
+        "SELECT id, nome, data_nascimento FROM irmao_filhos WHERE irmao_id = ? AND loja_id = @current_loja_id ORDER BY data_nascimento",
         [data.irmaoId],
       );
       return rows as IrmaoFilho[];
@@ -486,9 +556,10 @@ export const criarIrmaoFilho = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      const lojaId = await exigirIrmaoDaLoja(conn, data.irmaoId);
       await conn.query(
-        "INSERT INTO irmao_filhos (irmao_id, nome, data_nascimento) VALUES (?, ?, ?)",
-        [data.irmaoId, data.nome, data.dataNascimento],
+        "INSERT INTO irmao_filhos (loja_id, irmao_id, nome, data_nascimento) VALUES (?, ?, ?, ?)",
+        [lojaId, data.irmaoId, data.nome, data.dataNascimento],
       );
     });
   });
@@ -497,7 +568,9 @@ export const removerIrmaoFilho = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("DELETE FROM irmao_filhos WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM irmao_filhos WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
     });
   });
 
@@ -526,7 +599,7 @@ export const listarIrmaoParentes = createServerFn({ method: "GET" })
       if (!(await podeVerIrmao(conn, usuarioId, data.irmaoId))) throw new SemPermissaoError();
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, nome, data_nascimento, telefone, profissao, data_casamento FROM irmao_parentes
-         WHERE irmao_id = ? AND tipo = ? ORDER BY nome`,
+         WHERE irmao_id = ? AND tipo = ? AND loja_id = @current_loja_id ORDER BY nome`,
         [data.irmaoId, data.tipo],
       );
       return rows as IrmaoParente[];
@@ -549,10 +622,12 @@ export const criarIrmaoParente = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      const lojaId = await exigirIrmaoDaLoja(conn, data.irmaoId);
       await conn.query(
-        `INSERT INTO irmao_parentes (irmao_id, tipo, nome, data_nascimento, telefone, profissao, data_casamento)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO irmao_parentes (loja_id, irmao_id, tipo, nome, data_nascimento, telefone, profissao, data_casamento)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          lojaId,
           data.irmaoId,
           data.tipo,
           data.nome,
@@ -569,7 +644,9 @@ export const removerIrmaoParente = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("DELETE FROM irmao_parentes WHERE id = ?", [data.id]);
+      await conn.query("DELETE FROM irmao_parentes WHERE id = ? AND loja_id = @current_loja_id", [
+        data.id,
+      ]);
     });
   });
 
@@ -580,7 +657,7 @@ export const obterMeuIrmao = createServerFn({ method: "GET" }).handler(
   async (): Promise<Irmao | null> => {
     return comSessao(async (conn, usuarioId) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM irmaos WHERE usuario_id = ? LIMIT 1",
+        "SELECT * FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id LIMIT 1",
         [usuarioId],
       );
       return (rows[0] as Irmao) ?? null;
@@ -622,7 +699,7 @@ export const atualizarMeuPerfil = createServerFn({ method: "POST" })
       const set = campos.map((c) => `${c} = ?`).join(", ");
       const valores = campos.map((c) => data.perfil[c] ?? null);
       const [resultado] = await conn.query<ResultSetHeader>(
-        `UPDATE irmaos SET ${set} WHERE usuario_id = ?`,
+        `UPDATE irmaos SET ${set} WHERE usuario_id = ? AND loja_id = @current_loja_id`,
         [...valores, usuarioId],
       );
       if (resultado.affectedRows === 0) {
@@ -641,8 +718,9 @@ export const obterStatusQuitacao = createServerFn({ method: "GET" }).handler(
       const [[row]] = await conn.query<RowDataPacket[]>(
         `SELECT COUNT(*) AS pendentes
          FROM lancamentos l
-         JOIN irmaos i ON i.id = l.irmao_id
-         WHERE i.usuario_id = ? AND l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE`,
+         JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = @current_loja_id
+         WHERE i.usuario_id = ? AND l.loja_id = @current_loja_id
+           AND l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE`,
         [usuarioId],
       );
       const pendentes = Number(row.pendentes);
@@ -670,7 +748,7 @@ export const listarLancamentosIrmao = createServerFn({ method: "GET" })
     return comSessao(async (conn, usuarioId) => {
       if (!(await podeVerIrmao(conn, usuarioId, data.irmaoId))) throw new SemPermissaoError();
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, data, descricao, tipo, valor, valor_pago, pago FROM lancamentos WHERE irmao_id = ? ORDER BY data DESC LIMIT 100",
+        "SELECT id, data, descricao, tipo, valor, valor_pago, pago FROM lancamentos WHERE irmao_id = ? AND loja_id = @current_loja_id ORDER BY data DESC LIMIT 100",
         [data.irmaoId],
       );
       return rows as LancamentoIrmao[];
@@ -699,6 +777,8 @@ export const listarFrequenciaIrmao = createServerFn({ method: "GET" })
         `SELECT s.id, s.data, s.tipo, s.grau, p.presente, p.justificado
          FROM sessoes s
          LEFT JOIN presencas p ON p.sessao_id = s.id AND p.irmao_id = ?
+                              AND p.loja_id = @current_loja_id
+         WHERE s.loja_id = @current_loja_id
          ORDER BY s.data DESC
          LIMIT 100`,
         [data.irmaoId],
@@ -734,10 +814,10 @@ export const listarCargosHistoricoIrmao = createServerFn({ method: "GET" })
         `SELECT gc.id, c.nome AS cargo_nome, g.nome AS gestao_nome, g.ativo AS gestao_ativo, g.org_id,
                 o.nome AS org_nome, o.sigla AS org_sigla
          FROM gestao_cargos gc
-         JOIN cargos c ON c.id = gc.cargo_id
-         JOIN gestoes g ON g.id = gc.gestao_id
-         JOIN orgs o ON o.id = g.org_id
-         WHERE gc.irmao_id = ?`,
+         JOIN cargos c ON c.id = gc.cargo_id AND c.loja_id = @current_loja_id
+         JOIN gestoes g ON g.id = gc.gestao_id AND g.loja_id = @current_loja_id
+         JOIN orgs o ON o.id = g.org_id AND o.loja_id = @current_loja_id
+         WHERE gc.irmao_id = ? AND gc.loja_id = @current_loja_id`,
         [data.irmaoId],
       );
       return rows.map((r) => ({

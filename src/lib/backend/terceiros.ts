@@ -31,7 +31,9 @@ export type Terceiro = {
 export const listarTerceiros = createServerFn({ method: "GET" }).handler(
   async (): Promise<Terceiro[]> => {
     return comPapel(PAPEIS_LEITURA, async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>("SELECT * FROM terceiros ORDER BY nome");
+      const [rows] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM terceiros WHERE loja_id = @current_loja_id ORDER BY nome",
+      );
       return rows as Terceiro[];
     });
   },
@@ -42,7 +44,7 @@ export const listarFornecedores = createServerFn({ method: "GET" }).handler(
   async (): Promise<{ id: string; nome: string }[]> => {
     return comPapel(PAPEIS_LEITURA, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome FROM terceiros WHERE tipo IN ('fornecedor', 'ambos') AND ativo = TRUE ORDER BY nome",
+        "SELECT id, nome FROM terceiros WHERE loja_id = @current_loja_id AND tipo IN ('fornecedor', 'ambos') AND ativo = TRUE ORDER BY nome",
       );
       return rows as { id: string; nome: string }[];
     });
@@ -71,7 +73,7 @@ const terceiroSchema = z.object({
 export const salvarTerceiro = createServerFn({ method: "POST" })
   .validator((d: unknown) => terceiroSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       const valores = [
         data.tipo,
         data.nome,
@@ -92,14 +94,15 @@ export const salvarTerceiro = createServerFn({ method: "POST" })
       if (data.id) {
         await conn.query(
           `UPDATE terceiros SET tipo=?, nome=?, nome_fantasia=?, cnpj=?, cpf=?, contato=?, email=?, categoria=?,
-           cep=?, logradouro=?, numero=?, bairro=?, municipio=?, uf=?, observacoes=? WHERE id=?`,
+           cep=?, logradouro=?, numero=?, bairro=?, municipio=?, uf=?, observacoes=?
+           WHERE id=? AND loja_id = @current_loja_id`,
           [...valores, data.id],
         );
       } else {
         await conn.query(
-          `INSERT INTO terceiros (tipo, nome, nome_fantasia, cnpj, cpf, contato, email, categoria, cep,
-           logradouro, numero, bairro, municipio, uf, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          valores,
+          `INSERT INTO terceiros (loja_id, tipo, nome, nome_fantasia, cnpj, cpf, contato, email, categoria, cep,
+           logradouro, numero, bairro, municipio, uf, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [lojaId, ...valores],
         );
       }
     });
@@ -115,14 +118,15 @@ const fornecedorRapidoSchema = z.object({
 export const criarFornecedorRapido = createServerFn({ method: "POST" })
   .validator((d: unknown) => fornecedorRapidoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string; nome: string }> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       const id = crypto.randomUUID();
       const digitos = (data.documento ?? "").replace(/\D/g, "");
       await conn.query(
-        `INSERT INTO terceiros (id, tipo, nome, cnpj, cpf, contato, email, ativo)
-         VALUES (?, 'fornecedor', ?, ?, ?, ?, ?, TRUE)`,
+        `INSERT INTO terceiros (id, loja_id, tipo, nome, cnpj, cpf, contato, email, ativo)
+         VALUES (?, ?, 'fornecedor', ?, ?, ?, ?, ?, TRUE)`,
         [
           id,
+          lojaId,
           data.nome,
           digitos.length === 14 ? digitos : null,
           digitos.length === 11 ? digitos : null,
@@ -138,7 +142,10 @@ export const alternarAtivoTerceiro = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
-      await conn.query("UPDATE terceiros SET ativo=? WHERE id=?", [data.ativo, data.id]);
+      await conn.query("UPDATE terceiros SET ativo=? WHERE id=? AND loja_id = @current_loja_id", [
+        data.ativo,
+        data.id,
+      ]);
     });
   });
 
