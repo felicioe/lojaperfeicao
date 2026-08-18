@@ -88,7 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Sistema de gestão para lojas maçônicas: cadastro de irmãos, tesouraria e contabilidade.",
       },
-      { property: "og:title", content: "Gestão Maçônica" },
+      { property: "og:title", content: "SGLFM" },
       {
         property: "og:description",
         content:
@@ -96,7 +96,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Gestão Maçônica" },
+      { name: "twitter:title", content: "SGLFM" },
       {
         name: "twitter:description",
         content:
