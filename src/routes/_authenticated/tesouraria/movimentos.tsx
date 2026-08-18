@@ -155,12 +155,7 @@ function Movimentos() {
           <Label htmlFor="mov-de" className="text-xs">
             De
           </Label>
-          <Input
-            id="mov-de"
-            type="date"
-            value={f.de}
-            onChange={(e) => f.setDe(e.target.value)}
-          />
+          <Input id="mov-de" type="date" value={f.de} onChange={(e) => f.setDe(e.target.value)} />
         </div>
         <div>
           <Label htmlFor="mov-ate" className="text-xs">

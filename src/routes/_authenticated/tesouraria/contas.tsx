@@ -220,7 +220,9 @@ function Contas() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        aria-label={expandido === c.id ? "Recolher chaves Pix" : "Expandir chaves Pix"}
+                        aria-label={
+                          expandido === c.id ? "Recolher chaves Pix" : "Expandir chaves Pix"
+                        }
                         aria-expanded={expandido === c.id}
                         onClick={() => setExpandido(expandido === c.id ? null : c.id)}
                       >
