@@ -220,7 +220,12 @@ function AuthPage() {
         </CardHeader>
         <CardContent>
           {aguardando2FA ? (
-            <form onSubmit={handleConfirmar2FA} className="space-y-3" aria-busy={loading}>
+            <form
+              method="post"
+              onSubmit={handleConfirmar2FA}
+              className="space-y-3"
+              aria-busy={loading}
+            >
               <div
                 id="codigo-2fa-ajuda"
                 className="flex items-center gap-2 text-sm text-muted-foreground"
@@ -279,7 +284,12 @@ function AuthPage() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="signup" className="pt-4">
-                <form onSubmit={handleSignUp} className="space-y-3" aria-busy={loading}>
+                <form
+                  method="post"
+                  onSubmit={handleSignUp}
+                  className="space-y-3"
+                  aria-busy={loading}
+                >
                   <div>
                     <Label htmlFor="cadastro-nome">Nome completo</Label>
                     <Input
@@ -484,7 +494,7 @@ function LoginForm({
   handleFacebookLogin,
 }: LoginFormProps) {
   return (
-    <form onSubmit={handleLogin} className="space-y-3" aria-busy={authBusy}>
+    <form method="post" onSubmit={handleLogin} className="space-y-3" aria-busy={authBusy}>
       <div>
         <Label htmlFor="login-email">E-mail</Label>
         <Input

@@ -70,6 +70,7 @@ function TrocarSenha() {
           </CardDescription>
         </CardHeader>
         <form
+          method="post"
           onSubmit={(e) => {
             e.preventDefault();
             salvar();

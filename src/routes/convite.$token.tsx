@@ -114,6 +114,7 @@ function AceitarConvite() {
 
         {convite && (
           <form
+            method="post"
             onSubmit={(e) => {
               e.preventDefault();
               aceitar();
