@@ -364,6 +364,54 @@ com nenhuma query dá falsa sensação de cobertura revisada. Rodar isso é mais
 confiável que revisar ~420 statements no olho, e continua valendo para a
 próxima query que alguém escrever.
 
+**A outra metade da prova: `npm run testar:isolamento` (issue #351).** O
+verificador estático garante que nenhuma query *esqueceu* de citar `loja_id`.
+Ele não garante que o filtro está **certo**: um JOIN escopado na tabela errada
+cita `loja_id`, passa no verificador e vaza assim mesmo. Só duas lojas de
+verdade respondem isso, e é o que a suíte faz — este é o procedimento oficial
+de verificação de isolamento antes de qualquer implantação.
+
+Como ela funciona:
+
+- **Banco descartável.** Cria `saas_teste_isolamento` do zero, aplica as 92
+  migrações em ordem e destrói no fim. Não usa o banco de desenvolvimento: o
+  resultado tem que depender só das migrações e do seed, nunca do que sobrou
+  de outro teste. (`--manter` preserva o banco para inspeção.)
+- **Duas lojas com dados idênticos.** Loja Alfa e Loja Beta recebem os mesmos
+  nomes e os mesmos valores de propósito — um vazamento fica *plausível* na
+  tela, que é exatamente o caso que um seed com dados diferentes deixaria
+  passar. O que separa uma da outra é só o id: todo id da Alfa começa com "1"
+  e todo id da Beta com "2". A loja semente (Adonhiram) fica vazia e serve de
+  canário do `DEFAULT` transitório de `loja_id`: se uma escrita esquecer a
+  loja, o registro cai lá e a suíte acusa.
+- **As chamadas são feitas como um invasor faria.** As server functions são
+  importadas de dentro do navegador (`/src/lib/backend/*.ts`, servidos pelo
+  Vite em dev), com o cookie de sessão real. É o mesmo caminho da aplicação,
+  mas permite invocar qualquer função com qualquer id — inclusive os que a
+  interface nunca ofereceria.
+
+O que ela prova (104 provas): que nenhuma das 61 leituras sem argumento traz
+id de outra loja; que os agregados batem com a loja de quem está logado (como
+os valores são idênticos nas duas, um vazamento *dobra* o número); que a
+exportação completa só contém dado da própria loja; que chamar 18 funções com
+o id da loja vizinha não devolve o registro (IDOR); que 9 escritas apontadas
+para a loja vizinha não alteram o dado de lá — o veredito é o estado do banco
+depois, não "lançou erro", porque uma escrita escopada corretamente não acha a
+linha e afeta 0 registros sem erro nenhum; e que o login resolve a conta certa,
+recusando e-mail que existe em duas lojas em vez de escolher uma.
+
+Há também um grupo de **controle positivo**: as mesmas funções, com os ids da
+própria loja, têm que responder normalmente. Sem ele, um sistema que
+simplesmente não devolvesse nada a ninguém passaria em todas as outras provas.
+
+Duas coisas foram descobertas por ela ao ser escrita, e as duas estão
+corrigidas: a migração 0092 tentava alterar `documento_assinaturas`, que a
+0072 já havia removido — num banco reconstruído do zero o `ALTER` abortava a
+migração no meio e tudo dali pra baixo ficava sem `loja_id`; e `podeVerIrmao`
+(`irmaos.ts`) deixava o papel privilegiado responder "pode" sem conferir de
+qual loja era o irmão, de modo que `listarFrequenciaIrmao` respondia a uma
+pergunta sobre irmão de outra loja em vez de recusar.
+
 ### 11. Autenticação e sessão (issue #49) — implementado
 
 `src/lib/backend/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`

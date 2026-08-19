@@ -46,3 +46,4 @@ public/uploads/
 *.njsproj
 *.sln
 *.sw?
+isolamento-app.log
