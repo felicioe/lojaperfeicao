@@ -2,21 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel, comSessao } from "./authz";
-import { exigirLojaUnica } from "./trava-multi-loja";
 
 // RLS original: SELECT admin/tesoureiro. Sem escrita direta — só as
 // procedures criar_orcamento/definir_valor_orcamento/aprovar_orcamento/
 // reabrir_orcamento.
 const PAPEIS = ["admin", "tesoureiro"];
-
-// As quatro procedures de orçamento são anteriores ao multi-tenant: o INSERT
-// de criar_orcamento não informa loja_id (cairia no DEFAULT da 0092, que
-// aponta pra Loja semente), a checagem de duplicidade é `WHERE ano = ?` sobre
-// todas as Lojas — uma Loja nova nem conseguiria criar o orçamento de um ano
-// que outra já tem — e aprovar/reabrir recebem um id sem conferir de quem ele
-// é. Trancado até a #349; ver trava-multi-loja.ts.
-const MOTIVO_TRAVA =
-  "as rotinas de orçamento do banco ainda não sabem a qual Loja o orçamento pertence";
 
 // plano_contas tem leitura pública para autenticados no RLS original.
 export type ContaOrcamento = {
@@ -81,7 +71,6 @@ export const criarOrcamento = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn) => {
-      await exigirLojaUnica(conn, "Criar orçamento", MOTIVO_TRAVA);
       await conn.query("CALL criar_orcamento(?, ?, @orcamento_id)", [data.ano, data.observacoes]);
       const [[{ orcamento_id }]] = await conn.query<RowDataPacket[]>(
         "SELECT @orcamento_id AS orcamento_id",
@@ -103,7 +92,6 @@ export const definirValorOrcamento = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
-      await exigirLojaUnica(conn, "Editar orçamento", MOTIVO_TRAVA);
       await conn.query("CALL definir_valor_orcamento(?, ?, ?, ?)", [
         data.orcamentoId,
         data.contaId,
@@ -117,7 +105,6 @@ export const aprovarOrcamento = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ orcamentoId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
-      await exigirLojaUnica(conn, "Aprovar orçamento", MOTIVO_TRAVA);
       await conn.query("CALL aprovar_orcamento(?)", [data.orcamentoId]);
     });
   });
@@ -126,7 +113,6 @@ export const reabrirOrcamento = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ orcamentoId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
-      await exigirLojaUnica(conn, "Reabrir orçamento", MOTIVO_TRAVA);
       await conn.query("CALL reabrir_orcamento(?)", [data.orcamentoId]);
     });
   });

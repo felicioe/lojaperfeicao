@@ -264,8 +264,10 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
         );
         saldoSistema = saldoNaData?.saldo == null ? null : Number(saldoNaData.saldo);
       } else {
+        // O contaId vem do request: sem o filtro de loja, dava pra ler o
+        // saldo da conta bancária de outra Loja passando o id (#349).
         const [saldos] = await conn.query<RowDataPacket[]>(
-          "SELECT saldo_atual FROM v_saldo_contas WHERE id = ? LIMIT 1",
+          "SELECT saldo_atual FROM v_saldo_contas WHERE id = ? AND loja_id = @current_loja_id LIMIT 1",
           [data.contaId],
         );
         saldoSistema = saldos[0] ? Number(saldos[0].saldo_atual) : null;

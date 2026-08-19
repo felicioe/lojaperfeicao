@@ -70,11 +70,11 @@ INSERT INTO usuarios (id, email, senha_hash, nome_completo, ativo, deve_trocar_s
   (${esc(l.usuarioIrmao)}, ${esc(l.emails.irmao)}, ${esc(hash)}, 'Irmão Comum', TRUE, FALSE, NOW(), ${esc(l.id)}),
   (${esc(l.usuarioEmailCompartilhado)}, ${esc(EMAIL_COMPARTILHADO)}, ${esc(hash)}, 'Conta Homônima', TRUE, FALSE, NOW(), ${esc(l.id)});
 
-INSERT INTO usuarios_papeis (usuario_id, papel) VALUES
-  (${esc(l.usuarioAdmin)}, 'admin'),
-  (${esc(l.usuarioTesoureiro)}, 'tesoureiro'),
-  (${esc(l.usuarioIrmao)}, 'irmao'),
-  (${esc(l.usuarioEmailCompartilhado)}, 'irmao');
+INSERT INTO usuarios_papeis (usuario_id, papel, loja_id) VALUES
+  (${esc(l.usuarioAdmin)}, 'admin', ${esc(l.id)}),
+  (${esc(l.usuarioTesoureiro)}, 'tesoureiro', ${esc(l.id)}),
+  (${esc(l.usuarioIrmao)}, 'irmao', ${esc(l.id)}),
+  (${esc(l.usuarioEmailCompartilhado)}, 'irmao', ${esc(l.id)});
 
 INSERT INTO orgs (id, nome, sigla, natureza, ativo, loja_id)
   VALUES (${esc(l.org)}, 'Loja Simbólica', 'LS', 'loja', TRUE, ${esc(l.id)});

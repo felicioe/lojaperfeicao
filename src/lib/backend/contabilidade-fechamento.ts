@@ -2,20 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
-import { exigirLojaUnica } from "./trava-multi-loja";
 
 // RLS original: SELECT admin/tesoureiro. Sem escrita direta — só as
 // procedures fechar_exercicio/reabrir_exercicio (ambas admin-only, checado
 // de novo dentro da procedure).
 const PAPEIS = ["admin", "tesoureiro"];
-
-// `fechar_exercicio` e `reabrir_exercicio` (procedures da 0003) agregam
-// plano_contas + lancamentos_contabeis SEM filtro de loja, e procuram a conta
-// "3.1.01" com `WHERE codigo = '3.1.01'` — que, com duas Lojas, casa a conta de
-// qualquer uma. Fechar o exercício de uma Loja consumiria o movimento contábil
-// das outras e lançaria o resultado apurado na conta errada: escrita
-// destrutiva, não relatório torto. Ver trava-multi-loja.ts.
-const MOTIVO_TRAVA = "a rotina do banco ainda soma o movimento contábil de todas elas";
 
 export type FechamentoExercicio = {
   id: string;
@@ -112,7 +103,6 @@ export const fecharExercicio = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn) => {
-      await exigirLojaUnica(conn, "Fechar exercício", MOTIVO_TRAVA);
       await conn.query("CALL fechar_exercicio(?, ?, ?, @fechamento_id)", [
         data.exercicio,
         data.dataCorte,
@@ -131,7 +121,6 @@ export const reabrirExercicio = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
-      await exigirLojaUnica(conn, "Reabrir exercício", MOTIVO_TRAVA);
       await conn.query("CALL reabrir_exercicio(?, ?)", [data.exercicio, data.motivo]);
     });
   });
