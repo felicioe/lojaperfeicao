@@ -449,7 +449,27 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
         valores.push(data.ate);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago,
+        `SELECT l.id, l.data, l.data_vencimento,
+                COALESCE(
+                  (SELECT MAX(o.data)
+                     FROM ofx_lancamentos o
+                    WHERE o.loja_id = l.loja_id
+                      AND (
+                        o.lancamento_id = l.id
+                        OR EXISTS (
+                          SELECT 1
+                            FROM conciliacao_lancamentos cl
+                            JOIN conciliacoes c
+                              ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                             AND c.status = 'ativa'
+                           WHERE cl.loja_id = l.loja_id
+                             AND cl.lancamento_id = l.id
+                             AND cl.conciliacao_id = o.conciliacao_id
+                        )
+                      )),
+                  l.data_pagamento
+                ) AS data_pagamento,
+                l.descricao, l.valor, l.valor_pago,
                 l.tipo, l.pago, l.forma_pagamento
          FROM lancamentos l
          WHERE l.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
