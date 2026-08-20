@@ -2364,7 +2364,9 @@ BEGIN
     END IF;
 
     UPDATE lancamentos
-    SET pago = FALSE, data_pagamento = NULL, conta_id = NULL,
+    SET pago = FALSE,
+        valor_pago = CASE WHEN valor_pago >= valor THEN 0 ELSE valor_pago END,
+        data_pagamento = NULL, conta_id = NULL,
         forma_pagamento = IF(forma_pagamento = 'Conciliação OFX', NULL, forma_pagamento)
     WHERE id = v_lancamento_id AND loja_id = @current_loja_id;
   END IF;
@@ -2384,9 +2386,11 @@ CREATE PROCEDURE conciliar_ofx_baixando_lancamento(
 BEGIN
   DECLARE v_ofx_conta_financeira_id CHAR(36);
   DECLARE v_ofx_data DATE;
+  DECLARE v_ofx_valor DECIMAL(14,2);
   DECLARE v_plano_conta_banco CHAR(36);
   DECLARE v_lanc_tipo VARCHAR(20);
   DECLARE v_lanc_valor DECIMAL(14,2);
+  DECLARE v_lanc_valor_pago DECIMAL(14,2);
   DECLARE v_lanc_pago BOOLEAN;
   DECLARE v_lanc_desc VARCHAR(500);
   DECLARE v_tem_provisao BOOLEAN;
@@ -2405,14 +2409,16 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Sem permissão';
   END IF;
 
-  SELECT conta_financeira_id, data INTO v_ofx_conta_financeira_id, v_ofx_data
+  SELECT conta_financeira_id, data, valor
+    INTO v_ofx_conta_financeira_id, v_ofx_data, v_ofx_valor
   FROM ofx_lancamentos
   WHERE id = p_ofx_id AND NOT conciliado AND loja_id = @current_loja_id;
   IF v_ofx_conta_financeira_id IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Linha OFX não encontrada ou já conciliada';
   END IF;
 
-  SELECT tipo, valor, pago, descricao INTO v_lanc_tipo, v_lanc_valor, v_lanc_pago, v_lanc_desc
+  SELECT tipo, valor, valor_pago, pago, descricao
+    INTO v_lanc_tipo, v_lanc_valor, v_lanc_valor_pago, v_lanc_pago, v_lanc_desc
   FROM lancamentos WHERE id = p_lancamento_id AND loja_id = @current_loja_id;
   IF v_lanc_tipo IS NULL THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lançamento não encontrado';
@@ -2420,8 +2426,18 @@ BEGIN
   IF v_lanc_pago THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Este lançamento já está pago';
   END IF;
+  IF v_lanc_valor_pago > 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Este lançamento já possui pagamento parcial; use a conciliação com alocação';
+  END IF;
   IF v_lanc_tipo NOT IN ('entrada', 'saida') THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Só é possível baixar entradas ou saídas por aqui';
+  END IF;
+  IF ABS(v_ofx_valor) <> v_lanc_valor THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'O valor do OFX precisa ser igual ao valor integral do lançamento';
+  END IF;
+  IF (v_lanc_tipo = 'entrada' AND v_ofx_valor < 0)
+     OR (v_lanc_tipo = 'saida' AND v_ofx_valor > 0) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A natureza da linha OFX não corresponde ao tipo do lançamento';
   END IF;
 
   SELECT plano_conta_id INTO v_plano_conta_banco FROM contas_financeiras
@@ -2431,7 +2447,8 @@ BEGIN
   END IF;
 
   UPDATE lancamentos
-  SET pago = TRUE, data_pagamento = v_ofx_data, conta_id = v_ofx_conta_financeira_id,
+  SET pago = TRUE, valor_pago = valor, data_pagamento = v_ofx_data,
+      conta_id = v_ofx_conta_financeira_id,
       forma_pagamento = COALESCE(forma_pagamento, 'Conciliação OFX')
   WHERE id = p_lancamento_id AND loja_id = @current_loja_id;
 
