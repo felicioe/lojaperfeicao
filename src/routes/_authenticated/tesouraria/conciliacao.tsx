@@ -78,6 +78,8 @@ function Conciliacao() {
   const [buscaSistema, setBuscaSistema] = useState("");
   const [buscaSistemaAuto, setBuscaSistemaAuto] = useState(false);
   const [buscaOfx, setBuscaOfx] = useState("");
+  const [dataInicial, setDataInicial] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
   const [selSistema, setSelSistema] = useState<string[]>([]);
   const [selOfx, setSelOfx] = useState<string[]>([]);
   const [openCriar, setOpenCriar] = useState(false);
@@ -206,6 +208,8 @@ function Conciliacao() {
     .map((t) => normalizarTexto(t.trim()))
     .filter(Boolean);
   const sistemaFiltrado = sistema.filter((s) => {
+    if (dataInicial && s.data < dataInicial) return false;
+    if (dataFinal && s.data > dataFinal) return false;
     if (termosSistema.length === 0) return true;
     const alvo = normalizarTexto(s.descricao);
     return termosSistema.some((t) => alvo.includes(t));
@@ -217,9 +221,11 @@ function Conciliacao() {
     if (aVencida !== bVencida) return aVencida ? -1 : 1;
     return (a.data_vencimento ?? a.data).localeCompare(b.data_vencimento ?? b.data);
   });
-  const ofxFiltrado = ofx.filter(
-    (o) => !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase()),
-  );
+  const ofxFiltrado = ofx.filter((o) => {
+    if (dataInicial && o.data < dataInicial) return false;
+    if (dataFinal && o.data > dataFinal) return false;
+    return !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase());
+  });
   const ofxSelecionadoUnico =
     selOfx.length === 1 && selSistema.length === 0
       ? ofx.find((o) => o.id === selOfx[0])
@@ -276,6 +282,13 @@ function Conciliacao() {
     setAlocacaoParcial(sugerirAlocacao(faturasParaAlocarConciliacao, totalOfx));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usarParcial, totalOfx, selSistema.join(","), selOfx.join(",")]);
+
+  // Evita manter valores selecionados fora da tela quando o período muda.
+  useEffect(() => {
+    setSelSistema([]);
+    setSelOfx([]);
+    setAlocacaoParcial({});
+  }, [dataInicial, dataFinal]);
 
   // Se a sugestão automática filtrou pra um único irmão e a soma de todas
   // as faturas dele bater exatamente com a linha do OFX marcada, pré-marca
@@ -342,10 +355,51 @@ function Conciliacao() {
 
       {contaId && resumo && <PainelFechamento resumo={resumo} />}
 
-      {contaId && <ConferenciaOfx itens={conferencia} podeEditar={podeEditar} />}
-
       {contaId && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <>
+          <div className="mb-3 flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Período dos lançamentos</p>
+              <p className="text-sm text-muted-foreground">
+                O período é aplicado aos dois lados da conciliação.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="conciliacao-data-inicial">Data inicial</Label>
+                <Input
+                  id="conciliacao-data-inicial"
+                  type="date"
+                  value={dataInicial}
+                  max={dataFinal || undefined}
+                  onChange={(e) => setDataInicial(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="conciliacao-data-final">Data final</Label>
+                <Input
+                  id="conciliacao-data-final"
+                  type="date"
+                  value={dataFinal}
+                  min={dataInicial || undefined}
+                  onChange={(e) => setDataFinal(e.target.value)}
+                />
+              </div>
+            </div>
+            {(dataInicial || dataFinal) && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setDataInicial("");
+                  setDataFinal("");
+                }}
+              >
+                Limpar período
+              </Button>
+            )}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Sistema — em aberto</CardTitle>
@@ -460,7 +514,8 @@ function Conciliacao() {
               )}
             </CardContent>
           </Card>
-        </div>
+          </div>
+        </>
       )}
 
       {podeEditar && usarParcial && (
@@ -568,6 +623,8 @@ function Conciliacao() {
           </div>
         </Card>
       )}
+
+      {contaId && <ConferenciaOfx itens={conferencia} podeEditar={podeEditar} />}
     </>
   );
 }
