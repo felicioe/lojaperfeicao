@@ -68,28 +68,33 @@ function DadosEntidade() {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           <div className="md:col-span-2">
-            <Label>Nome da Loja/Associação</Label>
+            <Label htmlFor="dados-entidade-nome-da-loja-associacao">Nome da Loja/Associação</Label>
             <Input
               value={form.nome_entidade}
               onChange={(e) => setForm({ ...form, nome_entidade: e.target.value })}
               placeholder="Ex.: Associação Adonhiramita"
+              id="dados-entidade-nome-da-loja-associacao"
             />
           </div>
           <div>
-            <Label>CNPJ</Label>
+            <Label htmlFor="dados-entidade-cnpj">CNPJ</Label>
             <Input
               value={form.cnpj}
               onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
               placeholder="00.000.000/0000-00"
+              id="dados-entidade-cnpj"
             />
           </div>
           <div>
-            <Label>E-mail do encarregado/DPO</Label>
+            <Label htmlFor="dados-entidade-e-mail-do-encarregado-dpo">
+              E-mail do encarregado/DPO
+            </Label>
             <Input
               type="email"
               value={form.email_dpo}
               onChange={(e) => setForm({ ...form, email_dpo: e.target.value })}
               placeholder="privacidade@exemplo.org.br"
+              id="dados-entidade-e-mail-do-encarregado-dpo"
             />
           </div>
           <div className="md:col-span-2">

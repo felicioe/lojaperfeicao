@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { cloneElement, isValidElement, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,9 +126,9 @@ export function IrmaoForm({
           <Field label="CIM">
             <Input value={d.cim ?? ""} onChange={set("cim")} />
           </Field>
-          <Field label="Grau">
+          <Field label="Grau" controlId="irmao-grau">
             <Select value={d.grau} onValueChange={(v) => setD({ ...d, grau: v as GrauIrmao })}>
-              <SelectTrigger>
+              <SelectTrigger id="irmao-grau">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -138,12 +138,12 @@ export function IrmaoForm({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Situação">
+          <Field label="Situação" controlId="irmao-situacao">
             <Select
               value={d.situacao}
               onValueChange={(v) => setD({ ...d, situacao: v as SituacaoIrmao })}
             >
-              <SelectTrigger>
+              <SelectTrigger id="irmao-situacao">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -193,16 +193,27 @@ export function IrmaoForm({
 function Field({
   label,
   className,
+  controlId,
   children,
 }: {
   label: string;
   className?: string;
+  controlId?: string;
   children: React.ReactNode;
 }) {
+  const generatedId = useId();
+  const resolvedId = controlId ?? generatedId;
+  const control =
+    isValidElement<{ id?: string }>(children) && children.type !== Select
+      ? cloneElement(children, { id: children.props.id ?? resolvedId })
+      : children;
+
   return (
     <div className={className}>
-      <Label className="mb-1 block">{label}</Label>
-      {children}
+      <Label htmlFor={resolvedId} className="mb-1 block">
+        {label}
+      </Label>
+      {control}
     </div>
   );
 }

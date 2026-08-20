@@ -150,9 +150,11 @@ function InadimplenciaDetalhada() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3">
         <div>
-          <Label className="text-xs">Irmão</Label>
+          <Label className="text-xs" htmlFor="inadimplencia-irmao">
+            Irmão
+          </Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="inadimplencia-irmao">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -166,19 +168,25 @@ function InadimplenciaDetalhada() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Vencimento de</Label>
+          <Label className="text-xs" htmlFor="inadimplencia-vencimento-de">
+            Vencimento de
+          </Label>
           <Input
             type="date"
             value={vencimentoDe}
             onChange={(e) => setVencimentoDe(e.target.value)}
+            id="inadimplencia-vencimento-de"
           />
         </div>
         <div>
-          <Label className="text-xs">Vencimento até</Label>
+          <Label className="text-xs" htmlFor="inadimplencia-vencimento-ate">
+            Vencimento até
+          </Label>
           <Input
             type="date"
             value={vencimentoAte}
             onChange={(e) => setVencimentoAte(e.target.value)}
+            id="inadimplencia-vencimento-ate"
           />
         </div>
       </Card>

@@ -155,12 +155,7 @@ function Movimentos() {
           <Label htmlFor="mov-de" className="text-xs">
             De
           </Label>
-          <Input
-            id="mov-de"
-            type="date"
-            value={f.de}
-            onChange={(e) => f.setDe(e.target.value)}
-          />
+          <Input id="mov-de" type="date" value={f.de} onChange={(e) => f.setDe(e.target.value)} />
         </div>
         <div>
           <Label htmlFor="mov-ate" className="text-xs">
@@ -226,9 +221,11 @@ function Movimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Irmão</Label>
+          <Label className="text-xs" htmlFor="movimentos-irmao">
+            Irmão
+          </Label>
           <Select value={f.irmaoId} onValueChange={f.setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="movimentos-irmao">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -242,14 +239,16 @@ function Movimentos() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Status</Label>
+          <Label className="text-xs" htmlFor="movimentos-status">
+            Status
+          </Label>
           <Select
             value={f.status}
             onValueChange={(v) =>
               f.setStatus(v as "todos" | "pago" | "nao_pago" | "vencido" | "a_vencer")
             }
           >
-            <SelectTrigger>
+            <SelectTrigger id="movimentos-status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

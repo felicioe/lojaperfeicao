@@ -348,13 +348,13 @@ function BibliotecaPage() {
                   </DialogHeader>
                   <div className="grid gap-3">
                     <div>
-                      <Label>Autor</Label>
+                      <Label htmlFor="biblioteca-autor">Autor</Label>
                       {podeGerenciarTudo ? (
                         <Select
                           value={form.autorId}
                           onValueChange={(v) => setForm({ ...form, autorId: v })}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="biblioteca-autor">
                             <SelectValue placeholder="Selecione…" />
                           </SelectTrigger>
                           <SelectContent>
@@ -370,41 +370,46 @@ function BibliotecaPage() {
                       )}
                     </div>
                     <div>
-                      <Label>Título</Label>
+                      <Label htmlFor="biblioteca-titulo">Título</Label>
                       <Input
                         value={form.titulo}
                         onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+                        id="biblioteca-titulo"
                       />
                     </div>
                     <div>
-                      <Label>Tema (opcional)</Label>
+                      <Label htmlFor="biblioteca-tema-opcional">Tema (opcional)</Label>
                       <Input
                         value={form.tema}
                         onChange={(e) => setForm({ ...form, tema: e.target.value })}
+                        id="biblioteca-tema-opcional"
                       />
                     </div>
                     <div>
-                      <Label>Grau</Label>
+                      <Label htmlFor="biblioteca-grau">Grau</Label>
                       <Input
                         type="number"
                         min={1}
                         value={form.grau}
                         onChange={(e) => setForm({ ...form, grau: e.target.value })}
                         placeholder="Ex.: 4"
+                        id="biblioteca-grau"
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
                         Só irmãos deste grau ou superior poderão ver esta peça.
                       </p>
                     </div>
                     <div>
-                      <Label>Sessão em que foi apresentada (opcional)</Label>
+                      <Label htmlFor="biblioteca-sessao-em-que-foi-apresentada-opcional">
+                        Sessão em que foi apresentada (opcional)
+                      </Label>
                       <Select
                         value={form.sessaoId || "nenhuma"}
                         onValueChange={(v) =>
                           setForm({ ...form, sessaoId: v === "nenhuma" ? "" : v })
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger id="biblioteca-sessao-em-que-foi-apresentada-opcional">
                           <SelectValue placeholder="Nenhuma" />
                         </SelectTrigger>
                         <SelectContent>
@@ -418,15 +423,18 @@ function BibliotecaPage() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Resumo (opcional)</Label>
+                      <Label htmlFor="biblioteca-resumo-opcional">Resumo (opcional)</Label>
                       <Textarea
                         value={form.resumo}
                         onChange={(e) => setForm({ ...form, resumo: e.target.value })}
                         rows={3}
+                        id="biblioteca-resumo-opcional"
                       />
                     </div>
                     <div>
-                      <Label>Arquivo (PDF, até 15 MB — opcional)</Label>
+                      <Label htmlFor="biblioteca-arquivo-pdf-ate-15-mb-opcional">
+                        Arquivo (PDF, até 15 MB — opcional)
+                      </Label>
                       <Input
                         type="file"
                         accept=".pdf,application/pdf"
@@ -435,6 +443,7 @@ function BibliotecaPage() {
                           const file = e.target.files?.[0];
                           if (file) handleArquivo(file);
                         }}
+                        id="biblioteca-arquivo-pdf-ate-15-mb-opcional"
                       />
                       {form.arquivoNomeOriginal && (
                         <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">

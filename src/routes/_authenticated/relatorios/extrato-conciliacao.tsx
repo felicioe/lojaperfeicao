@@ -139,9 +139,11 @@ function ExtratoConciliacao() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3">
         <div>
-          <Label className="text-xs">Conta bancária</Label>
+          <Label className="text-xs" htmlFor="extrato-conciliacao-conta-bancaria">
+            Conta bancária
+          </Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="extrato-conciliacao-conta-bancaria">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -154,17 +156,33 @@ function ExtratoConciliacao() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          <Label className="text-xs" htmlFor="extrato-conciliacao-de">
+            De
+          </Label>
+          <Input
+            type="date"
+            value={de}
+            onChange={(e) => setDe(e.target.value)}
+            id="extrato-conciliacao-de"
+          />
         </div>
         <div>
-          <Label className="text-xs">Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          <Label className="text-xs" htmlFor="extrato-conciliacao-ate">
+            Até
+          </Label>
+          <Input
+            type="date"
+            value={ate}
+            onChange={(e) => setAte(e.target.value)}
+            id="extrato-conciliacao-ate"
+          />
         </div>
         <div>
-          <Label className="text-xs">Irmão</Label>
+          <Label className="text-xs" htmlFor="extrato-conciliacao-irmao">
+            Irmão
+          </Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="extrato-conciliacao-irmao">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

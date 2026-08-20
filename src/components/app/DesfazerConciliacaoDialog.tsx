@@ -38,8 +38,13 @@ export function DesfazerConciliacaoDialog({ onConfirm }: { onConfirm: (motivo: s
             as outras linhas do mesmo evento também serão desfeitas. Informe o motivo.
           </p>
           <div>
-            <Label>Motivo</Label>
-            <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} required />
+            <Label htmlFor="desfazerconciliacaodialog-motivo">Motivo</Label>
+            <Textarea
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              required
+              id="desfazerconciliacaodialog-motivo"
+            />
           </div>
         </div>
         <DialogFooter>

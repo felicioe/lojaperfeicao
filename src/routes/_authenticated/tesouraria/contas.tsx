@@ -220,7 +220,9 @@ function Contas() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        aria-label={expandido === c.id ? "Recolher chaves Pix" : "Expandir chaves Pix"}
+                        aria-label={
+                          expandido === c.id ? "Recolher chaves Pix" : "Expandir chaves Pix"
+                        }
                         aria-expanded={expandido === c.id}
                         onClick={() => setExpandido(expandido === c.id ? null : c.id)}
                       >
@@ -387,7 +389,12 @@ function ChavesPixPanel({ contaId }: { contaId: string }) {
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 shrink-0 p-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-11 w-11 shrink-0 p-0 sm:h-8 sm:w-8"
+                      aria-label={`Excluir chave PIX ${c.chave}`}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>

@@ -271,7 +271,9 @@ function Orgs() {
                 {form.logo_url && (
                   <img
                     src={form.logo_url}
-                    alt="Logo"
+                    alt={`Logo de ${form.nome || "corpo maçônico"}`}
+                    loading="lazy"
+                    decoding="async"
                     className="h-16 w-16 rounded object-contain border bg-white p-1"
                   />
                 )}
@@ -539,12 +541,14 @@ function Orgs() {
                               {usoDesc && (
                                 <div className="flex items-end gap-2">
                                   <div className="flex-1">
-                                    <Label>Transferir dados para</Label>
+                                    <Label htmlFor="orgs-transferir-dados-para">
+                                      Transferir dados para
+                                    </Label>
                                     <Select
                                       value={destinoTransferencia}
                                       onValueChange={setDestinoTransferencia}
                                     >
-                                      <SelectTrigger>
+                                      <SelectTrigger id="orgs-transferir-dados-para">
                                         <SelectValue placeholder="Selecione o corpo destino…" />
                                       </SelectTrigger>
                                       <SelectContent>

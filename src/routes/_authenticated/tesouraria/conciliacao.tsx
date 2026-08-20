@@ -464,7 +464,7 @@ function Conciliacao() {
 
       {podeEditar && usarParcial && (
         <Card className="mt-4 p-4 space-y-2">
-          <div className="flex items-center gap-1 text-sm text-amber-600">
+          <div className="flex items-center gap-1 text-sm text-warning-foreground">
             <AlertTriangle className="h-4 w-4" /> O depósito é menor que a soma das faturas
             selecionadas — pagamento parcial. Sugestão abaixo quita as mais antigas primeiro; ajuste
             se precisar.
@@ -490,7 +490,7 @@ function Conciliacao() {
           <div className="flex items-center gap-2 text-sm">
             {selSistema.length > 0 && selOfx.length > 0 ? (
               totaisBatem ? (
-                <span className="flex items-center gap-1 text-green-600">
+                <span className="flex items-center gap-1 text-success-foreground">
                   <CheckCircle2 className="h-4 w-4" /> Totais batem — pronto para vincular.
                 </span>
               ) : usarParcial ? (
@@ -637,7 +637,7 @@ function ConferenciaOfx({ itens, podeEditar }: { itens: OfxConferencia[]; podeEd
                 </p>
               </div>
               <span
-                className={`font-semibold tabular-nums md:text-right ${Number(item.valor) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
+                className={`font-semibold tabular-nums md:text-right ${Number(item.valor) >= 0 ? "text-success-foreground" : "text-destructive"}`}
               >
                 {brl(item.valor)}
               </span>
@@ -765,7 +765,7 @@ function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
             </div>
           </div>
           <div
-            className={`flex items-start gap-2 rounded-lg p-3 text-sm ${fechado ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}
+            className={`flex items-start gap-2 rounded-lg p-3 text-sm ${fechado ? "bg-success-muted text-success-foreground" : "bg-warning-muted text-warning-foreground"}`}
           >
             {fechado ? (
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
@@ -808,7 +808,7 @@ function MetricaResumo({
         <span>{label}</span>
       </div>
       <p
-        className={`mt-1 font-semibold tabular-nums ${destaque ? "text-xl" : "text-lg"} ${positivo ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+        className={`mt-1 font-semibold tabular-nums ${destaque ? "text-xl" : "text-lg"} ${positivo ? "text-success-foreground" : ""}`}
       >
         {valor == null ? indisponivel : brl(valor)}
       </p>
@@ -1139,7 +1139,7 @@ function CriarLancamentoDialog({
               <Plus className="h-4 w-4 mr-1" /> Adicionar item
             </Button>
             <div
-              className={`text-sm font-medium ${diferencaRateio !== 0 ? "text-destructive" : "text-emerald-600"}`}
+              className={`text-sm font-medium ${diferencaRateio !== 0 ? "text-destructive" : "text-success-foreground"}`}
             >
               Total: {brl(totalRateio)} de {brl(valorOfxAbs)}
               {diferencaRateio !== 0 &&

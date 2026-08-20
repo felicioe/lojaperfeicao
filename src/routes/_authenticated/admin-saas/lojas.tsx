@@ -258,10 +258,10 @@ function LojasPlataforma() {
           medido ao vivo: o admin de uma Loja nova enxerga a Tesouraria dela
           vazia, como deve, mas a tela de Irmãos mostra os irmãos da Adonhiram.
           Some quando a #337 fechar. */}
-      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+      <div className="rounded-md border border-warning/40 bg-warning-muted p-3 text-sm">
         <p className="flex items-start gap-2 font-medium">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500" />O
-          isolamento entre Lojas ainda não está completo.
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />O isolamento entre Lojas
+          ainda não está completo.
         </p>
         <p className="mt-1 text-muted-foreground">
           Cadastrar uma segunda Loja e convidar o administrador dela funciona, mas as telas de
@@ -369,7 +369,7 @@ function LojasPlataforma() {
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <span className="text-amber-600 dark:text-amber-500">sem admin</span>
+                          <span className="text-warning-foreground">sem admin</span>
                           <div>
                             <Button
                               variant="ghost"
@@ -451,42 +451,46 @@ function LojasPlataforma() {
           </DialogHeader>
           <div className="grid gap-4">
             <div>
-              <Label>Nome</Label>
+              <Label htmlFor="lojas-nome">Nome</Label>
               <Input
                 value={form.nome}
                 onChange={(e) => setForm({ ...form, nome: e.target.value })}
                 placeholder="Loja de Perfeição Adonhiram"
                 autoComplete="off"
+                id="lojas-nome"
               />
             </div>
             <div>
-              <Label>Endereço de acesso</Label>
+              <Label htmlFor="lojas-endereco-de-acesso">Endereço de acesso</Label>
               <Input
                 value={form.slug}
                 onChange={(e) => setForm({ ...form, slug: e.target.value })}
                 placeholder="adonhiram"
                 autoComplete="off"
                 className="font-mono"
+                id="lojas-endereco-de-acesso"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Vira o subdomínio da Loja. Só letras minúsculas, números e hífen.
               </p>
             </div>
             <div>
-              <Label>Razão social (opcional)</Label>
+              <Label htmlFor="lojas-razao-social-opcional">Razão social (opcional)</Label>
               <Input
                 value={form.razaoSocial}
                 onChange={(e) => setForm({ ...form, razaoSocial: e.target.value })}
                 autoComplete="off"
+                id="lojas-razao-social-opcional"
               />
             </div>
             <div>
-              <Label>CNPJ (opcional)</Label>
+              <Label htmlFor="lojas-cnpj-opcional">CNPJ (opcional)</Label>
               <Input
                 value={form.cnpj}
                 onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
                 placeholder="00.000.000/0001-00"
                 autoComplete="off"
+                id="lojas-cnpj-opcional"
               />
             </div>
           </div>
@@ -514,22 +518,24 @@ function LojasPlataforma() {
           </DialogHeader>
           <div className="grid gap-4">
             <div>
-              <Label>Nome</Label>
+              <Label htmlFor="lojas-nome-1">Nome</Label>
               <Input
                 value={convite.nomeCompleto}
                 onChange={(e) => setConvite({ ...convite, nomeCompleto: e.target.value })}
                 placeholder="Nome de quem vai administrar"
                 autoComplete="off"
+                id="lojas-nome-1"
               />
             </div>
             <div>
-              <Label>E-mail</Label>
+              <Label htmlFor="lojas-e-mail">E-mail</Label>
               <Input
                 type="email"
                 value={convite.email}
                 onChange={(e) => setConvite({ ...convite, email: e.target.value })}
                 placeholder="admin@loja.org.br"
                 autoComplete="off"
+                id="lojas-e-mail"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Vira o login desta pessoa. Precisa ser um e-mail que ainda não seja login em nenhuma

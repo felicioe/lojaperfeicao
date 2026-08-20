@@ -25,7 +25,7 @@ import { listarEventos, type Evento } from "@/lib/backend/eventos";
 import { listarFaturasAbertas, type FaturaAberta } from "@/lib/backend/tesouraria-faturas";
 import { listarOrgs, listarOrgsGraus } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
-import { RichTextEditor } from "@/components/app/RichTextEditor";
+import { LazyRichTextEditor } from "@/components/app/LazyRichTextEditor";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -359,8 +359,9 @@ function CalendarioPage() {
                       />
                     </div>
                     <div>
-                      <Label>Informações</Label>
-                      <RichTextEditor
+                      <Label id="nova-sessao-informacoes-label">Informações</Label>
+                      <LazyRichTextEditor
+                        ariaLabelledBy="nova-sessao-informacoes-label"
                         value={novaSessao.observacoes}
                         onChange={(html) => setNovaSessao({ ...novaSessao, observacoes: html })}
                       />

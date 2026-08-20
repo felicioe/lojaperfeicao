@@ -229,7 +229,7 @@ function PainelInicio() {
       {emAberto.length > 0 && (
         <Link
           to="/painel/financeiro"
-          className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          className="flex items-center gap-3 rounded-xl border border-warning/50 bg-warning-muted p-3 text-sm text-warning-foreground"
         >
           <AlertCircle className="h-5 w-5 shrink-0" />
           <span>
@@ -282,9 +282,9 @@ function MetricCard({
 }) {
   const toneClass = {
     primary: "text-primary bg-primary/10",
-    success: "text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/30",
-    warning: "text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/30",
-    danger: "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30",
+    success: "text-success-foreground bg-success-muted",
+    warning: "text-warning-foreground bg-warning-muted",
+    danger: "text-destructive bg-destructive-muted",
   }[tone];
   const card = (
     <Card className={to ? "transition-colors hover:bg-muted/50" : undefined}>

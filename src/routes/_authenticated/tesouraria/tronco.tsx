@@ -334,13 +334,14 @@ function SaldoInicialDialog({
         </DialogDescription>
       </DialogHeader>
       <div>
-        <Label>Saldo inicial</Label>
+        <Label htmlFor="tronco-saldo-inicial">Saldo inicial</Label>
         <Input
           type="number"
           min={0}
           step="0.01"
           value={valor}
           onChange={(e) => setValor(Number(e.target.value))}
+          id="tronco-saldo-inicial"
         />
       </div>
       <DialogFooter>
@@ -403,23 +404,29 @@ function SaidaTroncoDialog({
       </DialogHeader>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <Label>Valor</Label>
+          <Label htmlFor="tronco-valor">Valor</Label>
           <Input
             type="number"
             min={0.01}
             step="0.01"
             value={valor}
             onChange={(e) => setValor(Number(e.target.value))}
+            id="tronco-valor"
           />
         </div>
         <div>
-          <Label>Data do pagamento</Label>
-          <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+          <Label htmlFor="tronco-data-do-pagamento">Data do pagamento</Label>
+          <Input
+            type="date"
+            value={data}
+            onChange={(e) => setData(e.target.value)}
+            id="tronco-data-do-pagamento"
+          />
         </div>
         <div>
-          <Label>Conta bancária</Label>
+          <Label htmlFor="tronco-conta-bancaria">Conta bancária</Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="tronco-conta-bancaria">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -432,9 +439,9 @@ function SaidaTroncoDialog({
           </Select>
         </div>
         <div>
-          <Label>Categoria contábil</Label>
+          <Label htmlFor="tronco-categoria-contabil">Categoria contábil</Label>
           <Select value={planoContaId} onValueChange={setPlanoContaId}>
-            <SelectTrigger>
+            <SelectTrigger id="tronco-categoria-contabil">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -447,16 +454,21 @@ function SaidaTroncoDialog({
           </Select>
         </div>
         <div className="sm:col-span-2">
-          <Label>Descrição</Label>
+          <Label htmlFor="tronco-descricao">Descrição</Label>
           <Input
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
             placeholder="Ex.: auxílio beneficente"
+            id="tronco-descricao"
           />
         </div>
         <div className="sm:col-span-2">
-          <Label>Observações (opcional)</Label>
-          <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+          <Label htmlFor="tronco-observacoes-opcional">Observações (opcional)</Label>
+          <Textarea
+            value={observacoes}
+            onChange={(e) => setObservacoes(e.target.value)}
+            id="tronco-observacoes-opcional"
+          />
         </div>
       </div>
       <DialogFooter>

@@ -8,10 +8,11 @@ import { cn } from "@/lib/utils";
 import { normalizarRichText } from "@/lib/rich-text";
 import { RICH_TEXT_CLASSES } from "./rich-text-classes";
 
-type Props = {
+export type RichTextEditorProps = {
   value: string;
   onChange: (html: string) => void;
   disabled?: boolean;
+  ariaLabelledBy?: string;
 };
 
 function ToolbarButton({
@@ -33,8 +34,9 @@ function ToolbarButton({
       variant="ghost"
       size="sm"
       title={title}
+      aria-label={title}
       disabled={disabled}
-      className={cn("h-7 w-7 p-0", active && "bg-muted")}
+      className={cn("h-11 w-11 p-0 sm:h-7 sm:w-7", active && "bg-muted")}
       onClick={onClick}
     >
       {children}
@@ -46,7 +48,7 @@ function ToolbarButton({
 // Tiptap/ProseMirror — usado nos campos de informações livres de sessões e
 // eventos (issue #228). O HTML salvo é sanitizado só na exibição
 // (RichTextView), nunca aqui.
-export function RichTextEditor({ value, onChange, disabled }: Props) {
+export function RichTextEditor({ value, onChange, disabled, ariaLabelledBy }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: false }),
@@ -58,6 +60,7 @@ export function RichTextEditor({ value, onChange, disabled }: Props) {
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
       attributes: {
+        ...(ariaLabelledBy ? { "aria-labelledby": ariaLabelledBy } : {}),
         class: cn(
           RICH_TEXT_CLASSES,
           "min-h-[120px] rounded-b-md border border-t-0 px-3 py-2 focus:outline-none",

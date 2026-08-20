@@ -333,11 +333,14 @@ function PasskeysCard() {
                 </DialogDescription>
               </DialogHeader>
               <div>
-                <Label>Nome do dispositivo (opcional)</Label>
+                <Label htmlFor="seguranca-nome-do-dispositivo-opcional">
+                  Nome do dispositivo (opcional)
+                </Label>
                 <Input
                   value={nomeDispositivo}
                   onChange={(e) => setNomeDispositivo(e.target.value)}
                   placeholder="Meu iPhone"
+                  id="seguranca-nome-do-dispositivo-opcional"
                 />
               </div>
               <DialogFooter>
@@ -516,13 +519,14 @@ function Totp2FACard() {
                   <span className="font-mono">{secret}</span>
                 </p>
                 <div className="w-full">
-                  <Label>Código de 6 dígitos</Label>
+                  <Label htmlFor="seguranca-codigo-de-6-digitos">Código de 6 dígitos</Label>
                   <Input
                     value={codigo}
                     onChange={(e) => setCodigo(e.target.value)}
                     maxLength={6}
                     inputMode="numeric"
                     placeholder="000000"
+                    id="seguranca-codigo-de-6-digitos"
                   />
                 </div>
               </div>
@@ -573,11 +577,12 @@ function Totp2FACard() {
             </DialogDescription>
           </DialogHeader>
           <div>
-            <Label>Código</Label>
+            <Label htmlFor="seguranca-codigo">Código</Label>
             <Input
               value={codigoAcao}
               onChange={(e) => setCodigoAcao(e.target.value)}
               placeholder="000000"
+              id="seguranca-codigo"
             />
           </div>
           <DialogFooter>
@@ -682,23 +687,30 @@ function TrocarSenhaCard() {
       </CardHeader>
       <CardContent className="grid gap-3">
         <div>
-          <Label>Senha atual</Label>
+          <Label htmlFor="seguranca-senha-atual">Senha atual</Label>
           <Input
             type="password"
             value={senhaAtual}
             onChange={(e) => setSenhaAtual(e.target.value)}
+            id="seguranca-senha-atual"
           />
         </div>
         <div>
-          <Label>Nova senha</Label>
-          <Input type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} />
+          <Label htmlFor="seguranca-nova-senha">Nova senha</Label>
+          <Input
+            type="password"
+            value={novaSenha}
+            onChange={(e) => setNovaSenha(e.target.value)}
+            id="seguranca-nova-senha"
+          />
         </div>
         <div>
-          <Label>Confirmar nova senha</Label>
+          <Label htmlFor="seguranca-confirmar-nova-senha">Confirmar nova senha</Label>
           <Input
             type="password"
             value={confirmacao}
             onChange={(e) => setConfirmacao(e.target.value)}
+            id="seguranca-confirmar-nova-senha"
           />
         </div>
         <Button onClick={salvar} disabled={salvando || !novaSenha || !senhaAtual} className="w-fit">

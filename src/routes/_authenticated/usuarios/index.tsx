@@ -398,7 +398,7 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
             {usuario.ativo ? "Ativo" : "Inativo"}
           </Badge>
           {usuario.deve_trocar_senha && (
-            <Badge variant="outline" className="gap-1 text-amber-700 dark:text-amber-400">
+            <Badge variant="outline" className="gap-1 text-warning-foreground">
               <KeyRound className="h-3 w-3" /> Senha pendente de troca
             </Badge>
           )}

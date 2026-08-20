@@ -90,9 +90,11 @@ function Inadimplentes() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
         <div>
-          <Label className="text-xs">Irmão</Label>
+          <Label className="text-xs" htmlFor="inadimplentes-irmao">
+            Irmão
+          </Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="inadimplentes-irmao">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

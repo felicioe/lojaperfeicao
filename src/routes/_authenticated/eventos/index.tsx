@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RichTextEditor } from "@/components/app/RichTextEditor";
+import { LazyRichTextEditor } from "@/components/app/LazyRichTextEditor";
 import { RichTextView } from "@/components/app/RichTextView";
 import {
   Select,
@@ -182,16 +182,18 @@ function EventosPage() {
               />
             </div>
             <div>
-              <Label>Local</Label>
+              <Label htmlFor="eventos-local">Local</Label>
               <Input
                 placeholder="Endereço ou local do evento"
                 value={form.local}
                 onChange={(e) => setForm({ ...form, local: e.target.value })}
+                id="eventos-local"
               />
             </div>
             <div className="md:col-span-4">
-              <Label>Descrição</Label>
-              <RichTextEditor
+              <Label id="evento-descricao-label">Descrição</Label>
+              <LazyRichTextEditor
+                ariaLabelledBy="evento-descricao-label"
                 value={form.descricao}
                 onChange={(html) => setForm({ ...form, descricao: html })}
               />

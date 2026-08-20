@@ -198,9 +198,11 @@ function ExtratoIrmao() {
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3">
         <div>
-          <Label className="text-xs">Irmão</Label>
+          <Label className="text-xs" htmlFor="extrato-irmao-irmao">
+            Irmão
+          </Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger>
+            <SelectTrigger id="extrato-irmao-irmao">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -213,12 +215,26 @@ function ExtratoIrmao() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">De</Label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+          <Label className="text-xs" htmlFor="extrato-irmao-de">
+            De
+          </Label>
+          <Input
+            type="date"
+            value={de}
+            onChange={(e) => setDe(e.target.value)}
+            id="extrato-irmao-de"
+          />
         </div>
         <div>
-          <Label className="text-xs">Até</Label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
+          <Label className="text-xs" htmlFor="extrato-irmao-ate">
+            Até
+          </Label>
+          <Input
+            type="date"
+            value={ate}
+            onChange={(e) => setAte(e.target.value)}
+            id="extrato-irmao-ate"
+          />
         </div>
       </Card>
 

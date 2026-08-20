@@ -267,7 +267,9 @@ function IrmaoDetail() {
                 {perfil.foto_url && (
                   <img
                     src={perfil.foto_url}
-                    alt="Foto"
+                    alt={`Foto de ${perfil.nome_civil}`}
+                    loading="lazy"
+                    decoding="async"
                     className="h-20 w-20 rounded-full object-cover border"
                   />
                 )}

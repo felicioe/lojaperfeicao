@@ -178,7 +178,7 @@ function Dashboard() {
           <CardHeader className="gap-3 space-y-0 border-b p-3.5 sm:flex-row sm:items-start sm:justify-between sm:p-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <div className="rounded-md bg-amber-100 p-1.5 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                <div className="rounded-md bg-warning-muted p-1.5 text-warning-foreground">
                   <CalendarClock className="h-4 w-4" aria-hidden="true" />
                 </div>
                 <CardTitle id="atencao-title">Requer atenção</CardTitle>
@@ -613,7 +613,7 @@ function MetricItem({
 }) {
   const valueClass = {
     neutral: "text-foreground",
-    success: "text-emerald-700 dark:text-emerald-300",
+    success: "text-success-foreground",
     danger: "text-destructive",
   }[tone];
 

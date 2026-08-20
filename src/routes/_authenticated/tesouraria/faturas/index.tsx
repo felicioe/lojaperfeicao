@@ -233,9 +233,11 @@ function Faturas() {
 
         <TabsContent value="abertas">
           <Card className="mb-4 p-4 max-w-xs">
-            <Label className="text-xs">Irmão</Label>
+            <Label className="text-xs" htmlFor="faturas-irmao">
+              Irmão
+            </Label>
             <Select value={irmaoFiltroId} onValueChange={setIrmaoFiltroId}>
-              <SelectTrigger>
+              <SelectTrigger id="faturas-irmao">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -647,7 +649,7 @@ function BaixaDialog({
               quita as mais antigas primeiro; ajuste os valores por fatura se precisar.
             </p>
             <div>
-              <Label>Valor recebido</Label>
+              <Label htmlFor="faturas-valor-recebido">Valor recebido</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -657,6 +659,7 @@ function BaixaDialog({
                 onChange={(e) =>
                   setValorRecebidoParcial(Math.min(Number(e.target.value) || 0, somaSaldos))
                 }
+                id="faturas-valor-recebido"
               />
             </div>
             <AlocacaoParcialTable

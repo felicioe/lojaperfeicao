@@ -96,12 +96,7 @@ function Diario() {
         </div>
         <div>
           <Label htmlFor="diario-ate">Até</Label>
-          <Input
-            id="diario-ate"
-            type="date"
-            value={ate}
-            onChange={(e) => setAte(e.target.value)}
-          />
+          <Input id="diario-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
         </div>
         <div className="flex flex-col justify-end">
           <div className="text-sm text-muted-foreground">Total de débitos no período</div>
