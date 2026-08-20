@@ -116,42 +116,42 @@ function EditarLancamentoDialog({
         </DialogHeader>
         <div className="grid gap-3">
           <div>
-            <Label htmlFor="lancamentoacoes-descricao">Descrição</Label>
+            <Label htmlFor="lancamento-descricao">Descrição</Label>
             <Input
+              id="lancamento-descricao"
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              id="lancamentoacoes-descricao"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="lancamentoacoes-data">Data</Label>
+              <Label htmlFor="lancamento-data-2">Data</Label>
               <Input
+                id="lancamento-data-2"
                 type="date"
                 value={data}
                 onChange={(e) => setData(e.target.value)}
-                id="lancamentoacoes-data"
               />
             </div>
             <div>
-              <Label htmlFor="lancamentoacoes-vencimento">Vencimento</Label>
+              <Label htmlFor="lancamento-vencimento">Vencimento</Label>
               <Input
+                id="lancamento-vencimento"
                 type="date"
                 value={dataVencimento}
                 onChange={(e) => setDataVencimento(e.target.value)}
-                id="lancamentoacoes-vencimento"
               />
             </div>
           </div>
           <div>
-            <Label htmlFor="lancamentoacoes-valor">Valor</Label>
+            <Label htmlFor="lancamento-valor">Valor</Label>
             <Input
+              id="lancamento-valor"
               type="number"
               step="0.01"
               min="0.01"
               value={valor}
               onChange={(e) => setValor(Number(e.target.value))}
-              id="lancamentoacoes-valor"
             />
           </div>
         </div>
@@ -222,12 +222,12 @@ export function AtribuirIrmaoDialog({
           <DialogTitle>Atribuir irmão — "{lancamento.descricao}"</DialogTitle>
         </DialogHeader>
         <div>
-          <Label htmlFor="lancamentoacoes-irmao">Irmão</Label>
+          <Label htmlFor="lancamento-irmao">Irmão</Label>
           <Select
             value={irmaoId || "__nenhum__"}
             onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
           >
-            <SelectTrigger id="lancamentoacoes-irmao">
+            <SelectTrigger id="lancamento-irmao">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -424,11 +424,11 @@ function BaixarLancamentoDialog({
         <div className="grid gap-3">
           {precisaConta && (
             <div>
-              <Label htmlFor="lancamentoacoes-conta-que">
+              <Label htmlFor="lancamento-conta-que">
                 Conta que {lancamento.tipo === "saida" ? "pagou" : "recebeu"}
               </Label>
               <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-                <SelectTrigger id="lancamentoacoes-conta-que">
+                <SelectTrigger id="lancamento-conta-que">
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -444,21 +444,21 @@ function BaixarLancamentoDialog({
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="lancamentoacoes-forma-de-pagamento">Forma de pagamento</Label>
+              <Label htmlFor="lancamento-forma-de-pagamento">Forma de pagamento</Label>
               <Input
+                id="lancamento-forma-de-pagamento"
                 value={formaPagamento}
                 onChange={(e) => setFormaPagamento(e.target.value)}
                 placeholder="PIX, dinheiro…"
-                id="lancamentoacoes-forma-de-pagamento"
               />
             </div>
             <div>
-              <Label htmlFor="lancamentoacoes-data-1">Data</Label>
+              <Label htmlFor="lancamento-data">Data</Label>
               <Input
+                id="lancamento-data"
                 type="date"
                 value={dataPagamento}
                 onChange={(e) => setDataPagamento(e.target.value)}
-                id="lancamentoacoes-data-1"
               />
             </div>
           </div>
@@ -472,48 +472,48 @@ function BaixarLancamentoDialog({
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="lancamentoacoes-desconto-opcional">Desconto (opcional)</Label>
+                  <Label htmlFor="lancamento-desconto-opcional">Desconto (opcional)</Label>
                   <Input
+                    id="lancamento-desconto-opcional"
                     type="number"
                     step="0.01"
                     min="0"
                     value={desconto}
                     onChange={(e) => setDesconto(Number(e.target.value))}
-                    id="lancamentoacoes-desconto-opcional"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lancamentoacoes-juros-adicional-opcional">
+                  <Label htmlFor="lancamento-juros-adicional-opcional">
                     Juros adicional (opcional)
                   </Label>
                   <Input
+                    id="lancamento-juros-adicional-opcional"
                     type="number"
                     step="0.01"
                     min="0"
                     value={jurosAdicional}
                     onChange={(e) => setJurosAdicional(Number(e.target.value))}
                     placeholder="Além do calculado automaticamente"
-                    id="lancamentoacoes-juros-adicional-opcional"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="lancamentoacoes-outra-receita-recebida-junto-opcional">
+                  <Label htmlFor="lancamento-outra-receita-recebida-junto">
                     Outra receita recebida junto (opcional)
                   </Label>
                   <Input
+                    id="lancamento-outra-receita-recebida-junto"
                     type="number"
                     step="0.01"
                     min="0"
                     value={valorExtra}
                     onChange={(e) => setValorExtra(Number(e.target.value))}
                     placeholder="Ex.: doação"
-                    id="lancamentoacoes-outra-receita-recebida-junto-opcional"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lancamentoacoes-conta-de-receita-do-valor-extra">
+                  <Label htmlFor="lancamento-conta-de-receita-do">
                     Conta de receita do valor extra
                   </Label>
                   <Select
@@ -521,7 +521,7 @@ function BaixarLancamentoDialog({
                     onValueChange={setPlanoContaExtraId}
                     disabled={!(Number(valorExtra) > 0)}
                   >
-                    <SelectTrigger id="lancamentoacoes-conta-de-receita-do-valor-extra">
+                    <SelectTrigger id="lancamento-conta-de-receita-do">
                       <SelectValue placeholder="Selecione…" />
                     </SelectTrigger>
                     <SelectContent>
@@ -546,10 +546,11 @@ function BaixarLancamentoDialog({
                 Sem cálculo automático de multa/juros — só o principal da fatura.
               </p>
               <div>
-                <Label htmlFor="lancamentoacoes-valor-recebido-saldo">
+                <Label htmlFor="lancamento-valor-recebido-saldo">
                   Valor recebido (saldo: {brl(saldo)})
                 </Label>
                 <Input
+                  id="lancamento-valor-recebido-saldo"
                   type="number"
                   step="0.01"
                   min="0.01"
@@ -558,7 +559,6 @@ function BaixarLancamentoDialog({
                   onChange={(e) =>
                     setValorRecebidoParcial(Math.min(Number(e.target.value) || 0, saldo))
                   }
-                  id="lancamentoacoes-valor-recebido-saldo"
                 />
               </div>
             </>

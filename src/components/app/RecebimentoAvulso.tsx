@@ -79,9 +79,9 @@ export function RecebimentoAvulsoDialog({
       </DialogHeader>
       <div className="grid gap-3 md:grid-cols-2">
         <div>
-          <Label htmlFor="recebimentoavulso-categoria">Categoria</Label>
+          <Label htmlFor="recebimento-avulso-categoria">Categoria</Label>
           <Select value={categoria} onValueChange={setCategoria} disabled={isTronco}>
-            <SelectTrigger id="recebimentoavulso-categoria">
+            <SelectTrigger id="recebimento-avulso-categoria">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -94,19 +94,19 @@ export function RecebimentoAvulsoDialog({
           </Select>
         </div>
         <div>
-          <Label htmlFor="recebimentoavulso-valor">Valor</Label>
+          <Label htmlFor="recebimento-avulso-valor">Valor</Label>
           <Input
+            id="recebimento-avulso-valor"
             type="number"
             step="0.01"
             value={valor}
             onChange={(e) => setValor(Number(e.target.value))}
-            id="recebimentoavulso-valor"
           />
         </div>
         <div>
-          <Label htmlFor="recebimentoavulso-conta-de-receita">Conta de receita</Label>
+          <Label htmlFor="recebimento-avulso-conta-de-receita">Conta de receita</Label>
           <Select value={planoContaId} onValueChange={setPlanoContaId}>
-            <SelectTrigger id="recebimentoavulso-conta-de-receita">
+            <SelectTrigger id="recebimento-avulso-conta-de-receita">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -119,9 +119,9 @@ export function RecebimentoAvulsoDialog({
           </Select>
         </div>
         <div>
-          <Label htmlFor="recebimentoavulso-conta-que-recebeu">Conta que recebeu</Label>
+          <Label htmlFor="recebimento-avulso-conta-que-recebeu">Conta que recebeu</Label>
           <Select value={contaFinanceiraId} onValueChange={setContaFinanceiraId}>
-            <SelectTrigger id="recebimentoavulso-conta-que-recebeu">
+            <SelectTrigger id="recebimento-avulso-conta-que-recebeu">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -134,12 +134,12 @@ export function RecebimentoAvulsoDialog({
           </Select>
         </div>
         <div>
-          <Label htmlFor="recebimentoavulso-data">Data</Label>
+          <Label htmlFor="recebimento-avulso-data">Data</Label>
           <Input
+            id="recebimento-avulso-data"
             type="date"
             value={data}
             onChange={(e) => setData(e.target.value)}
-            id="recebimentoavulso-data"
           />
         </div>
         {isTronco ? (
@@ -150,29 +150,29 @@ export function RecebimentoAvulsoDialog({
         ) : (
           <>
             <div>
-              <Label htmlFor="recebimentoavulso-forma-de-pagamento">Forma de pagamento</Label>
+              <Label htmlFor="recebimento-avulso-forma-de-pagamento">Forma de pagamento</Label>
               <Input
+                id="recebimento-avulso-forma-de-pagamento"
                 value={formaPagamento}
                 onChange={(e) => setFormaPagamento(e.target.value)}
-                id="recebimentoavulso-forma-de-pagamento"
               />
             </div>
             <div className="md:col-span-2">
-              <Label htmlFor="recebimentoavulso-descricao-opcional">Descrição (opcional)</Label>
+              <Label htmlFor="recebimento-avulso-descricao-opcional">Descrição (opcional)</Label>
               <Input
+                id="recebimento-avulso-descricao-opcional"
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
-                id="recebimentoavulso-descricao-opcional"
               />
             </div>
           </>
         )}
         <div className="md:col-span-2">
-          <Label htmlFor="recebimentoavulso-observacoes">Observações</Label>
+          <Label htmlFor="recebimento-avulso-observacoes">Observações</Label>
           <Textarea
+            id="recebimento-avulso-observacoes"
             value={observacoes}
             onChange={(e) => setObservacoes(e.target.value)}
-            id="recebimentoavulso-observacoes"
           />
         </div>
       </div>

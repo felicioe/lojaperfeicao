@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
-import { exigirLojaUnica } from "./trava-multi-loja";
 
 // RLS original (mysql/migrations/0003_contabil_tesouraria.sql): SELECT
 // livre para autenticados; escrita admin OU tesoureiro (checada de novo,
@@ -70,15 +69,6 @@ export const salvarConta = createServerFn({ method: "POST" })
   .validator((d: unknown) => salvarContaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
-      // salvar_conta é anterior ao multi-tenant: o INSERT não informa loja_id
-      // (cairia no DEFAULT da 0092, criando a conta na Loja semente) e as
-      // buscas por pai/ciclo aceitam qualquer id. Trancado até a #349 dar um
-      // p_loja_id à procedure; ver trava-multi-loja.ts.
-      await exigirLojaUnica(
-        conn,
-        "Salvar conta do plano de contas",
-        "a rotina do banco ainda não sabe em qual Loja criar a conta",
-      );
       await conn.query("CALL salvar_conta(?, ?, ?, ?, ?, ?, @out_id)", [
         data.id,
         data.codigo,

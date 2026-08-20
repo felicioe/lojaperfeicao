@@ -592,20 +592,20 @@ function EditarContaPagarDialog({
         <div className="md:col-span-2">
           <Label htmlFor="contas-pagar-descricao">Descrição</Label>
           <Input
+            id="contas-pagar-descricao"
             value={d.descricao}
             onChange={(e) => setD({ ...d, descricao: e.target.value })}
-            id="contas-pagar-descricao"
           />
         </div>
         <div>
           <Label htmlFor="contas-pagar-valor">Valor</Label>
           <Input
+            id="contas-pagar-valor"
             type="number"
             min="0.01"
             step="0.01"
             value={d.valor}
             onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
-            id="contas-pagar-valor"
           />
         </div>
         <div>
@@ -624,9 +624,9 @@ function EditarContaPagarDialog({
           </Select>
         </div>
         <div>
-          <Label htmlFor="contas-pagar-edicao-fornecedor">Fornecedor</Label>
+          <Label htmlFor="contas-pagar-fornecedor">Fornecedor</Label>
           <FornecedorSelect
-            triggerId="contas-pagar-edicao-fornecedor"
+            triggerId="contas-pagar-fornecedor"
             value={d.terceiro_id}
             onValueChange={(v) => setD({ ...d, terceiro_id: v })}
           />
@@ -634,27 +634,27 @@ function EditarContaPagarDialog({
         <div>
           <Label htmlFor="contas-pagar-emissao">Emissão</Label>
           <Input
+            id="contas-pagar-emissao"
             type="date"
             value={d.data}
             onChange={(e) => setD({ ...d, data: e.target.value })}
-            id="contas-pagar-emissao"
           />
         </div>
         <div>
           <Label htmlFor="contas-pagar-vencimento">Vencimento</Label>
           <Input
+            id="contas-pagar-vencimento"
             type="date"
             value={d.data_vencimento}
             onChange={(e) => setD({ ...d, data_vencimento: e.target.value })}
-            id="contas-pagar-vencimento"
           />
         </div>
         <div className="md:col-span-2">
           <Label htmlFor="contas-pagar-observacoes">Observações</Label>
           <Textarea
+            id="contas-pagar-observacoes"
             value={d.observacoes}
             onChange={(e) => setD({ ...d, observacoes: e.target.value })}
-            id="contas-pagar-observacoes"
           />
         </div>
       </div>

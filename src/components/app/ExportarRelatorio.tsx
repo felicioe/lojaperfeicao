@@ -188,12 +188,12 @@ export function ExportarRelatorio({
           </DialogHeader>
           <div className="grid gap-3">
             <div>
-              <Label htmlFor="exportarrelatorio-destinatario-s">Destinatário(s)</Label>
+              <Label htmlFor="exportar-destinatario-s">Destinatário(s)</Label>
               <Input
+                id="exportar-destinatario-s"
                 value={destinatarios}
                 onChange={(e) => setDestinatarios(e.target.value)}
                 placeholder="email@exemplo.com, outro@exemplo.com"
-                id="exportarrelatorio-destinatario-s"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Separe vários e-mails por vírgula. O arquivo (.xlsx) vai anexado.

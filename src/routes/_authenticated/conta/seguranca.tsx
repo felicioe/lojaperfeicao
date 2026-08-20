@@ -337,10 +337,10 @@ function PasskeysCard() {
                   Nome do dispositivo (opcional)
                 </Label>
                 <Input
+                  id="seguranca-nome-do-dispositivo-opcional"
                   value={nomeDispositivo}
                   onChange={(e) => setNomeDispositivo(e.target.value)}
                   placeholder="Meu iPhone"
-                  id="seguranca-nome-do-dispositivo-opcional"
                 />
               </div>
               <DialogFooter>
@@ -521,12 +521,12 @@ function Totp2FACard() {
                 <div className="w-full">
                   <Label htmlFor="seguranca-codigo-de-6-digitos">Código de 6 dígitos</Label>
                   <Input
+                    id="seguranca-codigo-de-6-digitos"
                     value={codigo}
                     onChange={(e) => setCodigo(e.target.value)}
                     maxLength={6}
                     inputMode="numeric"
                     placeholder="000000"
-                    id="seguranca-codigo-de-6-digitos"
                   />
                 </div>
               </div>
@@ -579,10 +579,10 @@ function Totp2FACard() {
           <div>
             <Label htmlFor="seguranca-codigo">Código</Label>
             <Input
+              id="seguranca-codigo"
               value={codigoAcao}
               onChange={(e) => setCodigoAcao(e.target.value)}
               placeholder="000000"
-              id="seguranca-codigo"
             />
           </div>
           <DialogFooter>
@@ -689,28 +689,28 @@ function TrocarSenhaCard() {
         <div>
           <Label htmlFor="seguranca-senha-atual">Senha atual</Label>
           <Input
+            id="seguranca-senha-atual"
             type="password"
             value={senhaAtual}
             onChange={(e) => setSenhaAtual(e.target.value)}
-            id="seguranca-senha-atual"
           />
         </div>
         <div>
           <Label htmlFor="seguranca-nova-senha">Nova senha</Label>
           <Input
+            id="seguranca-nova-senha"
             type="password"
             value={novaSenha}
             onChange={(e) => setNovaSenha(e.target.value)}
-            id="seguranca-nova-senha"
           />
         </div>
         <div>
           <Label htmlFor="seguranca-confirmar-nova-senha">Confirmar nova senha</Label>
           <Input
+            id="seguranca-confirmar-nova-senha"
             type="password"
             value={confirmacao}
             onChange={(e) => setConfirmacao(e.target.value)}
-            id="seguranca-confirmar-nova-senha"
           />
         </div>
         <Button onClick={salvar} disabled={salvando || !novaSenha || !senhaAtual} className="w-fit">

@@ -219,10 +219,10 @@ function ExtratoIrmao() {
             De
           </Label>
           <Input
+            id="extrato-irmao-de"
             type="date"
             value={de}
             onChange={(e) => setDe(e.target.value)}
-            id="extrato-irmao-de"
           />
         </div>
         <div>
@@ -230,10 +230,10 @@ function ExtratoIrmao() {
             Até
           </Label>
           <Input
+            id="extrato-irmao-ate"
             type="date"
             value={ate}
             onChange={(e) => setAte(e.target.value)}
-            id="extrato-irmao-ate"
           />
         </div>
       </Card>

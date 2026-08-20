@@ -25,15 +25,20 @@ async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
 }
 
 /**
- * Autorização por PAPEL, que é ortogonal ao escopo de loja (issue #344).
+ * Autorização por PAPEL somada ao escopo de loja (issues #344 e #351).
  *
  * Ser secretário não é permissão para ver o irmão de outra Loja: papel diz o
- * que a pessoa pode fazer, `loja_id = @current_loja_id` diz sobre quais linhas.
- * Por isso a checagem de loja não vive aqui — vive em cada query, junto do
- * dado. Esta função só responde "tem papel privilegiado, ou é o próprio
- * irmão?", e o `AND loja_id = @current_loja_id` no EXISTS existe para o caso
- * de o id vir de outra Loja: sem ele, alguém com o id certo passaria pelo
- * "é o próprio" olhando uma linha que não é dele.
+ * que a pessoa pode fazer, `loja_id` diz sobre quais linhas. A versão
+ * anterior deixava o papel privilegiado responder "pode" sem olhar de quem é
+ * o irmão — e as consultas que só usam o irmaoId como PARÂMETRO (não como
+ * filtro de linha), como listarFrequenciaIrmao, respondiam a uma pergunta
+ * sobre o irmão de outra Loja em vez de recusar. Não vazava dado alheio (o
+ * SELECT continua escopado), mas confirmava a existência do id e devolvia a
+ * agenda da Loja como se a pergunta fizesse sentido. A suíte de isolamento
+ * da #351 pegou isso.
+ *
+ * Agora a pergunta é uma só, e na ordem certa: o irmão é DESTA Loja e, sendo,
+ * eu tenho papel para vê-lo ou sou eu mesmo?
  */
 async function podeVerIrmao(
   conn: PoolConnection,
@@ -42,10 +47,12 @@ async function podeVerIrmao(
 ): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
   const [[row]] = await conn.query<RowDataPacket[]>(
-    `SELECT (${condicoes} OR EXISTS(
-       SELECT 1 FROM irmaos WHERE id = ? AND usuario_id = ? AND loja_id = @current_loja_id
-     )) AS ok`,
-    [...PAPEIS_PRIVILEGIADOS, irmaoId, usuarioId],
+    `SELECT EXISTS(
+       SELECT 1 FROM irmaos
+        WHERE id = ? AND loja_id = @current_loja_id
+          AND ((${condicoes}) OR usuario_id = ?)
+     ) AS ok`,
+    [irmaoId, ...PAPEIS_PRIVILEGIADOS, usuarioId],
   );
   return !!row.ok;
 }

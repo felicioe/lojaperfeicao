@@ -172,6 +172,7 @@ function InadimplenciaDetalhada() {
             Vencimento de
           </Label>
           <Input
+            id="inadimplencia-vencimento-de"
             type="date"
             value={vencimentoDe}
             onChange={(e) => setVencimentoDe(e.target.value)}
@@ -183,6 +184,7 @@ function InadimplenciaDetalhada() {
             Vencimento até
           </Label>
           <Input
+            id="inadimplencia-vencimento-ate"
             type="date"
             value={vencimentoAte}
             onChange={(e) => setVencimentoAte(e.target.value)}

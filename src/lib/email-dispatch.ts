@@ -219,12 +219,15 @@ async function gravarNaFila(
   // 'erro_permanente') nunca via nada para reprocessar.
   const id = randomUUID();
   await conn.query(
-    // DEFAULT(loja_id) é o DEFAULT de transição da 0092 (a loja seed), usado
-    // só quando o chamador não sabe a loja. Quando a #350 remover esse DEFAULT
-    // esta expressão passa a falhar — o que é o comportamento desejado: nesse
-    // ponto todo envio já precisa dizer de qual Loja é.
+    // Antes isto era `COALESCE(?, DEFAULT(loja_id))`, apoiado no DEFAULT de
+    // transição da 0092. A 0097 (#350) remove esse DEFAULT, e `DEFAULT(x)`
+    // numa coluna sem default é erro — a fila de e-mail pararia de aceitar
+    // linha. A loja passa a vir de @current_loja_id, que é o mesmo caminho de
+    // todo o resto: quem chama de dentro de uma sessão já tem; o cron chama
+    // por withLojaConnection, que também seta. Sobra falhar quando ninguém
+    // sabe a loja — que é justamente o que se quer que falhe.
     `INSERT INTO filas_email (id, loja_id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, criado_por)
-     VALUES (?, COALESCE(?, DEFAULT(loja_id)), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, COALESCE(?, @current_loja_id), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       params.lojaId ?? null,

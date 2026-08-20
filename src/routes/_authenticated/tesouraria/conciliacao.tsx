@@ -628,12 +628,16 @@ function ConferenciaOfx({ itens, podeEditar }: { itens: OfxConferencia[]; podeEd
               </span>
               <div className="min-w-0">
                 <p className="font-medium">{item.descricao || "Movimentação sem descrição"}</p>
+                {/* Três estados, três rótulos. Antes eram dois: o texto do
+                    lançamento avulso era o fallback de um COALESCE, então
+                    aparecia justamente quando NÃO havia lançamento nenhum e
+                    dava ares de normalidade pra linha sem lastro (#356). */}
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {item.conciliado
-                    ? item.vinculos
-                      ? `Baixado em: ${item.vinculos}`
-                      : "Conciliado por lançamento criado a partir do OFX"
-                    : "Sem fatura ou lançamento vinculado"}
+                  {item.vinculo === "baixa_fatura"
+                    ? `Baixado em: ${item.vinculos}`
+                    : item.vinculo === "lancamento_avulso"
+                      ? `Lançamento avulso criado a partir do OFX${item.vinculos ? `: ${item.vinculos}` : ""}`
+                      : "Sem fatura ou lançamento vinculado"}
                 </p>
               </div>
               <span

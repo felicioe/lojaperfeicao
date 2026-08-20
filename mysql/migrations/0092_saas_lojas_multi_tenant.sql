@@ -152,10 +152,29 @@ ALTER TABLE documentos
   ADD KEY idx_documentos_loja (loja_id),
   ADD CONSTRAINT fk_documentos_loja FOREIGN KEY (loja_id) REFERENCES lojas(id);
 
-ALTER TABLE documento_assinaturas
-  ADD COLUMN loja_id CHAR(36) NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001',
-  ADD KEY idx_documento_assinaturas_loja (loja_id),
-  ADD CONSTRAINT fk_documento_assinaturas_loja FOREIGN KEY (loja_id) REFERENCES lojas(id);
+-- documento_assinaturas é condicional porque a 0072 (repositório de
+-- legislação) faz `DROP TABLE IF EXISTS documento_assinaturas` — a
+-- funcionalidade de assinatura foi removida ali e nenhum código a usa mais.
+-- Num banco reconstruído do zero pelas migrações a tabela não existe, e o
+-- ALTER cru abortava a 0092 no meio (o cliente do phpMyAdmin para no
+-- primeiro erro, então tudo daqui pra baixo ficaria sem loja_id). Bancos
+-- que ainda têm a tabela por herança continuam ganhando a coluna, como
+-- antes — descoberto pela suíte de isolamento da #351.
+SET @tem_documento_assinaturas := (
+  SELECT COUNT(*) FROM information_schema.TABLES
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'documento_assinaturas'
+);
+SET @sql_documento_assinaturas := IF(
+  @tem_documento_assinaturas > 0,
+  'ALTER TABLE documento_assinaturas
+     ADD COLUMN loja_id CHAR(36) NOT NULL DEFAULT ''00000000-0000-4000-8000-000000000001'',
+     ADD KEY idx_documento_assinaturas_loja (loja_id),
+     ADD CONSTRAINT fk_documento_assinaturas_loja FOREIGN KEY (loja_id) REFERENCES lojas(id)',
+  'DO 0'
+);
+PREPARE stmt_documento_assinaturas FROM @sql_documento_assinaturas;
+EXECUTE stmt_documento_assinaturas;
+DEALLOCATE PREPARE stmt_documento_assinaturas;
 
 ALTER TABLE emails_enviados
   ADD COLUMN loja_id CHAR(36) NOT NULL DEFAULT '00000000-0000-4000-8000-000000000001',

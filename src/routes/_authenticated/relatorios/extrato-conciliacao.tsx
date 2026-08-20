@@ -160,10 +160,10 @@ function ExtratoConciliacao() {
             De
           </Label>
           <Input
+            id="extrato-conciliacao-de"
             type="date"
             value={de}
             onChange={(e) => setDe(e.target.value)}
-            id="extrato-conciliacao-de"
           />
         </div>
         <div>
@@ -171,10 +171,10 @@ function ExtratoConciliacao() {
             Até
           </Label>
           <Input
+            id="extrato-conciliacao-ate"
             type="date"
             value={ate}
             onChange={(e) => setAte(e.target.value)}
-            id="extrato-conciliacao-ate"
           />
         </div>
         <div>

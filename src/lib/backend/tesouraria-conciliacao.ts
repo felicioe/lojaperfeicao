@@ -57,22 +57,36 @@ export type OfxLancamento = {
   conciliado: boolean;
 };
 
+// Uma linha do extrato está conciliada quando existe PROVA disso, não quando a
+// coluna `conciliado` diz que sim (issue #356). A coluna é gravada antes do
+// trabalho acontecer, e as chaves estrangeiras `ON DELETE SET NULL` soltam o
+// ponteiro sem baixá-la — em produção isso deixou 33 saídas marcadas como
+// conciliadas apontando pro nada, e o painel fechando 100% com seis mil reais
+// de diferença. A 0099 sanou o passado e pôs gatilhos pra não repetir; aqui a
+// leitura para de depender da flag de vez.
+//
+// Prova é uma das duas: um lançamento avulso criado a partir da linha, ou um
+// vínculo de conciliação ativa. Isso cobre todos os caminhos legítimos —
+// conciliar_ofx_lote e criar_lancamentos_de_ofx_rateado gravam vínculo;
+// conciliar_ofx_existente, criar_lancamento_de_ofx e
+// conciliar_ofx_baixando_lancamento gravam lancamento_id.
+const TEM_VINCULO = `(o.lancamento_id IS NOT NULL OR EXISTS (
+  SELECT 1 FROM conciliacao_lancamentos cl
+    JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+   WHERE cl.conciliacao_id = o.conciliacao_id AND cl.loja_id = o.loja_id
+     AND c.status = 'ativa'
+))`;
+
 export const listarOfxPendentes = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<OfxLancamento[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao,
-                (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
-                  SELECT 1 FROM conciliacoes c
-                  WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
-                )) AS conciliado
+                ${TEM_VINCULO} AS conciliado
          FROM ofx_lancamentos o
          WHERE o.loja_id = @current_loja_id AND o.conta_financeira_id = ?
-           AND NOT (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
-             SELECT 1 FROM conciliacoes c
-             WHERE c.loja_id = o.loja_id AND c.id = o.conciliacao_id AND c.status = 'ativa'
-           ))
+           AND NOT ${TEM_VINCULO}
          ORDER BY o.data`,
         [data.contaId],
       );
@@ -80,9 +94,18 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
     });
   });
 
+/**
+ * `vinculo` diz por que a linha está (ou não está) conciliada, pra tela parar
+ * de deduzir isso de um COALESCE — o que fazia o rótulo "conciliado por
+ * lançamento criado a partir do OFX" aparecer justamente quando NÃO havia
+ * lançamento nenhum, dando ares de normalidade pro estado corrompido (#356).
+ */
+export type VinculoOfx = "baixa_fatura" | "lancamento_avulso" | "sem_vinculo";
+
 export type OfxConferencia = OfxLancamento & {
   vinculos: string | null;
   conciliacao_id: string | null;
+  vinculo: VinculoOfx;
 };
 
 export const listarOfxConferencia = createServerFn({ method: "GET" })
@@ -105,10 +128,17 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
       const periodoParams = periodo ? [periodo.data_inicial, periodo.data_final] : [];
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao,
-                (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
-                  SELECT 1 FROM conciliacoes c
-                  WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
-                )) AS conciliado,
+                ${TEM_VINCULO} AS conciliado,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1 FROM conciliacao_lancamentos cl
+                      JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                     WHERE cl.conciliacao_id = o.conciliacao_id AND cl.loja_id = o.loja_id
+                       AND c.status = 'ativa'
+                  ) THEN 'baixa_fatura'
+                  WHEN o.lancamento_id IS NOT NULL THEN 'lancamento_avulso'
+                  ELSE 'sem_vinculo'
+                END AS vinculo,
                 o.conciliacao_id,
                 COALESCE(
                   GROUP_CONCAT(DISTINCT CONCAT(l_lote.descricao, ' — R$ ',
@@ -121,7 +151,7 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
          LEFT JOIN lancamentos l_lote ON l_lote.id = cl.lancamento_id AND l_lote.loja_id = o.loja_id
          LEFT JOIN lancamentos l_direto ON l_direto.id = o.lancamento_id AND l_direto.loja_id = o.loja_id
          WHERE o.loja_id = @current_loja_id AND o.conta_financeira_id = ? ${periodoSql}
-         GROUP BY o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.conciliado,
+         GROUP BY o.id, o.data, o.valor, o.tipo_ofx, o.descricao, o.lancamento_id,
                   o.conciliacao_id, l_direto.descricao
          ORDER BY o.data DESC, o.importado_em DESC LIMIT 500`,
         [data.contaId, ...periodoParams],
@@ -172,18 +202,14 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
            COALESCE(SUM(CASE WHEN o.valor > 0 THEN o.valor ELSE 0 END), 0) AS entradas,
            COALESCE(SUM(CASE WHEN o.valor < 0 THEN ABS(o.valor) ELSE 0 END), 0) AS saidas,
            COALESCE(SUM(ABS(o.valor)), 0) AS total_movimentado,
-           COALESCE(SUM(CASE WHEN o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
-             SELECT 1 FROM conciliacoes c WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
-           ) THEN ABS(o.valor) ELSE 0 END), 0) AS valor_conciliado,
-           COALESCE(SUM(CASE WHEN NOT (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
-             SELECT 1 FROM conciliacoes c WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
-           )) THEN ABS(o.valor) ELSE 0 END), 0) AS valor_pendente,
-           SUM(CASE WHEN o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
-             SELECT 1 FROM conciliacoes c WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
-           ) THEN 1 ELSE 0 END) AS itens_conciliados,
-           SUM(CASE WHEN NOT (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
-             SELECT 1 FROM conciliacoes c WHERE c.id = o.conciliacao_id AND c.status = 'ativa'
-           )) THEN 1 ELSE 0 END) AS itens_pendentes,
+           COALESCE(SUM(CASE WHEN ${TEM_VINCULO}
+             THEN ABS(o.valor) ELSE 0 END), 0) AS valor_conciliado,
+           COALESCE(SUM(CASE WHEN NOT ${TEM_VINCULO}
+             THEN ABS(o.valor) ELSE 0 END), 0) AS valor_pendente,
+           SUM(CASE WHEN ${TEM_VINCULO}
+             THEN 1 ELSE 0 END) AS itens_conciliados,
+           SUM(CASE WHEN NOT ${TEM_VINCULO}
+             THEN 1 ELSE 0 END) AS itens_pendentes,
            MIN(o.data) AS data_inicial, MAX(o.data) AS data_final
          FROM ofx_lancamentos o
          WHERE o.loja_id = @current_loja_id AND o.conta_financeira_id = ? ${periodoSql}`,
@@ -264,8 +290,10 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
         );
         saldoSistema = saldoNaData?.saldo == null ? null : Number(saldoNaData.saldo);
       } else {
+        // O contaId vem do request: sem o filtro de loja, dava pra ler o
+        // saldo da conta bancária de outra Loja passando o id (#349).
         const [saldos] = await conn.query<RowDataPacket[]>(
-          "SELECT saldo_atual FROM v_saldo_contas WHERE id = ? LIMIT 1",
+          "SELECT saldo_atual FROM v_saldo_contas WHERE id = ? AND loja_id = @current_loja_id LIMIT 1",
           [data.contaId],
         );
         saldoSistema = saldos[0] ? Number(saldos[0].saldo_atual) : null;

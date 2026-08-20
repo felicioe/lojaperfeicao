@@ -38,15 +38,10 @@ export const listarContasFinanceiras = createServerFn({ method: "GET" }).handler
 export const listarSaldoContas = createServerFn({ method: "GET" }).handler(
   async (): Promise<SaldoConta[]> => {
     return comSessao(async (conn) => {
-      // v_saldo_contas ainda não conhece loja (a recriação das views é a
-      // issue #349), então o escopo vem do JOIN com a tabela base: cada
-      // conta pertence a uma loja, e o saldo é calculado por conta. Sem este
-      // JOIN a tela listaria as contas de todas as lojas.
+      // A view expõe loja_id desde a 0096 (#349) — o JOIN com a tabela base,
+      // que existia só pra descobrir de quem era cada conta, saiu.
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT v.* FROM v_saldo_contas v
-           JOIN contas_financeiras cf ON cf.id = v.id
-          WHERE cf.loja_id = @current_loja_id
-          ORDER BY v.nome`,
+        "SELECT * FROM v_saldo_contas WHERE loja_id = @current_loja_id ORDER BY nome",
       );
       return rows as SaldoConta[];
     });

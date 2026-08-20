@@ -122,12 +122,12 @@ function EmailPage() {
           <div className="sm:col-span-2">
             <Label htmlFor="email-servidor-de-saida-smtp">Servidor de saída (SMTP)</Label>
             <Input
+              id="email-servidor-de-saida-smtp"
               value={host}
               onChange={(e) => setHost(e.target.value)}
               placeholder="smtp.hostinger.com"
               autoComplete="off"
               disabled={!podeEditar}
-              id="email-servidor-de-saida-smtp"
             />
             <p className="text-xs text-muted-foreground mt-1">
               O endereço exato está no painel da hospedagem, na tela da conta de e-mail.
@@ -137,12 +137,12 @@ function EmailPage() {
           <div>
             <Label htmlFor="email-porta">Porta</Label>
             <Input
+              id="email-porta"
               value={porta}
               onChange={(e) => setPorta(e.target.value)}
               placeholder="465"
               inputMode="numeric"
               disabled={!podeEditar}
-              id="email-porta"
             />
             <p className="text-xs text-muted-foreground mt-1">465 com SSL, 587 com STARTTLS.</p>
           </div>
@@ -150,12 +150,12 @@ function EmailPage() {
           <div>
             <Label htmlFor="email-usuario">Usuário</Label>
             <Input
+              id="email-usuario"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               placeholder="secretaria@sualoja.org.br"
               autoComplete="off"
               disabled={!podeEditar}
-              id="email-usuario"
             />
             <p className="text-xs text-muted-foreground mt-1">
               O endereço <strong>completo</strong> da caixa, com o domínio.
@@ -163,8 +163,9 @@ function EmailPage() {
           </div>
 
           <div className="sm:col-span-2">
-            <Label htmlFor="email-senha-da-caixa-de-e-mail">Senha da caixa de e-mail</Label>
+            <Label htmlFor="email-senha-da-caixa-de">Senha da caixa de e-mail</Label>
             <Input
+              id="email-senha-da-caixa-de"
               type="password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
@@ -176,7 +177,6 @@ function EmailPage() {
                 data?.senhaConfigurada ? "•••••••• (deixe vazio para manter)" : "Senha da caixa"
               }
               disabled={!podeEditar}
-              id="email-senha-da-caixa-de-e-mail"
             />
             <p className="text-xs text-muted-foreground mt-1">
               Guardada cifrada. Nunca é exibida de volta — deixe vazio para manter a atual.
@@ -186,26 +186,24 @@ function EmailPage() {
           <div>
             <Label htmlFor="email-nome-do-remetente-opcional">Nome do remetente (opcional)</Label>
             <Input
+              id="email-nome-do-remetente-opcional"
               value={remetenteNome}
               onChange={(e) => setRemetenteNome(e.target.value)}
               placeholder="Loja de Perfeição"
               autoComplete="off"
               disabled={!podeEditar}
-              id="email-nome-do-remetente-opcional"
             />
           </div>
 
           <div>
-            <Label htmlFor="email-e-mail-do-remetente-opcional">
-              E-mail do remetente (opcional)
-            </Label>
+            <Label htmlFor="email-e-mail-do-remetente">E-mail do remetente (opcional)</Label>
             <Input
+              id="email-e-mail-do-remetente"
               value={remetenteEmail}
               onChange={(e) => setRemetenteEmail(e.target.value)}
               placeholder="mesmo do usuário, se vazio"
               autoComplete="off"
               disabled={!podeEditar}
-              id="email-e-mail-do-remetente-opcional"
             />
             <p className="text-xs text-muted-foreground mt-1">
               Se for de outro domínio que o usuário, a maioria dos servidores recusa o envio.

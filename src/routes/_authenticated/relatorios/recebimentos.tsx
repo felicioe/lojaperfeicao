@@ -134,10 +134,10 @@ function Recebimentos() {
             Competência (mês)
           </Label>
           <Input
+            id="recebimentos-competencia-mes"
             type="month"
             value={competenciaMes ? competenciaMes.slice(0, 7) : ""}
             onChange={(e) => setCompetenciaMes(e.target.value ? `${e.target.value}-01` : "")}
-            id="recebimentos-competencia-mes"
           />
         </div>
         <div>
@@ -145,10 +145,10 @@ function Recebimentos() {
             De
           </Label>
           <Input
+            id="recebimentos-de"
             type="date"
             value={de}
             onChange={(e) => setDe(e.target.value)}
-            id="recebimentos-de"
           />
         </div>
         <div>
@@ -156,10 +156,10 @@ function Recebimentos() {
             Até
           </Label>
           <Input
+            id="recebimentos-ate"
             type="date"
             value={ate}
             onChange={(e) => setAte(e.target.value)}
-            id="recebimentos-ate"
           />
         </div>
         <div>
@@ -221,10 +221,10 @@ function Recebimentos() {
             Forma de pagamento
           </Label>
           <Input
+            id="recebimentos-forma-de-pagamento"
             placeholder="PIX, dinheiro…"
             value={formaPagamento}
             onChange={(e) => setFormaPagamento(e.target.value)}
-            id="recebimentos-forma-de-pagamento"
           />
         </div>
       </Card>

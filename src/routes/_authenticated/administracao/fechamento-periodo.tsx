@@ -296,20 +296,20 @@ function NovoFechamentoDialog({ competenciaSugerida }: { competenciaSugerida: st
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label htmlFor="fechamento-periodo-mes">Mês</Label>
+            <Label htmlFor="fechamento-per-mes">Mês</Label>
             <Input
+              id="fechamento-per-mes"
               type="month"
               value={competencia}
               onChange={(e) => setCompetencia(e.target.value)}
-              id="fechamento-periodo-mes"
             />
           </div>
           <div>
-            <Label htmlFor="fechamento-periodo-observacoes">Observações</Label>
+            <Label htmlFor="fechamento-per-observacoes">Observações</Label>
             <Textarea
+              id="fechamento-per-observacoes"
               value={observacoes}
               onChange={(e) => setObservacoes(e.target.value)}
-              id="fechamento-periodo-observacoes"
             />
           </div>
           <p className="text-sm text-muted-foreground">
@@ -354,12 +354,12 @@ function ReabrirDialog({
             Volta a permitir lançamentos com data dentro deste mês. Informe o motivo.
           </p>
           <div>
-            <Label htmlFor="fechamento-periodo-motivo-da-reabertura">Motivo da reabertura</Label>
+            <Label htmlFor="fechamento-per-motivo-da-reabertura">Motivo da reabertura</Label>
             <Textarea
+              id="fechamento-per-motivo-da-reabertura"
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
               required
-              id="fechamento-periodo-motivo-da-reabertura"
             />
           </div>
         </div>

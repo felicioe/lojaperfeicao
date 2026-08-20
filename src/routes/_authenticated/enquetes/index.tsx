@@ -387,32 +387,31 @@ function NovaEnqueteDialog({ onCriada }: { onCriada: () => void }) {
       </DialogHeader>
       <div className="grid gap-3">
         <div>
-          <Label htmlFor="enquetes-pergunta">Pergunta</Label>
-          <Input
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            id="enquetes-pergunta"
-          />
+          <Label htmlFor="enquete-pergunta">Pergunta</Label>
+          <Input id="enquete-pergunta" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         </div>
         <div>
-          <Label htmlFor="enquetes-descricao-opcional">Descrição (opcional)</Label>
+          <Label htmlFor="enquete-descricao-opcional">Descrição (opcional)</Label>
           <Textarea
+            id="enquete-descricao-opcional"
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
             rows={2}
-            id="enquetes-descricao-opcional"
           />
         </div>
         <div>
-          <Label htmlFor="enquetes-opcoes">Opções</Label>
-          <div className="space-y-2">
+          {/* "Opções" nomeia o conjunto, não um campo: são N inputs. Daí
+              role="group" + aria-labelledby, e cada linha com seu próprio
+              nome ("Opção 1", "Opção 2"…). */}
+          <Label id="enquete-opcoes">Opções</Label>
+          <div className="space-y-2" role="group" aria-labelledby="enquete-opcoes">
             {opcoes.map((o, i) => (
               <Input
                 key={i}
+                aria-label={`Opção ${i + 1}`}
                 value={o}
                 placeholder={`Opção ${i + 1}`}
                 onChange={(e) => atualizarOpcao(i, e.target.value)}
-                id="enquetes-opcoes"
               />
             ))}
           </div>
@@ -427,17 +426,17 @@ function NovaEnqueteDialog({ onCriada }: { onCriada: () => void }) {
           </Button>
         </div>
         <div>
-          <Label htmlFor="enquetes-prazo-opcional">Prazo (opcional)</Label>
+          <Label htmlFor="enquete-prazo-opcional">Prazo (opcional)</Label>
           <Input
+            id="enquete-prazo-opcional"
             type="date"
             value={dataLimite}
             onChange={(e) => setDataLimite(e.target.value)}
-            id="enquetes-prazo-opcional"
           />
         </div>
         <div className="flex items-center justify-between rounded-md border p-3">
           <div>
-            <Label htmlFor="enquete-votos-nominais" className="text-sm">
+            <Label className="text-sm" htmlFor="enquete-votos-nominais">
               Votos nominais
             </Label>
             <p className="text-xs text-muted-foreground">
@@ -448,7 +447,7 @@ function NovaEnqueteDialog({ onCriada }: { onCriada: () => void }) {
         </div>
         <div className="flex items-center justify-between rounded-md border p-3">
           <div>
-            <Label htmlFor="enquete-resultado-visivel" className="text-sm">
+            <Label className="text-sm" htmlFor="enquete-resultado-visivel">
               Resultado visível durante a votação
             </Label>
             <p className="text-xs text-muted-foreground">

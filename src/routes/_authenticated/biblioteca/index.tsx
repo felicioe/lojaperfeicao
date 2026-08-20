@@ -366,41 +366,41 @@ function BibliotecaPage() {
                           </SelectContent>
                         </Select>
                       ) : (
-                        <Input value={meuIrmao?.nome_civil ?? ""} disabled />
+                        <Input id="biblioteca-autor" value={meuIrmao?.nome_civil ?? ""} disabled />
                       )}
                     </div>
                     <div>
                       <Label htmlFor="biblioteca-titulo">Título</Label>
                       <Input
+                        id="biblioteca-titulo"
                         value={form.titulo}
                         onChange={(e) => setForm({ ...form, titulo: e.target.value })}
-                        id="biblioteca-titulo"
                       />
                     </div>
                     <div>
                       <Label htmlFor="biblioteca-tema-opcional">Tema (opcional)</Label>
                       <Input
+                        id="biblioteca-tema-opcional"
                         value={form.tema}
                         onChange={(e) => setForm({ ...form, tema: e.target.value })}
-                        id="biblioteca-tema-opcional"
                       />
                     </div>
                     <div>
                       <Label htmlFor="biblioteca-grau">Grau</Label>
                       <Input
+                        id="biblioteca-grau"
                         type="number"
                         min={1}
                         value={form.grau}
                         onChange={(e) => setForm({ ...form, grau: e.target.value })}
                         placeholder="Ex.: 4"
-                        id="biblioteca-grau"
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
                         Só irmãos deste grau ou superior poderão ver esta peça.
                       </p>
                     </div>
                     <div>
-                      <Label htmlFor="biblioteca-sessao-em-que-foi-apresentada-opcional">
+                      <Label htmlFor="biblioteca-sessao-em-que-foi">
                         Sessão em que foi apresentada (opcional)
                       </Label>
                       <Select
@@ -409,7 +409,7 @@ function BibliotecaPage() {
                           setForm({ ...form, sessaoId: v === "nenhuma" ? "" : v })
                         }
                       >
-                        <SelectTrigger id="biblioteca-sessao-em-que-foi-apresentada-opcional">
+                        <SelectTrigger id="biblioteca-sessao-em-que-foi">
                           <SelectValue placeholder="Nenhuma" />
                         </SelectTrigger>
                         <SelectContent>
@@ -425,17 +425,18 @@ function BibliotecaPage() {
                     <div>
                       <Label htmlFor="biblioteca-resumo-opcional">Resumo (opcional)</Label>
                       <Textarea
+                        id="biblioteca-resumo-opcional"
                         value={form.resumo}
                         onChange={(e) => setForm({ ...form, resumo: e.target.value })}
                         rows={3}
-                        id="biblioteca-resumo-opcional"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="biblioteca-arquivo-pdf-ate-15-mb-opcional">
+                      <Label htmlFor="biblioteca-arquivo-pdf-ate-15">
                         Arquivo (PDF, até 15 MB — opcional)
                       </Label>
                       <Input
+                        id="biblioteca-arquivo-pdf-ate-15"
                         type="file"
                         accept=".pdf,application/pdf"
                         disabled={enviandoArquivo}
@@ -443,7 +444,6 @@ function BibliotecaPage() {
                           const file = e.target.files?.[0];
                           if (file) handleArquivo(file);
                         }}
-                        id="biblioteca-arquivo-pdf-ate-15-mb-opcional"
                       />
                       {form.arquivoNomeOriginal && (
                         <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">

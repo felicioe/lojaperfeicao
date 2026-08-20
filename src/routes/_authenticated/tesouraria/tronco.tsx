@@ -336,12 +336,12 @@ function SaldoInicialDialog({
       <div>
         <Label htmlFor="tronco-saldo-inicial">Saldo inicial</Label>
         <Input
+          id="tronco-saldo-inicial"
           type="number"
           min={0}
           step="0.01"
           value={valor}
           onChange={(e) => setValor(Number(e.target.value))}
-          id="tronco-saldo-inicial"
         />
       </div>
       <DialogFooter>
@@ -406,21 +406,21 @@ function SaidaTroncoDialog({
         <div>
           <Label htmlFor="tronco-valor">Valor</Label>
           <Input
+            id="tronco-valor"
             type="number"
             min={0.01}
             step="0.01"
             value={valor}
             onChange={(e) => setValor(Number(e.target.value))}
-            id="tronco-valor"
           />
         </div>
         <div>
           <Label htmlFor="tronco-data-do-pagamento">Data do pagamento</Label>
           <Input
+            id="tronco-data-do-pagamento"
             type="date"
             value={data}
             onChange={(e) => setData(e.target.value)}
-            id="tronco-data-do-pagamento"
           />
         </div>
         <div>
@@ -456,18 +456,18 @@ function SaidaTroncoDialog({
         <div className="sm:col-span-2">
           <Label htmlFor="tronco-descricao">Descrição</Label>
           <Input
+            id="tronco-descricao"
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
             placeholder="Ex.: auxílio beneficente"
-            id="tronco-descricao"
           />
         </div>
         <div className="sm:col-span-2">
           <Label htmlFor="tronco-observacoes-opcional">Observações (opcional)</Label>
           <Textarea
+            id="tronco-observacoes-opcional"
             value={observacoes}
             onChange={(e) => setObservacoes(e.target.value)}
-            id="tronco-observacoes-opcional"
           />
         </div>
       </div>

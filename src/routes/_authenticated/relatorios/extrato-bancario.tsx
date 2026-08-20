@@ -165,10 +165,10 @@ function ExtratoBancario() {
             De
           </Label>
           <Input
+            id="extrato-bancario-de"
             type="date"
             value={de}
             onChange={(e) => setDe(e.target.value)}
-            id="extrato-bancario-de"
           />
         </div>
         <div>
@@ -176,10 +176,10 @@ function ExtratoBancario() {
             Até
           </Label>
           <Input
+            id="extrato-bancario-ate"
             type="date"
             value={ate}
             onChange={(e) => setAte(e.target.value)}
-            id="extrato-bancario-ate"
           />
         </div>
         <div>
