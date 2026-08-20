@@ -283,6 +283,8 @@ export type ItemExtratoConciliacao = {
   descricao: string | null;
   conciliado: boolean;
   conciliacao_id: string | null;
+  anulacao_ofx: boolean;
+  historico: string | null;
   lancamentos_vinculados: LancamentoVinculado[];
 };
 
@@ -311,8 +313,19 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
                 (o.conciliado OR o.lancamento_id IS NOT NULL OR EXISTS (
                   SELECT 1 FROM conciliacoes c
                   WHERE c.id = o.conciliacao_id AND c.loja_id = o.loja_id AND c.status = 'ativa'
+                ) OR EXISTS (
+                  SELECT 1 FROM ofx_anulacoes oa
+                  WHERE oa.loja_id = o.loja_id
+                    AND (oa.ofx_credito_id = o.id OR oa.ofx_debito_id = o.id)
                 )) AS conciliado,
-                o.lancamento_id, o.conciliacao_id
+                o.lancamento_id, o.conciliacao_id,
+                EXISTS(SELECT 1 FROM ofx_anulacoes oa
+                  WHERE oa.loja_id = o.loja_id
+                    AND (oa.ofx_credito_id = o.id OR oa.ofx_debito_id = o.id)) AS anulacao_ofx,
+                (SELECT oa.historico FROM ofx_anulacoes oa
+                  WHERE oa.loja_id = o.loja_id
+                    AND (oa.ofx_credito_id = o.id OR oa.ofx_debito_id = o.id)
+                  LIMIT 1) AS historico
          FROM ofx_lancamentos o
          WHERE o.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
          ORDER BY o.data DESC
@@ -385,6 +398,8 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
         descricao: l.descricao,
         conciliado: !!l.conciliado,
         conciliacao_id: l.conciliacao_id,
+        anulacao_ofx: !!l.anulacao_ofx,
+        historico: l.historico,
         lancamentos_vinculados: l.conciliacao_id
           ? (loteMap.get(l.conciliacao_id) ?? [])
           : l.lancamento_id && legadoMap.has(l.lancamento_id)

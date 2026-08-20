@@ -75,6 +75,10 @@ const TEM_VINCULO = `(o.lancamento_id IS NOT NULL OR EXISTS (
     JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
    WHERE cl.conciliacao_id = o.conciliacao_id AND cl.loja_id = o.loja_id
      AND c.status = 'ativa'
+) OR EXISTS (
+  SELECT 1 FROM ofx_anulacoes oa
+   WHERE oa.loja_id = o.loja_id
+     AND (oa.ofx_credito_id = o.id OR oa.ofx_debito_id = o.id)
 ))`;
 
 export const listarOfxPendentes = createServerFn({ method: "GET" })
@@ -100,7 +104,7 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
  * lançamento criado a partir do OFX" aparecer justamente quando NÃO havia
  * lançamento nenhum, dando ares de normalidade pro estado corrompido (#356).
  */
-export type VinculoOfx = "baixa_fatura" | "lancamento_avulso" | "sem_vinculo";
+export type VinculoOfx = "baixa_fatura" | "lancamento_avulso" | "anulacao_ofx" | "sem_vinculo";
 
 export type OfxConferencia = OfxLancamento & {
   vinculos: string | null;
@@ -136,6 +140,11 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
                      WHERE cl.conciliacao_id = o.conciliacao_id AND cl.loja_id = o.loja_id
                        AND c.status = 'ativa'
                   ) THEN 'baixa_fatura'
+                  WHEN EXISTS (
+                    SELECT 1 FROM ofx_anulacoes oa
+                     WHERE oa.loja_id = o.loja_id
+                       AND (oa.ofx_credito_id = o.id OR oa.ofx_debito_id = o.id)
+                  ) THEN 'anulacao_ofx'
                   WHEN o.lancamento_id IS NOT NULL THEN 'lancamento_avulso'
                   ELSE 'sem_vinculo'
                 END AS vinculo,
@@ -157,6 +166,59 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
         [data.contaId, ...periodoParams],
       );
       return rows as OfxConferencia[];
+    });
+  });
+
+export const anularLinhasOfx = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ ofxIds: z.array(z.string().uuid()).length(2) }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual, lojaId) => {
+      await conn.beginTransaction();
+      try {
+        const [linhas] = await conn.query<RowDataPacket[]>(
+          `SELECT o.id, o.conta_financeira_id, o.valor
+             FROM ofx_lancamentos o
+            WHERE o.loja_id = @current_loja_id AND o.id IN (?)
+              AND NOT ${TEM_VINCULO}
+            FOR UPDATE`,
+          [data.ofxIds],
+        );
+        if (linhas.length !== 2) throw new Error("Selecione duas linhas OFX ainda pendentes.");
+        if (linhas[0].conta_financeira_id !== linhas[1].conta_financeira_id)
+          throw new Error("As duas linhas precisam pertencer à mesma conta bancária.");
+        const valores = linhas.map((l) => Number(l.valor));
+        if (!valores.some((v) => v > 0) || !valores.some((v) => v < 0))
+          throw new Error("Selecione um crédito e um débito.");
+        if (Math.round((valores[0] + valores[1]) * 100) !== 0)
+          throw new Error("O crédito e o débito precisam ter o mesmo valor.");
+        const credito = linhas.find((l) => Number(l.valor) > 0)!;
+        const debito = linhas.find((l) => Number(l.valor) < 0)!;
+        const id = crypto.randomUUID();
+        await conn.query(
+          `INSERT INTO ofx_anulacoes
+             (id, loja_id, conta_financeira_id, ofx_credito_id, ofx_debito_id, historico, criado_por)
+           VALUES (?, ?, ?, ?, ?, 'Lançamento indevido', ?)`,
+          [id, lojaId, credito.conta_financeira_id, credito.id, debito.id, usuarioIdAtual],
+        );
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          "anular_entre_si",
+          "ofx_anulacao",
+          id,
+          null,
+          {
+            ofxIds: data.ofxIds,
+            valor: Math.abs(Number(credito.valor)),
+            historico: "Lançamento indevido",
+          },
+        );
+        await conn.commit();
+        return { id };
+      } catch (erro) {
+        await conn.rollback();
+        throw erro;
+      }
     });
   });
 

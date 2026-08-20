@@ -7,6 +7,7 @@ import {
   conciliarOfxLote,
   criarLancamentoDeOfx,
   criarLancamentosDeOfxRateado,
+  anularLinhasOfx,
   desfazerConciliacao,
   desfazerLancamentoOfx,
   importarOfx,
@@ -55,6 +56,7 @@ import {
   Loader2,
   Plus,
   Upload,
+  Ban,
 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
@@ -84,6 +86,7 @@ function Conciliacao() {
   const [selOfx, setSelOfx] = useState<string[]>([]);
   const [openCriar, setOpenCriar] = useState(false);
   const [vinculando, setVinculando] = useState(false);
+  const [openAnular, setOpenAnular] = useState(false);
   const [alocacaoParcial, setAlocacaoParcial] = useState<Record<string, number>>({});
 
   const { data: contas = [] } = useQuery({
@@ -241,6 +244,23 @@ function Conciliacao() {
     .reduce((acc, o) => acc + Number(o.valor), 0);
   const diferenca = Math.round((totalOfx - totalSistema) * 100) / 100;
   const totaisBatem = selSistema.length > 0 && selOfx.length > 0 && diferenca === 0;
+  const linhasOfxSelecionadas = ofx.filter((o) => selOfx.includes(o.id));
+  const podeAnularOfx =
+    selSistema.length === 0 &&
+    linhasOfxSelecionadas.length === 2 &&
+    linhasOfxSelecionadas.some((o) => Number(o.valor) > 0) &&
+    linhasOfxSelecionadas.some((o) => Number(o.valor) < 0) &&
+    Math.round(linhasOfxSelecionadas.reduce((s, o) => s + Number(o.valor), 0) * 100) === 0;
+
+  const anularMutation = useMutation({
+    mutationFn: () => anularLinhasOfx({ data: { ofxIds: selOfx } }),
+    onSuccess: () => {
+      toast.success("Crédito e débito anulados entre si, sem lançamento financeiro.");
+      setOpenAnular(false);
+      invalidate();
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao anular linhas OFX."),
+  });
 
   // Pagamento parcial (issue #131): quando o depósito marcado no OFX é
   // MENOR que a soma das faturas (todas do mesmo tipo, sem mistura de
@@ -400,120 +420,120 @@ function Conciliacao() {
             )}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Sistema — em aberto</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Input
-                placeholder="Buscar por nome do depositante… (separe vários por vírgula, ou deixe vazio)"
-                value={buscaSistema}
-                onChange={(e) => {
-                  setBuscaSistema(e.target.value);
-                  setBuscaSistemaAuto(false);
-                }}
-              />
-              {buscaSistemaAuto && (
-                <p className="text-xs text-muted-foreground">
-                  Filtro sugerido a partir da linha do OFX marcada — edite ou limpe se precisar.
-                </p>
-              )}
-              <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
-                {sistemaOrdenado.length === 0 && (
-                  <div className="p-3 text-sm text-muted-foreground">
-                    Nenhum lançamento em aberto.
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Sistema — em aberto</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Input
+                  placeholder="Buscar por nome do depositante… (separe vários por vírgula, ou deixe vazio)"
+                  value={buscaSistema}
+                  onChange={(e) => {
+                    setBuscaSistema(e.target.value);
+                    setBuscaSistemaAuto(false);
+                  }}
+                />
+                {buscaSistemaAuto && (
+                  <p className="text-xs text-muted-foreground">
+                    Filtro sugerido a partir da linha do OFX marcada — edite ou limpe se precisar.
+                  </p>
+                )}
+                <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
+                  {sistemaOrdenado.length === 0 && (
+                    <div className="p-3 text-sm text-muted-foreground">
+                      Nenhum lançamento em aberto.
+                    </div>
+                  )}
+                  {sistemaOrdenado.map((s) => {
+                    const vencida = !!s.data_vencimento && s.data_vencimento < hojeIso;
+                    return (
+                      <label
+                        key={s.id}
+                        className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selSistema.includes(s.id) ? "bg-muted" : ""}`}
+                      >
+                        <Checkbox
+                          className="mt-0.5"
+                          checked={selSistema.includes(s.id)}
+                          onCheckedChange={() => toggleSistema(s.id)}
+                        />
+                        <div className="flex-1">
+                          <div className="flex justify-between">
+                            <span>{s.descricao}</span>
+                            <span className="font-medium">
+                              {brl(Number(s.valor) - Number(s.valor_pago))}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            {fmtDate(s.data)} · {s.tipo}
+                            {vencida && (
+                              <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                                Vencida
+                              </Badge>
+                            )}
+                            {Number(s.valor_pago) > 0 && (
+                              <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                                Parcial — de {brl(s.valor)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                {selSistema.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {selSistema.length} selecionado(s) · Total: {brl(totalSistema)}
                   </div>
                 )}
-                {sistemaOrdenado.map((s) => {
-                  const vencida = !!s.data_vencimento && s.data_vencimento < hojeIso;
-                  return (
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Extrato OFX — não conciliado</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Input
+                  placeholder="Buscar…"
+                  value={buscaOfx}
+                  onChange={(e) => setBuscaOfx(e.target.value)}
+                />
+                <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
+                  {ofxFiltrado.length === 0 && (
+                    <div className="p-3 text-sm text-muted-foreground">
+                      Nenhuma linha pendente. Importe um extrato acima.
+                    </div>
+                  )}
+                  {ofxFiltrado.map((o) => (
                     <label
-                      key={s.id}
-                      className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selSistema.includes(s.id) ? "bg-muted" : ""}`}
+                      key={o.id}
+                      className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selOfx.includes(o.id) ? "bg-muted" : ""}`}
                     >
                       <Checkbox
                         className="mt-0.5"
-                        checked={selSistema.includes(s.id)}
-                        onCheckedChange={() => toggleSistema(s.id)}
+                        checked={selOfx.includes(o.id)}
+                        onCheckedChange={() => toggleOfx(o.id)}
                       />
                       <div className="flex-1">
                         <div className="flex justify-between">
-                          <span>{s.descricao}</span>
-                          <span className="font-medium">
-                            {brl(Number(s.valor) - Number(s.valor_pago))}
-                          </span>
+                          <span>{o.descricao}</span>
+                          <span className="font-medium">{brl(o.valor)}</span>
                         </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          {fmtDate(s.data)} · {s.tipo}
-                          {vencida && (
-                            <Badge variant="destructive" className="h-4 px-1 text-[10px]">
-                              Vencida
-                            </Badge>
-                          )}
-                          {Number(s.valor_pago) > 0 && (
-                            <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-                              Parcial — de {brl(s.valor)}
-                            </Badge>
-                          )}
+                        <div className="text-xs text-muted-foreground">
+                          {fmtDate(o.data)} · {o.tipo_ofx}
                         </div>
                       </div>
                     </label>
-                  );
-                })}
-              </div>
-              {selSistema.length > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  {selSistema.length} selecionado(s) · Total: {brl(totalSistema)}
+                  ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Extrato OFX — não conciliado</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Input
-                placeholder="Buscar…"
-                value={buscaOfx}
-                onChange={(e) => setBuscaOfx(e.target.value)}
-              />
-              <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
-                {ofxFiltrado.length === 0 && (
-                  <div className="p-3 text-sm text-muted-foreground">
-                    Nenhuma linha pendente. Importe um extrato acima.
+                {selOfx.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {selOfx.length} selecionado(s) · Total: {brl(totalOfx)}
                   </div>
                 )}
-                {ofxFiltrado.map((o) => (
-                  <label
-                    key={o.id}
-                    className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selOfx.includes(o.id) ? "bg-muted" : ""}`}
-                  >
-                    <Checkbox
-                      className="mt-0.5"
-                      checked={selOfx.includes(o.id)}
-                      onCheckedChange={() => toggleOfx(o.id)}
-                    />
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <span>{o.descricao}</span>
-                        <span className="font-medium">{brl(o.valor)}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {fmtDate(o.data)} · {o.tipo_ofx}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              {selOfx.length > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  {selOfx.length} selecionado(s) · Total: {brl(totalOfx)}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           </div>
         </>
       )}
@@ -620,6 +640,41 @@ function Conciliacao() {
                 )}
               </Dialog>
             )}
+            {podeAnularOfx && (
+              <Dialog open={openAnular} onOpenChange={setOpenAnular}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Ban className="mr-1 h-4 w-4" /> Anular entre si
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Anular crédito e débito?</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    As duas linhas de {brl(Math.abs(Number(linhasOfxSelecionadas[0].valor)))} serão
+                    conciliadas entre si. Nenhum lançamento financeiro ou contábil será criado, e
+                    ambas continuarão nos relatórios com o histórico “Lançamento indevido”.
+                  </p>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline" disabled={anularMutation.isPending}>
+                        Cancelar
+                      </Button>
+                    </DialogClose>
+                    <Button
+                      onClick={() => anularMutation.mutate()}
+                      disabled={anularMutation.isPending}
+                    >
+                      {anularMutation.isPending && (
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      )}
+                      Confirmar anulação
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </Card>
       )}
@@ -693,9 +748,11 @@ function ConferenciaOfx({ itens, podeEditar }: { itens: OfxConferencia[]; podeEd
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {item.vinculo === "baixa_fatura"
                     ? `Baixado em: ${item.vinculos}`
-                    : item.vinculo === "lancamento_avulso"
-                      ? `Lançamento avulso criado a partir do OFX${item.vinculos ? `: ${item.vinculos}` : ""}`
-                      : "Sem fatura ou lançamento vinculado"}
+                    : item.vinculo === "anulacao_ofx"
+                      ? "Lançamento indevido — crédito e débito anulados entre si"
+                      : item.vinculo === "lancamento_avulso"
+                        ? `Lançamento avulso criado a partir do OFX${item.vinculos ? `: ${item.vinculos}` : ""}`
+                        : "Sem fatura ou lançamento vinculado"}
                 </p>
               </div>
               <span
