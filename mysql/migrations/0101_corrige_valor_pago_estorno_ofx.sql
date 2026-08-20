@@ -97,7 +97,7 @@ BEGIN
   END IF;
 
   IF v_own_tx THEN COMMIT; END IF;
-END$$\n
+END$$
 
 DROP PROCEDURE IF EXISTS conciliar_ofx_baixando_lancamento$$
 CREATE PROCEDURE conciliar_ofx_baixando_lancamento(
@@ -209,7 +209,7 @@ BEGIN
    WHERE id = p_ofx_id AND loja_id = @current_loja_id;
 
   IF v_own_tx THEN COMMIT; END IF;
-END$$\n
+END$$
 
 -- Repara exclusivamente as 13 mensalidades 12/2025 cuja baixa OFX já foi
 -- estornada contabilmente, mas que conservaram valor_pago = valor.
