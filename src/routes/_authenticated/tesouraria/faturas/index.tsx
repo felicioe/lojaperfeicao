@@ -9,6 +9,7 @@ import {
   baixarPagamentoParcial,
   listarPreviewLoteMensalidades,
   criarFaturaAvulsa,
+  criarFaturasAvulsasIntervalo,
 } from "@/lib/backend/tesouraria-faturas";
 import { AlocacaoParcialTable } from "@/components/app/AlocacaoParcial";
 import { sugerirAlocacao, somaAlocacao } from "@/lib/alocacao-parcial";
@@ -1187,6 +1188,9 @@ function IndividualForm({
   const [irmaoId, setIrmaoId] = useState("");
   const [valor, setValor] = useState(0);
   const [competencia, setCompetencia] = useState(toISODate(new Date()).slice(0, 7) + "-01");
+  const [competenciaFinal, setCompetenciaFinal] = useState(
+    toISODate(new Date()).slice(0, 7) + "-01",
+  );
   const [vencimento, setVencimento] = useState(toISODate(new Date()));
   const [descricao, setDescricao] = useState("");
   const [rateio, setRateio] = useState<Rateio[]>([]);
@@ -1207,17 +1211,34 @@ function IndividualForm({
     }
     setSalvando(true);
     try {
-      await criarFaturaAvulsa({
-        data: {
-          irmaoId,
-          valor: Number(valor),
-          competenciaMes: competencia,
-          dataVencimento: vencimento,
-          descricao: descricao || null,
-          rateio: rateio.length > 0 ? rateio : null,
-        },
-      });
-      toast.success("Fatura criada e provisão contábil lançada.");
+      if (competenciaFinal !== competencia) {
+        const resultado = await criarFaturasAvulsasIntervalo({
+          data: {
+            irmaoId,
+            valor: Number(valor),
+            competenciaInicial: competencia,
+            competenciaFinal,
+            primeiroVencimento: vencimento,
+            descricao: descricao || null,
+            rateio: rateio.length > 0 ? rateio : null,
+          },
+        });
+        toast.success(
+          `${resultado.ids.length} fatura(s) criada(s).${resultado.ignoradas ? ` ${resultado.ignoradas} competência(s) já existente(s) foram ignoradas.` : ""}`,
+        );
+      } else {
+        await criarFaturaAvulsa({
+          data: {
+            irmaoId,
+            valor: Number(valor),
+            competenciaMes: competencia,
+            dataVencimento: vencimento,
+            descricao: descricao || null,
+            rateio: rateio.length > 0 ? rateio : null,
+          },
+        });
+        toast.success("Fatura criada e provisão contábil lançada.");
+      }
       setValor(0);
       setDescricao("");
       setRateio([]);
@@ -1261,16 +1282,32 @@ function IndividualForm({
           />
         </div>
         <div>
-          <Label htmlFor="avulsa-competencia">Competência</Label>
+          <Label htmlFor="avulsa-competencia">Competência inicial</Label>
           <Input
             id="avulsa-competencia"
             type="month"
             value={competencia.slice(0, 7)}
-            onChange={(e) => setCompetencia(e.target.value + "-01")}
+            onChange={(e) => {
+              const novaCompetencia = e.target.value + "-01";
+              setCompetencia(novaCompetencia);
+              if (novaCompetencia > competenciaFinal) setCompetenciaFinal(novaCompetencia);
+            }}
           />
         </div>
         <div>
-          <Label htmlFor="avulsa-vencimento">Vencimento</Label>
+          <Label htmlFor="avulsa-competencia-final">Competência final</Label>
+          <Input
+            id="avulsa-competencia-final"
+            type="month"
+            value={competenciaFinal.slice(0, 7)}
+            min={competencia.slice(0, 7)}
+            onChange={(e) => setCompetenciaFinal(e.target.value + "-01")}
+          />
+        </div>
+        <div>
+          <Label htmlFor="avulsa-vencimento">
+            {competencia === competenciaFinal ? "Vencimento" : "Vencimento da primeira fatura"}
+          </Label>
           <Input
             id="avulsa-vencimento"
             type="date"
@@ -1278,7 +1315,7 @@ function IndividualForm({
             onChange={(e) => setVencimento(e.target.value)}
           />
         </div>
-        <div className="md:col-span-3">
+        <div className="md:col-span-2">
           <Label htmlFor="avulsa-descricao">Descrição (opcional)</Label>
           <Input
             id="avulsa-descricao"
@@ -1286,10 +1323,20 @@ function IndividualForm({
             onChange={(e) => setDescricao(e.target.value)}
           />
         </div>
+        {competencia !== competenciaFinal && (
+          <p className="text-sm text-muted-foreground md:col-span-4">
+            Será criada uma fatura por competência. Os vencimentos avançam um mês por fatura,
+            mantendo o dia informado; competências já existentes serão ignoradas.
+          </p>
+        )}
         <RateioBuilder rateio={rateio} setRateio={setRateio} receitas={receitas} />
         <div className="md:col-span-4">
           <Button onClick={salvar} disabled={salvando || !irmaoId || !valor}>
-            Criar fatura
+            {salvando
+              ? "Criando…"
+              : competencia === competenciaFinal
+                ? "Criar fatura"
+                : "Criar faturas do período"}
           </Button>
         </div>
       </CardContent>
