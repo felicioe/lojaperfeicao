@@ -51,6 +51,20 @@ export const listarFornecedores = createServerFn({ method: "GET" }).handler(
   },
 );
 
+export const listarTerceirosAtivosPorTipo = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ tipo: z.enum(["fornecedor", "cliente"]) }).parse(d))
+  .handler(async ({ data }): Promise<{ id: string; nome: string }[]> => {
+    return comPapel(PAPEIS_LEITURA, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, nome FROM terceiros
+         WHERE loja_id = @current_loja_id AND tipo IN (?, 'ambos') AND ativo = TRUE
+         ORDER BY nome`,
+        [data.tipo],
+      );
+      return rows as { id: string; nome: string }[];
+    });
+  });
+
 const terceiroSchema = z.object({
   id: z.string().uuid().nullable(),
   tipo: z.enum(["fornecedor", "cliente", "ambos"]),
@@ -114,6 +128,34 @@ const fornecedorRapidoSchema = z.object({
   contato: z.string().trim().max(100).nullable(),
   email: z.string().trim().email().max(200).nullable().or(z.literal("")),
 });
+
+const terceiroRapidoSchema = fornecedorRapidoSchema.extend({
+  tipo: z.enum(["fornecedor", "cliente"]),
+});
+
+export const criarTerceiroRapido = createServerFn({ method: "POST" })
+  .validator((d: unknown) => terceiroRapidoSchema.parse(d))
+  .handler(async ({ data }): Promise<{ id: string; nome: string }> => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
+      const id = crypto.randomUUID();
+      const digitos = (data.documento ?? "").replace(/\D/g, "");
+      await conn.query(
+        `INSERT INTO terceiros (id, loja_id, tipo, nome, cnpj, cpf, contato, email, ativo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+        [
+          id,
+          lojaId,
+          data.tipo,
+          data.nome,
+          digitos.length === 14 ? digitos : null,
+          digitos.length === 11 ? digitos : null,
+          data.contato || null,
+          data.email || null,
+        ],
+      );
+      return { id, nome: data.nome };
+    });
+  });
 
 export const criarFornecedorRapido = createServerFn({ method: "POST" })
   .validator((d: unknown) => fornecedorRapidoSchema.parse(d))

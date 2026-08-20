@@ -20,6 +20,7 @@ import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { DesfazerConciliacaoDialog } from "@/components/app/DesfazerConciliacaoDialog";
+import { TerceiroSelect } from "@/components/app/FornecedorSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -825,6 +826,7 @@ type RateioItem = {
   planoContaId: string;
   categoria: string;
   irmaoId: string;
+  terceiroId: string;
   valor: string;
   descricao: string;
 };
@@ -835,6 +837,7 @@ function novoItemRateio(): RateioItem {
     planoContaId: "",
     categoria: "outros",
     irmaoId: "",
+    terceiroId: "none",
     valor: "",
     descricao: "",
   };
@@ -853,6 +856,7 @@ function CriarLancamentoDialog({
   const [categoria, setCategoria] = useState("outros");
   const [planoContaId, setPlanoContaId] = useState("");
   const [irmaoId, setIrmaoId] = useState("");
+  const [terceiroId, setTerceiroId] = useState("none");
   const [descricao, setDescricao] = useState(ofxLinha.descricao ?? "");
   const [itensRateio, setItensRateio] = useState<RateioItem[]>(() => [
     novoItemRateio(),
@@ -889,6 +893,7 @@ function CriarLancamentoDialog({
             ? (categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros")
             : null,
           irmaoId: irmaoId || null,
+          terceiroId: terceiroId === "none" ? null : terceiroId,
           descricao: descricao || null,
         },
       });
@@ -919,6 +924,7 @@ function CriarLancamentoDialog({
               ? (it.categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros")
               : null,
             irmaoId: it.irmaoId || null,
+            terceiroId: it.terceiroId === "none" ? null : it.terceiroId,
             valor: Number(it.valor),
             descricao: it.descricao || null,
           })),
@@ -977,7 +983,10 @@ function CriarLancamentoDialog({
                 <Label htmlFor="conciliacao-irmao">Irmão (opcional)</Label>
                 <Select
                   value={irmaoId || "__nenhum__"}
-                  onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
+                  onValueChange={(v) => {
+                    setIrmaoId(v === "__nenhum__" ? "" : v);
+                    if (v !== "__nenhum__") setTerceiroId("none");
+                  }}
                 >
                   <SelectTrigger id="conciliacao-irmao">
                     <SelectValue placeholder="Selecione…" />
@@ -995,6 +1004,25 @@ function CriarLancamentoDialog({
                 </Select>
               </div>
             )}
+            <div>
+              <Label htmlFor="conciliacao-terceiro">
+                {isEntrada ? "Cliente (opcional)" : "Fornecedor (opcional)"}
+              </Label>
+              <TerceiroSelect
+                triggerId="conciliacao-terceiro"
+                tipo={isEntrada ? "cliente" : "fornecedor"}
+                value={terceiroId}
+                onValueChange={(v) => {
+                  setTerceiroId(v);
+                  if (isEntrada && v !== "none") setIrmaoId("");
+                }}
+              />
+              {isEntrada && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Use irmão ou cliente conforme a origem do recebimento.
+                </p>
+              )}
+            </div>
             <div>
               <Label htmlFor="conciliacao-plano-conta">
                 Categoria contábil ({isEntrada ? "receita" : "despesa"})
@@ -1104,7 +1132,10 @@ function CriarLancamentoDialog({
                       <Select
                         value={it.irmaoId || "__nenhum__"}
                         onValueChange={(v) =>
-                          atualizarItem(it.chave, { irmaoId: v === "__nenhum__" ? "" : v })
+                          atualizarItem(it.chave, {
+                            irmaoId: v === "__nenhum__" ? "" : v,
+                            ...(v === "__nenhum__" ? {} : { terceiroId: "none" }),
+                          })
                         }
                       >
                         <SelectTrigger id={`conciliacao-rateio-irmao-${it.chave}`}>
@@ -1122,6 +1153,22 @@ function CriarLancamentoDialog({
                     </div>
                   </div>
                 )}
+                <div>
+                  <Label htmlFor={`conciliacao-rateio-terceiro-${it.chave}`}>
+                    {isEntrada ? "Cliente (opcional)" : "Fornecedor (opcional)"}
+                  </Label>
+                  <TerceiroSelect
+                    triggerId={`conciliacao-rateio-terceiro-${it.chave}`}
+                    tipo={isEntrada ? "cliente" : "fornecedor"}
+                    value={it.terceiroId}
+                    onValueChange={(v) =>
+                      atualizarItem(it.chave, {
+                        terceiroId: v,
+                        ...(isEntrada && v !== "none" ? { irmaoId: "" } : {}),
+                      })
+                    }
+                  />
+                </div>
                 <div>
                   <Label htmlFor={`conciliacao-rateio-descricao-${it.chave}`}>
                     Descrição (opcional)

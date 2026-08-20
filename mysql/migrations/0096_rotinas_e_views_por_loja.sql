@@ -2674,11 +2674,13 @@ BEGIN
   DECLARE v_qtd_itens INT;
   DECLARE v_qtd_validos INT;
   DECLARE v_qtd_contas_da_loja INT;
+  DECLARE v_qtd_vinculos_invalidos INT;
   DECLARE v_soma_itens DECIMAL(14,2);
   DECLARE v_item_id CHAR(36);
   DECLARE v_plano_conta_id CHAR(36);
   DECLARE v_categoria VARCHAR(20);
   DECLARE v_irmao_id CHAR(36);
+  DECLARE v_terceiro_id CHAR(36);
   DECLARE v_valor_item DECIMAL(14,2);
   DECLARE v_descricao_item VARCHAR(500);
   DECLARE v_desc VARCHAR(500);
@@ -2687,11 +2689,12 @@ BEGIN
   DECLARE v_done INT DEFAULT FALSE;
   DECLARE v_own_tx BOOLEAN DEFAULT FALSE;
   DECLARE cur CURSOR FOR
-    SELECT jt.plano_conta_id, jt.categoria, jt.irmao_id, jt.valor, jt.descricao
+    SELECT jt.plano_conta_id, jt.categoria, jt.irmao_id, jt.terceiro_id, jt.valor, jt.descricao
     FROM JSON_TABLE(p_itens, '$[*]' COLUMNS(
       plano_conta_id CHAR(36) COLLATE utf8mb4_unicode_ci PATH '$.plano_conta_id',
       categoria VARCHAR(20) PATH '$.categoria',
       irmao_id CHAR(36) COLLATE utf8mb4_unicode_ci PATH '$.irmao_id',
+      terceiro_id CHAR(36) COLLATE utf8mb4_unicode_ci PATH '$.terceiro_id',
       valor DECIMAL(14,2) PATH '$.valor',
       descricao VARCHAR(500) PATH '$.descricao'
     )) jt;
@@ -2756,6 +2759,23 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Alguma categoria contábil do rateio não pertence a esta loja';
   END IF;
 
+  SELECT COUNT(*) INTO v_qtd_vinculos_invalidos
+  FROM JSON_TABLE(p_itens, '$[*]' COLUMNS(
+      irmao_id CHAR(36) COLLATE utf8mb4_unicode_ci PATH '$.irmao_id' NULL ON EMPTY,
+      terceiro_id CHAR(36) COLLATE utf8mb4_unicode_ci PATH '$.terceiro_id' NULL ON EMPTY
+    )) jt
+  LEFT JOIN irmaos i ON i.id = jt.irmao_id AND i.loja_id = @current_loja_id
+  LEFT JOIN terceiros t ON t.id = jt.terceiro_id AND t.loja_id = @current_loja_id
+    AND t.ativo = TRUE
+    AND ((v_tipo = 'entrada' AND t.tipo IN ('cliente', 'ambos'))
+      OR (v_tipo = 'saida' AND t.tipo IN ('fornecedor', 'ambos')))
+  WHERE (jt.irmao_id IS NOT NULL AND i.id IS NULL)
+     OR (jt.terceiro_id IS NOT NULL AND t.id IS NULL)
+     OR (jt.irmao_id IS NOT NULL AND jt.terceiro_id IS NOT NULL);
+  IF v_qtd_vinculos_invalidos > 0 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Irmão, cliente ou fornecedor inválido no rateio';
+  END IF;
+
   SET p_conciliacao_id = UUID();
   INSERT INTO conciliacoes (id, conta_financeira_id, data_conciliacao, valor_total, criado_por, loja_id)
   VALUES (p_conciliacao_id, v_conta_financeira_id, v_data, v_valor_abs, @current_usuario_id, @current_loja_id);
@@ -2770,7 +2790,7 @@ BEGIN
   SET v_done = FALSE;
   OPEN cur;
   loop_itens: LOOP
-    FETCH cur INTO v_plano_conta_id, v_categoria, v_irmao_id, v_valor_item, v_descricao_item;
+    FETCH cur INTO v_plano_conta_id, v_categoria, v_irmao_id, v_terceiro_id, v_valor_item, v_descricao_item;
     IF v_done THEN LEAVE loop_itens; END IF;
 
     SET v_desc = COALESCE(v_descricao_item, v_descricao_ofx, 'Lançamento importado do extrato');
@@ -2778,10 +2798,10 @@ BEGIN
 
     INSERT INTO lancamentos (
       id, data, data_pagamento, descricao, valor, valor_pago, tipo, conta_id, plano_conta_id,
-      irmao_id, categoria_recebimento, pago, conciliacao_id, criado_por, loja_id
+      irmao_id, terceiro_id, categoria_recebimento, pago, conciliacao_id, criado_por, loja_id
     ) VALUES (
       v_item_id, v_data, v_data, v_desc, v_valor_item, v_valor_item, v_tipo, v_conta_financeira_id, v_plano_conta_id,
-      v_irmao_id, CASE WHEN v_tipo = 'entrada' THEN v_categoria ELSE NULL END, TRUE, p_conciliacao_id,
+      v_irmao_id, v_terceiro_id, CASE WHEN v_tipo = 'entrada' THEN v_categoria ELSE NULL END, TRUE, p_conciliacao_id,
       @current_usuario_id, @current_loja_id
     );
 
