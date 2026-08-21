@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+import { executarBackupDaLoja, lerConteudoBackup } from "../backup-dispatch";
 
 const PAPEIS = ["admin"];
 
@@ -30,7 +31,6 @@ export const listarBackupsGerados = createServerFn({ method: "GET" }).handler(
 export const gerarBackupAgora = createServerFn({ method: "POST" }).handler(async () => {
   return comPapel(PAPEIS, async (conn, usuarioIdAtual, lojaId) => {
     // Backup DESTA Loja: a loja vem da sessão, nunca do request.
-    const { executarBackupDaLoja } = await import("../backup-dispatch");
     const resultado = await executarBackupDaLoja("manual", lojaId);
     await registrarAuditoria(conn, usuarioIdAtual, "gerar", "backup", null, null, resultado);
     return resultado;
@@ -50,7 +50,6 @@ export const baixarBackup = createServerFn({ method: "POST" })
       if (!registro) throw new Error("Backup não encontrado nesta Loja.");
       // nome_arquivo só é lido do banco (nunca do client) — sem risco de
       // path traversal apontando pra fora de BACKUPS_DIR.
-      const { lerConteudoBackup } = await import("../backup-dispatch");
       const conteudo = await lerConteudoBackup(registro.nome_arquivo);
       await registrarAuditoria(conn, usuarioIdAtual, "baixar", "backup", data.id, null, {
         nome_arquivo: registro.nome_arquivo,

@@ -18,8 +18,9 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const RAIZ = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const RAIZ = fileURLToPath(new URL("..", import.meta.url)).replace(/[\\/]$/, "");
 const MIGRACAO = join(RAIZ, "mysql/migrations/0092_saas_lojas_multi_tenant.sql");
 const DIRS = ["src/lib/backend", "src/lib"];
 
@@ -192,7 +193,7 @@ const pendencias = [];
 
 for (const dir of DIRS) {
   for (const caminho of arquivosTs(join(RAIZ, dir))) {
-    const rel = relative(RAIZ, caminho);
+    const rel = relative(RAIZ, caminho).replaceAll("\\", "/");
     const fonte = readFileSync(caminho, "utf8");
     for (const { sql, linha } of extrairSql(fonte)) {
       const tabelas = tabelasDoSql(sql, multiTenant);

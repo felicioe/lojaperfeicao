@@ -13,7 +13,7 @@ const colunaSchema = z.object({ chave: z.string(), titulo: z.string() });
 const linhaSchema = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
 
 const baseSchema = z.object({
-  formato: z.enum(["xlsx", "csv", "txt"]),
+  formato: z.enum(["xlsx", "pdf", "csv", "txt"]),
   titulo: z.string().min(1).max(100),
   colunas: z.array(colunaSchema).min(1),
   linhas: z.array(linhaSchema),

@@ -7,6 +7,7 @@ import {
   conciliarOfxLote,
   criarLancamentoDeOfx,
   criarLancamentosDeOfxRateado,
+  anularLinhasOfx,
   desfazerConciliacao,
   desfazerLancamentoOfx,
   importarOfx,
@@ -20,6 +21,7 @@ import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { DesfazerConciliacaoDialog } from "@/components/app/DesfazerConciliacaoDialog";
+import { TerceiroSelect } from "@/components/app/FornecedorSelect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,6 +56,7 @@ import {
   Loader2,
   Plus,
   Upload,
+  Ban,
 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
@@ -77,10 +80,13 @@ function Conciliacao() {
   const [buscaSistema, setBuscaSistema] = useState("");
   const [buscaSistemaAuto, setBuscaSistemaAuto] = useState(false);
   const [buscaOfx, setBuscaOfx] = useState("");
+  const [dataInicial, setDataInicial] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
   const [selSistema, setSelSistema] = useState<string[]>([]);
   const [selOfx, setSelOfx] = useState<string[]>([]);
   const [openCriar, setOpenCriar] = useState(false);
   const [vinculando, setVinculando] = useState(false);
+  const [openAnular, setOpenAnular] = useState(false);
   const [alocacaoParcial, setAlocacaoParcial] = useState<Record<string, number>>({});
 
   const { data: contas = [] } = useQuery({
@@ -205,6 +211,8 @@ function Conciliacao() {
     .map((t) => normalizarTexto(t.trim()))
     .filter(Boolean);
   const sistemaFiltrado = sistema.filter((s) => {
+    if (dataInicial && s.data < dataInicial) return false;
+    if (dataFinal && s.data > dataFinal) return false;
     if (termosSistema.length === 0) return true;
     const alvo = normalizarTexto(s.descricao);
     return termosSistema.some((t) => alvo.includes(t));
@@ -216,9 +224,11 @@ function Conciliacao() {
     if (aVencida !== bVencida) return aVencida ? -1 : 1;
     return (a.data_vencimento ?? a.data).localeCompare(b.data_vencimento ?? b.data);
   });
-  const ofxFiltrado = ofx.filter(
-    (o) => !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase()),
-  );
+  const ofxFiltrado = ofx.filter((o) => {
+    if (dataInicial && o.data < dataInicial) return false;
+    if (dataFinal && o.data > dataFinal) return false;
+    return !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase());
+  });
   const ofxSelecionadoUnico =
     selOfx.length === 1 && selSistema.length === 0
       ? ofx.find((o) => o.id === selOfx[0])
@@ -234,6 +244,23 @@ function Conciliacao() {
     .reduce((acc, o) => acc + Number(o.valor), 0);
   const diferenca = Math.round((totalOfx - totalSistema) * 100) / 100;
   const totaisBatem = selSistema.length > 0 && selOfx.length > 0 && diferenca === 0;
+  const linhasOfxSelecionadas = ofx.filter((o) => selOfx.includes(o.id));
+  const podeAnularOfx =
+    selSistema.length === 0 &&
+    linhasOfxSelecionadas.length === 2 &&
+    linhasOfxSelecionadas.some((o) => Number(o.valor) > 0) &&
+    linhasOfxSelecionadas.some((o) => Number(o.valor) < 0) &&
+    Math.round(linhasOfxSelecionadas.reduce((s, o) => s + Number(o.valor), 0) * 100) === 0;
+
+  const anularMutation = useMutation({
+    mutationFn: () => anularLinhasOfx({ data: { ofxIds: selOfx } }),
+    onSuccess: () => {
+      toast.success("Crédito e débito anulados entre si, sem lançamento financeiro.");
+      setOpenAnular(false);
+      invalidate();
+    },
+    onError: (err: Error) => toast.error(err.message ?? "Erro ao anular linhas OFX."),
+  });
 
   // Pagamento parcial (issue #131): quando o depósito marcado no OFX é
   // MENOR que a soma das faturas (todas do mesmo tipo, sem mistura de
@@ -275,6 +302,13 @@ function Conciliacao() {
     setAlocacaoParcial(sugerirAlocacao(faturasParaAlocarConciliacao, totalOfx));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usarParcial, totalOfx, selSistema.join(","), selOfx.join(",")]);
+
+  // Evita manter valores selecionados fora da tela quando o período muda.
+  useEffect(() => {
+    setSelSistema([]);
+    setSelOfx([]);
+    setAlocacaoParcial({});
+  }, [dataInicial, dataFinal]);
 
   // Se a sugestão automática filtrou pra um único irmão e a soma de todas
   // as faturas dele bater exatamente com a linha do OFX marcada, pré-marca
@@ -341,130 +375,172 @@ function Conciliacao() {
 
       {contaId && resumo && <PainelFechamento resumo={resumo} />}
 
-      {contaId && <ConferenciaOfx itens={conferencia} podeEditar={podeEditar} />}
-
       {contaId && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Sistema — em aberto</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Input
-                placeholder="Buscar por nome do depositante… (separe vários por vírgula, ou deixe vazio)"
-                value={buscaSistema}
-                onChange={(e) => {
-                  setBuscaSistema(e.target.value);
-                  setBuscaSistemaAuto(false);
+        <>
+          <div className="mb-3 flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Período dos lançamentos</p>
+              <p className="text-sm text-muted-foreground">
+                O período é aplicado aos dois lados da conciliação.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="conciliacao-data-inicial">Data inicial</Label>
+                <Input
+                  id="conciliacao-data-inicial"
+                  type="date"
+                  value={dataInicial}
+                  max={dataFinal || undefined}
+                  onChange={(e) => setDataInicial(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="conciliacao-data-final">Data final</Label>
+                <Input
+                  id="conciliacao-data-final"
+                  type="date"
+                  value={dataFinal}
+                  min={dataInicial || undefined}
+                  onChange={(e) => setDataFinal(e.target.value)}
+                />
+              </div>
+            </div>
+            {(dataInicial || dataFinal) && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setDataInicial("");
+                  setDataFinal("");
                 }}
-              />
-              {buscaSistemaAuto && (
-                <p className="text-xs text-muted-foreground">
-                  Filtro sugerido a partir da linha do OFX marcada — edite ou limpe se precisar.
-                </p>
-              )}
-              <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
-                {sistemaOrdenado.length === 0 && (
-                  <div className="p-3 text-sm text-muted-foreground">
-                    Nenhum lançamento em aberto.
+              >
+                Limpar período
+              </Button>
+            )}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Sistema — em aberto</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Input
+                  placeholder="Buscar por nome do depositante… (separe vários por vírgula, ou deixe vazio)"
+                  value={buscaSistema}
+                  onChange={(e) => {
+                    setBuscaSistema(e.target.value);
+                    setBuscaSistemaAuto(false);
+                  }}
+                />
+                {buscaSistemaAuto && (
+                  <p className="text-xs text-muted-foreground">
+                    Filtro sugerido a partir da linha do OFX marcada — edite ou limpe se precisar.
+                  </p>
+                )}
+                <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
+                  {sistemaOrdenado.length === 0 && (
+                    <div className="p-3 text-sm text-muted-foreground">
+                      Nenhum lançamento em aberto.
+                    </div>
+                  )}
+                  {sistemaOrdenado.map((s) => {
+                    const vencida = !!s.data_vencimento && s.data_vencimento < hojeIso;
+                    return (
+                      <label
+                        key={s.id}
+                        className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selSistema.includes(s.id) ? "bg-muted" : ""}`}
+                      >
+                        <Checkbox
+                          className="mt-0.5"
+                          checked={selSistema.includes(s.id)}
+                          onCheckedChange={() => toggleSistema(s.id)}
+                        />
+                        <div className="flex-1">
+                          <div className="flex justify-between">
+                            <span>{s.descricao}</span>
+                            <span className="font-medium">
+                              {brl(Number(s.valor) - Number(s.valor_pago))}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            {fmtDate(s.data)} · {s.tipo}
+                            {vencida && (
+                              <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                                Vencida
+                              </Badge>
+                            )}
+                            {Number(s.valor_pago) > 0 && (
+                              <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                                Parcial — de {brl(s.valor)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                {selSistema.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {selSistema.length} selecionado(s) · Total: {brl(totalSistema)}
                   </div>
                 )}
-                {sistemaOrdenado.map((s) => {
-                  const vencida = !!s.data_vencimento && s.data_vencimento < hojeIso;
-                  return (
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Extrato OFX — não conciliado</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Input
+                  placeholder="Buscar…"
+                  value={buscaOfx}
+                  onChange={(e) => setBuscaOfx(e.target.value)}
+                />
+                <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
+                  {ofxFiltrado.length === 0 && (
+                    <div className="p-3 text-sm text-muted-foreground">
+                      Nenhuma linha pendente. Importe um extrato acima.
+                    </div>
+                  )}
+                  {ofxFiltrado.map((o) => (
                     <label
-                      key={s.id}
-                      className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selSistema.includes(s.id) ? "bg-muted" : ""}`}
+                      key={o.id}
+                      className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selOfx.includes(o.id) ? "bg-muted" : ""}`}
                     >
                       <Checkbox
                         className="mt-0.5"
-                        checked={selSistema.includes(s.id)}
-                        onCheckedChange={() => toggleSistema(s.id)}
+                        checked={selOfx.includes(o.id)}
+                        onCheckedChange={() => toggleOfx(o.id)}
                       />
                       <div className="flex-1">
                         <div className="flex justify-between">
-                          <span>{s.descricao}</span>
-                          <span className="font-medium">
-                            {brl(Number(s.valor) - Number(s.valor_pago))}
-                          </span>
+                          <span>{o.descricao}</span>
+                          <span className="font-medium">{brl(o.valor)}</span>
                         </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          {fmtDate(s.data)} · {s.tipo}
-                          {vencida && (
-                            <Badge variant="destructive" className="h-4 px-1 text-[10px]">
-                              Vencida
-                            </Badge>
-                          )}
-                          {Number(s.valor_pago) > 0 && (
-                            <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-                              Parcial — de {brl(s.valor)}
-                            </Badge>
-                          )}
+                        <div className="text-xs text-muted-foreground">
+                          {fmtDate(o.data)} · {o.tipo_ofx}
                         </div>
                       </div>
                     </label>
-                  );
-                })}
-              </div>
-              {selSistema.length > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  {selSistema.length} selecionado(s) · Total: {brl(totalSistema)}
+                  ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Extrato OFX — não conciliado</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Input
-                placeholder="Buscar…"
-                value={buscaOfx}
-                onChange={(e) => setBuscaOfx(e.target.value)}
-              />
-              <div className="max-h-96 overflow-y-auto divide-y border rounded-md">
-                {ofxFiltrado.length === 0 && (
-                  <div className="p-3 text-sm text-muted-foreground">
-                    Nenhuma linha pendente. Importe um extrato acima.
+                {selOfx.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {selOfx.length} selecionado(s) · Total: {brl(totalOfx)}
                   </div>
                 )}
-                {ofxFiltrado.map((o) => (
-                  <label
-                    key={o.id}
-                    className={`flex items-start gap-2 p-2 text-sm hover:bg-muted/50 cursor-pointer ${selOfx.includes(o.id) ? "bg-muted" : ""}`}
-                  >
-                    <Checkbox
-                      className="mt-0.5"
-                      checked={selOfx.includes(o.id)}
-                      onCheckedChange={() => toggleOfx(o.id)}
-                    />
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <span>{o.descricao}</span>
-                        <span className="font-medium">{brl(o.valor)}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {fmtDate(o.data)} · {o.tipo_ofx}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              {selOfx.length > 0 && (
-                <div className="text-xs text-muted-foreground">
-                  {selOfx.length} selecionado(s) · Total: {brl(totalOfx)}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
 
       {podeEditar && usarParcial && (
         <Card className="mt-4 p-4 space-y-2">
-          <div className="flex items-center gap-1 text-sm text-amber-600">
+          <div className="flex items-center gap-1 text-sm text-warning-foreground">
             <AlertTriangle className="h-4 w-4" /> O depósito é menor que a soma das faturas
             selecionadas — pagamento parcial. Sugestão abaixo quita as mais antigas primeiro; ajuste
             se precisar.
@@ -490,7 +566,7 @@ function Conciliacao() {
           <div className="flex items-center gap-2 text-sm">
             {selSistema.length > 0 && selOfx.length > 0 ? (
               totaisBatem ? (
-                <span className="flex items-center gap-1 text-green-600">
+                <span className="flex items-center gap-1 text-success-foreground">
                   <CheckCircle2 className="h-4 w-4" /> Totais batem — pronto para vincular.
                 </span>
               ) : usarParcial ? (
@@ -564,9 +640,46 @@ function Conciliacao() {
                 )}
               </Dialog>
             )}
+            {podeAnularOfx && (
+              <Dialog open={openAnular} onOpenChange={setOpenAnular}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Ban className="mr-1 h-4 w-4" /> Anular entre si
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Anular crédito e débito?</DialogTitle>
+                  </DialogHeader>
+                  <p className="text-sm text-muted-foreground">
+                    As duas linhas de {brl(Math.abs(Number(linhasOfxSelecionadas[0].valor)))} serão
+                    conciliadas entre si. Nenhum lançamento financeiro ou contábil será criado, e
+                    ambas continuarão nos relatórios com o histórico “Lançamento indevido”.
+                  </p>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline" disabled={anularMutation.isPending}>
+                        Cancelar
+                      </Button>
+                    </DialogClose>
+                    <Button
+                      onClick={() => anularMutation.mutate()}
+                      disabled={anularMutation.isPending}
+                    >
+                      {anularMutation.isPending && (
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      )}
+                      Confirmar anulação
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </Card>
       )}
+
+      {contaId && <ConferenciaOfx itens={conferencia} podeEditar={podeEditar} />}
     </>
   );
 }
@@ -635,13 +748,15 @@ function ConferenciaOfx({ itens, podeEditar }: { itens: OfxConferencia[]; podeEd
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {item.vinculo === "baixa_fatura"
                     ? `Baixado em: ${item.vinculos}`
-                    : item.vinculo === "lancamento_avulso"
-                      ? `Lançamento avulso criado a partir do OFX${item.vinculos ? `: ${item.vinculos}` : ""}`
-                      : "Sem fatura ou lançamento vinculado"}
+                    : item.vinculo === "anulacao_ofx"
+                      ? "Lançamento indevido — crédito e débito anulados entre si"
+                      : item.vinculo === "lancamento_avulso"
+                        ? `Lançamento avulso criado a partir do OFX${item.vinculos ? `: ${item.vinculos}` : ""}`
+                        : "Sem fatura ou lançamento vinculado"}
                 </p>
               </div>
               <span
-                className={`font-semibold tabular-nums md:text-right ${Number(item.valor) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}
+                className={`font-semibold tabular-nums md:text-right ${Number(item.valor) >= 0 ? "text-success-foreground" : "text-destructive"}`}
               >
                 {brl(item.valor)}
               </span>
@@ -769,7 +884,7 @@ function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
             </div>
           </div>
           <div
-            className={`flex items-start gap-2 rounded-lg p-3 text-sm ${fechado ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-amber-500/10 text-amber-700 dark:text-amber-400"}`}
+            className={`flex items-start gap-2 rounded-lg p-3 text-sm ${fechado ? "bg-success-muted text-success-foreground" : "bg-warning-muted text-warning-foreground"}`}
           >
             {fechado ? (
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
@@ -812,7 +927,7 @@ function MetricaResumo({
         <span>{label}</span>
       </div>
       <p
-        className={`mt-1 font-semibold tabular-nums ${destaque ? "text-xl" : "text-lg"} ${positivo ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+        className={`mt-1 font-semibold tabular-nums ${destaque ? "text-xl" : "text-lg"} ${positivo ? "text-success-foreground" : ""}`}
       >
         {valor == null ? indisponivel : brl(valor)}
       </p>
@@ -825,6 +940,7 @@ type RateioItem = {
   planoContaId: string;
   categoria: string;
   irmaoId: string;
+  terceiroId: string;
   valor: string;
   descricao: string;
 };
@@ -835,6 +951,7 @@ function novoItemRateio(): RateioItem {
     planoContaId: "",
     categoria: "outros",
     irmaoId: "",
+    terceiroId: "none",
     valor: "",
     descricao: "",
   };
@@ -853,6 +970,7 @@ function CriarLancamentoDialog({
   const [categoria, setCategoria] = useState("outros");
   const [planoContaId, setPlanoContaId] = useState("");
   const [irmaoId, setIrmaoId] = useState("");
+  const [terceiroId, setTerceiroId] = useState("none");
   const [descricao, setDescricao] = useState(ofxLinha.descricao ?? "");
   const [itensRateio, setItensRateio] = useState<RateioItem[]>(() => [
     novoItemRateio(),
@@ -889,6 +1007,7 @@ function CriarLancamentoDialog({
             ? (categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros")
             : null,
           irmaoId: irmaoId || null,
+          terceiroId: terceiroId === "none" ? null : terceiroId,
           descricao: descricao || null,
         },
       });
@@ -919,6 +1038,7 @@ function CriarLancamentoDialog({
               ? (it.categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros")
               : null,
             irmaoId: it.irmaoId || null,
+            terceiroId: it.terceiroId === "none" ? null : it.terceiroId,
             valor: Number(it.valor),
             descricao: it.descricao || null,
           })),
@@ -977,7 +1097,10 @@ function CriarLancamentoDialog({
                 <Label htmlFor="conciliacao-irmao">Irmão (opcional)</Label>
                 <Select
                   value={irmaoId || "__nenhum__"}
-                  onValueChange={(v) => setIrmaoId(v === "__nenhum__" ? "" : v)}
+                  onValueChange={(v) => {
+                    setIrmaoId(v === "__nenhum__" ? "" : v);
+                    if (v !== "__nenhum__") setTerceiroId("none");
+                  }}
                 >
                   <SelectTrigger id="conciliacao-irmao">
                     <SelectValue placeholder="Selecione…" />
@@ -995,6 +1118,25 @@ function CriarLancamentoDialog({
                 </Select>
               </div>
             )}
+            <div>
+              <Label htmlFor="conciliacao-terceiro">
+                {isEntrada ? "Cliente (opcional)" : "Fornecedor (opcional)"}
+              </Label>
+              <TerceiroSelect
+                triggerId="conciliacao-terceiro"
+                tipo={isEntrada ? "cliente" : "fornecedor"}
+                value={terceiroId}
+                onValueChange={(v) => {
+                  setTerceiroId(v);
+                  if (isEntrada && v !== "none") setIrmaoId("");
+                }}
+              />
+              {isEntrada && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Use irmão ou cliente conforme a origem do recebimento.
+                </p>
+              )}
+            </div>
             <div>
               <Label htmlFor="conciliacao-plano-conta">
                 Categoria contábil ({isEntrada ? "receita" : "despesa"})
@@ -1104,7 +1246,10 @@ function CriarLancamentoDialog({
                       <Select
                         value={it.irmaoId || "__nenhum__"}
                         onValueChange={(v) =>
-                          atualizarItem(it.chave, { irmaoId: v === "__nenhum__" ? "" : v })
+                          atualizarItem(it.chave, {
+                            irmaoId: v === "__nenhum__" ? "" : v,
+                            ...(v === "__nenhum__" ? {} : { terceiroId: "none" }),
+                          })
                         }
                       >
                         <SelectTrigger id={`conciliacao-rateio-irmao-${it.chave}`}>
@@ -1122,6 +1267,22 @@ function CriarLancamentoDialog({
                     </div>
                   </div>
                 )}
+                <div>
+                  <Label htmlFor={`conciliacao-rateio-terceiro-${it.chave}`}>
+                    {isEntrada ? "Cliente (opcional)" : "Fornecedor (opcional)"}
+                  </Label>
+                  <TerceiroSelect
+                    triggerId={`conciliacao-rateio-terceiro-${it.chave}`}
+                    tipo={isEntrada ? "cliente" : "fornecedor"}
+                    value={it.terceiroId}
+                    onValueChange={(v) =>
+                      atualizarItem(it.chave, {
+                        terceiroId: v,
+                        ...(isEntrada && v !== "none" ? { irmaoId: "" } : {}),
+                      })
+                    }
+                  />
+                </div>
                 <div>
                   <Label htmlFor={`conciliacao-rateio-descricao-${it.chave}`}>
                     Descrição (opcional)
@@ -1143,7 +1304,7 @@ function CriarLancamentoDialog({
               <Plus className="h-4 w-4 mr-1" /> Adicionar item
             </Button>
             <div
-              className={`text-sm font-medium ${diferencaRateio !== 0 ? "text-destructive" : "text-emerald-600"}`}
+              className={`text-sm font-medium ${diferencaRateio !== 0 ? "text-destructive" : "text-success-foreground"}`}
             >
               Total: {brl(totalRateio)} de {brl(valorOfxAbs)}
               {diferencaRateio !== 0 &&

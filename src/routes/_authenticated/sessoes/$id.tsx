@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/app/RichTextEditor";
+import { LazyRichTextEditor } from "@/components/app/LazyRichTextEditor";
 import { RichTextView } from "@/components/app/RichTextView";
 import { TIPO_SESSAO_LABEL, fmtDate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
@@ -123,18 +123,18 @@ function SessaoDetail() {
             {editandoDetalhes ? (
               <>
                 <div>
-                  <Label htmlFor="sessao-local">Local</Label>
+                  <Label htmlFor="id-local">Local</Label>
                   <Input
-                    id="sessao-local"
                     placeholder="Endereço ou local da sessão"
                     value={rascunhoLocal}
                     onChange={(e) => setRascunhoLocal(e.target.value)}
+                    id="id-local"
                   />
                 </div>
                 <div>
-                  <Label id="sessao-informacoes">Informações</Label>
-                  <RichTextEditor
-                    ariaLabelledBy="sessao-informacoes"
+                  <Label id="sessao-informacoes-label">Informações</Label>
+                  <LazyRichTextEditor
+                    ariaLabelledBy="sessao-informacoes-label"
                     value={rascunhoObservacoes}
                     onChange={setRascunhoObservacoes}
                   />

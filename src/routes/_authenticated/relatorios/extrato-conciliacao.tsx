@@ -109,8 +109,8 @@ function ExtratoConciliacao() {
     data: fmtDate(i.data),
     descricao: i.descricao ?? "—",
     valor: Number(i.valor),
-    status: i.conciliado ? "Conciliado" : "Pendente",
-    vinculados: i.lancamentos_vinculados.map((l) => l.descricao).join("; ") || "—",
+    status: i.anulacao_ofx ? "Lançamento indevido" : i.conciliado ? "Conciliado" : "Pendente",
+    vinculados: i.historico ?? (i.lancamentos_vinculados.map((l) => l.descricao).join("; ") || "—"),
   }));
 
   const ord = useOrdenacao(itens, {
@@ -253,14 +253,18 @@ function ExtratoConciliacao() {
                       <TableCell>{i.descricao ?? "—"}</TableCell>
                       <TableCell className="text-right font-medium">{brl(i.valor)}</TableCell>
                       <TableCell>
-                        {i.conciliado ? (
+                        {i.anulacao_ofx ? (
+                          <Badge variant="secondary">Lançamento indevido</Badge>
+                        ) : i.conciliado ? (
                           <Badge variant="secondary">Conciliado</Badge>
                         ) : (
                           <Badge variant="outline">Pendente</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {i.lancamentos_vinculados.length > 0 ? (
+                        {i.anulacao_ofx ? (
+                          i.historico
+                        ) : i.lancamentos_vinculados.length > 0 ? (
                           <div className="grid gap-1">
                             {i.lancamentos_vinculados.map((l) => (
                               <div key={l.id} className="flex items-center gap-1">
@@ -293,6 +297,7 @@ function ExtratoConciliacao() {
                       <TableCell className="text-right">
                         {can.canManageFinancas &&
                           i.conciliado &&
+                          !i.anulacao_ofx &&
                           (i.conciliacao_id ? (
                             <DesfazerConciliacaoDialog
                               onConfirm={(motivo) =>

@@ -215,3 +215,87 @@ export const criarFaturaAvulsa = createServerFn({ method: "POST" })
       return { id: lanc_id };
     });
   });
+
+const faturasAvulsasIntervaloSchema = z.object({
+  irmaoId: z.string().uuid(),
+  valor: z.number().positive(),
+  competenciaInicial: z.string().regex(/^\d{4}-\d{2}-01$/),
+  competenciaFinal: z.string().regex(/^\d{4}-\d{2}-01$/),
+  primeiroVencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  descricao: z.string().nullable(),
+  rateio: rateioSchema,
+});
+
+function adicionarMes(data: string, quantidade: number): string {
+  const [ano, mes, dia] = data.split("-").map(Number);
+  const totalMeses = ano * 12 + mes - 1 + quantidade;
+  const novoAno = Math.floor(totalMeses / 12);
+  const novoMes = (totalMeses % 12) + 1;
+  const ultimoDia = new Date(Date.UTC(novoAno, novoMes, 0)).getUTCDate();
+  return `${novoAno}-${String(novoMes).padStart(2, "0")}-${String(Math.min(dia, ultimoDia)).padStart(2, "0")}`;
+}
+
+export const criarFaturasAvulsasIntervalo = createServerFn({ method: "POST" })
+  .validator((d: unknown) => faturasAvulsasIntervaloSchema.parse(d))
+  .handler(async ({ data }): Promise<{ ids: string[]; ignoradas: number }> => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      const meses: string[] = [];
+      let atual = data.competenciaInicial;
+      while (atual <= data.competenciaFinal && meses.length <= 36) {
+        meses.push(atual);
+        atual = adicionarMes(atual, 1).slice(0, 7) + "-01";
+      }
+      if (meses.length === 0 || data.competenciaInicial > data.competenciaFinal)
+        throw new Error("Intervalo de competências inválido.");
+      if (meses.length > 36) throw new Error("O intervalo máximo é de 36 meses.");
+
+      const ids: string[] = [];
+      let ignoradas = 0;
+      await conn.beginTransaction();
+      try {
+        for (let indice = 0; indice < meses.length; indice++) {
+          const competencia = meses[indice];
+          const [[existente]] = await conn.query<RowDataPacket[]>(
+            `SELECT id FROM lancamentos
+              WHERE loja_id = @current_loja_id AND irmao_id = ?
+                AND is_mensalidade = TRUE AND competencia_mes = ? LIMIT 1`,
+            [data.irmaoId, competencia],
+          );
+          if (existente) {
+            ignoradas++;
+            continue;
+          }
+          const dataVencimento = adicionarMes(data.primeiroVencimento, indice);
+          const descricao = data.descricao
+            ? `${data.descricao} — ${competencia.slice(5, 7)}/${competencia.slice(0, 4)}`
+            : null;
+          await conn.query("CALL criar_fatura_avulsa(?, ?, ?, ?, ?, ?, @lanc_id)", [
+            data.irmaoId,
+            data.valor,
+            competencia,
+            dataVencimento,
+            descricao,
+            data.rateio ? JSON.stringify(data.rateio) : null,
+          ]);
+          const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
+          ids.push(lanc_id as string);
+          await registrarAuditoria(conn, usuarioIdAtual, "criar", "fatura_avulsa", lanc_id, null, {
+            ...data,
+            competenciaMes: competencia,
+            dataVencimento,
+          });
+        }
+        await conn.commit();
+      } catch (erro) {
+        await conn.rollback();
+        throw erro;
+      }
+
+      const { enviarEmailFaturaEmitida } = await import("../email-dispatch");
+      for (const id of ids)
+        enviarEmailFaturaEmitida(id).catch((err) =>
+          console.error("Falha ao enviar e-mail de fatura emitida:", err),
+        );
+      return { ids, ignoradas };
+    });
+  });

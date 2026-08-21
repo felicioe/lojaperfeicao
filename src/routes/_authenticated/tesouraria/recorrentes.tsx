@@ -354,7 +354,7 @@ function Recorrentes() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-11 w-11 p-0 sm:h-8 sm:w-8"
                           onClick={() => editar(r)}
                         >
                           <Pencil className="h-4 w-4" />

@@ -1,7 +1,7 @@
 import { mkdir, writeFile, unlink, stat, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
-import { withUserConnection } from "./backend/db";
+import { listarLojasAtivas, withUserConnection } from "./backend/db";
 
 // Backup agendado (issue #85) — igual em espírito ao push-dispatch.ts:
 // chamado pelo endpoint HTTP em src/server.ts, que um cron job da
@@ -152,7 +152,6 @@ export async function executarBackupDaLoja(
 export async function executarBackupAgendado(
   origem: "cron" | "manual" = "cron",
 ): Promise<ResultadoBackup[]> {
-  const { listarLojasAtivas } = await import("./backend/db");
   const lojas = await listarLojasAtivas();
   const resultados: ResultadoBackup[] = [];
   for (const loja of lojas) {

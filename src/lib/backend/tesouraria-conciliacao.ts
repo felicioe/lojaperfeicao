@@ -75,6 +75,10 @@ const TEM_VINCULO = `(o.lancamento_id IS NOT NULL OR EXISTS (
     JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
    WHERE cl.conciliacao_id = o.conciliacao_id AND cl.loja_id = o.loja_id
      AND c.status = 'ativa'
+) OR EXISTS (
+  SELECT 1 FROM ofx_anulacoes oa
+   WHERE oa.loja_id = o.loja_id
+     AND (oa.ofx_credito_id = o.id OR oa.ofx_debito_id = o.id)
 ))`;
 
 export const listarOfxPendentes = createServerFn({ method: "GET" })
@@ -100,7 +104,7 @@ export const listarOfxPendentes = createServerFn({ method: "GET" })
  * lançamento criado a partir do OFX" aparecer justamente quando NÃO havia
  * lançamento nenhum, dando ares de normalidade pro estado corrompido (#356).
  */
-export type VinculoOfx = "baixa_fatura" | "lancamento_avulso" | "sem_vinculo";
+export type VinculoOfx = "baixa_fatura" | "lancamento_avulso" | "anulacao_ofx" | "sem_vinculo";
 
 export type OfxConferencia = OfxLancamento & {
   vinculos: string | null;
@@ -136,6 +140,11 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
                      WHERE cl.conciliacao_id = o.conciliacao_id AND cl.loja_id = o.loja_id
                        AND c.status = 'ativa'
                   ) THEN 'baixa_fatura'
+                  WHEN EXISTS (
+                    SELECT 1 FROM ofx_anulacoes oa
+                     WHERE oa.loja_id = o.loja_id
+                       AND (oa.ofx_credito_id = o.id OR oa.ofx_debito_id = o.id)
+                  ) THEN 'anulacao_ofx'
                   WHEN o.lancamento_id IS NOT NULL THEN 'lancamento_avulso'
                   ELSE 'sem_vinculo'
                 END AS vinculo,
@@ -157,6 +166,59 @@ export const listarOfxConferencia = createServerFn({ method: "GET" })
         [data.contaId, ...periodoParams],
       );
       return rows as OfxConferencia[];
+    });
+  });
+
+export const anularLinhasOfx = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ ofxIds: z.array(z.string().uuid()).length(2) }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual, lojaId) => {
+      await conn.beginTransaction();
+      try {
+        const [linhas] = await conn.query<RowDataPacket[]>(
+          `SELECT o.id, o.conta_financeira_id, o.valor
+             FROM ofx_lancamentos o
+            WHERE o.loja_id = @current_loja_id AND o.id IN (?)
+              AND NOT ${TEM_VINCULO}
+            FOR UPDATE`,
+          [data.ofxIds],
+        );
+        if (linhas.length !== 2) throw new Error("Selecione duas linhas OFX ainda pendentes.");
+        if (linhas[0].conta_financeira_id !== linhas[1].conta_financeira_id)
+          throw new Error("As duas linhas precisam pertencer à mesma conta bancária.");
+        const valores = linhas.map((l) => Number(l.valor));
+        if (!valores.some((v) => v > 0) || !valores.some((v) => v < 0))
+          throw new Error("Selecione um crédito e um débito.");
+        if (Math.round((valores[0] + valores[1]) * 100) !== 0)
+          throw new Error("O crédito e o débito precisam ter o mesmo valor.");
+        const credito = linhas.find((l) => Number(l.valor) > 0)!;
+        const debito = linhas.find((l) => Number(l.valor) < 0)!;
+        const id = crypto.randomUUID();
+        await conn.query(
+          `INSERT INTO ofx_anulacoes
+             (id, loja_id, conta_financeira_id, ofx_credito_id, ofx_debito_id, historico, criado_por)
+           VALUES (?, ?, ?, ?, ?, 'Lançamento indevido', ?)`,
+          [id, lojaId, credito.conta_financeira_id, credito.id, debito.id, usuarioIdAtual],
+        );
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          "anular_entre_si",
+          "ofx_anulacao",
+          id,
+          null,
+          {
+            ofxIds: data.ofxIds,
+            valor: Math.abs(Number(credito.valor)),
+            historico: "Lançamento indevido",
+          },
+        );
+        await conn.commit();
+        return { id };
+      } catch (erro) {
+        await conn.rollback();
+        throw erro;
+      }
     });
   });
 
@@ -513,6 +575,7 @@ const criarLancamentoOfxSchema = z.object({
   // Opcional (issue #136) — nem todo lançamento avulso tem um irmão
   // associado (ex.: tronco de solidariedade, que é institucional).
   irmaoId: z.string().uuid().nullable(),
+  terceiroId: z.string().uuid().nullable(),
   descricao: z.string().nullable(),
 });
 
@@ -520,11 +583,36 @@ export const criarLancamentoDeOfx = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarLancamentoOfxSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
-      await conn.query("CALL criar_lancamento_de_ofx(?, ?, ?, ?, NULL, ?, @lanc_id)", [
+      if (data.irmaoId && data.terceiroId) {
+        throw new Error("Escolha um irmão ou um cliente, não os dois.");
+      }
+      const [linhasOfx] = await conn.query<RowDataPacket[]>(
+        "SELECT valor FROM ofx_lancamentos WHERE id = ? AND loja_id = @current_loja_id AND NOT conciliado",
+        [data.ofxId],
+      );
+      if (!linhasOfx.length) throw new Error("Linha OFX não encontrada ou já conciliada.");
+      const isEntrada = Number(linhasOfx[0].valor) >= 0;
+      if (data.irmaoId) {
+        const [irmaos] = await conn.query<RowDataPacket[]>(
+          "SELECT 1 FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
+          [data.irmaoId],
+        );
+        if (!irmaos.length || !isEntrada) throw new Error("Irmão inválido para este lançamento.");
+      }
+      if (data.terceiroId) {
+        const [terceiros] = await conn.query<RowDataPacket[]>(
+          `SELECT 1 FROM terceiros WHERE id = ? AND loja_id = @current_loja_id
+           AND ativo = TRUE AND tipo IN (?, 'ambos')`,
+          [data.terceiroId, isEntrada ? "cliente" : "fornecedor"],
+        );
+        if (!terceiros.length) throw new Error("Cliente ou fornecedor inválido para esta loja.");
+      }
+      await conn.query("CALL criar_lancamento_de_ofx(?, ?, ?, ?, ?, ?, @lanc_id)", [
         data.ofxId,
         data.planoContaId,
         data.categoria,
         data.irmaoId,
+        data.terceiroId,
         data.descricao,
       ]);
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
@@ -550,6 +638,7 @@ const rateioItemSchema = z.object({
   planoContaId: z.string().uuid(),
   categoria: z.enum(["mensalidade", "taxa_grau", "tronco", "doacao", "outros"]).nullable(),
   irmaoId: z.string().uuid().nullable(),
+  terceiroId: z.string().uuid().nullable(),
   valor: z.number().positive(),
   descricao: z.string().nullable(),
 });
@@ -563,6 +652,18 @@ export const criarLancamentosDeOfxRateado = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarLancamentosOfxRateadoSchema.parse(d))
   .handler(async ({ data }): Promise<{ conciliacaoId: string }> => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      if (data.itens.some((i) => i.irmaoId && i.terceiroId)) {
+        throw new Error("Cada item pode ter um irmão ou um cliente, não os dois.");
+      }
+      for (const item of data.itens) {
+        if (!item.terceiroId) continue;
+        const [terceiros] = await conn.query<RowDataPacket[]>(
+          `SELECT 1 FROM terceiros WHERE id = ? AND loja_id = @current_loja_id
+           AND ativo = TRUE AND tipo IN (?, 'ambos')`,
+          [item.terceiroId, item.categoria === null ? "fornecedor" : "cliente"],
+        );
+        if (!terceiros.length) throw new Error("Cliente ou fornecedor inválido para esta loja.");
+      }
       await conn.query("CALL criar_lancamentos_de_ofx_rateado(?, ?, @conciliacao_id)", [
         data.ofxId,
         JSON.stringify(
@@ -570,6 +671,7 @@ export const criarLancamentosDeOfxRateado = createServerFn({ method: "POST" })
             plano_conta_id: i.planoContaId,
             categoria: i.categoria,
             irmao_id: i.irmaoId,
+            terceiro_id: i.terceiroId,
             valor: i.valor,
             descricao: i.descricao,
           })),

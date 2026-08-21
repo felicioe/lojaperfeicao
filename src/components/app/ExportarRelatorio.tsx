@@ -34,6 +34,7 @@ import type { ColunaRelatorio, FormatoRelatorio, LinhaRelatorio } from "@/lib/re
 
 const FORMATO_LABEL: Record<FormatoRelatorio, string> = {
   xlsx: "Excel (.xlsx)",
+  pdf: "PDF (.pdf)",
   csv: "CSV (.csv)",
   txt: "Texto (.txt)",
 };
@@ -74,6 +75,7 @@ export function ExportarRelatorio({
   const [openEmail, setOpenEmail] = useState(false);
   const [destinatarios, setDestinatarios] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [formatoEmail, setFormatoEmail] = useState<"xlsx" | "pdf">("xlsx");
 
   const exportar = async (formato: FormatoRelatorio) => {
     setExportando(formato);
@@ -103,7 +105,7 @@ export function ExportarRelatorio({
     setEnviando(true);
     try {
       const resultado = await enviarRelatorioPorEmail({
-        data: { formato: "xlsx", titulo, colunas, linhas, destinatarios: lista },
+        data: { formato: formatoEmail, titulo, colunas, linhas, destinatarios: lista },
       });
       const falhas = resultado.filter((r) => !r.sucesso);
       if (falhas.length === 0) {
@@ -196,8 +198,20 @@ export function ExportarRelatorio({
                 placeholder="email@exemplo.com, outro@exemplo.com"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Separe vários e-mails por vírgula. O arquivo (.xlsx) vai anexado.
+                Separe vários e-mails por vírgula.
               </p>
+            </div>
+            <div>
+              <Label htmlFor="exportar-formato-email">Formato do anexo</Label>
+              <select
+                id="exportar-formato-email"
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={formatoEmail}
+                onChange={(e) => setFormatoEmail(e.target.value as "xlsx" | "pdf")}
+              >
+                <option value="xlsx">Excel (.xlsx)</option>
+                <option value="pdf">PDF (.pdf)</option>
+              </select>
             </div>
           </div>
           <DialogFooter>

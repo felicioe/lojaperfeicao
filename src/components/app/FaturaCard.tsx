@@ -84,7 +84,9 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
             <span
               className={
                 "rounded-full px-3 py-1 text-xs font-medium " +
-                (fatura.pago ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800")
+                (fatura.pago
+                  ? "bg-success-muted text-success-foreground"
+                  : "bg-warning-muted text-warning-foreground")
               }
             >
               {fatura.pago ? "Pago" : fatura.valor_pago > 0 ? "Parcial" : "Em aberto"}

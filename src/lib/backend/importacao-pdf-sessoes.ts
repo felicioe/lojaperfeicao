@@ -1,8 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { PDFParse as PDFParseType } from "pdf-parse";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
@@ -137,7 +134,17 @@ class DOMMatrixPolyfill {
 // independente de qualquer instalação de node_modules acontecer depois.
 // Sobe os diretórios a partir da URL do próprio módulo (não de
 // process.cwd(), que pode não ser a raiz do app) até achar esse irmão.
-function resolverWorkerAsset(): string {
+async function resolverWorkerAsset(): Promise<string> {
+  // Especificadores calculados + vite-ignore mantêm estes módulos estritamente
+  // no runtime Node. A rota cliente recebe apenas o proxy de createServerFn.
+  const fsSpecifier = `node:${"fs"}`;
+  const pathSpecifier = `node:${"path"}`;
+  const urlSpecifier = `node:${"url"}`;
+  const [{ existsSync }, { dirname, join }, { fileURLToPath }] = await Promise.all([
+    import(/* @vite-ignore */ fsSpecifier) as Promise<typeof import("node:fs")>,
+    import(/* @vite-ignore */ pathSpecifier) as Promise<typeof import("node:path")>,
+    import(/* @vite-ignore */ urlSpecifier) as Promise<typeof import("node:url")>,
+  ]);
   let dir = dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 8; i++) {
     const candidato = join(dir, "public", "pdf.worker.mjs");
@@ -156,7 +163,7 @@ export async function carregarPdfParse(): Promise<typeof PDFParseType> {
     (globalThis as unknown as { DOMMatrix: unknown }).DOMMatrix = DOMMatrixPolyfill;
   }
   const { PDFParse } = await import("pdf-parse");
-  PDFParse.setWorker(resolverWorkerAsset());
+  PDFParse.setWorker(await resolverWorkerAsset());
   pdfParseCarregado = PDFParse;
   return PDFParse;
 }

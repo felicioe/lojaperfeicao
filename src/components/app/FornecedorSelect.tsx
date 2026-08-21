@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useId, useState, type ComponentProps } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { criarFornecedorRapido, listarFornecedores } from "@/lib/backend/terceiros";
+import { criarTerceiroRapido, listarTerceirosAtivosPorTipo } from "@/lib/backend/terceiros";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,26 +21,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const NOVO = "__novo_fornecedor__";
+const NOVO = "__novo_terceiro__";
 
-export function FornecedorSelect({
+export function TerceiroSelect({
   value,
   onValueChange,
+  tipo,
   permitirNenhum = true,
   triggerId,
 }: {
   value: string;
   onValueChange: (value: string) => void;
+  tipo: "fornecedor" | "cliente";
   permitirNenhum?: boolean;
   triggerId?: string;
 }) {
   const qc = useQueryClient();
+  const uid = useId();
+  const rotulo = tipo === "fornecedor" ? "fornecedor" : "cliente";
   const [aberto, setAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [form, setForm] = useState({ nome: "", documento: "", contato: "", email: "" });
-  const { data: fornecedores = [] } = useQuery({
-    queryKey: ["terceiros_fornecedores"],
-    queryFn: () => listarFornecedores(),
+  const { data: terceiros = [] } = useQuery({
+    queryKey: ["terceiros_ativos", tipo],
+    queryFn: () => listarTerceirosAtivosPorTipo({ data: { tipo } }),
   });
 
   const selecionar = (novoValor: string) => {
@@ -55,23 +59,25 @@ export function FornecedorSelect({
     if (form.nome.trim().length < 2) return;
     setSalvando(true);
     try {
-      const fornecedor = await criarFornecedorRapido({
+      const terceiro = await criarTerceiroRapido({
         data: {
+          tipo,
           nome: form.nome.trim(),
           documento: form.documento || null,
           contato: form.contato || null,
           email: form.email || null,
         },
       });
+      await qc.invalidateQueries({ queryKey: ["terceiros_ativos"] });
       await qc.invalidateQueries({ queryKey: ["terceiros_fornecedores"] });
-      onValueChange(fornecedor.id);
+      onValueChange(terceiro.id);
       setForm({ nome: "", documento: "", contato: "", email: "" });
       setAberto(false);
-      toast.success("Fornecedor cadastrado e selecionado.");
-    } catch (erro) {
-      toast.error(
-        erro instanceof Error ? erro.message : "Não foi possível cadastrar o fornecedor.",
+      toast.success(
+        `${tipo === "fornecedor" ? "Fornecedor" : "Cliente"} cadastrado e selecionado.`,
       );
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : `Não foi possível cadastrar o ${rotulo}.`);
     } finally {
       setSalvando(false);
     }
@@ -81,16 +87,16 @@ export function FornecedorSelect({
     <>
       <Select value={value} onValueChange={selecionar}>
         <SelectTrigger id={triggerId}>
-          <SelectValue placeholder="Selecione um fornecedor" />
+          <SelectValue placeholder={`Selecione um ${rotulo}`} />
         </SelectTrigger>
         <SelectContent>
           {permitirNenhum && <SelectItem value="none">— nenhum —</SelectItem>}
           <SelectItem value={NOVO} className="font-medium text-primary">
-            <Plus className="mr-2 inline h-4 w-4" /> Adicionar fornecedor
+            <Plus className="mr-2 inline h-4 w-4" /> Adicionar {rotulo}
           </SelectItem>
-          {fornecedores.map((fornecedor) => (
-            <SelectItem key={fornecedor.id} value={fornecedor.id}>
-              {fornecedor.nome}
+          {terceiros.map((terceiro) => (
+            <SelectItem key={terceiro.id} value={terceiro.id}>
+              {terceiro.nome}
             </SelectItem>
           ))}
         </SelectContent>
@@ -99,13 +105,13 @@ export function FornecedorSelect({
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Novo fornecedor</DialogTitle>
+            <DialogTitle>Novo {rotulo}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Label htmlFor="fornecedor-nome">Nome ou razão social</Label>
+              <Label htmlFor={`${uid}-nome`}>Nome ou razão social</Label>
               <Input
-                id="fornecedor-nome"
+                id={`${uid}-nome`}
                 autoFocus
                 maxLength={200}
                 value={form.nome}
@@ -113,27 +119,27 @@ export function FornecedorSelect({
               />
             </div>
             <div>
-              <Label htmlFor="fornecedor-documento">CNPJ ou CPF</Label>
+              <Label htmlFor={`${uid}-documento`}>CNPJ ou CPF</Label>
               <Input
-                id="fornecedor-documento"
+                id={`${uid}-documento`}
                 maxLength={18}
                 value={form.documento}
                 onChange={(e) => setForm({ ...form, documento: e.target.value })}
               />
             </div>
             <div>
-              <Label htmlFor="fornecedor-contato">Contato</Label>
+              <Label htmlFor={`${uid}-contato`}>Contato</Label>
               <Input
-                id="fornecedor-contato"
+                id={`${uid}-contato`}
                 maxLength={100}
                 value={form.contato}
                 onChange={(e) => setForm({ ...form, contato: e.target.value })}
               />
             </div>
             <div className="sm:col-span-2">
-              <Label htmlFor="fornecedor-email">E-mail</Label>
+              <Label htmlFor={`${uid}-email`}>E-mail</Label>
               <Input
-                id="fornecedor-email"
+                id={`${uid}-email`}
                 type="email"
                 maxLength={200}
                 value={form.email}
@@ -153,4 +159,8 @@ export function FornecedorSelect({
       </Dialog>
     </>
   );
+}
+
+export function FornecedorSelect(props: Omit<ComponentProps<typeof TerceiroSelect>, "tipo">) {
+  return <TerceiroSelect {...props} tipo="fornecedor" />;
 }

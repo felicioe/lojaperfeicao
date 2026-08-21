@@ -1,7 +1,7 @@
 export function CabecalhoInstitucional({ compacto = false }: { compacto?: boolean }) {
   return (
     <header
-      className={`institutional-header grid grid-cols-[1fr_auto] items-center gap-3 border-b border-primary/50 bg-background sm:grid-cols-[auto_1fr_auto] ${
+      className={`institutional-header grid grid-cols-[1fr_auto] items-center gap-3 border-b border-primary/50 sm:grid-cols-[auto_1fr_auto] ${
         compacto ? "mb-4 px-1 pb-3" : "mb-6 px-2 pb-4"
       }`}
     >

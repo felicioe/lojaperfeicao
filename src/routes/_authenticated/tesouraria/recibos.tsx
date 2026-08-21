@@ -391,7 +391,7 @@ function imprimirRecibo(r: {
     // parser de HTML fecharia o <script> DESTA página ao encontrar a
     // sequência dentro da string, e a impressão do recibo quebra.
     // eslint-disable-next-line no-useless-escape
-    `<!doctype html><html><head><title>Recibo ${r.numero}</title><style>body{font-family:Arial,sans-serif;color:#111;padding:36px;max-width:820px;margin:auto}.head{display:grid;grid-template-columns:150px 1fr 100px;align-items:center;border-bottom:2px solid #9b7b32;padding-bottom:16px}.logos img{width:60px;height:60px;object-fit:contain}.right{width:80px}.center{text-align:center;font-size:13px;font-weight:bold}.title{text-align:center;margin:36px 0 24px}.valor{border:1px solid #777;padding:10px 16px;float:right;font-size:20px}.texto{font-size:17px;line-height:1.8;clear:both;padding-top:25px}.assinatura{margin-top:80px;text-align:center}.linha{border-top:1px solid #333;width:360px;margin:auto;padding-top:8px}@media print{button{display:none}}</style></head><body><div class="head"><div class="logos"><img src="/institucional/logo-capitulo-ayres-gevaerd.png"><img src="/institucional/logo-loja-perfeicao-adonhiram.png"></div><div class="center">LOJA DE PERFEIÇÃO ADONHIRAM<br>SUBLIME CAPÍTULO ADONHIRAMITA AYRES GEVAERD<br><br>ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI<br>CNPJ 26.649.083/0001-38</div><img class="right" src="/institucional/logo-sgcab.png"></div><h1 class="title">RECIBO Nº ${r.numero}</h1><div class="valor">${brl(r.valor)}</div><p class="texto">${r.tipo === "recebimento" ? "Recebemos de" : "Pagamos a"} <strong>${r.pessoa_nome}</strong> a importância de <strong>${valorPorExtenso(Number(r.valor))}</strong>, referente a ${r.descricao}.${r.forma_pagamento ? `<br>Forma de pagamento: ${r.forma_pagamento}.` : ""}</p>${r.observacoes ? `<p>${r.observacoes}</p>` : ""}<p>Camboriú, ${fmtDate(r.data)}.</p><div class="assinatura"><div class="linha">ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI</div></div><script>setTimeout(()=>window.print(),500)<\/script></body></html>`,
+    `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recibo ${r.numero}</title><style>:root{--ink:#172033;--muted:#5b6472;--gold:#9b7b32}body{font-family:Georgia,"Times New Roman",serif;color:var(--ink);padding:36px;max-width:820px;margin:auto}.head{display:grid;grid-template-columns:150px 1fr 100px;align-items:center;border-bottom:2px solid var(--gold);padding-bottom:16px}.logos img{width:60px;height:60px;object-fit:contain}.right{width:80px}.center{text-align:center;font-size:13px;font-weight:bold}.title{text-align:center;margin:36px 0 24px}.valor{border:1px solid var(--muted);padding:10px 16px;float:right;font-size:20px}.texto{font-size:17px;line-height:1.8;clear:both;padding-top:25px}.assinatura{margin-top:80px;text-align:center}.linha{border-top:1px solid var(--ink);width:360px;margin:auto;padding-top:8px}@media print{button{display:none}}</style></head><body><div class="head"><div class="logos"><img src="/institucional/logo-capitulo-ayres-gevaerd.png" alt="Sublime Capítulo Adonhiramita Ayres Gevaerd"><img src="/institucional/logo-loja-perfeicao-adonhiram.png" alt="Loja de Perfeição Adonhiram"></div><div class="center">LOJA DE PERFEIÇÃO ADONHIRAM<br>SUBLIME CAPÍTULO ADONHIRAMITA AYRES GEVAERD<br><br>ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI<br>CNPJ 26.649.083/0001-38</div><img class="right" src="/institucional/logo-sgcab.png" alt="SGCAB"></div><h1 class="title">RECIBO Nº ${r.numero}</h1><div class="valor">${brl(r.valor)}</div><p class="texto">${r.tipo === "recebimento" ? "Recebemos de" : "Pagamos a"} <strong>${r.pessoa_nome}</strong> a importância de <strong>${valorPorExtenso(Number(r.valor))}</strong>, referente a ${r.descricao}.${r.forma_pagamento ? `<br>Forma de pagamento: ${r.forma_pagamento}.` : ""}</p>${r.observacoes ? `<p>${r.observacoes}</p>` : ""}<p>Camboriú, ${fmtDate(r.data)}.</p><div class="assinatura"><div class="linha">ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI</div></div><script>setTimeout(()=>window.print(),500)<\/script></body></html>`,
   );
   janela.document.close();
 }
@@ -468,11 +468,10 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
       </DialogHeader>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Label htmlFor="recibos-usar-movimentacao-ja-conciliada">
+          <Label htmlFor="recibos-usar-movimentacao-ja-conciliada-opcional">
             Usar movimentação já conciliada (opcional)
           </Label>
           <select
-            id="recibos-usar-movimentacao-ja-conciliada"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.conciliacaoId}
             onChange={(e) => {
@@ -486,6 +485,7 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
                 descricao: c?.descricao ?? d.descricao,
               });
             }}
+            id="recibos-usar-movimentacao-ja-conciliada-opcional"
           >
             <option value="">Criar recibo independente</option>
             {conciliacoes.map((c) => (
@@ -501,12 +501,12 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
         <div>
           <Label htmlFor="recibos-tipo">Tipo</Label>
           <select
-            id="recibos-tipo"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.tipo}
             onChange={(e) =>
               setD({ ...d, tipo: e.target.value as typeof d.tipo, planoContaId: "" })
             }
+            id="recibos-tipo"
           >
             <option value="recebimento">Recebimento</option>
             <option value="pagamento">Pagamento</option>
@@ -515,10 +515,10 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
         <div>
           <Label htmlFor="recibos-situacao">Situação</Label>
           <select
-            id="recibos-situacao"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.status}
             onChange={(e) => setD({ ...d, status: e.target.value as typeof d.status })}
+            id="recibos-situacao"
           >
             <option value="efetivo">Efetivo — movimenta caixa</option>
             <option value="previsto">Data futura — sem movimentar caixa</option>
@@ -527,30 +527,30 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
         <div>
           <Label htmlFor="recibos-data">Data</Label>
           <Input
-            id="recibos-data"
             type="date"
             value={d.data}
             onChange={(e) => setD({ ...d, data: e.target.value })}
+            id="recibos-data"
           />
         </div>
         <div>
           <Label htmlFor="recibos-valor">Valor</Label>
           <Input
-            id="recibos-valor"
             type="number"
             min="0.01"
             step="0.01"
             value={d.valor}
             onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
+            id="recibos-valor"
           />
         </div>
         <div>
           <Label htmlFor="recibos-vincular-a">Vincular a</Label>
           <select
-            id="recibos-vincular-a"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.pessoaTipo}
             onChange={(e) => setD({ ...d, pessoaTipo: e.target.value, pessoaId: "" })}
+            id="recibos-vincular-a"
           >
             <option value="irmao">Irmão</option>
             <option value="terceiro">Terceiro</option>
@@ -559,10 +559,10 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
         <div>
           <Label htmlFor="recibos-nome">Nome</Label>
           <select
-            id="recibos-nome"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.pessoaId}
             onChange={(e) => setD({ ...d, pessoaId: e.target.value })}
+            id="recibos-nome"
           >
             <option value="">Selecione…</option>
             {(d.pessoaTipo === "irmao"
@@ -578,10 +578,10 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
         <div>
           <Label htmlFor="recibos-categoria-contabil">Categoria contábil</Label>
           <select
-            id="recibos-categoria-contabil"
             className="h-10 w-full rounded-md border bg-background px-3"
             value={d.planoContaId}
             onChange={(e) => setD({ ...d, planoContaId: e.target.value })}
+            id="recibos-categoria-contabil"
           >
             <option value="">Selecione…</option>
             {planos.map((p) => (
@@ -595,10 +595,10 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
           <div>
             <Label htmlFor="recibos-conta-financeira">Conta financeira</Label>
             <select
-              id="recibos-conta-financeira"
               className="h-10 w-full rounded-md border bg-background px-3"
               value={d.contaFinanceiraId}
               onChange={(e) => setD({ ...d, contaFinanceiraId: e.target.value })}
+              id="recibos-conta-financeira"
             >
               <option value="">Selecione…</option>
               {contas.map((c) => (
@@ -612,25 +612,25 @@ function NovoReciboAvulso({ onDone }: { onDone: () => void }) {
         <div className="sm:col-span-2">
           <Label htmlFor="recibos-referente-a">Referente a</Label>
           <Input
-            id="recibos-referente-a"
             value={d.descricao}
             onChange={(e) => setD({ ...d, descricao: e.target.value })}
+            id="recibos-referente-a"
           />
         </div>
         <div>
           <Label htmlFor="recibos-forma-de-pagamento">Forma de pagamento</Label>
           <Input
-            id="recibos-forma-de-pagamento"
             value={d.formaPagamento}
             onChange={(e) => setD({ ...d, formaPagamento: e.target.value })}
+            id="recibos-forma-de-pagamento"
           />
         </div>
         <div className="sm:col-span-2">
           <Label htmlFor="recibos-observacoes">Observações</Label>
           <Textarea
-            id="recibos-observacoes"
             value={d.observacoes}
             onChange={(e) => setD({ ...d, observacoes: e.target.value })}
+            id="recibos-observacoes"
           />
         </div>
       </div>
