@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { relatorioInadimplenciaDetalhado, gerarCobrancaLote } from "@/lib/backend/relatorios";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
@@ -11,6 +11,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -26,13 +34,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowUpDown, Loader2, Mail } from "lucide-react";
+import { ArrowUpDown, Download, FileText, Loader2, Mail, Share2 } from "lucide-react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
+import { gerarArquivoRelatorio } from "@/lib/backend/relatorio-exportacao";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/relatorios/inadimplencia")({
@@ -54,9 +63,13 @@ const COLUNAS: ColunaRelatorio[] = [
 type Ordenacao = "dias_atraso" | "valor_total";
 
 function InadimplenciaDetalhada() {
-  const qc = useQueryClient();
   const [ordenacao, setOrdenacao] = useState<Ordenacao>("dias_atraso");
   const [selecionados, setSelecionados] = useState<string[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [idsDaPrevia, setIdsDaPrevia] = useState<string[]>([]);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [irmaoId, setIrmaoId] = useState("todos");
   const [vencimentoDe, setVencimentoDe] = useState("");
@@ -96,27 +109,107 @@ function InadimplenciaDetalhada() {
   const toggleSelecionado = (id: string) =>
     setSelecionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const gerarCobranca = async () => {
+  useEffect(
+    () => () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    },
+    [pdfUrl],
+  );
+
+  const itensSelecionados = itensOrdenadosManual.filter((item) => selecionados.includes(item.id));
+  const linhasCobranca = itensSelecionados.map((i) => ({
+    nome_civil: i.nome_civil,
+    descricao: i.descricao,
+    vencimento: fmtDate(i.data_vencimento),
+    dias_atraso: i.dias_atraso,
+    valor_original: Number(i.valor_original),
+    valor_multa: Number(i.valor_multa),
+    valor_juros: Number(i.valor_juros),
+    valor_total: Number(i.valor_total),
+  }));
+
+  const gerarPreviaCobranca = async () => {
     if (selecionados.length === 0) return;
+    setGerandoPdf(true);
+    try {
+      const resultado = await gerarArquivoRelatorio({
+        data: {
+          formato: "pdf",
+          titulo: "Cobrança — Faturas em atraso",
+          colunas: COLUNAS,
+          linhas: linhasCobranca,
+        },
+      });
+      const binario = atob(resultado.base64);
+      const bytes = new Uint8Array(binario.length);
+      for (let indice = 0; indice < binario.length; indice++) {
+        bytes[indice] = binario.charCodeAt(indice);
+      }
+      const blob = new Blob([bytes], { type: resultado.mimeType });
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      setPdfBlob(blob);
+      setPdfUrl(URL.createObjectURL(blob));
+      setIdsDaPrevia([...selecionados]);
+      setPreviewOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar a prévia da cobrança.");
+    } finally {
+      setGerandoPdf(false);
+    }
+  };
+
+  const enviarCobranca = async () => {
+    if (idsDaPrevia.length === 0) return;
     setEnviando(true);
     try {
-      const resultado = await gerarCobrancaLote({ data: { lancamentoIds: selecionados } });
+      const resultado = await gerarCobrancaLote({ data: { lancamentoIds: idsDaPrevia } });
       const sucesso = resultado.filter((r) => r.sucesso).length;
-      const falhas = resultado.length - sucesso;
-      if (falhas === 0) {
+      const idsComFalha = resultado.filter((r) => !r.sucesso).map((r) => r.id);
+      if (idsComFalha.length === 0) {
         toast.success(`Cobrança enviada para ${sucesso} fatura(s).`);
+        setSelecionados([]);
+        setPreviewOpen(false);
       } else {
         toast.error(
-          `${sucesso} enviada(s), ${falhas} falharam (irmão sem e-mail cadastrado ou erro de envio).`,
+          `${sucesso} enviada(s), ${idsComFalha.length} falharam. As pendências com falha continuam selecionadas.`,
         );
+        setSelecionados(idsComFalha);
+        setIdsDaPrevia(idsComFalha);
       }
-      setSelecionados([]);
-      qc.invalidateQueries({ queryKey: ["relatorio_inadimplencia_detalhado"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar cobrança.");
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar cobrança.");
     } finally {
       setEnviando(false);
     }
+  };
+
+  const baixarPdf = () => {
+    if (!pdfUrl) return;
+    const link = document.createElement("a");
+    link.href = pdfUrl;
+    link.download = "cobranca-faturas-em-atraso.pdf";
+    link.click();
+  };
+
+  const compartilharPdf = async () => {
+    if (!pdfBlob) return;
+    const arquivo = new File([pdfBlob], "cobranca-faturas-em-atraso.pdf", {
+      type: "application/pdf",
+    });
+    if (navigator.share && navigator.canShare?.({ files: [arquivo] })) {
+      try {
+        await navigator.share({
+          title: "Cobrança — Faturas em atraso",
+          text: "Segue a cobrança para conferência.",
+          files: [arquivo],
+        });
+        return;
+      } catch (erro) {
+        if ((erro as { name?: string }).name === "AbortError") return;
+      }
+    }
+    baixarPdf();
+    toast.info("O PDF foi baixado. Anexe-o no aplicativo pelo qual deseja enviar.");
   };
 
   const totalAtualizado = itens.reduce((s, i) => s + Number(i.valor_total), 0);
@@ -215,13 +308,13 @@ function InadimplenciaDetalhada() {
             </Button>
           </div>
           {selecionados.length > 0 && (
-            <Button size="sm" onClick={gerarCobranca} disabled={enviando}>
-              {enviando ? (
+            <Button size="sm" onClick={gerarPreviaCobranca} disabled={gerandoPdf}>
+              {gerandoPdf ? (
                 <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
               ) : (
-                <Mail className="h-3.5 w-3.5 mr-1" />
+                <FileText className="h-3.5 w-3.5 mr-1" />
               )}
-              Gerar cobrança ({selecionados.length})
+              Gerar e visualizar cobrança ({selecionados.length})
             </Button>
           )}
         </Card>
@@ -312,6 +405,49 @@ function InadimplenciaDetalhada() {
           setPagina={pag.setPagina}
         />
       </Card>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b px-4 py-4 sm:px-5">
+            <DialogTitle>Prévia da cobrança</DialogTitle>
+            <DialogDescription>
+              Confira o PDF antes de baixar, compartilhar ou enviar. Cada irmão receberá somente a
+              cobrança das próprias faturas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 bg-muted/30 p-3 sm:p-4">
+            {pdfUrl ? (
+              <iframe
+                src={pdfUrl}
+                title="Prévia em PDF da cobrança"
+                className="h-[56dvh] min-h-80 w-full rounded-lg border bg-background"
+              />
+            ) : (
+              <div className="flex h-[56dvh] min-h-80 items-center justify-center rounded-lg border bg-background text-sm text-muted-foreground">
+                A prévia do PDF não está disponível.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="border-t bg-background px-4 py-3 sm:px-5">
+            <Button variant="outline" onClick={baixarPdf} disabled={!pdfBlob || enviando}>
+              <Download aria-hidden="true" /> Baixar PDF
+            </Button>
+            <Button variant="outline" onClick={compartilharPdf} disabled={!pdfBlob || enviando}>
+              <Share2 aria-hidden="true" /> Compartilhar
+            </Button>
+            <Button onClick={enviarCobranca} disabled={enviando || idsDaPrevia.length === 0}>
+              {enviando ? (
+                <Loader2 className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Mail aria-hidden="true" />
+              )}
+              {enviando ? "Enviando…" : "Enviar por e-mail"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

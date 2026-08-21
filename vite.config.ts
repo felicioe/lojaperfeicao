@@ -34,6 +34,13 @@ export default defineConfig({
   // fotos (node:fs/promises). Ver mysql/README.md, seção 13.
   nitro: {
     preset: "node-server",
+    // O bundle ESM do PDFKit preserva acessos a `__dirname` para carregar as
+    // fontes AFM internas. Quando o Nitro incorpora esse pacote ao servidor,
+    // esses acessos quebram em runtime. Mantê-lo externo faz o Node carregar a
+    // distribuição CommonJS original, que resolve corretamente os assets.
+    rollupConfig: {
+      external: ["pdfkit"],
+    },
     // `minify` não está no tipo exposto por LovableViteTanstackOptions (a
     // interface só cobre preset/output/cloudflare de propósito), mas é
     // repassado como está para o nitro() real — cast só para calar o tsc.
