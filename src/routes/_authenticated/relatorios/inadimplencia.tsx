@@ -176,7 +176,6 @@ function InadimplenciaDetalhada() {
             type="date"
             value={vencimentoDe}
             onChange={(e) => setVencimentoDe(e.target.value)}
-            id="inadimplencia-vencimento-de"
           />
         </div>
         <div>
@@ -188,7 +187,6 @@ function InadimplenciaDetalhada() {
             type="date"
             value={vencimentoAte}
             onChange={(e) => setVencimentoAte(e.target.value)}
-            id="inadimplencia-vencimento-ate"
           />
         </div>
       </Card>
