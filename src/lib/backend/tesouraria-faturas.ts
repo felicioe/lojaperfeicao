@@ -238,7 +238,7 @@ function adicionarMes(data: string, quantidade: number): string {
 export const criarFaturasAvulsasIntervalo = createServerFn({ method: "POST" })
   .validator((d: unknown) => faturasAvulsasIntervaloSchema.parse(d))
   .handler(async ({ data }): Promise<{ ids: string[]; ignoradas: number }> => {
-    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual, lojaId) => {
       const meses: string[] = [];
       let atual = data.competenciaInicial;
       while (atual <= data.competenciaFinal && meses.length <= 36) {
@@ -293,7 +293,7 @@ export const criarFaturasAvulsasIntervalo = createServerFn({ method: "POST" })
 
       const { enviarEmailFaturaEmitida } = await import("../email-dispatch");
       for (const id of ids)
-        enviarEmailFaturaEmitida(id).catch((err) =>
+        enviarEmailFaturaEmitida(id, lojaId).catch((err) =>
           console.error("Falha ao enviar e-mail de fatura emitida:", err),
         );
       return { ids, ignoradas };

@@ -215,12 +215,44 @@ END$$
 -- estornada contabilmente, mas que conservaram valor_pago = valor.
 DROP PROCEDURE IF EXISTS aplicar_correcao_0101$$
 CREATE PROCEDURE aplicar_correcao_0101()
-BEGIN
+proc: BEGIN
+  DECLARE v_existentes INT DEFAULT 0;
   DECLARE v_validos INT DEFAULT 0;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN ROLLBACK; RESIGNAL; END;
 
   START TRANSACTION;
+
+  -- Correção pontual de 13 linhas específicas de UMA produção — não de
+  -- schema. Rodar as migrações do zero (banco de teste, suíte de
+  -- isolamento, uma Loja nova) nunca vai ter esses ids: contá-los
+  -- separado de "quantos passam nas validações" é o que distingue "esta
+  -- correção não se aplica aqui" (0 encontrados — segue em frente calada)
+  -- de "encontrei alguns dos 13, mas o estado deles não bate com o
+  -- esperado" (achado parcial — para e avisa, porque isso é sinal de algo
+  -- errado que merece olhar antes de mexer).
+  SELECT COUNT(*) INTO v_existentes
+  FROM lancamentos l
+  WHERE l.id IN (
+      'c9ec9cf4-9288-11f1-83e7-26dde4dfafcf',
+      'c9ebbf89-9288-11f1-83e7-26dde4dfafcf',
+      'c9eb9dd6-9288-11f1-83e7-26dde4dfafcf',
+      'c9ee0be4-9288-11f1-83e7-26dde4dfafcf',
+      'c9ec27c6-9288-11f1-83e7-26dde4dfafcf',
+      'c9ed134e-9288-11f1-83e7-26dde4dfafcf',
+      'c9edf7b7-9288-11f1-83e7-26dde4dfafcf',
+      'c9ee2841-9288-11f1-83e7-26dde4dfafcf',
+      'c9ecfe1a-9288-11f1-83e7-26dde4dfafcf',
+      'c9ec4e71-9288-11f1-83e7-26dde4dfafcf',
+      'c9ece989-9288-11f1-83e7-26dde4dfafcf',
+      'c9ec3ad8-9288-11f1-83e7-26dde4dfafcf',
+      'c9ec897c-9288-11f1-83e7-26dde4dfafcf'
+    );
+
+  IF v_existentes = 0 THEN
+    COMMIT;
+    LEAVE proc;
+  END IF;
 
   SELECT COUNT(*) INTO v_validos
   FROM lancamentos l
