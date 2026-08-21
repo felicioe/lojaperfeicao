@@ -970,3 +970,81 @@ export const importarOfx = createServerFn({ method: "POST" })
       return { total: blocos.length, novos, jaImportados, erros };
     });
   });
+
+// ---------- Lançamento em lote a partir do extrato (issue #357) ----------
+// A #356 trouxe de volta pra fila de pendentes um passivo real: linhas de
+// débito/crédito que passaram pelo banco e nunca viraram lançamento. O fluxo
+// existente resolve uma linha do extrato de cada vez; isto resolve várias de
+// uma vez, cada uma com sua própria classificação.
+
+export type ItemHistoricoOfx = {
+  descricaoOfx: string;
+  planoContaId: string;
+  codigo: string;
+  nome: string;
+};
+
+// Sugestão de conta contábil só a partir do que a PRÓPRIA Loja já
+// classificou — sem dicionário de palavra-chave fixo no código. A lição da
+// #349/#354 é que código de conta contábil é coisa de cada Loja, não
+// constante de programa; nunca dá pra supor que toda Loja tem uma "5.1.01".
+export const listarHistoricoClassificacoesOfx = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ItemHistoricoOfx[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT o.descricao AS descricaoOfx, l.plano_conta_id AS planoContaId,
+                pc.codigo, pc.nome
+         FROM ofx_lancamentos o
+         JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
+         JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = o.loja_id
+         WHERE o.loja_id = @current_loja_id AND o.lancamento_id IS NOT NULL
+           AND o.descricao IS NOT NULL AND o.descricao != ''
+         ORDER BY l.criado_em DESC
+         LIMIT 500`,
+      );
+      return rows as ItemHistoricoOfx[];
+    });
+  },
+);
+
+const itemLoteOfxSchema = z
+  .object({
+    ofxId: z.string().uuid(),
+    planoContaId: z.string().uuid().nullable(),
+    contaDestinoId: z.string().uuid().nullable(),
+    categoria: z.enum(["mensalidade", "taxa_grau", "tronco", "doacao", "outros"]).nullable(),
+    irmaoId: z.string().uuid().nullable(),
+    terceiroId: z.string().uuid().nullable(),
+    descricao: z.string().nullable(),
+  })
+  .refine((item) => (item.planoContaId == null) !== (item.contaDestinoId == null), {
+    message: "Cada linha precisa de exatamente uma classificação: conta contábil ou transferência.",
+  });
+
+const lancarLoteDeOfxSchema = z.object({ itens: z.array(itemLoteOfxSchema).min(1) });
+
+export const lancarLoteDeOfx = createServerFn({ method: "POST" })
+  .validator((d: unknown) => lancarLoteDeOfxSchema.parse(d))
+  .handler(async ({ data }): Promise<{ criados: number }> => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      await conn.query("CALL lancar_lote_de_ofx(?, @criados)", [
+        JSON.stringify(
+          data.itens.map((item) => ({
+            ofx_id: item.ofxId,
+            plano_conta_id: item.planoContaId,
+            conta_destino_id: item.contaDestinoId,
+            categoria: item.categoria,
+            irmao_id: item.irmaoId,
+            terceiro_id: item.terceiroId,
+            descricao: item.descricao,
+          })),
+        ),
+      ]);
+      const [[{ criados }]] = await conn.query<RowDataPacket[]>("SELECT @criados AS criados");
+      await registrarAuditoria(conn, usuarioIdAtual, "lancar_lote", "ofx_lancamentos", null, null, {
+        quantidade: data.itens.length,
+        ofxIds: data.itens.map((item) => item.ofxId),
+      });
+      return { criados: Number(criados) };
+    });
+  });

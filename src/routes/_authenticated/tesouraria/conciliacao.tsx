@@ -12,11 +12,14 @@ import {
   desfazerLancamentoOfx,
   importarOfx,
   obterResumoConciliacaoOfx,
+  lancarLoteDeOfx,
+  listarHistoricoClassificacoesOfx,
   type OfxLancamento,
   type OfxConferencia,
   type ResumoConciliacaoOfx,
+  type ItemHistoricoOfx,
 } from "@/lib/backend/tesouraria-conciliacao";
-import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
+import { listarContasFinanceiras, type ContaFinanceira } from "@/lib/backend/tesouraria-contas";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
@@ -53,6 +56,7 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Link2,
+  ListChecks,
   Loader2,
   Plus,
   Upload,
@@ -87,6 +91,7 @@ function Conciliacao() {
   const [openCriar, setOpenCriar] = useState(false);
   const [vinculando, setVinculando] = useState(false);
   const [openAnular, setOpenAnular] = useState(false);
+  const [openLote, setOpenLote] = useState(false);
   const [alocacaoParcial, setAlocacaoParcial] = useState<Record<string, number>>({});
 
   const { data: contas = [] } = useQuery({
@@ -634,6 +639,26 @@ function Conciliacao() {
                     ofxLinha={ofxSelecionadoUnico}
                     onDone={() => {
                       setOpenCriar(false);
+                      invalidate();
+                    }}
+                  />
+                )}
+              </Dialog>
+            )}
+            {selSistema.length === 0 && selOfx.length >= 1 && (
+              <Dialog open={openLote} onOpenChange={setOpenLote}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <ListChecks className="h-4 w-4 mr-1" /> Lançar em lote
+                  </Button>
+                </DialogTrigger>
+                {openLote && (
+                  <LancarLoteDialog
+                    linhas={linhasOfxSelecionadas}
+                    contas={contas}
+                    contaAtualId={contaId}
+                    onDone={() => {
+                      setOpenLote(false);
                       invalidate();
                     }}
                   />
@@ -1328,6 +1353,325 @@ function CriarLancamentoDialog({
             Criar {itensRateio.length} lançamentos
           </Button>
         )}
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+type ItemLote = {
+  tipo: "conta" | "transferencia";
+  planoContaId: string;
+  contaDestinoId: string;
+  categoria: string;
+  irmaoId: string;
+  terceiroId: string;
+  descricao: string;
+};
+
+function novoItemLote(descricao: string): ItemLote {
+  return {
+    tipo: "conta",
+    planoContaId: "",
+    contaDestinoId: "",
+    categoria: "outros",
+    irmaoId: "",
+    terceiroId: "none",
+    descricao,
+  };
+}
+
+function LancarLoteDialog({
+  linhas,
+  contas,
+  contaAtualId,
+  onDone,
+}: {
+  linhas: OfxLancamento[];
+  contas: ContaFinanceira[];
+  contaAtualId: string;
+  onDone: () => void;
+}) {
+  const [itens, setItens] = useState<Record<string, ItemLote>>(() =>
+    Object.fromEntries(linhas.map((l) => [l.id, novoItemLote(l.descricao ?? "")])),
+  );
+  const aplicouSugestaoInicial = useRef(false);
+  const [saving, setSaving] = useState(false);
+
+  const { data: historico = [] } = useQuery({
+    queryKey: ["conciliacao_historico_classificacoes"],
+    queryFn: () => listarHistoricoClassificacoesOfx(),
+  });
+  const { data: planosReceita = [] } = useQuery({
+    queryKey: ["planos_por_tipo", true],
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "receita" } }),
+  });
+  const { data: planosDespesa = [] } = useQuery({
+    queryKey: ["planos_por_tipo", false],
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "despesa" } }),
+  });
+  const { data: irmaos = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
+
+  // Sugestão a partir do histórico: mesma descrição do OFX já classificada
+  // antes, nesta Loja, aponta pra mesma conta contábil de novo — mesma
+  // ideia da sugestão por nome do #123, aplicada aqui à conta contábil.
+  const sugestaoPorDescricao = new Map<string, ItemHistoricoOfx>();
+  for (const h of historico) {
+    const chave = normalizarTexto(h.descricaoOfx);
+    if (!sugestaoPorDescricao.has(chave)) sugestaoPorDescricao.set(chave, h);
+  }
+
+  const aplicarSugestoes = () => {
+    setItens((atual) => {
+      const proximo = { ...atual };
+      for (const l of linhas) {
+        const sugestao = sugestaoPorDescricao.get(normalizarTexto(l.descricao ?? ""));
+        if (sugestao) {
+          proximo[l.id] = {
+            ...proximo[l.id],
+            tipo: "conta",
+            planoContaId: sugestao.planoContaId,
+          };
+        }
+      }
+      return proximo;
+    });
+  };
+
+  useEffect(() => {
+    if (aplicouSugestaoInicial.current || historico.length === 0) return;
+    aplicouSugestaoInicial.current = true;
+    aplicarSugestoes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historico]);
+
+  const atualizarItem = (id: string, patch: Partial<ItemLote>) => {
+    setItens((atual) => ({ ...atual, [id]: { ...atual[id], ...patch } }));
+  };
+
+  const linhaValida = (l: OfxLancamento) => {
+    const it = itens[l.id];
+    if (!it) return false;
+    return it.tipo === "conta" ? !!it.planoContaId : !!it.contaDestinoId;
+  };
+  const todasValidas = linhas.length > 0 && linhas.every(linhaValida);
+
+  const salvar = async () => {
+    if (!todasValidas) return toast.error("Classifique todas as linhas antes de lançar.");
+    setSaving(true);
+    try {
+      const resultado = await lancarLoteDeOfx({
+        data: {
+          itens: linhas.map((l) => {
+            const it = itens[l.id];
+            const isEntrada = Number(l.valor) >= 0;
+            return {
+              ofxId: l.id,
+              planoContaId: it.tipo === "conta" ? it.planoContaId : null,
+              contaDestinoId: it.tipo === "transferencia" ? it.contaDestinoId : null,
+              categoria:
+                it.tipo === "conta" && isEntrada
+                  ? (it.categoria as "mensalidade" | "taxa_grau" | "tronco" | "doacao" | "outros")
+                  : null,
+              irmaoId: it.tipo === "conta" && isEntrada && it.irmaoId ? it.irmaoId : null,
+              terceiroId: it.tipo === "conta" && it.terceiroId !== "none" ? it.terceiroId : null,
+              descricao: it.descricao || null,
+            };
+          }),
+        },
+      });
+      toast.success(`${resultado.criados} lançamento(s) criado(s) e conciliado(s).`);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao lançar em lote.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const outrasContas = contas.filter((c) => c.id !== contaAtualId);
+
+  return (
+    <DialogContent className="max-w-3xl">
+      <DialogHeader>
+        <DialogTitle>Lançar em lote a partir do extrato</DialogTitle>
+      </DialogHeader>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {linhas.length} linha(s) selecionada(s). Classifique cada uma como conta contábil ou
+          transferência entre contas.
+        </p>
+        {sugestaoPorDescricao.size > 0 && (
+          <Button type="button" size="sm" variant="outline" onClick={aplicarSugestoes}>
+            Aplicar sugestão do histórico
+          </Button>
+        )}
+      </div>
+      <div className="max-h-[28rem] space-y-3 overflow-y-auto">
+        {linhas.map((l) => {
+          const it = itens[l.id];
+          if (!it) return null;
+          const isEntrada = Number(l.valor) >= 0;
+          const planos = isEntrada ? planosReceita : planosDespesa;
+          return (
+            <div key={l.id} className="grid gap-2 rounded-md border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{l.descricao || "Sem descrição"}</span>
+                <span
+                  className={`text-sm font-semibold tabular-nums ${isEntrada ? "text-success-foreground" : "text-destructive"}`}
+                >
+                  {brl(l.valor)}
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground">{fmtDate(l.data)}</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor={`lote-tipo-${l.id}`}>Classificação</Label>
+                  <Select
+                    value={it.tipo}
+                    onValueChange={(v) => atualizarItem(l.id, { tipo: v as ItemLote["tipo"] })}
+                  >
+                    <SelectTrigger id={`lote-tipo-${l.id}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="conta">Conta contábil</SelectItem>
+                      <SelectItem value="transferencia">Transferência entre contas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {it.tipo === "conta" ? (
+                  <div>
+                    <Label htmlFor={`lote-plano-${l.id}`}>
+                      Categoria contábil ({isEntrada ? "receita" : "despesa"})
+                    </Label>
+                    <Select
+                      value={it.planoContaId}
+                      onValueChange={(v) => atualizarItem(l.id, { planoContaId: v })}
+                    >
+                      <SelectTrigger id={`lote-plano-${l.id}`}>
+                        <SelectValue placeholder="Selecione…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {planos.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.codigo} — {p.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div>
+                    <Label htmlFor={`lote-destino-${l.id}`}>Outra conta</Label>
+                    <Select
+                      value={it.contaDestinoId}
+                      onValueChange={(v) => atualizarItem(l.id, { contaDestinoId: v })}
+                    >
+                      <SelectTrigger id={`lote-destino-${l.id}`}>
+                        <SelectValue placeholder="Selecione…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {outrasContas.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              {it.tipo === "conta" && (
+                <div className="grid grid-cols-2 gap-2">
+                  {isEntrada && (
+                    <div>
+                      <Label htmlFor={`lote-categoria-${l.id}`}>Categoria</Label>
+                      <Select
+                        value={it.categoria}
+                        onValueChange={(v) => atualizarItem(l.id, { categoria: v })}
+                      >
+                        <SelectTrigger id={`lote-categoria-${l.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(CATEGORIA_LABEL).map(([v, txt]) => (
+                            <SelectItem key={v} value={v}>
+                              {txt}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {isEntrada && (
+                    <div>
+                      <Label htmlFor={`lote-irmao-${l.id}`}>Irmão (opcional)</Label>
+                      <Select
+                        value={it.irmaoId || "__nenhum__"}
+                        onValueChange={(v) =>
+                          atualizarItem(l.id, {
+                            irmaoId: v === "__nenhum__" ? "" : v,
+                            ...(v === "__nenhum__" ? {} : { terceiroId: "none" }),
+                          })
+                        }
+                      >
+                        <SelectTrigger id={`lote-irmao-${l.id}`}>
+                          <SelectValue placeholder="Selecione…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__nenhum__">Nenhum</SelectItem>
+                          {irmaos.map((i) => (
+                            <SelectItem key={i.id} value={i.id}>
+                              {i.nome_civil}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className={isEntrada ? "col-span-2" : undefined}>
+                    <Label htmlFor={`lote-terceiro-${l.id}`}>
+                      {isEntrada ? "Cliente (opcional)" : "Fornecedor (opcional)"}
+                    </Label>
+                    <TerceiroSelect
+                      triggerId={`lote-terceiro-${l.id}`}
+                      tipo={isEntrada ? "cliente" : "fornecedor"}
+                      value={it.terceiroId}
+                      onValueChange={(v) =>
+                        atualizarItem(l.id, {
+                          terceiroId: v,
+                          ...(isEntrada && v !== "none" ? { irmaoId: "" } : {}),
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+              <div>
+                <Label htmlFor={`lote-descricao-${l.id}`}>Descrição</Label>
+                <Input
+                  id={`lote-descricao-${l.id}`}
+                  value={it.descricao}
+                  onChange={(e) => atualizarItem(l.id, { descricao: e.target.value })}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button variant="outline" disabled={saving}>
+            Cancelar
+          </Button>
+        </DialogClose>
+        <Button onClick={salvar} disabled={saving || !todasValidas}>
+          {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+          Lançar {linhas.length} movimentaç{linhas.length === 1 ? "ão" : "ões"}
+        </Button>
       </DialogFooter>
     </DialogContent>
   );
