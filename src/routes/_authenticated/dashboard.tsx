@@ -8,32 +8,32 @@ import {
   contarSessoesMes,
   listarAniversariantesMes,
   obterResumoContasReceber,
+  obterMediaDespesasMensais,
+  listarPendenciasPrioritarias,
   type ContaAPagarProxima,
+  type PendenciaPrioritaria,
+  type ResumoContasReceber,
 } from "@/lib/backend/dashboard";
 import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/AppShell";
 import { brl, fmtDate } from "@/lib/format";
-import {
-  AlertCircle,
-  ArrowRight,
-  CalendarClock,
-  CalendarDays,
-  FileText,
-  Library,
-  RefreshCw,
-  Vote,
-} from "lucide-react";
+import { ArrowRight, CalendarDays, FileText, Library, RefreshCw, Vote } from "lucide-react";
 import { listarDocumentos } from "@/lib/backend/documentos";
 import { listarEnquetes } from "@/lib/backend/enquetes";
 import { listarEventos } from "@/lib/backend/eventos";
 import { listarPecasArquitetura } from "@/lib/backend/pecas-arquitetura";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useOrdenacao } from "@/lib/use-ordenacao";
-import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   beforeLoad: ({ context }) => {
@@ -106,6 +106,14 @@ function Dashboard() {
     queryKey: ["dash", "contasReceber"],
     queryFn: () => obterResumoContasReceber(),
   });
+  const mediaDespesas = useQuery({
+    queryKey: ["dash", "mediaDespesasMensais"],
+    queryFn: () => obterMediaDespesasMensais(),
+  });
+  const pendenciasPrioritarias = useQuery({
+    queryKey: ["dash", "pendenciasPrioritarias"],
+    queryFn: () => listarPendenciasPrioritarias(),
+  });
   const documentos = useQuery({ queryKey: ["dash", "documentos"], queryFn: listarDocumentos });
   const enquetes = useQuery({ queryKey: ["dash", "enquetes"], queryFn: listarEnquetes });
   const eventos = useQuery({ queryKey: ["dash", "eventos"], queryFn: listarEventos });
@@ -120,136 +128,59 @@ function Dashboard() {
     0,
   );
   const saldoProjetado = saldoAtual + (projecao.data?.delta ?? 0);
+  const coberturaCaixa =
+    (mediaDespesas.data ?? 0) > 0 ? saldoAtual / Number(mediaDespesas.data) : null;
+  const em7Dias = new Date();
+  em7Dias.setDate(em7Dias.getDate() + 7);
+  const em7DiasIso = dataIsoLocal(em7Dias);
+  const contasPagarHoje = (contasPagar.data ?? [])
+    .filter((conta) => conta.data_vencimento === hoje)
+    .reduce((soma, conta) => soma + Number(conta.valor), 0);
+  const contasPagar7Dias = (contasPagar.data ?? [])
+    .filter((conta) => conta.data_vencimento > hoje && conta.data_vencimento <= em7DiasIso)
+    .reduce((soma, conta) => soma + Number(conta.valor), 0);
+  const contasPagarRestante = Math.max(0, totalPagar - contasPagarHoje - contasPagar7Dias);
   const proximosAniversariantes = (aniversariantes.data ?? [])
     .slice(0, 2)
     .map((aniversariante) => aniversariante.nome_civil.split(" ")[0])
     .join(", ");
-
-  const ordenacao = useOrdenacao(contasPagar.data ?? [], {
-    vencimento: (conta) => conta.data_vencimento,
-    descricao: (conta) => conta.descricao,
-    valor: (conta) => Number(conta.valor),
-    status: (conta) => (new Date(conta.data_vencimento) < new Date(`${hoje}T00:00:00`) ? 1 : 0),
-  });
 
   const projecaoPendente = saldos.isPending || projecao.isPending;
   const projecaoComErro = saldos.isError || projecao.isError;
 
   return (
     <>
-      <PageHeader title="Dashboard" description="Visão geral da loja e dos próximos 30 dias." />
-
-      <section aria-labelledby="receber-title" className="mb-5 sm:mb-6">
-        <SectionHeader
-          id="receber-title"
-          title="Contas a receber"
-          description="Recebimentos do mês e valores vencidos que precisam de acompanhamento."
-        />
-        <MetricGroup
-          columns="sm:grid-cols-2"
-          updatedAt={contasReceber.dataUpdatedAt}
-          refreshing={contasReceber.isFetching}
-        >
-          <MetricItem
-            label="Recebido neste mês"
-            value={brl(contasReceber.data?.recebidoMes ?? 0)}
-            hint="Ver todos os recebimentos"
-            query={contasReceber}
-            tone="success"
-            to="/relatorios/recebimentos"
-          />
-          <MetricItem
-            label="Inadimplência"
-            value={brl(contasReceber.data?.inadimplencia ?? 0)}
-            hint={pluralizar(
-              contasReceber.data?.quantidadeInadimplentes ?? 0,
-              "irmão com pendência",
-              "irmãos com pendência",
-            )}
-            query={contasReceber}
-            tone={(contasReceber.data?.inadimplencia ?? 0) > 0 ? "danger" : "success"}
-            to="/relatorios/inadimplencia"
-          />
-        </MetricGroup>
-      </section>
-
-      <section aria-labelledby="atencao-title" className="mb-5 sm:mb-6">
-        <Card>
-          <CardHeader className="gap-3 space-y-0 border-b p-3.5 sm:flex-row sm:items-start sm:justify-between sm:p-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <div className="rounded-md bg-warning-muted p-1.5 text-warning-foreground">
-                  <CalendarClock className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <CardTitle id="atencao-title">Requer atenção</CardTitle>
-              </div>
-              {contasPagar.isPending ? (
-                <div className="mt-3 space-y-2" aria-label="Carregando resumo de pendências">
-                  <Skeleton className="h-6 w-40" />
-                  <Skeleton className="h-4 w-52" />
-                </div>
-              ) : contasPagar.isError ? (
-                <div className="mt-3" role="alert">
-                  <p className="text-sm font-medium text-destructive">Resumo indisponível</p>
-                  <Button
-                    variant="link"
-                    className="mt-1 h-auto p-0 text-xs"
-                    onClick={() => void contasPagar.refetch()}
-                  >
-                    <RefreshCw aria-hidden="true" /> Tentar novamente
-                  </Button>
-                </div>
-              ) : (
-                <div className="mt-3">
-                  <p className="text-lg font-semibold tabular-nums sm:text-xl">{brl(totalPagar)}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {pluralizar(contasPagar.data.length, "lançamento vence", "lançamentos vencem")}{" "}
-                    nos próximos 30 dias
-                  </p>
-                  <p className="mt-1.5 text-xs font-medium leading-relaxed text-muted-foreground">
-                    {contasPagar.isFetching
-                      ? "Atualizando…"
-                      : `Atualizado às ${horaAtualizacao(contasPagar.dataUpdatedAt)}`}
-                  </p>
-                </div>
-              )}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
-              className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-            >
-              <Link to="/tesouraria/contas-pagar">Gerenciar contas a pagar</Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="p-3.5 pt-3 sm:p-4 sm:pt-3">
-            <ContasPagarTable contasPagar={contasPagar} ordenacao={ordenacao} hoje={hoje} />
-          </CardContent>
-        </Card>
-      </section>
+      <PageHeader
+        title="Visão financeira"
+        description="Posição consolidada e compromissos dos próximos 30 dias."
+      />
 
       <section aria-labelledby="financeiro-title" className="mb-5 sm:mb-6">
         <SectionHeader
           id="financeiro-title"
-          title="Posição financeira"
-          description="Disponibilidade atual e impacto previsto para os próximos 30 dias."
+          title="Disponibilidade"
+          description="Saldo atual, projeção financeira e cobertura das despesas habituais."
         />
         <MetricGroup
-          columns="sm:grid-cols-2"
-          updatedAt={atualizacaoMaisAntiga(saldos.dataUpdatedAt, projecao.dataUpdatedAt)}
-          refreshing={saldos.isFetching || projecao.isFetching}
+          columns="md:grid-cols-3"
+          updatedAt={atualizacaoMaisAntiga(
+            saldos.dataUpdatedAt,
+            projecao.dataUpdatedAt,
+            mediaDespesas.dataUpdatedAt,
+          )}
+          refreshing={saldos.isFetching || projecao.isFetching || mediaDespesas.isFetching}
         >
           <MetricItem
-            label="Saldo de caixa (hoje)"
+            label="Saldo de caixa hoje"
             value={brl(saldoAtual)}
-            hint={pluralizar(saldos.data?.length ?? 0, "conta", "contas")}
+            hint={pluralizar(saldos.data?.length ?? 0, "conta financeira", "contas financeiras")}
             query={saldos}
+            featured
           />
           <MetricItem
-            label="Saldo projetado (30 dias)"
+            label="Saldo projetado em 30 dias"
             value={brl(saldoProjetado)}
-            hint={`${(projecao.data?.delta ?? 0) >= 0 ? "+" : ""}${brl(projecao.data?.delta ?? 0)} previstos`}
+            hint={`${brl(projecao.data?.somaE ?? 0)} a receber · ${brl(projecao.data?.somaS ?? 0)} a pagar`}
             tone={saldoProjetado >= 0 ? "success" : "danger"}
             pending={projecaoPendente}
             error={projecaoComErro}
@@ -258,7 +189,55 @@ function Dashboard() {
               void projecao.refetch();
             }}
           />
+          <MetricItem
+            label="Cobertura de caixa"
+            value={coberturaCaixa === null ? "Sem histórico" : `${coberturaCaixa.toFixed(1)} meses`}
+            hint={
+              coberturaCaixa === null
+                ? "Ainda não há despesas pagas suficientes"
+                : `Despesa média mensal: ${brl(mediaDespesas.data ?? 0)}`
+            }
+            pending={mediaDespesas.isPending || saldos.isPending}
+            error={mediaDespesas.isError || saldos.isError}
+            onRetry={() => {
+              void mediaDespesas.refetch();
+              void saldos.refetch();
+            }}
+            tone={coberturaCaixa !== null && coberturaCaixa < 1 ? "danger" : "neutral"}
+          />
         </MetricGroup>
+      </section>
+
+      <section aria-labelledby="agenda-title" className="mb-5 sm:mb-6">
+        <SectionHeader
+          id="agenda-title"
+          title="Agenda financeira"
+          description="Compromissos de curto prazo e envelhecimento dos valores vencidos."
+        />
+        <div className="grid gap-3 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <AgendaFinanceiraCard
+              query={contasPagar}
+              total={totalPagar}
+              hoje={contasPagarHoje}
+              seteDias={contasPagar7Dias}
+              restante={contasPagarRestante}
+            />
+          </div>
+          <div className="lg:col-span-5">
+            <AgingCard query={contasReceber} />
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="prioridades-title" className="mb-5 sm:mb-6">
+        <SectionHeader
+          id="prioridades-title"
+          title="Pendências prioritárias"
+          description="Cobranças mais antigas que exigem acompanhamento."
+          action={{ label: "Ver relatório completo", to: "/relatorios/inadimplencia" }}
+        />
+        <PendenciasPrioritarias query={pendenciasPrioritarias} />
       </section>
 
       <section aria-labelledby="loja-title">
@@ -345,215 +324,33 @@ function SectionHeader({
   id,
   title,
   description,
+  action,
 }: {
   id: string;
   title: string;
   description: string;
+  action?: { label: string; to: string };
 }) {
   return (
-    <div className="mb-2.5 sm:mb-3">
-      <h2 id={id} className="text-base font-semibold leading-snug tracking-[-0.01em] sm:text-lg">
-        {title}
-      </h2>
-      <p className="mt-1 max-w-[70ch] text-sm leading-relaxed text-muted-foreground">
-        {description}
-      </p>
+    <div className="mb-2.5 gap-3 sm:mb-3 sm:flex sm:items-end sm:justify-between">
+      <div>
+        <h2 id={id} className="text-base font-semibold leading-snug tracking-[-0.01em] sm:text-lg">
+          {title}
+        </h2>
+        <p className="mt-1 max-w-[70ch] text-sm leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </div>
+      {action && (
+        <Link
+          to={action.to}
+          className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline sm:mt-0 sm:min-h-9"
+        >
+          {action.label} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      )}
     </div>
   );
-}
-
-function ContasPagarTable({
-  contasPagar,
-  ordenacao,
-  hoje,
-}: {
-  contasPagar: ReturnType<typeof useQuery<ContaAPagarProxima[]>>;
-  ordenacao: ReturnType<typeof useOrdenacao<ContaAPagarProxima>>;
-  hoje: string;
-}) {
-  return (
-    <>
-      <div className="sr-only" aria-live="polite">
-        {contasPagar.isPending
-          ? "Carregando contas a pagar."
-          : contasPagar.isError
-            ? "Não foi possível carregar as contas a pagar."
-            : `${contasPagar.data.length} contas a pagar carregadas.`}
-      </div>
-      <div className="sm:hidden">
-        <ContasPagarMobile contasPagar={contasPagar} hoje={hoje} />
-      </div>
-      <div className="hidden max-w-full overflow-x-auto overscroll-x-contain sm:block">
-        <Table className="min-w-[620px]">
-          <TableHeader>
-            <TableRow>
-              <TableHeadOrdenavel campo="vencimento" ord={ordenacao}>
-                Vencimento
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="descricao" ord={ordenacao}>
-                Descrição
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="valor" ord={ordenacao} className="text-right">
-                Valor
-              </TableHeadOrdenavel>
-              <TableHeadOrdenavel campo="status" ord={ordenacao}>
-                Status
-              </TableHeadOrdenavel>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contasPagar.isPending && <TableLoadingRows />}
-            {contasPagar.isError && (
-              <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center">
-                  <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
-                    <AlertCircle className="h-5 w-5 text-destructive" aria-hidden="true" />
-                    <div>
-                      <p className="text-sm font-medium">Não foi possível carregar as contas</p>
-                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                        Verifique sua conexão e tente novamente. Os demais dados continuam
-                        disponíveis.
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => void contasPagar.refetch()}>
-                      <RefreshCw aria-hidden="true" /> Tentar novamente
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-            {contasPagar.isSuccess && contasPagar.data.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
-                  Nenhuma conta a pagar nos próximos 30 dias.
-                </TableCell>
-              </TableRow>
-            )}
-            {contasPagar.isSuccess &&
-              ordenacao.itensOrdenados.map((conta: ContaAPagarProxima) => {
-                const vencida =
-                  new Date(`${conta.data_vencimento}T00:00:00`) < new Date(`${hoje}T00:00:00`);
-                return (
-                  <TableRow key={conta.id}>
-                    <TableCell>{fmtDate(conta.data_vencimento)}</TableCell>
-                    <TableCell className="max-w-md break-words">
-                      {conta.descricao}
-                      {conta.recorrente_id && (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          Origem: despesa recorrente
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {brl(conta.valor)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={vencida ? "destructive" : "secondary"}>
-                        {vencida ? "Vencida" : "A vencer"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-          </TableBody>
-        </Table>
-      </div>
-    </>
-  );
-}
-
-function ContasPagarMobile({
-  contasPagar,
-  hoje,
-}: {
-  contasPagar: ReturnType<typeof useQuery<ContaAPagarProxima[]>>;
-  hoje: string;
-}) {
-  if (contasPagar.isPending) {
-    return (
-      <div className="space-y-4" aria-label="Carregando contas a pagar">
-        {Array.from({ length: 3 }, (_, index) => (
-          <div key={index} className="space-y-2 border-b pb-4 last:border-0 last:pb-0">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-4 w-28" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (contasPagar.isError) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-6 text-center" role="alert">
-        <AlertCircle className="h-5 w-5 text-destructive" aria-hidden="true" />
-        <div>
-          <p className="text-sm font-medium">Não foi possível carregar as contas</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Verifique sua conexão e tente novamente.
-          </p>
-        </div>
-        <Button variant="outline" className="min-h-11" onClick={() => void contasPagar.refetch()}>
-          <RefreshCw aria-hidden="true" /> Tentar novamente
-        </Button>
-      </div>
-    );
-  }
-
-  if (contasPagar.data.length === 0) {
-    return (
-      <p className="py-6 text-center text-sm text-muted-foreground">
-        Nenhuma conta a pagar nos próximos 30 dias.
-      </p>
-    );
-  }
-
-  return (
-    <ul className="divide-y" aria-label="Contas a pagar nos próximos 30 dias">
-      {contasPagar.data.map((conta) => {
-        const vencida =
-          new Date(`${conta.data_vencimento}T00:00:00`) < new Date(`${hoje}T00:00:00`);
-        return (
-          <li key={conta.id} className="py-4 first:pt-0 last:pb-0">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="break-words text-base font-medium leading-snug">{conta.descricao}</p>
-                {conta.recorrente_id && (
-                  <p className="mt-1 text-sm text-muted-foreground">Origem: despesa recorrente</p>
-                )}
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Vence em {fmtDate(conta.data_vencimento)}
-                </p>
-              </div>
-              <Badge variant={vencida ? "destructive" : "secondary"} className="shrink-0">
-                {vencida ? "Vencida" : "A vencer"}
-              </Badge>
-            </div>
-            <p className="mt-3 text-lg font-semibold tabular-nums">{brl(conta.valor)}</p>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function TableLoadingRows() {
-  return Array.from({ length: 3 }, (_, index) => (
-    <TableRow key={index} aria-hidden="true">
-      <TableCell>
-        <Skeleton className="h-4 w-24" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-full max-w-xs" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="ml-auto h-4 w-20" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-5 w-16" />
-      </TableCell>
-    </TableRow>
-  ));
 }
 
 type EstadoConsulta = {
@@ -563,6 +360,187 @@ type EstadoConsulta = {
   dataUpdatedAt: number;
   refetch: () => Promise<unknown>;
 };
+
+type ConsultaContasPagar = EstadoConsulta & { data?: ContaAPagarProxima[] };
+type ConsultaPendencias = EstadoConsulta & { data?: PendenciaPrioritaria[] };
+
+function AgendaFinanceiraCard({
+  query,
+  total,
+  hoje,
+  seteDias,
+  restante,
+}: {
+  query: ConsultaContasPagar;
+  total: number;
+  hoje: number;
+  seteDias: number;
+  restante: number;
+}) {
+  const periodos = [
+    { label: "Hoje", value: hoje },
+    { label: "Próximos 7 dias", value: seteDias },
+    { label: "8 a 30 dias", value: restante },
+  ];
+
+  return (
+    <Card className="h-full">
+      <CardContent className="p-0">
+        {query.isPending ? (
+          <div className="space-y-4 p-4" aria-label="Carregando agenda financeira">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-7 w-36" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : query.isError ? (
+          <div className="p-4" role="alert">
+            <p className="text-sm font-medium text-destructive">Agenda indisponível</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Não foi possível carregar os compromissos financeiros.
+            </p>
+            <Button
+              variant="link"
+              className="mt-2 h-auto p-0 text-xs"
+              onClick={() => void query.refetch()}
+            >
+              <RefreshCw aria-hidden="true" /> Tentar novamente
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-end sm:justify-between sm:p-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground sm:text-sm">
+                  Compromissos em 30 dias
+                </p>
+                <p className="mt-1 text-xl font-semibold tabular-nums sm:text-2xl">{brl(total)}</p>
+              </div>
+              <p className="text-xs font-medium text-muted-foreground">
+                {pluralizar(query.data?.length ?? 0, "lançamento", "lançamentos")}
+              </p>
+            </div>
+            <div className="grid divide-y border-t sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              {periodos.map((periodo) => (
+                <div
+                  key={periodo.label}
+                  className="flex items-center justify-between p-3.5 sm:block sm:p-4"
+                >
+                  <p className="text-xs font-medium text-muted-foreground">{periodo.label}</p>
+                  <p className="mt-0 font-semibold tabular-nums sm:mt-1">{brl(periodo.value)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="border-t px-3.5 py-2 sm:px-4">
+              <Link
+                to="/tesouraria/contas-pagar"
+                className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline sm:min-h-9"
+              >
+                Gerenciar contas a pagar <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PendenciasPrioritarias({ query }: { query: ConsultaPendencias }) {
+  if (query.isPending) {
+    return (
+      <Card className="p-4" aria-label="Carregando pendências prioritárias">
+        <div className="space-y-3">
+          {Array.from({ length: 3 }, (_, index) => (
+            <Skeleton key={index} className="h-10 w-full" />
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <Card className="p-4" role="alert">
+        <p className="text-sm font-medium text-destructive">Pendências indisponíveis</p>
+        <Button
+          variant="link"
+          className="mt-2 h-auto p-0 text-xs"
+          onClick={() => void query.refetch()}
+        >
+          <RefreshCw aria-hidden="true" /> Tentar novamente
+        </Button>
+      </Card>
+    );
+  }
+
+  if (!query.data?.length) {
+    return (
+      <Card className="p-5 text-center text-sm text-muted-foreground">
+        Nenhuma cobrança vencida. A posição está regular.
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="sm:hidden">
+        <ul className="divide-y" aria-label="Pendências prioritárias">
+          {query.data.map((pendencia) => (
+            <li key={pendencia.id} className="p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium leading-snug">{pendencia.responsavel}</p>
+                  <p className="mt-1 break-words text-sm text-muted-foreground">
+                    {pendencia.descricao}
+                  </p>
+                </div>
+                <Badge variant="destructive" className="shrink-0">
+                  {pendencia.dias_atraso} dias
+                </Badge>
+              </div>
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Venceu em {fmtDate(pendencia.data_vencimento)}
+                </p>
+                <p className="font-semibold tabular-nums">{brl(pendencia.valor)}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
+        <Table className="min-w-[720px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Responsável</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Vencimento</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+              <TableHead className="text-right">Atraso</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {query.data.map((pendencia) => (
+              <TableRow key={pendencia.id}>
+                <TableCell className="font-medium">{pendencia.responsavel}</TableCell>
+                <TableCell className="max-w-xs break-words text-muted-foreground">
+                  {pendencia.descricao}
+                </TableCell>
+                <TableCell>{fmtDate(pendencia.data_vencimento)}</TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
+                  {brl(pendencia.valor)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Badge variant="destructive">{pendencia.dias_atraso} dias</Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+}
 
 function MetricGroup({
   children,
@@ -600,6 +578,7 @@ function MetricItem({
   error = query?.isError ?? false,
   onRetry = () => void query?.refetch(),
   to,
+  featured = false,
 }: {
   label: string;
   value: string;
@@ -610,6 +589,7 @@ function MetricItem({
   error?: boolean;
   onRetry?: () => void;
   to?: string;
+  featured?: boolean;
 }) {
   const valueClass = {
     neutral: "text-foreground",
@@ -618,7 +598,9 @@ function MetricItem({
   }[tone];
 
   const conteudo = (
-    <div className={`min-w-0 p-3.5 sm:p-4 ${to ? "transition-colors hover:bg-muted/50" : ""}`}>
+    <div
+      className={`min-w-0 p-3.5 sm:p-4 ${featured ? "bg-primary/5" : ""} ${to ? "transition-colors hover:bg-muted/50" : ""}`}
+    >
       <p className="text-xs font-medium leading-normal text-muted-foreground sm:text-sm">{label}</p>
       {pending ? (
         <div className="mt-2 space-y-2" aria-label={`Carregando ${label}`}>
@@ -635,7 +617,7 @@ function MetricItem({
       ) : (
         <>
           <p
-            className={`mt-1 break-words text-lg font-semibold tabular-nums sm:text-xl ${valueClass}`}
+            className={`mt-1 break-words font-semibold tabular-nums ${featured ? "text-xl sm:text-2xl" : "text-lg sm:text-xl"} ${valueClass}`}
           >
             {value}
           </p>
@@ -658,6 +640,79 @@ function MetricItem({
     </Link>
   ) : (
     conteudo
+  );
+}
+
+type ConsultaFaixas = EstadoConsulta & { data?: ResumoContasReceber };
+
+function AgingCard({ query }: { query: ConsultaFaixas }) {
+  const faixas = [
+    { label: "Até 30 dias", value: query.data?.vencidoAte30 ?? 0 },
+    { label: "31 a 60 dias", value: query.data?.vencido31a60 ?? 0 },
+    { label: "Acima de 60 dias", value: query.data?.vencidoAcima60 ?? 0 },
+  ];
+
+  return (
+    <Card className="h-full">
+      <CardContent className="flex h-full flex-col p-0">
+        {query.isPending ? (
+          <div className="grid gap-4 p-4" aria-label="Carregando faixas de vencimento">
+            {faixas.map((faixa) => (
+              <Skeleton key={faixa.label} className="h-9 w-full" />
+            ))}
+          </div>
+        ) : query.isError ? (
+          <div className="p-4" role="alert">
+            <p className="text-sm font-medium text-destructive">Faixas indisponíveis</p>
+            <Button
+              variant="link"
+              className="mt-1 h-auto p-0 text-xs"
+              onClick={() => void query.refetch()}
+            >
+              <RefreshCw aria-hidden="true" /> Tentar novamente
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-end justify-between gap-3 p-3.5 sm:p-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground sm:text-sm">
+                  Total vencido
+                </p>
+                <p className="mt-1 text-xl font-semibold tabular-nums text-destructive sm:text-2xl">
+                  {brl(query.data?.inadimplencia ?? 0)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Recebido no mês</p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-success-foreground">
+                  {brl(query.data?.recebidoMes ?? 0)}
+                </p>
+              </div>
+            </div>
+            <div className="flex-1 border-t px-3.5 py-1 sm:px-4">
+              {faixas.map((faixa) => (
+                <div
+                  key={faixa.label}
+                  className="flex items-center justify-between gap-3 border-b py-2.5 last:border-0"
+                >
+                  <p className="text-sm text-muted-foreground">{faixa.label}</p>
+                  <p className="font-semibold tabular-nums">{brl(faixa.value)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="border-t px-3.5 py-2 sm:px-4">
+              <Link
+                to="/relatorios/inadimplencia"
+                className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline sm:min-h-9"
+              >
+                Ver valores vencidos <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
