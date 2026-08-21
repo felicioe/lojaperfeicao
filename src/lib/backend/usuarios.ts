@@ -218,7 +218,7 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
       });
       if (data.enviarBoasVindas) {
         const { enviarEmailBoasVindas } = await import("../email-dispatch");
-        enviarEmailBoasVindas(novoId).catch((err) =>
+        enviarEmailBoasVindas(novoId, lojaId).catch((err) =>
           console.error("Falha ao enviar e-mail de boas-vindas:", err),
         );
       }
@@ -276,7 +276,7 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" })
           });
           if (data.enviarBoasVindas) {
             const { enviarEmailBoasVindas } = await import("../email-dispatch");
-            enviarEmailBoasVindas(novoId).catch((err) =>
+            enviarEmailBoasVindas(novoId, lojaId).catch((err) =>
               console.error("Falha ao enviar e-mail de boas-vindas:", err),
             );
           }

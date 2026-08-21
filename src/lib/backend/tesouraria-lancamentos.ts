@@ -687,7 +687,7 @@ export const gerarMensalidades = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }): Promise<number> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual, lojaId) => {
       await conn.query("CALL gerar_mensalidades(?, ?, NULL, ?, @total)", [
         data.competencia,
         data.dataVencimento ?? null,
@@ -708,7 +708,7 @@ export const gerarMensalidades = createServerFn({ method: "POST" })
       );
       const { enviarEmailFaturaEmitida } = await import("../email-dispatch");
       for (const g of gerados) {
-        enviarEmailFaturaEmitida(g.id as string).catch((err) =>
+        enviarEmailFaturaEmitida(g.id as string, lojaId).catch((err) =>
           console.error("Falha ao enviar e-mail de fatura emitida:", err),
         );
       }

@@ -269,7 +269,10 @@ function fmtDate(d: string): string {
 
 // ---------- Fatura emitida (sob demanda, com fila) ----------
 
-export async function enviarEmailFaturaEmitida(lancamentoId: string): Promise<void> {
+export async function enviarEmailFaturaEmitida(
+  lancamentoId: string,
+  lojaId: string,
+): Promise<void> {
   await withUserConnection(null, async (conn) => {
     const chave = `fatura_emitida:${lancamentoId}`;
     if (await jaEnviadoComSucesso(conn, chave)) return;
@@ -301,6 +304,7 @@ export async function enviarEmailFaturaEmitida(lancamentoId: string): Promise<vo
       assunto: `Fatura emitida — ${fatura.descricao}`,
       html,
       texto,
+      lojaId,
     });
 
     // Processa síncrono (feedback imediato)
@@ -319,7 +323,7 @@ export async function enviarEmailFaturaEmitida(lancamentoId: string): Promise<vo
 // Alternativa opcional ao fluxo já existente de admin comunicar login/senha
 // manualmente. Só dispara se o irmão tiver e-mail de contato cadastrado.
 
-export async function enviarEmailBoasVindas(usuarioId: string): Promise<boolean> {
+export async function enviarEmailBoasVindas(usuarioId: string, lojaId: string): Promise<boolean> {
   return withUserConnection(null, async (conn) => {
     const [[dados]] = await conn.query<RowDataPacket[]>(
       `SELECT u.email AS login, i.nome_civil, i.email AS email_contato
@@ -349,6 +353,7 @@ export async function enviarEmailBoasVindas(usuarioId: string): Promise<boolean>
       html,
       texto,
       criadoPor: usuarioId,
+      lojaId,
     });
 
     // Processa síncrono
@@ -793,6 +798,7 @@ export async function enviarArquivoPorEmail(params: {
         nome: params.anexoNome,
         mimeType: params.anexoMimeType,
       },
+      lojaId: params.lojaId,
     });
 
     // Processa síncrono com anexos

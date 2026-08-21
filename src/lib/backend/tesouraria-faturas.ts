@@ -195,7 +195,7 @@ const faturaAvulsaSchema = z.object({
 export const criarFaturaAvulsa = createServerFn({ method: "POST" })
   .validator((d: unknown) => faturaAvulsaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
-    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual, lojaId) => {
       await conn.query("CALL criar_fatura_avulsa(?, ?, ?, ?, ?, ?, @lanc_id)", [
         data.irmaoId,
         data.valor,
@@ -208,7 +208,7 @@ export const criarFaturaAvulsa = createServerFn({ method: "POST" })
       await registrarAuditoria(conn, usuarioIdAtual, "criar", "fatura_avulsa", lanc_id, null, data);
 
       const { enviarEmailFaturaEmitida } = await import("../email-dispatch");
-      enviarEmailFaturaEmitida(lanc_id as string).catch((err) =>
+      enviarEmailFaturaEmitida(lanc_id as string, lojaId).catch((err) =>
         console.error("Falha ao enviar e-mail de fatura emitida:", err),
       );
 
