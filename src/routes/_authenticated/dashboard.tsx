@@ -175,7 +175,7 @@ function Dashboard() {
             value={brl(saldoAtual)}
             hint={pluralizar(saldos.data?.length ?? 0, "conta financeira", "contas financeiras")}
             query={saldos}
-            featured
+            to="/relatorios/extrato-bancario"
           />
           <MetricItem
             label="Saldo projetado em 30 dias"
@@ -578,7 +578,6 @@ function MetricItem({
   error = query?.isError ?? false,
   onRetry = () => void query?.refetch(),
   to,
-  featured = false,
 }: {
   label: string;
   value: string;
@@ -589,7 +588,6 @@ function MetricItem({
   error?: boolean;
   onRetry?: () => void;
   to?: string;
-  featured?: boolean;
 }) {
   const valueClass = {
     neutral: "text-foreground",
@@ -598,9 +596,7 @@ function MetricItem({
   }[tone];
 
   const conteudo = (
-    <div
-      className={`min-w-0 p-3.5 sm:p-4 ${featured ? "bg-primary/5" : ""} ${to ? "transition-colors hover:bg-muted/50" : ""}`}
-    >
+    <div className={`min-w-0 p-3.5 sm:p-4 ${to ? "transition-colors hover:bg-muted/50" : ""}`}>
       <p className="text-xs font-medium leading-normal text-muted-foreground sm:text-sm">{label}</p>
       {pending ? (
         <div className="mt-2 space-y-2" aria-label={`Carregando ${label}`}>
@@ -617,7 +613,7 @@ function MetricItem({
       ) : (
         <>
           <p
-            className={`mt-1 break-words font-semibold tabular-nums ${featured ? "text-xl sm:text-2xl" : "text-lg sm:text-xl"} ${valueClass}`}
+            className={`mt-1 break-words text-lg font-semibold tabular-nums sm:text-xl ${valueClass}`}
           >
             {value}
           </p>
