@@ -135,7 +135,7 @@ export const salvarComunicado = createServerFn({ method: "POST" })
         });
         if (data.enviarEmail) {
           const { enviarEmailComunicado } = await import("../email-dispatch");
-          enviarEmailComunicado(novoId).catch((err) =>
+          enviarEmailComunicado(novoId, lojaId).catch((err) =>
             console.error("Falha ao enviar e-mail do comunicado:", err),
           );
         }

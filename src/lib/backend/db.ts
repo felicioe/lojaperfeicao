@@ -151,7 +151,18 @@ export async function withLojaConnection<T>(
 ): Promise<T> {
   const conn = await getPool().getConnection();
   try {
-    await conn.query("SET @current_usuario_id = NULL, @current_loja_id = ?", [lojaId]);
+    // CONVERT(...) USING utf8mb4 ... COLLATE utf8mb4_unicode_ci: um parâmetro
+    // vinculado herda a collation padrão da CONEXÃO (utf8mb4_general_ci) em
+    // vez da collation da COLUNA. Toda coluna `loja_id` do schema é
+    // utf8mb4_unicode_ci — sem forçar aqui, qualquer `WHERE loja_id =
+    // @current_loja_id` dentro desta conexão esbarra em "Illegal mix of
+    // collations". `withUserConnection` nunca teve esse problema porque lá
+    // @current_loja_id vem de um SELECT (herda a collation da coluna
+    // original), não de um parâmetro vinculado direto.
+    await conn.query(
+      "SET @current_usuario_id = NULL, @current_loja_id = CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci",
+      [lojaId],
+    );
     return await fn(conn);
   } finally {
     conn.release();

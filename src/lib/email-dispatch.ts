@@ -3,7 +3,7 @@ import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import type { RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
-import { withUserConnection } from "./backend/db";
+import { withUserConnection, withLojaConnection } from "./backend/db";
 import { decifrar } from "./backend/cripto";
 import { SENHA_PADRAO } from "./backend/usuarios";
 
@@ -273,15 +273,15 @@ export async function enviarEmailFaturaEmitida(
   lancamentoId: string,
   lojaId: string,
 ): Promise<void> {
-  await withUserConnection(null, async (conn) => {
+  await withLojaConnection(lojaId, async (conn) => {
     const chave = `fatura_emitida:${lancamentoId}`;
     if (await jaEnviadoComSucesso(conn, chave)) return;
 
     const [[fatura]] = await conn.query<RowDataPacket[]>(
       `SELECT l.descricao, l.valor, l.data_vencimento, i.nome_civil, i.email
-       FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id
-       WHERE l.id = ?`,
-      [lancamentoId],
+       FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+       WHERE l.id = ? AND l.loja_id = ?`,
+      [lancamentoId, lojaId],
     );
     if (!fatura || !fatura.email) return;
 
@@ -315,6 +315,8 @@ export async function enviarEmailFaturaEmitida(
       `Fatura emitida — ${fatura.descricao}`,
       html,
       texto,
+      undefined,
+      lojaId,
     );
   });
 }
@@ -324,12 +326,12 @@ export async function enviarEmailFaturaEmitida(
 // manualmente. Só dispara se o irmão tiver e-mail de contato cadastrado.
 
 export async function enviarEmailBoasVindas(usuarioId: string, lojaId: string): Promise<boolean> {
-  return withUserConnection(null, async (conn) => {
+  return withLojaConnection(lojaId, async (conn) => {
     const [[dados]] = await conn.query<RowDataPacket[]>(
       `SELECT u.email AS login, i.nome_civil, i.email AS email_contato
-       FROM usuarios u JOIN irmaos i ON i.usuario_id = u.id
-       WHERE u.id = ?`,
-      [usuarioId],
+       FROM usuarios u JOIN irmaos i ON i.usuario_id = u.id AND i.loja_id = u.loja_id
+       WHERE u.id = ? AND u.loja_id = ?`,
+      [usuarioId, lojaId],
     );
     if (!dados || !dados.email_contato) return false;
 
@@ -364,6 +366,8 @@ export async function enviarEmailBoasVindas(usuarioId: string, lojaId: string): 
       "Seu acesso ao sistema de gestão da loja",
       html,
       texto,
+      undefined,
+      lojaId,
     );
     return resultado.falhas === 0;
   });
@@ -462,21 +466,27 @@ export async function enviarEmailConviteAdminLoja(params: {
 
 export async function enviarEmailComunicado(
   comunicadoId: string,
+  lojaId: string,
 ): Promise<ResultadoEnvioRelatorio> {
-  return withUserConnection(null, async (conn) => {
+  return withLojaConnection(lojaId, async (conn) => {
+    // Conexão sem usuário: @current_loja_id não está setado, então o
+    // escopo de loja tem que vir do parâmetro em toda consulta daqui pra
+    // baixo — inclusive nestas duas, que antes buscavam comunicado e
+    // destinatários sem filtro de loja nenhum.
     const [[comunicado]] = await conn.query<RowDataPacket[]>(
-      "SELECT titulo, corpo, publico, org_id FROM comunicados WHERE id = ?",
-      [comunicadoId],
+      "SELECT titulo, corpo, publico, org_id FROM comunicados WHERE id = ? AND loja_id = ?",
+      [comunicadoId, lojaId],
     );
     if (!comunicado) return [];
 
     const [destinatarios] = await conn.query<RowDataPacket[]>(
       comunicado.publico === "org"
         ? `SELECT DISTINCT i.email FROM irmaos i
-           JOIN irmao_orgs io ON io.irmao_id = i.id
-           WHERE i.situacao = 'ativo' AND i.email IS NOT NULL AND i.email != '' AND io.org_id = ?`
-        : `SELECT email FROM irmaos WHERE situacao = 'ativo' AND email IS NOT NULL AND email != ''`,
-      comunicado.publico === "org" ? [comunicado.org_id] : [],
+           JOIN irmao_orgs io ON io.irmao_id = i.id AND io.loja_id = i.loja_id
+           WHERE i.situacao = 'ativo' AND i.email IS NOT NULL AND i.email != ''
+             AND i.loja_id = ? AND io.org_id = ?`
+        : `SELECT email FROM irmaos WHERE situacao = 'ativo' AND email IS NOT NULL AND email != '' AND loja_id = ?`,
+      comunicado.publico === "org" ? [lojaId, comunicado.org_id] : [lojaId],
     );
 
     const corpoHtml = String(comunicado.corpo).replace(/\n/g, "<br>");
@@ -490,6 +500,7 @@ export async function enviarEmailComunicado(
       tipo: "comunicado",
       destinatarios: listaEmails,
       assunto: `Comunicado — ${comunicado.titulo}`,
+      lojaId,
       html,
       texto,
     });
@@ -502,6 +513,8 @@ export async function enviarEmailComunicado(
       `Comunicado — ${comunicado.titulo}`,
       html,
       texto,
+      undefined,
+      lojaId,
     );
 
     // Retorna resultado por destinatário
@@ -647,10 +660,16 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
 // CRON @ 12:00h — Envia lembretes apenas de faturas VENCIDAS (não antecedência)
 export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
   return withUserConnection(null, async (conn) => {
-    // Apenas faturas já vencidas (não vencendo em X dias)
+    // Varre TODAS as Lojas de propósito — é o cron, ele não tem uma sessão
+    // pra restringir a busca a uma só. `l.loja_id` vai junto pra cada fatura
+    // poder ser processada na conexão da PRÓPRIA Loja logo abaixo: sem isso
+    // `calcular_multa_juros` (que lê por `@current_loja_id`, não por
+    // parâmetro) computava multa e juros zerados nesta conexão sem loja, e o
+    // INSERT na fila de e-mail caía sem `loja_id` — o mesmo defeito relatado
+    // no envio manual de relatório, só que aqui silencioso, sem erro visível.
     const [faturas] = await conn.query<RowDataPacket[]>(
-      `SELECT l.id, l.descricao, l.valor, l.valor_pago, l.data_vencimento, i.nome_civil, i.email
-       FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id
+      `SELECT l.id, l.loja_id, l.descricao, l.valor, l.valor_pago, l.data_vencimento, i.nome_civil, i.email
+       FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
        WHERE l.tipo = 'entrada' AND l.is_mensalidade = TRUE AND l.pago = FALSE
          AND l.data_vencimento < CURRENT_DATE
          AND i.email IS NOT NULL AND i.email != ''`,
@@ -665,44 +684,60 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
       const chave = `lembrete_vencida:${fatura.id}:${hojeISO}`;
       if (await jaEnviadoComSucesso(conn, chave)) continue;
 
-      const saldoPrincipal = Number(fatura.valor) - Number(fatura.valor_pago);
-      const saldo = await calcularSaldoDevido(
-        conn,
-        saldoPrincipal,
-        fatura.data_vencimento,
-        hojeISO,
-      );
-      const { assunto, html, texto } = montarLembreteFatura(
-        {
-          descricao: fatura.descricao,
-          data_vencimento: fatura.data_vencimento,
-          nome_civil: fatura.nome_civil,
-          valor_original: Number(fatura.valor),
-          valor_pago: Number(fatura.valor_pago),
-        },
-        saldo,
-        hojeISO,
-      );
+      // Cada fatura é de uma Loja possivelmente diferente das outras. Uma
+      // exceção aqui (SMTP da Loja não configurado, por exemplo) não pode
+      // travar o lembrete das faturas de TODAS as outras Lojas atrás dela
+      // na lista — só a desta fatura fica sem enviar, e o laço segue.
+      let sucesso = false;
+      try {
+        sucesso = await withLojaConnection(fatura.loja_id as string, async (contaConn) => {
+          const saldoPrincipal = Number(fatura.valor) - Number(fatura.valor_pago);
+          const saldo = await calcularSaldoDevido(
+            contaConn,
+            saldoPrincipal,
+            fatura.data_vencimento,
+            hojeISO,
+          );
+          const { assunto, html, texto } = montarLembreteFatura(
+            {
+              descricao: fatura.descricao,
+              data_vencimento: fatura.data_vencimento,
+              nome_civil: fatura.nome_civil,
+              valor_original: Number(fatura.valor),
+              valor_pago: Number(fatura.valor_pago),
+            },
+            saldo,
+            hojeISO,
+          );
 
-      const filaId = await gravarNaFila(conn, {
-        chave,
-        tipo: "lembrete_vencida",
-        destinatarios: [fatura.email],
-        assunto,
-        html,
-        texto,
-      });
+          const filaId = await gravarNaFila(contaConn, {
+            chave,
+            tipo: "lembrete_vencida",
+            destinatarios: [fatura.email],
+            assunto,
+            html,
+            texto,
+            lojaId: fatura.loja_id as string,
+          });
 
-      // Processa síncrono
-      const resultado = await tentarEnviarFilaEmail(
-        conn,
-        filaId,
-        [fatura.email],
-        assunto,
-        html,
-        texto,
-      );
-      if (resultado.falhas === 0) enviadas++;
+          // Processa síncrono
+          const resultado = await tentarEnviarFilaEmail(
+            contaConn,
+            filaId,
+            [fatura.email],
+            assunto,
+            html,
+            texto,
+            undefined,
+            fatura.loja_id as string,
+          );
+          return resultado.falhas === 0;
+        });
+      } catch (err) {
+        console.error(`Falha ao processar lembrete da fatura ${fatura.id}:`, err);
+        sucesso = false;
+      }
+      if (sucesso) enviadas++;
       else falhas++;
     }
 
@@ -712,13 +747,13 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
 
 // ---------- Cobrança manual (issue #115, com fila) ----------
 // Sob demanda — botão "Gerar cobrança" do relatório de inadimplência.
-export async function enviarCobrancaManual(lancamentoId: string): Promise<boolean> {
-  return withUserConnection(null, async (conn) => {
+export async function enviarCobrancaManual(lancamentoId: string, lojaId: string): Promise<boolean> {
+  return withLojaConnection(lojaId, async (conn) => {
     const [[fatura]] = await conn.query<RowDataPacket[]>(
       `SELECT l.descricao, l.valor, l.valor_pago, l.data_vencimento, i.nome_civil, i.email
-       FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id
-       WHERE l.id = ?`,
-      [lancamentoId],
+       FROM lancamentos l JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+       WHERE l.id = ? AND l.loja_id = ?`,
+      [lancamentoId, lojaId],
     );
     if (!fatura || !fatura.email) return false;
 
@@ -744,6 +779,7 @@ export async function enviarCobrancaManual(lancamentoId: string): Promise<boolea
       assunto,
       html,
       texto,
+      lojaId,
     });
 
     // Processa síncrono
@@ -754,6 +790,8 @@ export async function enviarCobrancaManual(lancamentoId: string): Promise<boolea
       assunto,
       html,
       texto,
+      undefined,
+      lojaId,
     );
     return resultado.falhas === 0;
   });
@@ -782,7 +820,7 @@ export async function enviarArquivoPorEmail(params: {
   // (issue #352). Vem do comPapel na server function que chama isto.
   lojaId: string;
 }): Promise<ResultadoEnvioRelatorio> {
-  return withUserConnection(null, async (conn) => {
+  return withLojaConnection(params.lojaId, async (conn) => {
     const html = `<p>${params.corpoTexto}</p>`;
     const chave = `relatorio_manual:${randomUUID()}`;
 

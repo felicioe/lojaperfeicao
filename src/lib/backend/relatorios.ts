@@ -808,11 +808,11 @@ const gerarCobrancaLoteSchema = z.object({ lancamentoIds: z.array(z.string().uui
 export const gerarCobrancaLote = createServerFn({ method: "POST" })
   .validator((d: unknown) => gerarCobrancaLoteSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string; sucesso: boolean }[]> => {
-    return comPapel(PAPEIS_TESOURARIA, async () => {
+    return comPapel(PAPEIS_TESOURARIA, async (_conn, _usuarioId, lojaId) => {
       const { enviarCobrancaManual } = await import("../email-dispatch");
       const resultados: { id: string; sucesso: boolean }[] = [];
       for (const id of data.lancamentoIds) {
-        resultados.push({ id, sucesso: await enviarCobrancaManual(id) });
+        resultados.push({ id, sucesso: await enviarCobrancaManual(id, lojaId) });
       }
       return resultados;
     });
