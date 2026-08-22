@@ -43,6 +43,7 @@ import { Route as AuthenticatedContabilidadeDreOrcadoRouteImport } from './route
 import { Route as AuthenticatedContabilidadeFechamentoRouteImport } from './routes/_authenticated/contabilidade/fechamento'
 import { Route as AuthenticatedContabilidadeFluxoCaixaRouteImport } from './routes/_authenticated/contabilidade/fluxo-caixa'
 import { Route as AuthenticatedContabilidadeOrcamentoRouteImport } from './routes/_authenticated/contabilidade/orcamento'
+import { Route as AuthenticatedContabilidadeParametrosRouteImport } from './routes/_authenticated/contabilidade/parametros'
 import { Route as AuthenticatedContabilidadePlanoContasRouteImport } from './routes/_authenticated/contabilidade/plano-contas'
 import { Route as AuthenticatedContabilidadeRazaoRouteImport } from './routes/_authenticated/contabilidade/razao'
 import { Route as AuthenticatedDocumentosIndexRouteImport } from './routes/_authenticated/documentos/index'
@@ -286,6 +287,12 @@ const AuthenticatedContabilidadeOrcamentoRoute =
   AuthenticatedContabilidadeOrcamentoRouteImport.update({
     id: '/contabilidade/orcamento',
     path: '/contabilidade/orcamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeParametrosRoute =
+  AuthenticatedContabilidadeParametrosRouteImport.update({
+    id: '/contabilidade/parametros',
+    path: '/contabilidade/parametros',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadePlanoContasRoute =
@@ -620,6 +627,7 @@ export interface FileRoutesByFullPath {
   '/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
   '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/contabilidade/parametros': typeof AuthenticatedContabilidadeParametrosRoute
   '/contabilidade/plano-contas': typeof AuthenticatedContabilidadePlanoContasRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
@@ -705,6 +713,7 @@ export interface FileRoutesByTo {
   '/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
   '/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/contabilidade/parametros': typeof AuthenticatedContabilidadeParametrosRoute
   '/contabilidade/plano-contas': typeof AuthenticatedContabilidadePlanoContasRoute
   '/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
@@ -793,6 +802,7 @@ export interface FileRoutesById {
   '/_authenticated/contabilidade/fechamento': typeof AuthenticatedContabilidadeFechamentoRoute
   '/_authenticated/contabilidade/fluxo-caixa': typeof AuthenticatedContabilidadeFluxoCaixaRoute
   '/_authenticated/contabilidade/orcamento': typeof AuthenticatedContabilidadeOrcamentoRoute
+  '/_authenticated/contabilidade/parametros': typeof AuthenticatedContabilidadeParametrosRoute
   '/_authenticated/contabilidade/plano-contas': typeof AuthenticatedContabilidadePlanoContasRoute
   '/_authenticated/contabilidade/razao': typeof AuthenticatedContabilidadeRazaoRoute
   '/_authenticated/ensino/importar-calendario': typeof AuthenticatedEnsinoImportarCalendarioRoute
@@ -881,6 +891,7 @@ export interface FileRouteTypes {
     | '/contabilidade/fechamento'
     | '/contabilidade/fluxo-caixa'
     | '/contabilidade/orcamento'
+    | '/contabilidade/parametros'
     | '/contabilidade/plano-contas'
     | '/contabilidade/razao'
     | '/ensino/importar-calendario'
@@ -966,6 +977,7 @@ export interface FileRouteTypes {
     | '/contabilidade/fechamento'
     | '/contabilidade/fluxo-caixa'
     | '/contabilidade/orcamento'
+    | '/contabilidade/parametros'
     | '/contabilidade/plano-contas'
     | '/contabilidade/razao'
     | '/ensino/importar-calendario'
@@ -1053,6 +1065,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contabilidade/fechamento'
     | '/_authenticated/contabilidade/fluxo-caixa'
     | '/_authenticated/contabilidade/orcamento'
+    | '/_authenticated/contabilidade/parametros'
     | '/_authenticated/contabilidade/plano-contas'
     | '/_authenticated/contabilidade/razao'
     | '/_authenticated/ensino/importar-calendario'
@@ -1361,6 +1374,13 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/orcamento'
       fullPath: '/contabilidade/orcamento'
       preLoaderRoute: typeof AuthenticatedContabilidadeOrcamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/parametros': {
+      id: '/_authenticated/contabilidade/parametros'
+      path: '/contabilidade/parametros'
+      fullPath: '/contabilidade/parametros'
+      preLoaderRoute: typeof AuthenticatedContabilidadeParametrosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contabilidade/plano-contas': {
@@ -1787,6 +1807,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContabilidadeFechamentoRoute: typeof AuthenticatedContabilidadeFechamentoRoute
   AuthenticatedContabilidadeFluxoCaixaRoute: typeof AuthenticatedContabilidadeFluxoCaixaRoute
   AuthenticatedContabilidadeOrcamentoRoute: typeof AuthenticatedContabilidadeOrcamentoRoute
+  AuthenticatedContabilidadeParametrosRoute: typeof AuthenticatedContabilidadeParametrosRoute
   AuthenticatedContabilidadePlanoContasRoute: typeof AuthenticatedContabilidadePlanoContasRoute
   AuthenticatedContabilidadeRazaoRoute: typeof AuthenticatedContabilidadeRazaoRoute
   AuthenticatedEnsinoImportarCalendarioRoute: typeof AuthenticatedEnsinoImportarCalendarioRoute
@@ -1869,6 +1890,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedContabilidadeFluxoCaixaRoute,
   AuthenticatedContabilidadeOrcamentoRoute:
     AuthenticatedContabilidadeOrcamentoRoute,
+  AuthenticatedContabilidadeParametrosRoute:
+    AuthenticatedContabilidadeParametrosRoute,
   AuthenticatedContabilidadePlanoContasRoute:
     AuthenticatedContabilidadePlanoContasRoute,
   AuthenticatedContabilidadeRazaoRoute: AuthenticatedContabilidadeRazaoRoute,

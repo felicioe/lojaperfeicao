@@ -2,7 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, Book, DollarSign, FileText, Settings, TrendingUp } from "lucide-react";
+import {
+  BarChart,
+  Book,
+  DollarSign,
+  FileText,
+  Settings,
+  Settings2,
+  TrendingUp,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/")({
@@ -58,6 +66,12 @@ function ContabilidadeIndex() {
       description: "Histórico imutável de alterações",
       href: "/contabilidade/auditoria",
       icon: FileText,
+    },
+    {
+      title: "Parâmetros Contábeis",
+      description: "Papel contábil → conta do plano (mensalidades, fornecedores, multas…)",
+      href: "/contabilidade/parametros",
+      icon: Settings2,
     },
   ];
 

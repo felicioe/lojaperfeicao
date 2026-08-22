@@ -593,6 +593,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageFinancas,
           section: "Cadastro",
         },
+        {
+          to: "/contabilidade/parametros",
+          label: "Parâmetros Contábeis",
+          icon: Settings2,
+          show: can.canManageFinancas,
+        },
       ],
     },
     {
