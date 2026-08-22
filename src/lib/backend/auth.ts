@@ -10,6 +10,7 @@ import { carregarUsuarioComPapeis, type Papel, type UsuarioSessao } from "./usua
 import { usuarioTemTotpAtivo } from "./totp";
 import { verificarBloqueio, registrarTentativaFalha, limparTentativas } from "./rate-limit";
 import { usuarioUnicoParaLogin } from "./login-loja";
+import { lojaIdParaFiltroDeLogin, slugDaRequisicaoAtual } from "./subdominio";
 
 export type { Papel, UsuarioSessao };
 
@@ -35,13 +36,20 @@ export const login = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<LoginResultado> => {
     await withUserConnection(null, (conn) => verificarBloqueio(conn, data.email));
 
+    // Loja do subdomínio (issue #338) — quando o host bate com um
+    // subdomínio de loja reconhecível, a busca abaixo já sai filtrada por
+    // ela, e a ambiguidade entre lojas deixa de existir na origem.
+    const slug = slugDaRequisicaoAtual();
     const usuario = await withUserConnection(null, async (conn) => {
+      const lojaId = await lojaIdParaFiltroDeLogin(conn, slug);
       // Sem LIMIT de propósito: o e-mail é único por loja (migração 0092), e
       // usuarioUnicoParaLogin recusa quando casa em mais de uma — escolher
       // "a primeira" logaria a pessoa numa loja arbitrária (issue #337).
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, senha_hash, ativo FROM usuarios WHERE email = ?",
-        [data.email],
+        lojaId
+          ? "SELECT id, senha_hash, ativo FROM usuarios WHERE email = ? AND loja_id = ?"
+          : "SELECT id, senha_hash, ativo FROM usuarios WHERE email = ?",
+        lojaId ? [data.email, lojaId] : [data.email],
       );
       return usuarioUnicoParaLogin(rows);
     });

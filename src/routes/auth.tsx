@@ -24,6 +24,8 @@ const ERRO_GOOGLE_LABEL: Record<string, string> = {
     "Sua conta Google ainda não está vinculada. Entre com sua senha e vincule em Segurança da Conta.",
   nao_configurado: "Login com Google não está disponível no momento.",
   falha_token: "Não foi possível confirmar o login com Google.",
+  loja_desconhecida:
+    "Este endereço não corresponde a nenhuma loja ativa. Verifique o link de acesso.",
 };
 
 const ERRO_FACEBOOK_LABEL: Record<string, string> = {
@@ -33,6 +35,8 @@ const ERRO_FACEBOOK_LABEL: Record<string, string> = {
     "Sua conta Facebook ainda não está vinculada. Entre com sua senha e vincule em Segurança da Conta.",
   nao_configurado: "Login com Facebook não está disponível no momento.",
   falha_token: "Não foi possível confirmar o login com Facebook.",
+  loja_desconhecida:
+    "Este endereço não corresponde a nenhuma loja ativa. Verifique o link de acesso.",
 };
 
 const AUTH_CONTROL_CLASS = "min-h-11 sm:min-h-10";

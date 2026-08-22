@@ -1,5 +1,5 @@
 /**
- * Resolução da loja (tenant) no login — issue #337.
+ * Resolução da loja (tenant) no login — issues #337 e #338.
  *
  * Depois da migração 0092, os identificadores de login (`email`, `google_id`,
  * `facebook_id`) são únicos **por loja**, não globalmente: o mesmo e-mail em
@@ -8,13 +8,12 @@
  * seria autenticar a pessoa numa loja arbitrária — exatamente o tipo de bug
  * que não pode existir num SaaS.
  *
- * Enquanto a resolução por subdomínio (issue #338) não existe, não há como
- * saber em qual loja a pessoa quer entrar quando o identificador é ambíguo.
- * A resposta correta então é recusar, não adivinhar. Com uma loja só
- * cadastrada (situação atual), nada muda na prática.
- *
- * Quando a #338 entrar, o caminho é: filtrar a busca pela loja do subdomínio
- * antes de chamar esta função — aí a ambiguidade deixa de existir na origem.
+ * A #338 (subdominio.ts) resolve a loja pelo subdomínio ANTES da busca —
+ * quem chama (auth.ts, google/facebook-oauth-callback.ts) já filtra a
+ * query por `loja_id` quando o host bate com um subdomínio de loja
+ * reconhecível. A ambiguidade só sobrevive quando o host não é um
+ * subdomínio de loja (domínio legado, dev sem DEV_LOJA_SLUG) — nesse caso a
+ * resposta correta continua sendo recusar, não adivinhar.
  */
 
 export class LoginAmbiguoError extends Error {

@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2";
 import { withUserConnection } from "./backend/db";
 import { usuarioUnicoParaLogin } from "./backend/login-loja";
+import {
+  lojaIdParaFiltroDeLogin,
+  slugDaRequisicaoCrua,
+  SubdominioDesconhecidoError,
+} from "./backend/subdominio";
 
 // Lógica pesada do fluxo OAuth do Google (troca de código por token, leitura
 // do id_token, redirects finais) — isolada aqui e importada só por
@@ -125,13 +130,28 @@ export async function tratarCallbackGoogle(request: Request): Promise<Response> 
   const { sub } = decodificarIdToken(tokenPayload.id_token);
 
   if (estado.tipo === "login") {
-    const usuario = await withUserConnection(null, async (conn) => {
-      const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM usuarios WHERE google_id = ? AND ativo = TRUE",
-        [sub],
-      );
-      return usuarioUnicoParaLogin(rows);
-    });
+    // Loja do subdomínio (issue #338) — mesmo raciocínio do login por
+    // senha em auth.ts, mas lendo o Host do Request cru: este callback
+    // roda fora do pipeline do TanStack Start (ver comentário no topo).
+    const slug = slugDaRequisicaoCrua(request);
+    let usuario: { id: string } | null;
+    try {
+      usuario = await withUserConnection(null, async (conn) => {
+        const lojaId = await lojaIdParaFiltroDeLogin(conn, slug);
+        const [rows] = await conn.query<RowDataPacket[]>(
+          lojaId
+            ? "SELECT id FROM usuarios WHERE google_id = ? AND ativo = TRUE AND loja_id = ?"
+            : "SELECT id FROM usuarios WHERE google_id = ? AND ativo = TRUE",
+          lojaId ? [sub, lojaId] : [sub],
+        );
+        return usuarioUnicoParaLogin(rows) as { id: string } | null;
+      });
+    } catch (err) {
+      if (err instanceof SubdominioDesconhecidoError) {
+        return Response.redirect(`${origemPublica()}/auth?erroGoogle=loja_desconhecida`, 302);
+      }
+      throw err;
+    }
     if (!usuario) {
       return Response.redirect(`${origemPublica()}/auth?erroGoogle=nao_vinculado`, 302);
     }

@@ -349,9 +349,10 @@ com uma única checagem.
 ser únicos **por loja**, então uma busca por identificador pode casar em mais
 de uma linha. `usuarioUnicoParaLogin()` (`login-loja.ts`) recusa nesse caso em
 vez de escolher a primeira — autenticar alguém numa loja arbitrária seria o
-pior tipo de bug possível aqui. Quando a resolução por subdomínio entrar
-(issue #338), a busca passa a ser filtrada pela loja do subdomínio e a
-ambiguidade deixa de existir na origem.
+pior tipo de bug possível aqui. Desde a resolução por subdomínio (issue #338,
+`subdominio.ts`), a busca já sai filtrada pela loja do subdomínio quando o
+host bate com um subdomínio de loja reconhecível — a ambiguidade só sobra
+quando o host não é um subdomínio de loja (ver seção 16 abaixo).
 
 **Como isso é garantido de verdade.** `npm run checar:escopo-loja` lê a lista
 de tabelas multi-tenant direto da migração 0092 (fonte única — tabela nova com
@@ -423,6 +424,61 @@ reconstrói um banco do zero e confirma, via `information_schema`, que
 nenhuma coluna `loja_id` de nenhuma tabela ainda carrega esse `DEFAULT` — é
 o gate que mantém essa garantia valendo para toda tabela nova que alguém
 criar daqui pra frente.
+
+### 16. Subdomínio por loja (issue #338)
+
+Cada loja acessa por um subdomínio próprio, ex.:
+`adonhiram.sistema.associacaoadonhiramita.org`. `src/lib/backend/subdominio.ts`
+lê o `Host`/`X-Forwarded-Host` da requisição e resolve o `slug` — a mesma
+coluna `lojas.slug` que já é `UNIQUE` desde a 0092.
+
+**Sem SSL wildcard no plano atual.** O plano Hostinger em uso (Cloud Startup)
+não tem certificado SSL wildcard (`*.dominio`) — isso é exclusivo de planos
+VPS. Por isso o cadastro de subdomínio **não é automático por código**: cada
+loja nova exige um passo manual no onboarding (issue #340):
+
+1. hPanel → Domínios → Subdomínios → criar `<slug-da-loja>` sob o domínio
+   base (`sistema.associacaoadonhiramita.org`).
+2. A Hostinger emite o SSL gratuito automaticamente para esse subdomínio
+   novo — não precisa de nenhuma configuração extra de certificado.
+3. Nenhum redeploy é necessário: a aplicação já responde a qualquer
+   subdomínio desse domínio base, porque a resolução é dinâmica (lê o `Host`
+   a cada requisição, não uma lista fixa de hosts esperados).
+
+Se o plano migrar para VPS no futuro e ganhar DNS+SSL wildcard, esse passo
+manual deixa de ser necessário — o código não muda, só o cadastro no hPanel
+passa a ser automático.
+
+**Domínio base.** Reaproveita `WEBAUTHN_RP_ID` (issue #147) em vez de uma env
+var nova — já é exatamente "o domínio do site em produção, sem
+protocolo/porta". Sem essa variável configurada, cai em `"localhost"` (mesmo
+default do WebAuthn).
+
+**Onde isso é aplicado.** Só no login (`auth.ts`, `google-oauth-callback.ts`,
+`facebook-oauth-callback.ts`) — é o único ponto onde, pré-sessão, o sistema
+ainda não sabe a loja de quem está entrando. Depois do login, `comSessao`/
+`comPapel` já recusam sessão de loja inativa (seção 15 acima), então não há
+necessidade de repetir a checagem de subdomínio nas demais páginas.
+
+**Host que não é subdomínio de loja reconhecível** (domínio legado, ou o
+próprio domínio base sem subdomínio) → sem filtro de loja, comportamento
+idêntico a antes da #338 (ambiguidade só recusa se o identificador casar em
+duas lojas — situação hoje inexistente com uma loja só cadastrada). **Host
+que É um subdomínio de loja, mas o slug não bate com loja nenhuma ativa**
+(subdomínio cadastrado errado, ou loja desativada pelo super-admin) → login
+recusado com mensagem amigável ("Este endereço não corresponde a nenhuma
+loja ativa"), em vez de cair no comportamento sem filtro.
+
+**Ambiente de dev.** Sem DNS real em `localhost`, a resolução cai em (nessa
+ordem): header `x-dev-loja-slug` por requisição — útil para testar duas
+lojas ao mesmo tempo, ex. via Playwright, sem reiniciar o servidor — ou a env
+var `DEV_LOJA_SLUG` para navegação manual com `npm run dev` (ver
+`.env.example`). Nenhum dos dois tem efeito quando `NODE_ENV=production`.
+
+**Cookie de sessão.** Não precisou de nenhuma mudança: `sessionConfig()`
+(`session.ts`) nunca setou `domain` explícito no cookie `loja_sessao`, então
+o navegador já o escopa ao host exato que serviu a resposta — cada
+subdomínio de loja já tem sua sessão isolada "de graça".
 
 ### 11. Autenticação e sessão (issue #49) — implementado
 
