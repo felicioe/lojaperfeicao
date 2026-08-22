@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { withUserConnection, withLojaConnection } from "./backend/db";
 import { decifrar } from "./backend/cripto";
 import { SENHA_PADRAO } from "./backend/usuarios";
+import { contarEnviosHoje, LIMITE_DIARIO_EMAIL_POR_LOJA } from "./rate-limit";
 
 // Envio de e-mail com fila (issue #103 + issue #XXX) — SMTP da própria
 // Hostinger via nodemailer. Isolado aqui e importado via import() dinâmico
@@ -615,7 +616,29 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
     let enviadas = 0;
     let falhas = 0;
 
+    // Contagem de envios de hoje por Loja, carregada sob demanda e mantida em
+    // memória durante o laço: evita reconsultar o banco a cada fila do mesmo
+    // lote, mas ainda barra uma Loja com fila represada de monopolizar o SMTP
+    // compartilhado (issue #341).
+    const enviadosHojePorLoja = new Map<string, number>();
+
     for (const fila of filas) {
+      const lojaId = fila.loja_id as string | null;
+
+      if (lojaId) {
+        let jaEnviadosHoje = enviadosHojePorLoja.get(lojaId);
+        if (jaEnviadosHoje === undefined) {
+          jaEnviadosHoje = await contarEnviosHoje(conn, "filas_email", "enviado_em", lojaId);
+          enviadosHojePorLoja.set(lojaId, jaEnviadosHoje);
+        }
+        if (jaEnviadosHoje >= LIMITE_DIARIO_EMAIL_POR_LOJA) {
+          console.warn(
+            `[cron:fila-email] loja ${lojaId}: limite diário de ${LIMITE_DIARIO_EMAIL_POR_LOJA} e-mails atingido, adiando fila ${fila.id}.`,
+          );
+          continue;
+        }
+      }
+
       const destinatarios = JSON.parse(fila.destinatarios_json) as string[];
       const anexos = fila.anexo_buffer
         ? [
@@ -627,22 +650,36 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
           ]
         : undefined;
 
-      const resultado = await tentarEnviarFilaEmail(
-        conn,
-        fila.id,
-        destinatarios,
-        fila.assunto,
-        fila.corpo_html,
-        fila.corpo_texto,
-        anexos,
-        // A loja da própria linha da fila: o retry precisa sair pela mesma
-        // caixa de onde o envio original sairia, não pela de outra loja.
-        fila.loja_id as string | null,
-      );
-
       processadas++;
-      if (resultado.falhas === 0) enviadas++;
-      else falhas++;
+      try {
+        const resultado = await tentarEnviarFilaEmail(
+          conn,
+          fila.id,
+          destinatarios,
+          fila.assunto,
+          fila.corpo_html,
+          fila.corpo_texto,
+          anexos,
+          // A loja da própria linha da fila: o retry precisa sair pela mesma
+          // caixa de onde o envio original sairia, não pela de outra loja.
+          lojaId,
+        );
+
+        if (resultado.falhas === 0) {
+          enviadas++;
+          if (lojaId) enviadosHojePorLoja.set(lojaId, (enviadosHojePorLoja.get(lojaId) ?? 0) + 1);
+        } else {
+          falhas++;
+        }
+      } catch (err) {
+        // SMTP indisponível/mal configurado numa Loja não pode travar o
+        // retry da fila das demais Lojas atrás dela no mesmo lote.
+        console.error(
+          `[cron:fila-email] loja ${lojaId ?? "?"}: falha ao processar fila ${fila.id}:`,
+          err,
+        );
+        falhas++;
+      }
     }
 
     // Conta pendentes ainda aguardando
@@ -652,6 +689,10 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
          AND proxima_tentativa IS NOT NULL`,
     );
     const pendentes = Number(pendentesResult?.count || 0);
+
+    console.log(
+      `[cron:fila-email] ${processadas} processada(s), ${enviadas} enviada(s), ${falhas} falha(s), ${pendentes} pendente(s).`,
+    );
 
     return { processadas, enviadas, falhas, pendentes };
   });
@@ -740,6 +781,10 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
       if (sucesso) enviadas++;
       else falhas++;
     }
+
+    console.log(
+      `[cron:lembretes-email] ${faturas.length} avaliada(s), ${enviadas} enviada(s), ${falhas} falha(s).`,
+    );
 
     return { avaliadas: faturas.length, enviadas, falhas };
   });

@@ -1,5 +1,11 @@
 import type { RowDataPacket } from "mysql2";
-import { withUserConnection } from "./backend/db";
+import { withLojaConnection } from "./backend/db";
+
+// Portal institucional público é hoje um site só, hardcoded (ver o CORS fixo
+// em src/server.ts pra este mesmo endpoint) — não há ainda um mecanismo de
+// escolher a Loja a partir da requisição pública. Enquanto isso não existe,
+// a agenda publicada é sempre a desta Loja semente.
+const LOJA_PORTAL_PUBLICO = "00000000-0000-4000-8000-000000000001";
 
 export type ItemAgendaPublica = {
   id: string;
@@ -33,7 +39,7 @@ type LinhaAgenda = RowDataPacket & {
  * cadastrado, o trabalho permanece público, mas sem autoria identificada.
  */
 export async function carregarAgendaPublica(): Promise<ItemAgendaPublica[]> {
-  return withUserConnection(null, async (conn) => {
+  return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [rows] = await conn.query<LinhaAgenda[]>(
       `SELECT s.id, s.data, s.tipo, s.grau,
               og.nome AS nome_grau, o.nome AS corpo,
@@ -43,7 +49,7 @@ export async function carregarAgendaPublica(): Promise<ItemAgendaPublica[]> {
        LEFT JOIN orgs_graus og ON og.org_id = s.org_id AND og.grau = s.grau
        LEFT JOIN sessao_responsaveis sr ON sr.sessao_id = s.id
        LEFT JOIN irmaos i ON i.id = sr.irmao_id
-       WHERE s.data >= CURRENT_DATE
+       WHERE s.loja_id = @current_loja_id AND s.data >= CURRENT_DATE
        ORDER BY s.data ASC, sr.criado_em ASC`,
     );
 

@@ -93,6 +93,11 @@ export async function executarBackupDaLoja(
   lojaId: string,
 ): Promise<ResultadoBackup> {
   return withUserConnection(null, async (conn) => {
+    const [[lojaRow]] = await conn.query<RowDataPacket[]>("SELECT slug FROM lojas WHERE id = ?", [
+      lojaId,
+    ]);
+    const lojaSlug = String(lojaRow?.slug ?? lojaId);
+
     const [tabelas] = await conn.query<RowDataPacket[]>("SHOW TABLES");
     const nomeColuna = Object.keys(tabelas[0] ?? {})[0];
     const nomesTabelas = tabelas.map((t) => t[nomeColuna] as string);
@@ -129,9 +134,9 @@ export async function executarBackupDaLoja(
 
     await mkdir(BACKUPS_DIR, { recursive: true });
     const carimbo = new Date().toISOString().replace(/[:.]/g, "-");
-    // A loja entra no nome do arquivo: com mais de uma Loja, uma pasta com
+    // O slug entra no nome do arquivo: com mais de uma Loja, uma pasta com
     // "backup-<data>.json" repetido não diz de quem é cada arquivo.
-    const nomeArquivo = `backup-${lojaId}-${carimbo}.json`;
+    const nomeArquivo = `backup-${lojaSlug}-${carimbo}.json`;
     const conteudo = JSON.stringify(dump, null, 2);
     await writeFile(join(BACKUPS_DIR, nomeArquivo), conteudo, "utf-8");
     const { size } = await stat(join(BACKUPS_DIR, nomeArquivo));
@@ -148,14 +153,26 @@ export async function executarBackupDaLoja(
   });
 }
 
-/** Disparo do cron: um backup por Loja ativa. */
+/**
+ * Disparo do cron: um backup por Loja ativa. Cada Loja roda isolada — uma
+ * falha de disco/banco numa Loja não pode impedir o backup das outras,
+ * mesmo padrão de isolamento do push-dispatch.ts.
+ */
 export async function executarBackupAgendado(
   origem: "cron" | "manual" = "cron",
 ): Promise<ResultadoBackup[]> {
   const lojas = await listarLojasAtivas();
   const resultados: ResultadoBackup[] = [];
   for (const loja of lojas) {
-    resultados.push(await executarBackupDaLoja(origem, loja.id));
+    try {
+      const resultado = await executarBackupDaLoja(origem, loja.id);
+      console.log(
+        `[cron:backup] loja ${loja.slug}: ${resultado.nomeArquivo} (${resultado.totalTabelas} tabela(s), ${resultado.totalLinhas} linha(s), ${resultado.tamanhoBytes} byte(s)).`,
+      );
+      resultados.push(resultado);
+    } catch (err) {
+      console.error(`[cron:backup] falha ao processar loja ${loja.slug}:`, err);
+    }
   }
   return resultados;
 }

@@ -111,6 +111,86 @@ const EXCECOES = [
     contem: "SELECT id FROM usuarios WHERE facebook_id",
     motivo: "Login por Facebook, pré-autenticação — mesmo caso do login por senha.",
   },
+  // ---- issue #341/#350: pendências revisadas que não precisam de escopo —
+  // são bootstrap global (conta o sistema inteiro, não uma Loja) ou o
+  // usuário só nunca opera sobre si mesmo (id vem da própria sessão, de um
+  // valor que a função acabou de criar, ou de um ticket assinado de OAuth).
+  {
+    arquivo: "src/lib/backend/auth.ts",
+    contem: "SELECT COUNT(*) AS total FROM usuarios",
+    motivo:
+      "signup/contarUsuarios: trava de 'só o primeiro admin do sistema pode se cadastrar' — " +
+      "é contagem GLOBAL de propósito, não de uma Loja. Escopar aqui deixaria cada Loja nova " +
+      "reabrir o próprio signup.",
+  },
+  {
+    arquivo: "src/lib/backend/auth.ts",
+    contem: "UPDATE usuarios SET consentimento_lgpd_em = NOW() WHERE id = ?",
+    motivo:
+      "signup grava no id que a própria função acabou de criar (novo_usuario_id); " +
+      "registrarConsentimentoLgpd grava no id da sessão autenticada (comSessao). " +
+      "Nenhum dos dois é controlável por quem chama.",
+  },
+  {
+    arquivo: "src/lib/backend/auth.ts",
+    contem: "SELECT senha_hash, deve_trocar_senha FROM usuarios WHERE id = ?",
+    motivo:
+      "trocarMinhaSenha: lê a própria senha do usuário da sessão (comSessao), nunca de outro.",
+  },
+  {
+    arquivo: "src/lib/backend/auth.ts",
+    contem:
+      "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = FALSE, senha_alterada_em = NOW() WHERE id = ?",
+    motivo:
+      "trocarMinhaSenha: troca a própria senha do usuário da sessão (comSessao), nunca de outro.",
+  },
+  {
+    arquivo: "src/lib/backend/email-parametros.ts",
+    contem: "SELECT email FROM usuarios WHERE id = ?",
+    motivo:
+      "enviarEmailDeTeste: busca o e-mail do próprio usuário da sessão (comPapel) pra mandar o teste — nunca de outro.",
+  },
+  {
+    arquivo: "src/lib/facebook-oauth-callback.ts",
+    contem: "UPDATE usuarios SET facebook_id = ? WHERE id = ?",
+    motivo:
+      "Vincular conta Facebook: o id vem de estado.usuario_id_vinculacao, um ticket assinado de " +
+      "OAuth emitido para um usuário já autenticado — não é controlável pelo request.",
+  },
+  {
+    arquivo: "src/lib/google-oauth-callback.ts",
+    contem: "UPDATE usuarios SET google_id = ? WHERE id = ?",
+    motivo:
+      "Vincular conta Google: o id vem de estado.usuario_id_vinculacao, um ticket assinado de " +
+      "OAuth emitido para um usuário já autenticado — não é controlável pelo request.",
+  },
+  // ---- fila de e-mail: cada linha é achada pelo próprio id (uuid privado)
+  // ou pela chave de dedup (namespaced com o id da entidade de origem,
+  // nunca reutilizada entre Lojas) — nenhuma das duas é adivinhável nem
+  // controlável por quem não já tinha a linha em mãos.
+  {
+    arquivo: "src/lib/email-dispatch.ts",
+    contem: "UPDATE filas_email SET status = ?, tentativas = tentativas + 1, ultimo_erro = ?",
+    motivo: "tentarEnviarFilaEmail: atualiza a linha que ela mesma acabou de processar, pelo id.",
+  },
+  {
+    arquivo: "src/lib/email-dispatch.ts",
+    contem: "SELECT 1 AS ok FROM filas_email WHERE chave = ? AND status = 'enviado' LIMIT 1",
+    motivo: "jaEnviadoComSucesso: dedup pela chave, que já é namespaced por entidade de origem.",
+  },
+  {
+    arquivo: "src/lib/email-dispatch.ts",
+    contem:
+      "SELECT COUNT(*) AS count FROM filas_email WHERE status IN ('pendente', 'erro_permanente')",
+    motivo:
+      "processarFilaEmails: métrica de quantos itens restam pendentes no total, devolvida ao " +
+      "cron — cross-Loja de propósito (é uma contagem, não expõe linha nenhuma).",
+  },
+  {
+    arquivo: "src/lib/email-dispatch.ts",
+    contem: "UPDATE filas_email SET status = ?, tentativas = 1, ultimo_erro = ?",
+    motivo: "enviarArquivoPorEmail: atualiza a linha que ela mesma acabou de criar, pelo id.",
+  },
 ];
 
 // Uma exceção que deixou de casar (a query foi reescrita, o arquivo sumiu)
