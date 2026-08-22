@@ -9,12 +9,15 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useTheme } from "../lib/use-theme";
 import { useServiceWorker } from "../lib/use-service-worker";
+import { useSession } from "../lib/auth-hooks";
+import { obterLojaAtual } from "../lib/backend/loja-atual";
 
 function NotFoundComponent() {
   return (
@@ -139,18 +142,38 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Título da aba (issue #340): "SGLFM" fora de sessão (páginas públicas, onde
+// nenhuma Loja é conhecida ainda) ou o nome da Loja de quem está logado — em
+// vez do nome fixo de uma instalação específica. Precisa ser um componente
+// à parte: seus hooks usam useQuery, e só o que está DENTRO do
+// QueryClientProvider (abaixo, no retorno de RootComponent) tem acesso a
+// ele — chamar useQuery direto em RootComponent quebra, porque o Provider é
+// criado pelo próprio retorno dele, não um ancestral.
+function TituloDaAba() {
+  const location = useLocation();
+  const { user } = useSession();
+  const { data: loja } = useQuery({
+    queryKey: ["loja_atual"],
+    queryFn: () => obterLojaAtual(),
+    enabled: !!user,
+    staleTime: 5 * 60_000,
+  });
+
+  useEffect(() => {
+    document.title = loja?.nome || "SGLFM";
+  }, [location.pathname, loja?.nome]);
+
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const location = useLocation();
   useTheme();
   useServiceWorker();
 
-  useEffect(() => {
-    document.title = "SGLFM";
-  }, [location.pathname]);
-
   return (
     <QueryClientProvider client={queryClient}>
+      <TituloDaAba />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       {/* Montado uma vez aqui (não em AppShell/PainelShell) pra também cobrir

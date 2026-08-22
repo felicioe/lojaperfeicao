@@ -60,7 +60,7 @@ function DadosEntidade() {
     <>
       <PageHeader
         title="Dados da Entidade"
-        description="Nome, CNPJ e e-mail do encarregado/DPO exibidos na Política de Privacidade (LGPD)."
+        description="Nome e CNPJ da Loja (usados também no cabeçalho institucional e nas faturas/recibos impressos) e o e-mail do encarregado/DPO, exibido na Política de Privacidade (LGPD)."
       />
       <Card>
         <CardHeader>

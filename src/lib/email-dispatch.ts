@@ -461,6 +461,67 @@ export async function enviarEmailConviteAdminLoja(params: {
   });
 }
 
+// E-mail de boas-vindas ao admin recém-aceito (issue #340) — diferente de
+// enviarEmailConviteAdminLoja (que manda o LINK do convite): este dispara
+// DEPOIS que a conta já existe, com o próximo passo (configurar a Loja).
+// Não usa enviarEmailBoasVindas (usuarios.ts) porque aquela pressupõe um
+// registro em `irmaos` já vinculado — não existe ainda pra quem acabou de
+// aceitar um convite de admin.
+export async function enviarEmailBoasVindasAdminLoja(params: {
+  lojaId: string;
+  lojaNome: string;
+  destinatario: string;
+  nomeCompleto: string;
+}): Promise<{ enviado: boolean; erro: string | null }> {
+  return withUserConnection(null, async (conn) => {
+    const link = `${origemPublica()}/administracao/configuracao-inicial`;
+    const assunto = `Bem-vindo(a) — configure ${params.lojaNome}`;
+    const html = `
+      <p>Olá, ${params.nomeCompleto}!</p>
+      <p>Seu acesso como administrador(a) de <strong>${params.lojaNome}</strong> foi criado com sucesso.</p>
+      <p>Já deixamos um plano de contas e alguns parâmetros pré-configurados — falta só conferir os dados institucionais, cadastrar a conta financeira/chave Pix e revisar o que foi preenchido automaticamente.</p>
+      <p><a href="${link}">${link}</a></p>
+    `;
+    const texto = `Olá, ${params.nomeCompleto}! Seu acesso como administrador(a) de ${params.lojaNome} foi criado. Complete a configuração inicial em ${link}.`;
+
+    const filaId = await gravarNaFila(conn, {
+      chave: `boas_vindas_admin_loja:${params.lojaId}:${randomUUID()}`,
+      tipo: "boas_vindas",
+      destinatarios: [params.destinatario],
+      assunto,
+      html,
+      texto,
+      lojaId: params.lojaId,
+    });
+
+    try {
+      const resultado = await tentarEnviarFilaEmail(
+        conn,
+        filaId,
+        [params.destinatario],
+        assunto,
+        html,
+        texto,
+        undefined,
+        params.lojaId,
+      );
+      return { enviado: resultado.falhas === 0, erro: resultado.ultimoErro };
+    } catch (err) {
+      // Mesmo raciocínio de enviarEmailConviteAdminLoja: sem isto a linha
+      // fica 'pendente' pra sempre, fora do alcance do retry do CRON.
+      const motivo = err instanceof Error ? err.message : String(err);
+      await conn.query(
+        `UPDATE filas_email
+            SET status = 'erro_permanente', tentativas = tentativas + 1, ultimo_erro = ?,
+                atualizado_em = CURRENT_TIMESTAMP
+          WHERE id = ? AND loja_id = ?`,
+        [motivo.slice(0, 500), filaId, params.lojaId],
+      );
+      return { enviado: false, erro: motivo };
+    }
+  });
+}
+
 // ---------- Comunicado publicado (issue #107, com fila) ----------
 // Opcional por comunicado (checkbox desmarcado por padrão).
 // Destinatários: irmãos ativos com e-mail, respeitando visibilidade.

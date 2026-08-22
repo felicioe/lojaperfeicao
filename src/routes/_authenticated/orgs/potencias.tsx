@@ -4,6 +4,7 @@ import {
   listarPotencias,
   salvarPotencia,
   alternarAtivoPotencia,
+  uploadLogoPotencia,
   type Potencia,
 } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
@@ -32,7 +33,14 @@ export const Route = createFileRoute("/_authenticated/orgs/potencias")({
   component: Potencias,
 });
 
-const FORM_VAZIO = { id: null as string | null, nome: "", sigla: "", jurisdicao: "", site: "" };
+const FORM_VAZIO = {
+  id: null as string | null,
+  nome: "",
+  sigla: "",
+  jurisdicao: "",
+  site: "",
+  logo_url: null as string | null,
+};
 
 function Potencias() {
   const can = useCan();
@@ -63,6 +71,7 @@ function Potencias() {
           sigla: form.sigla || null,
           jurisdicao: form.jurisdicao || null,
           site: form.site || null,
+          logo_url: form.logo_url,
         },
       });
       toast.success(form.id ? "Potência atualizada." : "Potência criada.");
@@ -70,6 +79,25 @@ function Potencias() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    }
+  };
+
+  const uploadLogo = async (file: File) => {
+    if (!form.id) return;
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { url } = await uploadLogoPotencia({
+        data: { potenciaId: form.id, nomeArquivo: file.name, dataUrl },
+      });
+      setForm({ ...form, logo_url: url });
+      toast.success("Logo enviado — clique em Salvar para confirmar.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar o logo.");
     }
   };
 
@@ -97,6 +125,29 @@ function Potencias() {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-4">
+            {form.id && (
+              <div className="md:col-span-4 flex items-center gap-4">
+                {form.logo_url && (
+                  <img
+                    src={form.logo_url}
+                    alt="Logo"
+                    className="h-16 w-16 rounded object-contain border bg-white p-1"
+                  />
+                )}
+                <div>
+                  <Label htmlFor="potencia-logo">Logo (usado no cabeçalho institucional)</Label>
+                  <Input
+                    id="potencia-logo"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadLogo(file);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div>
               <Label htmlFor="potencia-nome">Nome</Label>
               <Input
@@ -194,6 +245,7 @@ function Potencias() {
                           sigla: p.sigla ?? "",
                           jurisdicao: p.jurisdicao ?? "",
                           site: p.site ?? "",
+                          logo_url: p.logo_url,
                         })
                       }
                     >

@@ -24,6 +24,7 @@ import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
 import { Route as AuthenticatedAdminSaasLojasRouteImport } from './routes/_authenticated/admin-saas/lojas'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
+import { Route as AuthenticatedAdministracaoConfiguracaoInicialRouteImport } from './routes/_authenticated/administracao/configuracao-inicial'
 import { Route as AuthenticatedAdministracaoDadosEntidadeRouteImport } from './routes/_authenticated/administracao/dados-entidade'
 import { Route as AuthenticatedAdministracaoEmailRouteImport } from './routes/_authenticated/administracao/email'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
@@ -173,6 +174,12 @@ const AuthenticatedAdministracaoBackupsRoute =
   AuthenticatedAdministracaoBackupsRouteImport.update({
     id: '/administracao/backups',
     path: '/administracao/backups',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdministracaoConfiguracaoInicialRoute =
+  AuthenticatedAdministracaoConfiguracaoInicialRouteImport.update({
+    id: '/administracao/configuracao-inicial',
+    path: '/administracao/configuracao-inicial',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdministracaoDadosEntidadeRoute =
@@ -613,6 +620,7 @@ export interface FileRoutesByFullPath {
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
+  '/administracao/configuracao-inicial': typeof AuthenticatedAdministracaoConfiguracaoInicialRoute
   '/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
   '/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
@@ -699,6 +707,7 @@ export interface FileRoutesByTo {
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
+  '/administracao/configuracao-inicial': typeof AuthenticatedAdministracaoConfiguracaoInicialRoute
   '/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
   '/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
@@ -788,6 +797,7 @@ export interface FileRoutesById {
   '/_authenticated/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/_authenticated/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
+  '/_authenticated/administracao/configuracao-inicial': typeof AuthenticatedAdministracaoConfiguracaoInicialRoute
   '/_authenticated/administracao/dados-entidade': typeof AuthenticatedAdministracaoDadosEntidadeRoute
   '/_authenticated/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/_authenticated/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
@@ -877,6 +887,7 @@ export interface FileRouteTypes {
     | '/admin-saas/lojas'
     | '/administracao/auditoria'
     | '/administracao/backups'
+    | '/administracao/configuracao-inicial'
     | '/administracao/dados-entidade'
     | '/administracao/email'
     | '/administracao/exportar-dados'
@@ -963,6 +974,7 @@ export interface FileRouteTypes {
     | '/admin-saas/lojas'
     | '/administracao/auditoria'
     | '/administracao/backups'
+    | '/administracao/configuracao-inicial'
     | '/administracao/dados-entidade'
     | '/administracao/email'
     | '/administracao/exportar-dados'
@@ -1051,6 +1063,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin-saas/lojas'
     | '/_authenticated/administracao/auditoria'
     | '/_authenticated/administracao/backups'
+    | '/_authenticated/administracao/configuracao-inicial'
     | '/_authenticated/administracao/dados-entidade'
     | '/_authenticated/administracao/email'
     | '/_authenticated/administracao/exportar-dados'
@@ -1241,6 +1254,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/backups'
       fullPath: '/administracao/backups'
       preLoaderRoute: typeof AuthenticatedAdministracaoBackupsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/administracao/configuracao-inicial': {
+      id: '/_authenticated/administracao/configuracao-inicial'
+      path: '/administracao/configuracao-inicial'
+      fullPath: '/administracao/configuracao-inicial'
+      preLoaderRoute: typeof AuthenticatedAdministracaoConfiguracaoInicialRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/administracao/dados-entidade': {
@@ -1793,6 +1813,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedAdministracaoAuditoriaRoute: typeof AuthenticatedAdministracaoAuditoriaRoute
   AuthenticatedAdministracaoBackupsRoute: typeof AuthenticatedAdministracaoBackupsRoute
+  AuthenticatedAdministracaoConfiguracaoInicialRoute: typeof AuthenticatedAdministracaoConfiguracaoInicialRoute
   AuthenticatedAdministracaoDadosEntidadeRoute: typeof AuthenticatedAdministracaoDadosEntidadeRoute
   AuthenticatedAdministracaoEmailRoute: typeof AuthenticatedAdministracaoEmailRoute
   AuthenticatedAdministracaoExportarDadosRoute: typeof AuthenticatedAdministracaoExportarDadosRoute
@@ -1866,6 +1887,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAdministracaoAuditoriaRoute,
   AuthenticatedAdministracaoBackupsRoute:
     AuthenticatedAdministracaoBackupsRoute,
+  AuthenticatedAdministracaoConfiguracaoInicialRoute:
+    AuthenticatedAdministracaoConfiguracaoInicialRoute,
   AuthenticatedAdministracaoDadosEntidadeRoute:
     AuthenticatedAdministracaoDadosEntidadeRoute,
   AuthenticatedAdministracaoEmailRoute: AuthenticatedAdministracaoEmailRoute,

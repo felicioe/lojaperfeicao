@@ -68,7 +68,10 @@ function AceitarConvite() {
       // digitar tudo de novo não acrescenta nada.
       queryClient.setQueryData(SESSAO_QUERY_KEY, sessao);
       toast.success("Acesso criado. Bem-vindo(a)!");
-      navigate({ to: "/dashboard" });
+      // Primeiro admin de uma Loja nova (issue #340): ainda não configurou
+      // nada além do que o seed automático já preencheu — manda direto pro
+      // assistente de primeira configuração em vez do Dashboard vazio.
+      navigate({ to: "/administracao/configuracao-inicial" });
     } catch (err) {
       toast.error(mensagemDeErro(err, "Não foi possível aceitar o convite."), { duration: 10000 });
     } finally {

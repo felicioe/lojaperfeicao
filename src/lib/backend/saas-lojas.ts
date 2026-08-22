@@ -199,6 +199,10 @@ export const salvarLoja = createServerFn({ method: "POST" })
         "INSERT INTO lojas (id, slug, nome, razao_social, cnpj, ativa) VALUES (?, ?, ?, ?, ?, 1)",
         [novo_id, data.slug, data.nome, razaoSocial, cnpj],
       );
+      // Sem isto a Loja nasce inutilizável: toda baixa de fatura falha (o
+      // SIGNAL de parâmetro contábil não configurado, issue #354) e Gestões
+      // não tem cargo nenhum pra vincular (issue #340).
+      await conn.query("CALL seed_loja_padrao(?)", [novo_id]);
       await registrarAuditoriaPlataforma(conn, usuarioId, "criar_loja", novo_id as string, null, {
         slug: data.slug,
         nome: data.nome,

@@ -417,7 +417,7 @@ export const aceitarConvite = createServerFn({ method: "POST" })
     return r.data;
   })
   .handler(async ({ data }): Promise<UsuarioSessao> => {
-    const usuarioId = await withUserConnection(null, async (conn) => {
+    const criado = await withUserConnection(null, async (conn) => {
       const senhaHash = await bcrypt.hash(data.senha, 10);
       await conn.beginTransaction();
       try {
@@ -463,15 +463,35 @@ export const aceitarConvite = createServerFn({ method: "POST" })
           { email: convite.email },
         );
         await conn.commit();
-        return novoId;
+        return {
+          novoId,
+          lojaId: convite.loja_id as string,
+          lojaNome: convite.loja_nome as string,
+          email: convite.email as string,
+        };
       } catch (err) {
         await conn.rollback();
         throw err;
       }
     });
 
-    await criarSessao(usuarioId);
-    const sessao = await carregarUsuarioComPapeis(usuarioId);
+    await criarSessao(criado.novoId);
+    const sessao = await carregarUsuarioComPapeis(criado.novoId);
     if (!sessao) throw new Error("Conta criada, mas não foi possível abrir a sessão. Faça login.");
+
+    // Melhor esforço (issue #340) — falha de e-mail não pode impedir a
+    // pessoa de entrar: a conta e a sessão já existem nesse ponto.
+    try {
+      const { enviarEmailBoasVindasAdminLoja } = await import("../email-dispatch");
+      await enviarEmailBoasVindasAdminLoja({
+        lojaId: criado.lojaId,
+        lojaNome: criado.lojaNome,
+        destinatario: criado.email,
+        nomeCompleto: data.nomeCompleto,
+      });
+    } catch (err) {
+      console.error("Falha ao enviar e-mail de boas-vindas ao admin da Loja:", err);
+    }
+
     return sessao;
   });

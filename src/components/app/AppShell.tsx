@@ -65,6 +65,7 @@ import {
   Lock,
   FileText,
   Layers,
+  Rocket,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -623,6 +624,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/administracao/backups",
           label: "Backups",
           icon: Archive,
+          show: can.isAdmin,
+        },
+        {
+          to: "/administracao/configuracao-inicial",
+          label: "Configuração Inicial",
+          icon: Rocket,
           show: can.isAdmin,
         },
         {

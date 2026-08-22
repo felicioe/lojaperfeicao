@@ -18,6 +18,7 @@ export type Potencia = {
   sigla: string | null;
   jurisdicao: string | null;
   site: string | null;
+  logo_url: string | null;
   ativo: boolean;
 };
 
@@ -51,7 +52,7 @@ export const listarPotencias = createServerFn({ method: "GET" }).handler(
   async (): Promise<Potencia[]> => {
     return comSessao(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id, nome, sigla, jurisdicao, site, ativo FROM potencias WHERE loja_id = @current_loja_id ORDER BY nome",
+        "SELECT id, nome, sigla, jurisdicao, site, logo_url, ativo FROM potencias WHERE loja_id = @current_loja_id ORDER BY nome",
       );
       return rows as Potencia[];
     });
@@ -64,6 +65,7 @@ const potenciaSchema = z.object({
   sigla: z.string().nullable(),
   jurisdicao: z.string().nullable(),
   site: z.string().nullable(),
+  logo_url: z.string().nullable().optional(),
 });
 
 export const salvarPotencia = createServerFn({ method: "POST" })
@@ -72,15 +74,15 @@ export const salvarPotencia = createServerFn({ method: "POST" })
     return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       if (data.id) {
         await conn.query(
-          "UPDATE potencias SET nome=?, sigla=?, jurisdicao=?, site=? WHERE id=? AND loja_id = @current_loja_id",
-          [data.nome, data.sigla, data.jurisdicao, data.site, data.id],
+          "UPDATE potencias SET nome=?, sigla=?, jurisdicao=?, site=?, logo_url=? WHERE id=? AND loja_id = @current_loja_id",
+          [data.nome, data.sigla, data.jurisdicao, data.site, data.logo_url ?? null, data.id],
         );
       } else {
         // A loja vem da sessão (comPapel), nunca do request — o schema sequer
         // aceita loja_id.
         await conn.query(
-          "INSERT INTO potencias (loja_id, nome, sigla, jurisdicao, site) VALUES (?, ?, ?, ?, ?)",
-          [lojaId, data.nome, data.sigla, data.jurisdicao, data.site],
+          "INSERT INTO potencias (loja_id, nome, sigla, jurisdicao, site, logo_url) VALUES (?, ?, ?, ?, ?, ?)",
+          [lojaId, data.nome, data.sigla, data.jurisdicao, data.site, data.logo_url ?? null],
         );
       }
     });
@@ -461,8 +463,41 @@ export const removerOrgGrau = createServerFn({ method: "POST" })
   });
 
 // Mesmo padrão de uploadFotoIrmao (irmaos.ts): só grava o arquivo em
-// public/uploads/ e devolve a URL — persistir em orgs.logo_url continua
-// exigindo o "Salvar alterações" (salvarOrg).
+// public/uploads/ e devolve a URL — persistir em orgs.logo_url/potencias.logo_url
+// continua exigindo o "Salvar alterações" (salvarOrg/salvarPotencia).
+//
+// Validação de tipo/tamanho no servidor (achado da revisão da issue #340):
+// uploadLogoOrg não tinha, diferente do padrão pós-#154 (uploadComprovanteSgcab)
+// — o atributo accept="image/*" do <input> no cliente é só cosmético.
+const TAMANHO_MAXIMO_LOGO_BYTES = 5 * 1024 * 1024; // 5 MB — é logo, não anexo
+
+function decodificarImagemUpload(dataUrl: string): Buffer {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error("Arquivo inválido.");
+  if (!match[1].startsWith("image/")) {
+    throw new Error("Tipo de arquivo não permitido. Envie uma imagem.");
+  }
+  const buffer = Buffer.from(match[2], "base64");
+  if (buffer.byteLength > TAMANHO_MAXIMO_LOGO_BYTES) {
+    throw new Error("Arquivo maior que o limite de 5 MB.");
+  }
+  return buffer;
+}
+
+async function salvarImagemEmDisco(
+  recurso: string,
+  id: string,
+  nomeArquivo: string,
+  buffer: Buffer,
+): Promise<string> {
+  const nomeSeguro = nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const dir = join(process.cwd(), "public", "uploads", recurso, id);
+  await mkdir(dir, { recursive: true });
+  const nomeArquivoFinal = `${Date.now()}-${nomeSeguro}`;
+  await writeFile(join(dir, nomeArquivoFinal), buffer);
+  return `/uploads/${recurso}/${id}/${nomeArquivoFinal}`;
+}
+
 const uploadLogoSchema = z.object({
   orgId: z.string().uuid(),
   nomeArquivo: z.string().min(1),
@@ -473,14 +508,46 @@ export const uploadLogoOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadLogoSchema.parse(d))
   .handler(async ({ data }): Promise<{ url: string }> => {
     return comPapel(PAPEIS_ESCRITA, async () => {
-      const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) throw new Error("Arquivo inválido.");
-      const buffer = Buffer.from(match[2], "base64");
-      const nomeSeguro = data.nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const dir = join(process.cwd(), "public", "uploads", "orgs", data.orgId);
-      await mkdir(dir, { recursive: true });
-      const nomeArquivoFinal = `${Date.now()}-${nomeSeguro}`;
-      await writeFile(join(dir, nomeArquivoFinal), buffer);
-      return { url: `/uploads/orgs/${data.orgId}/${nomeArquivoFinal}` };
+      const buffer = decodificarImagemUpload(data.dataUrl);
+      const url = await salvarImagemEmDisco("orgs", data.orgId, data.nomeArquivo, buffer);
+      return { url };
     });
   });
+
+const uploadLogoPotenciaSchema = z.object({
+  potenciaId: z.string().uuid(),
+  nomeArquivo: z.string().min(1),
+  dataUrl: z.string().startsWith("data:"),
+});
+
+export const uploadLogoPotencia = createServerFn({ method: "POST" })
+  .validator((d: unknown) => uploadLogoPotenciaSchema.parse(d))
+  .handler(async ({ data }): Promise<{ url: string }> => {
+    return comPapel(PAPEIS_ESCRITA, async () => {
+      const buffer = decodificarImagemUpload(data.dataUrl);
+      const url = await salvarImagemEmDisco("potencias", data.potenciaId, data.nomeArquivo, buffer);
+      return { url };
+    });
+  });
+
+export type LogoInstitucional = { nome: string; logoUrl: string };
+
+// Cabeçalho institucional (issue #340): toda entidade da Loja com logo
+// cadastrado — Orgs (corpos maçônicos) e Potências — em vez dos 3 arquivos
+// fixos que existiam antes (uma Loja específica, hardcoded no componente).
+export const listarLogosInstitucionais = createServerFn({ method: "GET" }).handler(
+  async (): Promise<LogoInstitucional[]> => {
+    return comSessao(async (conn) => {
+      const [orgs] = await conn.query<RowDataPacket[]>(
+        "SELECT nome, logo_url FROM orgs WHERE loja_id = @current_loja_id AND ativo = TRUE AND logo_url IS NOT NULL ORDER BY nome",
+      );
+      const [potencias] = await conn.query<RowDataPacket[]>(
+        "SELECT nome, logo_url FROM potencias WHERE loja_id = @current_loja_id AND ativo = TRUE AND logo_url IS NOT NULL ORDER BY nome",
+      );
+      return [...orgs, ...potencias].map((r) => ({
+        nome: r.nome as string,
+        logoUrl: r.logo_url as string,
+      }));
+    });
+  },
+);

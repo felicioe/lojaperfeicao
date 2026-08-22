@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { brl, fmtDate, fmtMesAno } from "@/lib/format";
@@ -8,6 +9,7 @@ import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import type { LancamentoDetalhe } from "@/lib/backend/tesouraria-lancamentos";
 import { CabecalhoInstitucional } from "@/components/app/CabecalhoInstitucional";
+import { obterLojaAtual } from "@/lib/backend/loja-atual";
 
 // Card imprimível de uma fatura (com QR Pix/boleto) — compartilhado entre a
 // tela administrativa (/tesouraria/faturas/$id) e o Meu Painel do irmão
@@ -44,6 +46,10 @@ function usePixQrCode(copiaCola: string | null) {
 }
 
 export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
+  const { data: loja } = useQuery({
+    queryKey: ["loja_atual"],
+    queryFn: () => obterLojaAtual(),
+  });
   const copiaCola =
     fatura.pix_copia_cola ||
     (fatura.forma_cobranca && fatura.pix_chave && fatura.pix_nome_beneficiario && fatura.pix_cidade
@@ -100,8 +106,10 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Favorecido
             </div>
-            <div className="font-medium">ASSOCIACAO CAPITULAR ADONHIRAMITA AO VALE DE ITAJAI</div>
-            <div className="text-xs text-muted-foreground">CNPJ 26.649.083/0001-38</div>
+            <div className="font-medium">
+              {(loja?.razaoSocial || loja?.nome || "").toUpperCase()}
+            </div>
+            {loja?.cnpj && <div className="text-xs text-muted-foreground">CNPJ {loja.cnpj}</div>}
           </div>
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -172,8 +180,8 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
                     </div>
                   )}
                   <div className="text-xs">
-                    <span className="font-semibold">Favorecido:</span> ASSOCIACAO CAPITULAR
-                    ADONHIRAMITA AO VALE DE ITAJAI
+                    <span className="font-semibold">Favorecido:</span>{" "}
+                    {fatura.pix_nome_beneficiario || loja?.razaoSocial || loja?.nome}
                   </div>
                   <div className="text-xs font-semibold">PIX Copia e Cola</div>
                   <div className="flex w-full max-w-xs items-start gap-2 sm:max-w-none">
