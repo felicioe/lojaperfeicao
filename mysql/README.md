@@ -412,6 +412,18 @@ migração no meio e tudo dali pra baixo ficava sem `loja_id`; e `podeVerIrmao`
 qual loja era o irmão, de modo que `listarFrequenciaIrmao` respondia a uma
 pergunta sobre irmão de outra loja em vez de recusar.
 
+**Fim da transição — os `DEFAULT` de `loja_id` já foram removidos (issue
+#350).** Com #337 e #349 concluídas, a migração 0097 tirou o `DEFAULT
+'<uuid da Loja semente>'` transitório de toda coluna `loja_id` (mantendo
+`NOT NULL`; só `auditoria.loja_id` continua aceitando `NULL`, de propósito,
+para ações de super-admin — issue #339). **Cadastrar uma segunda Loja em
+produção já é seguro**: um `INSERT` que esquecer a loja agora falha na hora,
+em vez de cair calado na Loja semente. `npm run checar:defaults-loja-id`
+reconstrói um banco do zero e confirma, via `information_schema`, que
+nenhuma coluna `loja_id` de nenhuma tabela ainda carrega esse `DEFAULT` — é
+o gate que mantém essa garantia valendo para toda tabela nova que alguém
+criar daqui pra frente.
+
 ### 11. Autenticação e sessão (issue #49) — implementado
 
 `src/lib/backend/db.ts` traz o pool real (`mysql2/promise`, `charset: "utf8mb4"`
