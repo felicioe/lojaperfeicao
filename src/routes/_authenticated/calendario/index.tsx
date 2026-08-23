@@ -109,14 +109,26 @@ function CalendarioPage() {
   });
   const [criandoSessao, setCriandoSessao] = useState(false);
 
-  const { data: sessoes = [] } = useQuery({
+  const {
+    data: sessoes = [],
+    isError: erroSessoes,
+    refetch: refetchSessoes,
+  } = useQuery({
     queryKey: ["sessoes"],
     queryFn: () => listarSessoes(),
   });
-  const { data: eventos = [] } = useQuery({
+  const {
+    data: eventos = [],
+    isError: erroEventos,
+    refetch: refetchEventos,
+  } = useQuery({
     queryKey: ["eventos"],
     queryFn: () => listarEventos(),
   });
+  // Sem isso, uma falha ao buscar sessões/eventos simplesmente reduzia os
+  // marcadores do mês sem nenhum aviso — o calendário parecia "mais vazio"
+  // em vez de mostrar que os dados podem estar incompletos.
+  const erroCalendario = erroSessoes || erroEventos;
   const { data: responsaveisSessoes = [] } = useQuery({
     queryKey: ["responsaveis_sessoes"],
     queryFn: () => listarResponsaveisSessoes(),
@@ -379,6 +391,24 @@ function CalendarioPage() {
           </div>
         }
       />
+
+      {erroCalendario && (
+        <Card className="mb-4 flex flex-wrap items-center justify-between gap-2 border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          <span>
+            Não foi possível carregar todos os dados — o calendário pode estar incompleto.
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (erroSessoes) refetchSessoes();
+              if (erroEventos) refetchEventos();
+            }}
+          >
+            Tentar novamente
+          </Button>
+        </Card>
+      )}
 
       <Card className="mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">

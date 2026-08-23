@@ -127,7 +127,7 @@ function IrmaoDetail() {
   const [saving, setSaving] = useState(false);
   const podeEditar = can.canManageIrmaos;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["irmao", id],
     queryFn: () => obterIrmao({ data: { id } }),
   });
@@ -136,6 +136,16 @@ function IrmaoDetail() {
     if (data && !perfil) setPerfil(data);
   }, [data, perfil]);
 
+  if (isError) {
+    return (
+      <div className="space-y-3">
+        <p className="text-muted-foreground">Não foi possível carregar o perfil do irmão.</p>
+        <Button variant="outline" onClick={() => refetch()}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
   if (isLoading || !perfil) return <p className="text-muted-foreground">Carregando…</p>;
 
   // Aceita tanto o evento de um <input>/<textarea> quanto o valor direto de

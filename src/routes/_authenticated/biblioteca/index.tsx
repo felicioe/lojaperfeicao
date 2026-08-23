@@ -127,7 +127,12 @@ function BibliotecaPage() {
   const [visualizando, setVisualizando] = useState<PecaArquitetura | null>(null);
   const [loteAberto, setLoteAberto] = useState(false);
 
-  const { data: pecas = [], isLoading } = useQuery({
+  const {
+    data: pecas = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["pecas_arquitetura"],
     queryFn: () => listarPecasArquitetura(),
   });
@@ -476,7 +481,18 @@ function BibliotecaPage() {
         />
       </Card>
       <Card>
-        {!isLoading && filtered.length === 0 ? (
+        {isError ? (
+          <EmptyState
+            icon={Library}
+            title="Não foi possível carregar a biblioteca"
+            description="Falha ao buscar os dados. Tente novamente."
+            action={
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : !isLoading && filtered.length === 0 ? (
           <EmptyState icon={Library} title="Nenhuma peça cadastrada ainda" />
         ) : (
           <Table>

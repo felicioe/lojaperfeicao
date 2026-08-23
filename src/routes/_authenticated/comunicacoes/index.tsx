@@ -62,7 +62,11 @@ function ComunicacoesPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState(FORM_VAZIO);
 
-  const { data: comunicados = [] } = useQuery({
+  const {
+    data: comunicados = [],
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["comunicados_all"],
     queryFn: () => listarComunicados(),
   });
@@ -203,7 +207,16 @@ function ComunicacoesPage() {
       )}
 
       <div className="space-y-3">
-        {comunicados.length === 0 && (
+        {isError && (
+          <Card className="p-10 text-center text-muted-foreground">
+            <Megaphone className="mx-auto mb-2 h-8 w-8" />
+            <p>Não foi possível carregar os comunicados.</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+              Tentar novamente
+            </Button>
+          </Card>
+        )}
+        {!isError && comunicados.length === 0 && (
           <Card className="p-10 text-center text-muted-foreground">
             <Megaphone className="mx-auto mb-2 h-8 w-8" />
             Nenhum comunicado publicado.

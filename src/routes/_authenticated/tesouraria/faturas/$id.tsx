@@ -14,12 +14,36 @@ export const Route = createFileRoute("/_authenticated/tesouraria/faturas/$id")({
 
 function FaturaDetalhe() {
   const { id } = useParams({ from: "/_authenticated/tesouraria/faturas/$id" });
-  const { data: fatura, isLoading } = useQuery({
+  const {
+    data: fatura,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["fatura", id],
     queryFn: () => obterLancamento({ data: { id } }),
   });
 
   if (isLoading) return null;
+
+  if (isError) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <EmptyState
+            icon={FileWarning}
+            title="Não foi possível carregar a fatura"
+            description="Falha ao buscar os dados. Tente novamente."
+            action={
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            }
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!fatura) {
     return (

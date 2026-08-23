@@ -50,7 +50,12 @@ function BackupsPage() {
   const [gerando, setGerando] = useState(false);
   const [baixando, setBaixando] = useState<string | null>(null);
 
-  const { data: backups = [], isLoading } = useQuery({
+  const {
+    data: backups = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["backups_gerados"],
     queryFn: () => listarBackupsGerados(),
     enabled: can.isAdmin,
@@ -108,7 +113,18 @@ function BackupsPage() {
         }
       />
       <Card>
-        {!isLoading && backups.length === 0 ? (
+        {isError ? (
+          <EmptyState
+            icon={Archive}
+            title="Não foi possível carregar os backups"
+            description="Falha ao buscar os dados. Tente novamente."
+            action={
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : !isLoading && backups.length === 0 ? (
           <EmptyState
             icon={Archive}
             title="Nenhum backup gerado ainda"

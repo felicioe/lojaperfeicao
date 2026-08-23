@@ -78,7 +78,11 @@ function ControleSgcabPage() {
     status: status === "todos" ? null : (status as SgcabFatura["status"]),
     irmaoId: irmaoId === "todos" ? null : irmaoId,
   };
-  const { data: faturas = [] } = useQuery({
+  const {
+    data: faturas = [],
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["sgcab_faturas", filtro],
     queryFn: () => listarFaturasSgcab({ data: filtro }),
   });
@@ -163,7 +167,18 @@ function ControleSgcabPage() {
       </Card>
 
       <div className="overflow-hidden rounded-xl border bg-card">
-        {faturas.length === 0 ? (
+        {isError ? (
+          <EmptyState
+            icon={ScrollText}
+            title="Não foi possível carregar as cobranças"
+            description="Falha ao buscar os dados. Tente novamente."
+            action={
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : faturas.length === 0 ? (
           <EmptyState
             icon={ScrollText}
             title="Nenhuma cobrança gerencial SGCAB encontrada."

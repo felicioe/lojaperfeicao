@@ -98,7 +98,11 @@ function Orgs() {
   const [form, setForm] = useState(FORM_VAZIO);
   const [expandido, setExpandido] = useState<string | null>(null);
 
-  const { data: orgs = [] } = useQuery({
+  const {
+    data: orgs = [],
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["orgs_all"],
     queryFn: () => listarOrgs(),
   });
@@ -455,7 +459,17 @@ function Orgs() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orgs.length === 0 && (
+            {isError && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-6 text-destructive">
+                  Não foi possível carregar os corpos maçônicos.{" "}
+                  <Button variant="link" size="sm" className="h-auto p-0" onClick={() => refetch()}>
+                    Tentar novamente
+                  </Button>
+                </TableCell>
+              </TableRow>
+            )}
+            {!isError && orgs.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                   Nenhum corpo cadastrado.

@@ -96,7 +96,22 @@ function PainelFinanceiro() {
         </Button>
       )}
 
-      {itens.length === 0 ? (
+      {lancamentos.isError ? (
+        <Card>
+          <CardContent className="pt-6">
+            <EmptyState
+              icon={Wallet}
+              title="Não foi possível carregar o financeiro"
+              description="Falha ao buscar os dados. Tente novamente."
+              action={
+                <Button variant="outline" size="sm" onClick={() => lancamentos.refetch()}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : itens.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <EmptyState icon={Wallet} title="Nenhum lançamento encontrado" />

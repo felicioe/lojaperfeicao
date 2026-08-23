@@ -138,7 +138,12 @@ function LegislacaoPage() {
   const [editando, setEditando] = useState<Documento | null>(null);
   const [loteAberto, setLoteAberto] = useState(false);
 
-  const { data: documentos = [], isLoading } = useQuery({
+  const {
+    data: documentos = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["documentos"],
     queryFn: () => listarDocumentos(),
   });
@@ -416,6 +421,17 @@ function LegislacaoPage() {
               <p className="p-8 text-center text-sm text-muted-foreground">
                 Carregando documentos…
               </p>
+            ) : isError ? (
+              <EmptyState
+                icon={FileText}
+                title="Não foi possível carregar os documentos"
+                description="Falha ao buscar os dados. Tente novamente."
+                action={
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    Tentar novamente
+                  </Button>
+                }
+              />
             ) : filtrados.length === 0 ? (
               <EmptyState
                 icon={FileText}

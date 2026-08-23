@@ -5,7 +5,8 @@ import { useIsDesktop } from "@/lib/use-media-query";
 import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { fmtDate, TIPO_SESSAO_LABEL } from "@/lib/format";
+import { Button } from "@/components/ui/button";
+import { fmtDate, toISODate, TIPO_SESSAO_LABEL } from "@/lib/format";
 import { CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/sessoes")({
@@ -15,8 +16,33 @@ export const Route = createFileRoute("/_authenticated/painel/sessoes")({
 function PainelSessoes() {
   const isDesktop = useIsDesktop();
   const sessoes = useQuery({ queryKey: ["painel", "sessoes"], queryFn: () => listarSessoes() });
-  const hoje = new Date().toISOString().slice(0, 10);
+  // toISODate (fuso local), não .toISOString() (UTC) — mesma classe de bug
+  // do achado #135: marcava sessão de hoje como "Realizada" até 3h antes da
+  // hora, no horário de Brasília.
+  const hoje = toISODate(new Date());
   const itens = [...(sessoes.data ?? [])].sort((a, b) => b.data.localeCompare(a.data));
+
+  if (sessoes.isError) {
+    return (
+      <>
+        {isDesktop && <PageHeader title="Sessões" />}
+        <Card>
+          <CardContent className="pt-6">
+            <EmptyState
+              icon={CalendarDays}
+              title="Não foi possível carregar as sessões"
+              description="Falha ao buscar os dados. Tente novamente."
+              action={
+                <Button variant="outline" size="sm" onClick={() => sessoes.refetch()}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
 
   if (itens.length === 0) {
     return (

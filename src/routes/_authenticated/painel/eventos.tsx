@@ -33,12 +33,38 @@ function statusEvento(evento: Evento): "agendado" | "realizado" {
 function PainelEventos() {
   const isDesktop = useIsDesktop();
   const qc = useQueryClient();
-  const { data: eventos = [] } = useQuery({
+  const {
+    data: eventos = [],
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["painel", "eventos"],
     queryFn: () => listarEventos(),
   });
 
   const itens = [...eventos].sort((a, b) => b.data.localeCompare(a.data));
+
+  if (isError) {
+    return (
+      <>
+        {isDesktop && <PageHeader title="Eventos" />}
+        <Card>
+          <CardContent className="pt-6">
+            <EmptyState
+              icon={CalendarDays}
+              title="Não foi possível carregar os eventos"
+              description="Falha ao buscar os dados. Tente novamente."
+              action={
+                <Button variant="outline" size="sm" onClick={() => refetch()}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
 
   if (itens.length === 0) {
     return (

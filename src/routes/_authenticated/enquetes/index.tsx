@@ -75,7 +75,12 @@ function EnquetesPage() {
   const [novaChave, setNovaChave] = useState(0);
   const [resultadoDe, setResultadoDe] = useState<Enquete | null>(null);
 
-  const { data: enquetes = [], isLoading } = useQuery({
+  const {
+    data: enquetes = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["enquetes"],
     queryFn: () => listarEnquetes(),
   });
@@ -133,7 +138,20 @@ function EnquetesPage() {
         }
       />
 
-      {!isLoading && enquetes.length === 0 ? (
+      {isError ? (
+        <Card>
+          <EmptyState
+            icon={Vote}
+            title="Não foi possível carregar as enquetes"
+            description="Falha ao buscar os dados. Tente novamente."
+            action={
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            }
+          />
+        </Card>
+      ) : !isLoading && enquetes.length === 0 ? (
         <Card>
           <EmptyState icon={Vote} title="Nenhuma enquete criada ainda" />
         </Card>

@@ -29,7 +29,12 @@ export const Route = createFileRoute("/_authenticated/interstico/")({
 });
 
 function IntersticioPage() {
-  const { data = [], isLoading } = useQuery({
+  const {
+    data = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["elegibilidade_interstico"],
     queryFn: () => listarElegibilidadeInterstico(),
   });
@@ -50,7 +55,18 @@ function IntersticioPage() {
         description="Irmãos elegíveis (ou próximos) para elevação, conforme o interstício mínimo configurado por grau em Corpos Maçônicos."
       />
       <Card>
-        {!isLoading && data.length === 0 ? (
+        {isError ? (
+          <EmptyState
+            icon={TrendingUp}
+            title="Não foi possível carregar o interstício"
+            description="Falha ao buscar os dados. Tente novamente."
+            action={
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            }
+          />
+        ) : !isLoading && data.length === 0 ? (
           <EmptyState
             icon={TrendingUp}
             title="Ninguém elegível ou próximo no momento"

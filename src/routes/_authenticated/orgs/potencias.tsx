@@ -47,7 +47,11 @@ function Potencias() {
   const qc = useQueryClient();
   const [form, setForm] = useState(FORM_VAZIO);
 
-  const { data = [] } = useQuery({
+  const {
+    data = [],
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["potencias_all"],
     queryFn: () => listarPotencias(),
   });
@@ -214,7 +218,17 @@ function Potencias() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.length === 0 && (
+            {isError && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-destructive">
+                  Não foi possível carregar as potências.{" "}
+                  <Button variant="link" size="sm" className="h-auto p-0" onClick={() => refetch()}>
+                    Tentar novamente
+                  </Button>
+                </TableCell>
+              </TableRow>
+            )}
+            {!isError && data.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
                   Nenhuma potência cadastrada.

@@ -7,6 +7,7 @@ import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fmtDate, TIPO_SESSAO_LABEL } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import { CalendarCheck2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/frequencia")({
@@ -67,7 +68,22 @@ function PainelFrequencia() {
         </CardContent>
       </Card>
 
-      {itens.length === 0 ? (
+      {frequencia.isError ? (
+        <Card>
+          <CardContent className="pt-6">
+            <EmptyState
+              icon={CalendarCheck2}
+              title="Não foi possível carregar a frequência"
+              description="Falha ao buscar os dados. Tente novamente."
+              action={
+                <Button variant="outline" size="sm" onClick={() => frequencia.refetch()}>
+                  Tentar novamente
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : itens.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <EmptyState icon={CalendarCheck2} title="Nenhuma sessão registrada ainda" />
