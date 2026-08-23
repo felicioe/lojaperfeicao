@@ -97,6 +97,23 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
   .validator((d: unknown) => recorrenteSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      // plano_conta_id/terceiro_id vêm do request: sem confirmar que
+      // pertencem a esta Loja, um id de outra Loja era gravado direto (mesma
+      // classe do achado crítico de criarReciboAvulso, na auditoria geral de
+      // bugs) — e se propagaria pros lançamentos futuros gerados a partir
+      // desta despesa recorrente (garantirPrevisoesRecorrentes).
+      const [[planoConta]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id",
+        [data.plano_conta_id],
+      );
+      if (!planoConta) throw new Error("Conta do plano de contas não encontrada nesta loja.");
+      if (data.terceiro_id) {
+        const [[terceiro]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM terceiros WHERE id = ? AND loja_id = @current_loja_id",
+          [data.terceiro_id],
+        );
+        if (!terceiro) throw new Error("Terceiro não encontrado nesta loja.");
+      }
       const valores = [
         data.descricao,
         data.valor,

@@ -126,8 +126,9 @@ export const listarRecibosAvulsos = createServerFn({ method: "GET" }).handler(
       >(`SELECT r.id, r.numero, r.tipo, r.status, r.data, r.valor,
       r.descricao, COALESCE(i.nome_civil, t.nome) AS pessoa_nome, r.forma_pagamento, r.observacoes,
       cf.nome AS conta_nome, r.conciliacao_id FROM recibos_avulsos r
-      LEFT JOIN irmaos i ON i.id=r.irmao_id LEFT JOIN terceiros t ON t.id=r.terceiro_id
-      LEFT JOIN contas_financeiras cf ON cf.id=r.conta_financeira_id
+      LEFT JOIN irmaos i ON i.id=r.irmao_id AND i.loja_id = r.loja_id
+      LEFT JOIN terceiros t ON t.id=r.terceiro_id AND t.loja_id = r.loja_id
+      LEFT JOIN contas_financeiras cf ON cf.id=r.conta_financeira_id AND cf.loja_id = r.loja_id
       WHERE r.loja_id = @current_loja_id ORDER BY r.data DESC, r.numero DESC LIMIT 500`);
       return rows as ReciboAvulso[];
     }),
@@ -171,85 +172,133 @@ export const criarReciboAvulso = createServerFn({ method: "POST" })
   .validator((d: unknown) => avulsoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> =>
     comPapel(["admin", "tesoureiro"], async (conn, usuarioId) => {
+      // irmaoId/terceiroId/planoContaId vêm do request: sem confirmar que
+      // pertencem a esta Loja, um id de outra Loja era gravado direto (achado
+      // crítico da auditoria — o nome da pessoa de outra Loja vazava depois em
+      // listarRecibosAvulsos, cujo JOIN também não casava a loja).
+      if (data.irmaoId) {
+        const [[irmao]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
+          [data.irmaoId],
+        );
+        if (!irmao) throw new Error("Irmão não encontrado nesta loja.");
+      }
+      if (data.terceiroId) {
+        const [[terceiro]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM terceiros WHERE id = ? AND loja_id = @current_loja_id",
+          [data.terceiroId],
+        );
+        if (!terceiro) throw new Error("Terceiro não encontrado nesta loja.");
+      }
+      const [[planoConta]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id",
+        [data.planoContaId],
+      );
+      if (!planoConta) throw new Error("Conta do plano de contas não encontrada nesta loja.");
+      if (data.contaFinanceiraId) {
+        const [[conta]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
+          [data.contaFinanceiraId],
+        );
+        if (!conta) throw new Error("Conta financeira não encontrada nesta loja.");
+      }
+      if (data.conciliacaoId) {
+        const [[conciliacao]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM conciliacoes WHERE id = ? AND loja_id = @current_loja_id",
+          [data.conciliacaoId],
+        );
+        if (!conciliacao) throw new Error("Conciliação não encontrada nesta loja.");
+      }
+
       const id = crypto.randomUUID();
       let lancamentoId: string | null = null;
-      if (!data.conciliacaoId) {
-        lancamentoId = crypto.randomUUID();
-        const efetivo = data.status === "efetivo";
-        await conn.query(
-          `INSERT INTO lancamentos (loja_id,id,data,data_vencimento,data_pagamento,descricao,valor,valor_pago,tipo,
+      // Sem transação, uma falha no meio (ex: registrar_lancamento_contabil
+      // rejeitando por desbalanceamento) deixava o INSERT em `lancamentos`
+      // já commitado, órfão, sem o recibo correspondente.
+      await conn.beginTransaction();
+      try {
+        if (!data.conciliacaoId) {
+          lancamentoId = crypto.randomUUID();
+          const efetivo = data.status === "efetivo";
+          await conn.query(
+            `INSERT INTO lancamentos (loja_id,id,data,data_vencimento,data_pagamento,descricao,valor,valor_pago,tipo,
         plano_conta_id,irmao_id,terceiro_id,conta_id,pago,forma_pagamento,observacoes,criado_por)
         VALUES (@current_loja_id,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [
+              lancamentoId,
+              data.data,
+              data.data,
+              efetivo ? data.data : null,
+              data.descricao,
+              data.valor,
+              efetivo ? data.valor : 0,
+              data.tipo === "recebimento" ? "entrada" : "saida",
+              data.planoContaId,
+              data.irmaoId,
+              data.terceiroId,
+              efetivo ? data.contaFinanceiraId : null,
+              efetivo,
+              data.formaPagamento,
+              data.observacoes,
+              usuarioId,
+            ],
+          );
+          if (efetivo) {
+            const [[conta]] = await conn.query<RowDataPacket[]>(
+              "SELECT plano_conta_id FROM contas_financeiras WHERE id=? AND loja_id = @current_loja_id",
+              [data.contaFinanceiraId],
+            );
+            if (!conta?.plano_conta_id)
+              throw new Error("A conta financeira não possui conta contábil vinculada.");
+            const entrada = data.tipo === "recebimento";
+            const itens = JSON.stringify([
+              {
+                conta_id: entrada ? conta.plano_conta_id : data.planoContaId,
+                tipo: "debito",
+                valor: data.valor,
+                descricao: data.descricao,
+              },
+              {
+                conta_id: entrada ? data.planoContaId : conta.plano_conta_id,
+                tipo: "credito",
+                valor: data.valor,
+                descricao: data.descricao,
+              },
+            ]);
+            await conn.query(
+              "CALL registrar_lancamento_contabil(?, ?, ?, ?, 'recibo_avulso', ?, @lc_id)",
+              [data.data, data.data.slice(0, 7) + "-01", data.descricao, itens, lancamentoId],
+            );
+          }
+        }
+        await conn.query(
+          `INSERT INTO recibos_avulsos (loja_id,id,tipo,status,data,valor,descricao,irmao_id,terceiro_id,
+      plano_conta_id,conta_financeira_id,forma_pagamento,observacoes,lancamento_id,conciliacao_id,criado_por)
+      VALUES (@current_loja_id,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           [
-            lancamentoId,
+            id,
+            data.tipo,
+            data.status,
             data.data,
-            data.data,
-            efetivo ? data.data : null,
-            data.descricao,
             data.valor,
-            efetivo ? data.valor : 0,
-            data.tipo === "recebimento" ? "entrada" : "saida",
-            data.planoContaId,
+            data.descricao,
             data.irmaoId,
             data.terceiroId,
-            efetivo ? data.contaFinanceiraId : null,
-            efetivo,
+            data.planoContaId,
+            data.contaFinanceiraId,
             data.formaPagamento,
             data.observacoes,
+            lancamentoId,
+            data.conciliacaoId,
             usuarioId,
           ],
         );
-        if (efetivo) {
-          const [[conta]] = await conn.query<RowDataPacket[]>(
-            "SELECT plano_conta_id FROM contas_financeiras WHERE id=? AND loja_id = @current_loja_id",
-            [data.contaFinanceiraId],
-          );
-          if (!conta?.plano_conta_id)
-            throw new Error("A conta financeira não possui conta contábil vinculada.");
-          const entrada = data.tipo === "recebimento";
-          const itens = JSON.stringify([
-            {
-              conta_id: entrada ? conta.plano_conta_id : data.planoContaId,
-              tipo: "debito",
-              valor: data.valor,
-              descricao: data.descricao,
-            },
-            {
-              conta_id: entrada ? data.planoContaId : conta.plano_conta_id,
-              tipo: "credito",
-              valor: data.valor,
-              descricao: data.descricao,
-            },
-          ]);
-          await conn.query(
-            "CALL registrar_lancamento_contabil(?, ?, ?, ?, 'recibo_avulso', ?, @lc_id)",
-            [data.data, data.data.slice(0, 7) + "-01", data.descricao, itens, lancamentoId],
-          );
-        }
+        await registrarAuditoria(conn, usuarioId, "criar", "recibo_avulso", id, null, data);
+        await conn.commit();
+      } catch (erro) {
+        await conn.rollback();
+        throw erro;
       }
-      await conn.query(
-        `INSERT INTO recibos_avulsos (loja_id,id,tipo,status,data,valor,descricao,irmao_id,terceiro_id,
-      plano_conta_id,conta_financeira_id,forma_pagamento,observacoes,lancamento_id,conciliacao_id,criado_por)
-      VALUES (@current_loja_id,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [
-          id,
-          data.tipo,
-          data.status,
-          data.data,
-          data.valor,
-          data.descricao,
-          data.irmaoId,
-          data.terceiroId,
-          data.planoContaId,
-          data.contaFinanceiraId,
-          data.formaPagamento,
-          data.observacoes,
-          lancamentoId,
-          data.conciliacaoId,
-          usuarioId,
-        ],
-      );
-      await registrarAuditoria(conn, usuarioId, "criar", "recibo_avulso", id, null, data);
       return { id };
     }),
   );

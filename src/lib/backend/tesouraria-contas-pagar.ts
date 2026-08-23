@@ -173,6 +173,21 @@ export const editarContaPagar = createServerFn({ method: "POST" })
           "Edite o modelo em Despesas Recorrentes ou apenas confirme o valor efetivo desta parcela.",
         );
       }
+      // planoContaId/terceiroId vêm do request: sem confirmar que pertencem a
+      // esta Loja, um id de outra Loja era gravado direto (mesma classe do
+      // achado crítico de criarReciboAvulso, na auditoria geral de bugs).
+      const [[planoConta]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id",
+        [data.planoContaId],
+      );
+      if (!planoConta) throw new Error("Conta do plano de contas não encontrada nesta loja.");
+      if (data.terceiroId) {
+        const [[terceiro]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM terceiros WHERE id = ? AND loja_id = @current_loja_id",
+          [data.terceiroId],
+        );
+        if (!terceiro) throw new Error("Terceiro não encontrado nesta loja.");
+      }
       await conn.query(
         `UPDATE lancamentos SET descricao=?, valor=?, plano_conta_id=?, data=?, data_vencimento=?,
          terceiro_id=?, observacoes=? WHERE id=? AND loja_id = @current_loja_id`,

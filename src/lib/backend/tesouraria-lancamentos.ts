@@ -570,6 +570,21 @@ export const criarLancamentoManual = createServerFn({ method: "POST" })
   .validator((d: unknown) => novoLancamentoSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      // conta_id/plano_conta_id vêm do request: sem confirmar que pertencem a
+      // esta Loja, um id de outra Loja era gravado direto (mesma classe do
+      // achado crítico de criarReciboAvulso, na auditoria geral de bugs).
+      const [[conta]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
+        [data.conta_id],
+      );
+      if (!conta) throw new Error("Conta financeira não encontrada nesta loja.");
+      if (data.plano_conta_id) {
+        const [[planoConta]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id",
+          [data.plano_conta_id],
+        );
+        if (!planoConta) throw new Error("Conta do plano de contas não encontrada nesta loja.");
+      }
       await conn.query(
         `INSERT INTO lancamentos (loja_id, data, data_vencimento, descricao, valor, tipo, conta_id, plano_conta_id, pago, data_pagamento, observacoes)
          VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

@@ -61,6 +61,18 @@ async function classificarItens(
   );
   if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
 
+  // Duplicidade pré-carregada em dois Sets em vez de um SELECT por item
+  // (até 500 idas ao banco antes) — mesmo padrão já usado em
+  // importacao-pdf-sessoes.ts (achado da auditoria geral de bugs).
+  const [sessoesRows] = await conn.query<RowDataPacket[]>(
+    "SELECT data, observacoes FROM sessoes WHERE loja_id = @current_loja_id",
+  );
+  const sessoesExistentes = new Set(sessoesRows.map((r) => `${r.data}|${r.observacoes}`));
+  const [eventosRows] = await conn.query<RowDataPacket[]>(
+    "SELECT data, titulo FROM eventos WHERE loja_id = @current_loja_id",
+  );
+  const eventosExistentes = new Set(eventosRows.map((r) => `${r.data}|${r.titulo}`));
+
   const resultado: ItemPreview[] = [];
   for (const item of itens) {
     const grauDetectado = detectarGrau(`${item.titulo} ${item.descricao ?? ""}`);
@@ -70,17 +82,11 @@ async function classificarItens(
         : null;
 
     if (grau !== null) {
-      const [[dup]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM sessoes WHERE data = ? AND observacoes = ? AND loja_id = @current_loja_id LIMIT 1",
-        [item.data, item.titulo],
-      );
-      resultado.push({ ...item, tipo: "sessao", grau, duplicado: !!dup });
+      const duplicado = sessoesExistentes.has(`${item.data}|${item.titulo}`);
+      resultado.push({ ...item, tipo: "sessao", grau, duplicado });
     } else {
-      const [[dup]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM eventos WHERE data = ? AND titulo = ? AND loja_id = @current_loja_id LIMIT 1",
-        [item.data, item.titulo],
-      );
-      resultado.push({ ...item, tipo: "evento", grau: null, duplicado: !!dup });
+      const duplicado = eventosExistentes.has(`${item.data}|${item.titulo}`);
+      resultado.push({ ...item, tipo: "evento", grau: null, duplicado });
     }
   }
   return resultado;
