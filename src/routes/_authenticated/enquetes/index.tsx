@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, toISODate } from "@/lib/format";
 import { useCan } from "@/lib/auth-hooks";
 import { Vote, Plus, Trash2, Lock, BarChart3 } from "lucide-react";
 
@@ -57,7 +57,10 @@ export const Route = createFileRoute("/_authenticated/enquetes/")({
 
 function encerradaEfetiva(e: Enquete): boolean {
   if (e.encerrada) return true;
-  if (e.data_limite && new Date(e.data_limite) < new Date(new Date().toISOString().slice(0, 10))) {
+  // toISODate (fuso local), não .toISOString() (UTC) — mesma classe de bug
+  // já corrigida no achado #135; aqui encerrava a enquete até 3h antes da
+  // hora no horário de Brasília.
+  if (e.data_limite && new Date(e.data_limite) < new Date(toISODate(new Date()))) {
     return true;
   }
   return false;

@@ -201,6 +201,19 @@ export const criarGestaoCargo = createServerFn({ method: "POST" })
         [data.cargoId, data.irmaoId, data.gestaoId],
       );
       if (!valido) throw new Error("Gestão, cargo ou irmão não encontrado nesta Loja.");
+      // A UNIQUE (gestao_id, cargo_id, irmao_id) só impede duplicar a MESMA
+      // pessoa no mesmo cargo — sem esta checagem, dava pra colocar dois
+      // irmãos diferentes ocupando o mesmo cargo na mesma gestão ao mesmo
+      // tempo (achado da auditoria geral de bugs).
+      const [[jaOcupado]] = await conn.query<RowDataPacket[]>(
+        `SELECT i.nome_civil FROM gestao_cargos gc
+           JOIN irmaos i ON i.id = gc.irmao_id AND i.loja_id = @current_loja_id
+          WHERE gc.gestao_id = ? AND gc.cargo_id = ? AND gc.loja_id = @current_loja_id`,
+        [data.gestaoId, data.cargoId],
+      );
+      if (jaOcupado) {
+        throw new Error(`Este cargo já está ocupado por ${jaOcupado.nome_civil} nesta gestão.`);
+      }
       await conn.query(
         "INSERT INTO gestao_cargos (loja_id, gestao_id, cargo_id, irmao_id) VALUES (?, ?, ?, ?)",
         [lojaId, data.gestaoId, data.cargoId, data.irmaoId],

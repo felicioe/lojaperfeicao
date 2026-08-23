@@ -336,11 +336,7 @@ export const obterValoresFaturaSgcab = createServerFn({ method: "POST" })
          WHERE tipo = ? AND ano = ? AND vigencia_inicio <= ?
            AND loja_id = @current_loja_id
          ORDER BY vigencia_inicio DESC LIMIT 1`,
-        [
-          data.grau === 13 ? "sgcab_boton_grau_13_2026" : "sgcab_boton_2026",
-          data.ano,
-          `${data.ano}-12-31`,
-        ],
+        [data.grau === 13 ? "sgcab_boton_grau_13" : "sgcab_boton", data.ano, `${data.ano}-12-31`],
       );
       return {
         iniciacao: Number(taxa?.sgcab ?? 0),

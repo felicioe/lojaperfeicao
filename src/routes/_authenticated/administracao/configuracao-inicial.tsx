@@ -31,7 +31,11 @@ function ConfiguracaoInicial() {
   const [salvando, setSalvando] = useState(false);
   const [concluindo, setConcluindo] = useState(false);
 
-  const { data: loja } = useQuery({
+  const {
+    data: loja,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["loja_atual"],
     queryFn: () => obterLojaAtual(),
   });
@@ -83,6 +87,16 @@ function ConfiguracaoInicial() {
     }
   };
 
+  if (isError) {
+    return (
+      <div className="space-y-3">
+        <p className="text-muted-foreground">Não foi possível carregar os dados da loja.</p>
+        <Button variant="outline" onClick={() => refetch()}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
   if (!form) return <p className="text-muted-foreground">Carregando…</p>;
 
   return (

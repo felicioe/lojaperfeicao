@@ -76,7 +76,7 @@ const baixarFaturasSchema = z.object({
   contaFinanceiraId: z.string().uuid(),
   formaPagamento: z.string().nullable(),
   dataPagamento: z.string(),
-  desconto: z.number(),
+  desconto: z.number().nonnegative(),
   observacoes: z.string().nullable(),
   jurosAdicional: z.number().nonnegative(),
   valorExtra: z.number().nonnegative(),

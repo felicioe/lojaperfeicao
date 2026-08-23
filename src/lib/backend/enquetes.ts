@@ -38,12 +38,24 @@ const ENQUETE_SELECT = `
   WHERE e.loja_id = @current_loja_id
 `;
 
+// Data de hoje (YYYY-MM-DD) no fuso LOCAL, não em UTC — .toISOString()
+// pega o dia UTC, que já virou o dia seguinte a partir das 21h no horário
+// de Brasília, encerrando enquetes com até 3h de antecedência (mesma
+// classe de bug já corrigida em toISODate, ver src/lib/format.ts).
+function hojeLocalISO(): string {
+  const d = new Date();
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
 // "Encerrada" efetiva considera tanto o encerramento manual quanto o
 // prazo vencido — nenhum lugar do sistema deveria checar só a coluna
 // encerrada isoladamente.
 function encerradaEfetiva(e: { encerrada: boolean; data_limite: string | null }): boolean {
   if (e.encerrada) return true;
-  if (e.data_limite && new Date(e.data_limite) < new Date(new Date().toISOString().slice(0, 10))) {
+  if (e.data_limite && new Date(e.data_limite) < new Date(hojeLocalISO())) {
     return true;
   }
   return false;

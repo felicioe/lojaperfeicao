@@ -30,7 +30,11 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
   const [open, setOpen] = useState(false);
   const [ativando, setAtivando] = useState(false);
 
-  const { data: itens = [] } = useQuery({
+  const {
+    data: itens = [],
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["notificacoes"],
     queryFn: () => listarNotificacoes(),
     refetchInterval: 5 * 60 * 1000,
@@ -101,7 +105,14 @@ export function NotificationBell({ collapsed = false }: { collapsed?: boolean })
           </Button>
         </div>
         <div className="max-h-80 overflow-y-auto">
-          {itens.length === 0 ? (
+          {isError ? (
+            <div className="space-y-2 p-4 text-center text-sm text-muted-foreground">
+              <p>Não foi possível carregar as notificações.</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            </div>
+          ) : itens.length === 0 ? (
             <p className="p-4 text-center text-sm text-muted-foreground">Nada por aqui.</p>
           ) : (
             itens.map((n) => {

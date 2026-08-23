@@ -21,7 +21,7 @@ function DadosEntidade() {
   const [form, setForm] = useState<Form | null>(null);
   const [salvando, setSalvando] = useState(false);
 
-  const { data } = useQuery({
+  const { data, isError, refetch } = useQuery({
     queryKey: ["configuracoes_lgpd"],
     queryFn: () => obterConfiguracoesLgpd(),
   });
@@ -35,6 +35,16 @@ function DadosEntidade() {
       });
   }, [data, form]);
 
+  if (isError) {
+    return (
+      <div className="space-y-3">
+        <p className="text-muted-foreground">Não foi possível carregar os dados da entidade.</p>
+        <Button variant="outline" onClick={() => refetch()}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
   if (!form) return <p className="text-muted-foreground">Carregando…</p>;
 
   const salvar = async () => {

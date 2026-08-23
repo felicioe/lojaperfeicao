@@ -292,6 +292,7 @@ function Dashboard() {
             titulo={enquetes.data?.[0]?.titulo}
             to="/enquetes"
             pending={enquetes.isPending}
+            erro={enquetes.isError}
           />
           <Novidade
             icon={FileText}
@@ -299,6 +300,7 @@ function Dashboard() {
             titulo={documentos.data?.[0]?.titulo}
             to="/documentos"
             pending={documentos.isPending}
+            erro={documentos.isError}
           />
           <Novidade
             icon={CalendarDays}
@@ -306,6 +308,7 @@ function Dashboard() {
             titulo={eventos.data?.[0]?.titulo}
             to="/eventos"
             pending={eventos.isPending}
+            erro={eventos.isError}
           />
           <Novidade
             icon={Library}
@@ -313,6 +316,7 @@ function Dashboard() {
             titulo={pecas.data?.[0]?.titulo}
             to="/biblioteca"
             pending={pecas.isPending}
+            erro={pecas.isError}
           />
         </div>
       </section>
@@ -718,12 +722,14 @@ function Novidade({
   titulo,
   to,
   pending,
+  erro,
 }: {
   icon: typeof Vote;
   label: string;
   titulo?: string;
   to: string;
   pending: boolean;
+  erro?: boolean;
 }) {
   return (
     <Link
@@ -735,6 +741,8 @@ function Novidade({
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         {pending ? (
           <Skeleton className="mt-2 h-4 w-2/3" />
+        ) : erro ? (
+          <p className="mt-1 truncate font-medium text-destructive">Dados indisponíveis</p>
         ) : (
           <p className="mt-1 truncate font-medium">{titulo ?? "Nenhuma novidade cadastrada"}</p>
         )}

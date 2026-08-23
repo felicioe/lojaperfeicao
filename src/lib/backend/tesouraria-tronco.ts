@@ -79,15 +79,30 @@ export const registrarSaidaTronco = createServerFn({ method: "POST" })
       const id = crypto.randomUUID();
       await conn.beginTransaction();
       try {
-        const [[disponivel]] = await conn.query<RowDataPacket[]>(
-          `SELECT
-             COALESCE((SELECT saldo_inicial FROM tronco_beneficencia_config
-                        WHERE loja_id = @current_loja_id), 0)
-             + COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN valor ELSE -valor END), 0) AS saldo
+        // Trava a linha de configuração do tronco (criando-a com saldo 0 se a
+        // loja nunca tiver mexido em "saldo inicial") ANTES de somar o saldo
+        // disponível: sem lock nenhum aqui, duas saídas concorrentes (duplo
+        // clique, duas abas) liam o mesmo saldo, ambas passavam na validação
+        // abaixo e ambas eram gravadas — deixando o tronco negativo sem
+        // nenhum erro reportado (achado da auditoria geral de bugs). Como
+        // FOR UPDATE em InnoDB sempre lê o dado mais recente já committado
+        // (ignora o snapshot da transação), travar essa linha serializa
+        // qualquer saída concorrente da mesma loja.
+        await conn.query(
+          `INSERT INTO tronco_beneficencia_config (loja_id, id, saldo_inicial)
+           VALUES (@current_loja_id, 1, 0)
+           ON DUPLICATE KEY UPDATE id = id`,
+        );
+        const [[config]] = await conn.query<RowDataPacket[]>(
+          "SELECT saldo_inicial FROM tronco_beneficencia_config WHERE loja_id = @current_loja_id FOR UPDATE",
+        );
+        const [[totais]] = await conn.query<RowDataPacket[]>(
+          `SELECT COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN valor ELSE -valor END), 0) AS saldo
            FROM lancamentos
            WHERE loja_id = @current_loja_id AND categoria_recebimento = 'tronco' AND pago = TRUE`,
         );
-        if (Number(disponivel.saldo) < data.valor) {
+        const disponivel = Number(config.saldo_inicial) + Number(totais.saldo);
+        if (disponivel < data.valor) {
           throw new Error("A saída é maior que o saldo disponível do Tronco.");
         }
         await conn.query(

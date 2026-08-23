@@ -194,8 +194,16 @@ export const obterResumoContasReceber = createServerFn({ method: "GET" }).handle
 export const obterMediaDespesasMensais = createServerFn({ method: "GET" }).handler(
   async (): Promise<number> => {
     return comPapel(PAPEIS_PRIVILEGIADOS, async (conn) => {
+      // Divide pela quantidade de meses que REALMENTE têm despesa paga na
+      // janela, não por um "3" fixo — numa loja recém-criada (onboarding,
+      // issue #340) com só 1 mês de histórico, dividir por 3 subestimava a
+      // média em até 3x (achado da auditoria geral de bugs).
       const [[row]] = await conn.query<RowDataPacket[]>(
-        `SELECT COALESCE(SUM(CASE WHEN valor_pago > 0 THEN valor_pago ELSE valor END) / 3, 0) AS media
+        `SELECT COALESCE(
+           SUM(CASE WHEN valor_pago > 0 THEN valor_pago ELSE valor END)
+             / NULLIF(COUNT(DISTINCT DATE_FORMAT(data_pagamento, '%Y-%m')), 0),
+           0
+         ) AS media
          FROM lancamentos
          WHERE loja_id = @current_loja_id
            AND tipo = 'saida'
