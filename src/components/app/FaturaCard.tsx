@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -18,20 +18,16 @@ import { obterLojaAtual } from "@/lib/backend/loja-atual";
 
 function usePixQrCode(copiaCola: string | null) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (!copiaCola || !canvasRef.current) {
+    if (!copiaCola) {
       setDataUrl(null);
       return;
     }
     let cancelado = false;
-    QRCode.toCanvas(canvasRef.current, copiaCola, { margin: 1, width: 220 })
-      .then(() => {
-        if (!cancelado) {
-          const url = canvasRef.current?.toDataURL("image/png");
-          setDataUrl(url || null);
-        }
+    QRCode.toDataURL(copiaCola, { margin: 1, width: 220 })
+      .then((url) => {
+        if (!cancelado) setDataUrl(url);
       })
       .catch((erro) => {
         console.error("Erro ao gerar QR code:", erro);
@@ -42,7 +38,7 @@ function usePixQrCode(copiaCola: string | null) {
     };
   }, [copiaCola]);
 
-  return { dataUrl, canvasRef };
+  return dataUrl;
 }
 
 export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
@@ -61,7 +57,7 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
           txid: fatura.id.replace(/-/g, "").slice(0, 25),
         })
       : null);
-  const { dataUrl: qrGerado, canvasRef } = usePixQrCode(copiaCola);
+  const qrGerado = usePixQrCode(copiaCola);
   const qrDataUrl = fatura.pix_qr_code_url || qrGerado;
 
   const hoje = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date());
@@ -203,16 +199,13 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
                     </Button>
                   </div>
                 </div>
-                <>
-                  <canvas ref={canvasRef} className="hidden" />
-                  {qrDataUrl && (
-                    <img
-                      src={qrDataUrl}
-                      alt="QR code Pix"
-                      className="h-36 w-36 rounded border bg-white p-1.5"
-                    />
-                  )}
-                </>
+                {qrDataUrl && (
+                  <img
+                    src={qrDataUrl}
+                    alt="QR code Pix"
+                    className="h-36 w-36 rounded border bg-white p-1.5"
+                  />
+                )}
               </div>
             </div>
           </>
