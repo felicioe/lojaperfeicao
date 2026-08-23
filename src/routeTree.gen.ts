@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminSaasRouteRouteImport } from './routes/_authe
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
+import { Route as AuthenticatedAdminSaasIndexRouteImport } from './routes/_authenticated/admin-saas/index'
 import { Route as AuthenticatedAdminSaasLojasRouteImport } from './routes/_authenticated/admin-saas/lojas'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
@@ -158,6 +159,12 @@ const ConviteTokenRoute = ConviteTokenRouteImport.update({
   path: '/convite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminSaasIndexRoute =
+  AuthenticatedAdminSaasIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminSaasRouteRoute,
+  } as any)
 const AuthenticatedAdminSaasLojasRoute =
   AuthenticatedAdminSaasLojasRouteImport.update({
     id: '/lojas',
@@ -672,6 +679,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/admin-saas/': typeof AuthenticatedAdminSaasIndexRoute
   '/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
   '/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes/': typeof AuthenticatedComissoesIndexRoute
@@ -701,7 +709,6 @@ export interface FileRoutesByTo {
   '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
-  '/admin-saas': typeof AuthenticatedAdminSaasRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
@@ -759,6 +766,7 @@ export interface FileRoutesByTo {
   '/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/admin-saas': typeof AuthenticatedAdminSaasIndexRoute
   '/biblioteca': typeof AuthenticatedBibliotecaIndexRoute
   '/calendario': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes': typeof AuthenticatedComissoesIndexRoute
@@ -849,6 +857,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/recorrentes': typeof AuthenticatedTesourariaRecorrentesRoute
   '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
+  '/_authenticated/admin-saas/': typeof AuthenticatedAdminSaasIndexRoute
   '/_authenticated/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
   '/_authenticated/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
@@ -939,6 +948,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
+    | '/admin-saas/'
     | '/biblioteca/'
     | '/calendario/'
     | '/comissoes/'
@@ -968,7 +978,6 @@ export interface FileRouteTypes {
     | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
-    | '/admin-saas'
     | '/dashboard'
     | '/convite/$token'
     | '/admin-saas/lojas'
@@ -1026,6 +1035,7 @@ export interface FileRouteTypes {
     | '/tesouraria/recorrentes'
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
+    | '/admin-saas'
     | '/biblioteca'
     | '/calendario'
     | '/comissoes'
@@ -1115,6 +1125,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/recorrentes'
     | '/_authenticated/tesouraria/tabela-valores'
     | '/_authenticated/tesouraria/tronco'
+    | '/_authenticated/admin-saas/'
     | '/_authenticated/biblioteca/'
     | '/_authenticated/calendario/'
     | '/_authenticated/comissoes/'
@@ -1234,6 +1245,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/convite/$token'
       preLoaderRoute: typeof ConviteTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin-saas/': {
+      id: '/_authenticated/admin-saas/'
+      path: '/'
+      fullPath: '/admin-saas/'
+      preLoaderRoute: typeof AuthenticatedAdminSaasIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminSaasRouteRoute
     }
     '/_authenticated/admin-saas/lojas': {
       id: '/_authenticated/admin-saas/lojas'
@@ -1765,11 +1783,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminSaasRouteRouteChildren {
   AuthenticatedAdminSaasLojasRoute: typeof AuthenticatedAdminSaasLojasRoute
+  AuthenticatedAdminSaasIndexRoute: typeof AuthenticatedAdminSaasIndexRoute
 }
 
 const AuthenticatedAdminSaasRouteRouteChildren: AuthenticatedAdminSaasRouteRouteChildren =
   {
     AuthenticatedAdminSaasLojasRoute: AuthenticatedAdminSaasLojasRoute,
+    AuthenticatedAdminSaasIndexRoute: AuthenticatedAdminSaasIndexRoute,
   }
 
 const AuthenticatedAdminSaasRouteRouteWithChildren =

@@ -41,6 +41,16 @@ const ERRO_FACEBOOK_LABEL: Record<string, string> = {
 
 const AUTH_CONTROL_CLASS = "min-h-11 sm:min-h-10";
 
+// Quem administra a plataforma (issue #358) cai direto no painel de
+// Plataforma ao entrar, mesmo tendo também papel na própria Loja — "Minha
+// Loja" nesse painel leva pro dashboard/painel dela quando quiser. Isto é
+// só o destino do LOGIN em si: a rota /dashboard não redireciona mais
+// super_admin sozinha, senão clicar em "Minha Loja" viraria um loop de
+// volta pra /admin-saas.
+function destinoPosLogin(papeis: readonly string[]): string {
+  return papeis.includes("super_admin") ? "/admin-saas" : "/dashboard";
+}
+
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
@@ -73,7 +83,7 @@ function AuthPage() {
   useEffect(() => {
     contarUsuarios().then((total) => setFirstUser(total === 0));
     getSessao().then((usuario) => {
-      if (usuario) navigate({ to: "/dashboard" });
+      if (usuario) navigate({ to: destinoPosLogin(usuario.papeis) });
     });
     setWebauthnDisponivel(browserSupportsWebAuthn());
 
@@ -130,7 +140,7 @@ function AuthPage() {
       }
       queryClient.setQueryData(SESSAO_QUERY_KEY, resultado);
       toast.success("Bem-vindo!");
-      navigate({ to: "/dashboard" });
+      navigate({ to: destinoPosLogin(resultado.papeis) });
     } catch (err) {
       setAuthError(
         err instanceof Error ? err.message : "Não foi possível entrar. Tente novamente.",
@@ -148,7 +158,7 @@ function AuthPage() {
       const usuario = await confirmarLogin2FA({ data: { codigo: codigo2FA } });
       queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
       toast.success("Bem-vindo!");
-      navigate({ to: "/dashboard" });
+      navigate({ to: destinoPosLogin(usuario.papeis) });
     } catch (err) {
       setAuthError(
         err instanceof Error ? err.message : "Código inválido. Confira e tente novamente.",
@@ -172,7 +182,7 @@ function AuthPage() {
       const usuario = await confirmarLoginPasskey({ data: { response } });
       queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
       toast.success("Bem-vindo!");
-      navigate({ to: "/dashboard" });
+      navigate({ to: destinoPosLogin(usuario.papeis) });
     } catch (err) {
       // startAuthentication rejeita com DOMException (cancelou o prompt,
       // sem biometria cadastrada no dispositivo etc.) — não é erro do

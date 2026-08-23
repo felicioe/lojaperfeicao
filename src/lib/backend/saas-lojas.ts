@@ -271,6 +271,39 @@ export type EventoPlataforma = {
   dados_depois: string | null;
 };
 
+export type ResumoPlataforma = {
+  total_lojas: number;
+  lojas_ativas: number;
+  lojas_suspensas: number;
+  usuarios_ativos: number;
+};
+
+// Números gerais pro painel inicial da Plataforma (issue #358). De
+// propósito só o essencial — tendência, crescimento e ranking de Lojas
+// mais/menos ativas ficam pra issue de métricas dedicada (#360), que ainda
+// precisa definir o que conta como "atividade".
+export const obterResumoPlataforma = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ResumoPlataforma> =>
+    comSuperAdmin(async (conn) => {
+      const [[lojasRow]] = await conn.query<RowDataPacket[]>(
+        `SELECT COUNT(*) AS total_lojas,
+                SUM(CASE WHEN ativa THEN 1 ELSE 0 END) AS lojas_ativas
+           FROM lojas`,
+      );
+      const [[usuariosRow]] = await conn.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS usuarios_ativos FROM usuarios WHERE ativo = TRUE",
+      );
+      const totalLojas = Number(lojasRow.total_lojas);
+      const lojasAtivas = Number(lojasRow.lojas_ativas);
+      return {
+        total_lojas: totalLojas,
+        lojas_ativas: lojasAtivas,
+        lojas_suspensas: totalLojas - lojasAtivas,
+        usuarios_ativos: Number(usuariosRow.usuarios_ativos),
+      };
+    }),
+);
+
 export const listarAuditoriaPlataforma = createServerFn({ method: "GET" }).handler(
   async (): Promise<EventoPlataforma[]> =>
     comSuperAdmin(async (conn) => {

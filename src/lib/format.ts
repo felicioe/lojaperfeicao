@@ -48,4 +48,5 @@ export const ROLE_LABEL: Record<string, string> = {
   tesoureiro: "Tesoureiro",
   secretario: "Secretário",
   irmao: "Irmão",
+  super_admin: "Super administrador",
 };

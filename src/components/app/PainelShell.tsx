@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { logout } from "@/lib/backend/auth";
 import { contarComunicadosNaoLidos } from "@/lib/backend/comunicacoes";
-import { useSession, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
+import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import {
   Calendar,
   Vote,
   Scale,
+  Globe,
 } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
 
@@ -59,6 +60,7 @@ function iniciais(nome: string | null | undefined) {
 
 export function PainelShell({ children }: { children: ReactNode }) {
   const { user } = useSession();
+  const can = useCan();
   const nav = useNavigate();
   const loc = useLocation();
   const queryClient = useQueryClient();
@@ -160,6 +162,13 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   <Home className="mr-1.5 h-4 w-4" /> Início
                 </Link>
               </Button>
+              {can.isSuperAdmin && (
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <Link to="/admin-saas" onClick={() => setMenuOpen(false)}>
+                    <Globe className="mr-1.5 h-4 w-4" /> Plataforma
+                  </Link>
+                </Button>
+              )}
               <Button variant="outline" className="w-full justify-start" asChild>
                 <Link to="/painel/eventos" onClick={() => setMenuOpen(false)}>
                   <PartyPopper className="mr-1.5 h-4 w-4" /> Eventos

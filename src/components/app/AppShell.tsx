@@ -76,6 +76,7 @@ import { useTheme } from "@/lib/use-theme";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import { PainelShell } from "@/components/app/PainelShell";
+import { PlataformaShell } from "@/components/app/PlataformaShell";
 
 type NavItem = { to: string; label: string; icon: LucideIcon; show: boolean; section?: string };
 type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
@@ -669,22 +670,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     },
   ];
 
-  // Administração da PLATAFORMA (issue #339) — grupo à parte, e anexado aos
-  // dois conjuntos: quem administra o SaaS pode ser, dentro da própria Loja,
-  // um irmão comum (e portanto cair no menu reduzido). Sem anexar aqui, essa
-  // pessoa não teria por onde chegar ao painel.
-  const groupsPlataforma: NavGroup[] = can.isSuperAdmin
-    ? [
-        {
-          id: "plataforma",
-          label: "Plataforma",
-          icon: Globe,
-          items: [{ to: "/admin-saas/lojas", label: "Lojas", icon: Building2, show: true }],
-        },
-      ]
-    : [];
-
-  const groups = [...(can.isMemberOnly ? groupsMemberOnly : groupsAdmin), ...groupsPlataforma];
+  const groups = can.isMemberOnly ? groupsMemberOnly : groupsAdmin;
 
   const isActive = (to: string) =>
     loc.pathname === to ||
@@ -730,6 +716,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const primaryRole = can.roles[0] ?? "irmao";
+
+  // Área de Plataforma (issue #358): shell próprio, não o menu da Loja com
+  // um item a mais — troca completa de chrome, em qualquer largura de tela.
+  // A guarda de acesso em si já está em admin-saas/route.tsx (beforeLoad);
+  // aqui é só escolha de layout.
+  if (loc.pathname.startsWith("/admin-saas")) {
+    return <PlataformaShell>{children}</PlataformaShell>;
+  }
 
   // No celular/tablet, o perfil "irmao" precisa manter o mesmo shell em
   // todas as rotas autenticadas. Antes ele era aplicado apenas em /painel;
@@ -810,6 +804,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
             {collapsed ? (
               <>
+                {can.isSuperAdmin && (
+                  <SidebarIcon icon={Globe} label="Plataforma" active={false} to="/admin-saas" />
+                )}
                 <SidebarIcon
                   icon={Fingerprint}
                   label="Segurança"
@@ -826,7 +823,19 @@ export function AppShell({ children }: { children: ReactNode }) {
               </>
             ) : (
               <>
-                <Button variant="outline" size="sm" className="w-full text-foreground" asChild>
+                {can.isSuperAdmin && (
+                  <Button variant="outline" size="sm" className="w-full text-foreground" asChild>
+                    <Link to="/admin-saas">
+                      <Globe className="mr-1 h-3 w-3" /> Plataforma
+                    </Link>
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn("w-full text-foreground", can.isSuperAdmin && "mt-2")}
+                  asChild
+                >
                   <Link to="/conta/seguranca">
                     <Fingerprint className="mr-1 h-3 w-3" /> Segurança
                   </Link>
@@ -920,6 +929,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                   Privacidade
                 </Link>
               </div>
+              {can.isSuperAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mb-2 h-9 w-full text-foreground"
+                  asChild
+                >
+                  <Link to="/admin-saas">
+                    <Globe className="mr-1.5 h-3.5 w-3.5" /> Plataforma
+                  </Link>
+                </Button>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
