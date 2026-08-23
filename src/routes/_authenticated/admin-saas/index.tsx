@@ -92,22 +92,40 @@ function PlataformaInicio() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle className="text-base">Lojas</CardTitle>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/admin-saas/lojas">
-              Gerenciar <ArrowRight className="ml-1 h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Cadastro, suspensão e convite do primeiro administrador de cada Loja atendida pela
-            plataforma.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Lojas</CardTitle>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin-saas/lojas">
+                Gerenciar <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Cadastro, suspensão e convite do primeiro administrador de cada Loja atendida pela
+              plataforma.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Usuários</CardTitle>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin-saas/usuarios">
+                Ver todos <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Contas de todas as Lojas, com busca por e-mail, nome ou Loja — só metadado de conta.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>

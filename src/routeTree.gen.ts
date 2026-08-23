@@ -23,6 +23,7 @@ import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenti
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
 import { Route as AuthenticatedAdminSaasIndexRouteImport } from './routes/_authenticated/admin-saas/index'
 import { Route as AuthenticatedAdminSaasLojasRouteImport } from './routes/_authenticated/admin-saas/lojas'
+import { Route as AuthenticatedAdminSaasUsuariosRouteImport } from './routes/_authenticated/admin-saas/usuarios'
 import { Route as AuthenticatedAdministracaoAuditoriaRouteImport } from './routes/_authenticated/administracao/auditoria'
 import { Route as AuthenticatedAdministracaoBackupsRouteImport } from './routes/_authenticated/administracao/backups'
 import { Route as AuthenticatedAdministracaoConfiguracaoInicialRouteImport } from './routes/_authenticated/administracao/configuracao-inicial'
@@ -169,6 +170,12 @@ const AuthenticatedAdminSaasLojasRoute =
   AuthenticatedAdminSaasLojasRouteImport.update({
     id: '/lojas',
     path: '/lojas',
+    getParentRoute: () => AuthenticatedAdminSaasRouteRoute,
+  } as any)
+const AuthenticatedAdminSaasUsuariosRoute =
+  AuthenticatedAdminSaasUsuariosRouteImport.update({
+    id: '/usuarios',
+    path: '/usuarios',
     getParentRoute: () => AuthenticatedAdminSaasRouteRoute,
   } as any)
 const AuthenticatedAdministracaoAuditoriaRoute =
@@ -625,6 +632,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
+  '/admin-saas/usuarios': typeof AuthenticatedAdminSaasUsuariosRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/configuracao-inicial': typeof AuthenticatedAdministracaoConfiguracaoInicialRoute
@@ -712,6 +720,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
+  '/admin-saas/usuarios': typeof AuthenticatedAdminSaasUsuariosRoute
   '/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/administracao/configuracao-inicial': typeof AuthenticatedAdministracaoConfiguracaoInicialRoute
@@ -803,6 +812,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
   '/_authenticated/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
+  '/_authenticated/admin-saas/usuarios': typeof AuthenticatedAdminSaasUsuariosRoute
   '/_authenticated/administracao/auditoria': typeof AuthenticatedAdministracaoAuditoriaRoute
   '/_authenticated/administracao/backups': typeof AuthenticatedAdministracaoBackupsRoute
   '/_authenticated/administracao/configuracao-inicial': typeof AuthenticatedAdministracaoConfiguracaoInicialRoute
@@ -894,6 +904,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/convite/$token'
     | '/admin-saas/lojas'
+    | '/admin-saas/usuarios'
     | '/administracao/auditoria'
     | '/administracao/backups'
     | '/administracao/configuracao-inicial'
@@ -981,6 +992,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/convite/$token'
     | '/admin-saas/lojas'
+    | '/admin-saas/usuarios'
     | '/administracao/auditoria'
     | '/administracao/backups'
     | '/administracao/configuracao-inicial'
@@ -1071,6 +1083,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/convite/$token'
     | '/_authenticated/admin-saas/lojas'
+    | '/_authenticated/admin-saas/usuarios'
     | '/_authenticated/administracao/auditoria'
     | '/_authenticated/administracao/backups'
     | '/_authenticated/administracao/configuracao-inicial'
@@ -1258,6 +1271,13 @@ declare module '@tanstack/react-router' {
       path: '/lojas'
       fullPath: '/admin-saas/lojas'
       preLoaderRoute: typeof AuthenticatedAdminSaasLojasRouteImport
+      parentRoute: typeof AuthenticatedAdminSaasRouteRoute
+    }
+    '/_authenticated/admin-saas/usuarios': {
+      id: '/_authenticated/admin-saas/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin-saas/usuarios'
+      preLoaderRoute: typeof AuthenticatedAdminSaasUsuariosRouteImport
       parentRoute: typeof AuthenticatedAdminSaasRouteRoute
     }
     '/_authenticated/administracao/auditoria': {
@@ -1783,12 +1803,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminSaasRouteRouteChildren {
   AuthenticatedAdminSaasLojasRoute: typeof AuthenticatedAdminSaasLojasRoute
+  AuthenticatedAdminSaasUsuariosRoute: typeof AuthenticatedAdminSaasUsuariosRoute
   AuthenticatedAdminSaasIndexRoute: typeof AuthenticatedAdminSaasIndexRoute
 }
 
 const AuthenticatedAdminSaasRouteRouteChildren: AuthenticatedAdminSaasRouteRouteChildren =
   {
     AuthenticatedAdminSaasLojasRoute: AuthenticatedAdminSaasLojasRoute,
+    AuthenticatedAdminSaasUsuariosRoute: AuthenticatedAdminSaasUsuariosRoute,
     AuthenticatedAdminSaasIndexRoute: AuthenticatedAdminSaasIndexRoute,
   }
 

@@ -16,6 +16,7 @@ import {
   Moon,
   Sun,
   ArrowLeftRight,
+  UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -26,6 +27,7 @@ import type { LucideIcon } from "lucide-react";
 const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/admin-saas", label: "Início", icon: LayoutDashboard },
   { to: "/admin-saas/lojas", label: "Lojas", icon: Building2 },
+  { to: "/admin-saas/usuarios", label: "Usuários", icon: UsersRound },
 ];
 
 function PlataformaBrand() {
