@@ -4,8 +4,6 @@ import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 import { chavePixValida } from "@/lib/pix";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 
 // RLS original: SELECT livre; escrita admin OU tesoureiro.
 const PAPEIS_ESCRITA = ["admin", "tesoureiro"];
@@ -120,7 +118,9 @@ const chavePixSchema = z.object({
   tipo: z.enum(["email", "telefone", "cpf", "cnpj", "aleatoria"]),
   chave: z.string().max(140),
   pixCopiaCola: z.string().max(1000).nullable(),
-  qrCodeUrl: z.string().max(500).nullable(),
+  // Data URL da imagem (não mais um caminho em disco — ver uploadQrCodePix),
+  // por isso o limite alto: cobre uma imagem de até 5 MB em base64.
+  qrCodeUrl: z.string().max(7_000_000).nullable(),
   nomeBeneficiario: z.string().min(1).max(25),
   cidade: z.string().min(1).max(15),
   principal: z.boolean(),
@@ -194,6 +194,11 @@ const uploadQrCodeSchema = z.object({
   dataUrl: z.string().startsWith("data:image/"),
 });
 
+// Guarda a imagem como data URL na própria coluna (qr_code_url é MEDIUMTEXT,
+// migração 0108) em vez de gravar em disco: uploads em public/uploads/ não
+// são versionados no git e não sobrevivem a um novo deploy da Hostinger
+// (git clone + build do zero), o que deixava o QR Code quebrado assim que a
+// aplicação era reimplantada depois do upload.
 export const uploadQrCodePix = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadQrCodeSchema.parse(d))
   .handler(async ({ data }): Promise<{ url: string }> => {
@@ -202,12 +207,7 @@ export const uploadQrCodePix = createServerFn({ method: "POST" })
       if (!match) throw new Error("Envie uma imagem PNG, JPG ou WebP.");
       const buffer = Buffer.from(match[2], "base64");
       if (buffer.byteLength > 5 * 1024 * 1024) throw new Error("Imagem maior que 5 MB.");
-      const extensao = match[1] === "image/jpeg" ? "jpg" : match[1].split("/")[1];
-      const dir = join(process.cwd(), "public", "uploads", "qrcode-pix");
-      await mkdir(dir, { recursive: true });
-      const nome = `${Date.now()}-${crypto.randomUUID()}.${extensao}`;
-      await writeFile(join(dir, nome), buffer);
-      return { url: `/uploads/qrcode-pix/${nome}` };
+      return { url: data.dataUrl };
     });
   });
 
