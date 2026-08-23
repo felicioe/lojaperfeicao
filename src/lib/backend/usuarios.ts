@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
-import { comPapel } from "./authz";
+import { comPapel, ehAlvoSuperAdmin } from "./authz";
 import type { Papel } from "./auth";
 import { registrarAuditoria } from "./auditoria";
 
@@ -303,6 +303,19 @@ export const atualizarPapeisUsuario = createServerFn({ method: "POST" })
       if (data.usuarioId === usuarioIdAtual && !data.papeis.includes("admin")) {
         throw new Error("Você não pode remover seu próprio papel de administrador.");
       }
+      if (await ehAlvoSuperAdmin(conn, data.usuarioId)) {
+        throw new Error("Não é possível alterar os papéis do super-admin da plataforma por aqui.");
+      }
+      // O id vem da requisição: sem confirmar que pertence a esta Loja, um
+      // admin descobrindo o UUID de um usuário de OUTRA Loja conseguia
+      // conceder papel a ele por aqui (achado crítico da auditoria — ver
+      // 0106_has_role_escopado_por_loja.sql para a correção de raiz em
+      // has_role(), esta é a checagem de borda complementar).
+      const [[alvo]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM usuarios WHERE id = ? AND loja_id = @current_loja_id",
+        [data.usuarioId],
+      );
+      if (!alvo) throw new Error("Usuário não encontrado nesta loja.");
       const [antes] = await conn.query<RowDataPacket[]>(
         "SELECT papel FROM usuarios_papeis WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [data.usuarioId],
@@ -344,6 +357,9 @@ export const alternarAtivoUsuario = createServerFn({ method: "POST" })
       if (data.usuarioId === usuarioIdAtual && !data.ativo) {
         throw new Error("Você não pode inativar seu próprio usuário.");
       }
+      if (await ehAlvoSuperAdmin(conn, data.usuarioId)) {
+        throw new Error("Não é possível ativar/inativar o super-admin da plataforma por aqui.");
+      }
       await conn.query(
         "UPDATE usuarios SET ativo = ? WHERE id = ? AND loja_id = @current_loja_id",
         [data.ativo, data.usuarioId],
@@ -374,6 +390,9 @@ export const redefinirSenhaUsuario = createServerFn({ method: "POST" })
   .validator((d: unknown) => redefinirSenhaSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, usuarioIdAtual) => {
+      if (await ehAlvoSuperAdmin(conn, data.usuarioId)) {
+        throw new Error("Não é possível redefinir a senha do super-admin da plataforma por aqui.");
+      }
       const hash = await bcrypt.hash(data.novaSenha, 10);
       await conn.query(
         "UPDATE usuarios SET senha_hash = ?, deve_trocar_senha = ?, senha_alterada_em = NOW() WHERE id = ? AND loja_id = @current_loja_id",

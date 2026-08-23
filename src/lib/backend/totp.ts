@@ -3,7 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import * as OTPAuth from "otpauth";
 import type { RowDataPacket } from "mysql2";
-import { comSessao, comPapel, SemPermissaoError } from "./authz";
+import { comSessao, comPapel, SemPermissaoError, ehAlvoSuperAdmin } from "./authz";
 import { withUserConnection } from "./db";
 import { criarSessao, salvarLoginPendente2FA, consumirLoginPendente2FA } from "./session";
 import { carregarUsuarioComPapeis, type UsuarioSessao } from "./usuario-sessao";
@@ -162,6 +162,9 @@ export const resetarTotpUsuario = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ usuarioId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(["admin"], async (conn, adminId) => {
+      if (await ehAlvoSuperAdmin(conn, data.usuarioId)) {
+        throw new Error("Não é possível resetar o 2FA do super-admin da plataforma por aqui.");
+      }
       await conn.query(
         "DELETE FROM usuario_totp WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [data.usuarioId],

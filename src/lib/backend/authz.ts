@@ -142,6 +142,29 @@ export async function comSuperAdmin<T>(
   });
 }
 
+/**
+ * Confere se um usuário-ALVO (não o da sessão) detém o papel `super_admin`
+ * — usado pelas telas de gestão de usuários de uma Loja (redefinir senha,
+ * resetar 2FA, ativar/inativar, editar papéis) pra recusar agir sobre a
+ * conta do super-admin da plataforma. Sem essa trava, qualquer `admin`
+ * comum da mesma Loja onde o super-admin mora (ele continua sendo membro
+ * de uma Loja normal, ver 0094_super_admin.sql) conseguiria resetar a
+ * senha/2FA dele por ali e assumir a conta — um admin de tenant tomando
+ * conta da plataforma inteira. Reaproveita has_role() (0106, já escopada
+ * por @current_loja_id) — como quem chama e o alvo estão sempre na mesma
+ * Loja aqui (`WHERE id = ? AND loja_id = @current_loja_id` em toda função
+ * que usa isso), a checagem funciona igual à de qualquer outro papel.
+ */
+export async function ehAlvoSuperAdmin(
+  conn: PoolConnection,
+  usuarioAlvoId: string,
+): Promise<boolean> {
+  const [[row]] = await conn.query<RowDataPacket[]>("SELECT has_role(?, 'super_admin') AS ok", [
+    usuarioAlvoId,
+  ]);
+  return !!row.ok;
+}
+
 /** Equivalente a uma policy `USING (has_role(auth.uid(), 'x') OR has_role(auth.uid(), 'y'))`. */
 export async function comPapel<T>(
   papeis: string[],
