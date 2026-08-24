@@ -307,13 +307,21 @@ function UsuariosPage() {
 function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: () => void }) {
   const [papeisOpen, setPapeisOpen] = useState(false);
   const [senhaOpen, setSenhaOpen] = useState(false);
-  const [papeisSelecionados, setPapeisSelecionados] = useState<Papel[]>(usuario.papeis);
+  // usuario.papeis pode trazer "super_admin" (issue #339) — é papel de
+  // plataforma, não desta Loja, e não é uma das opções do diálogo (só
+  // TODOS_PAPEIS). Sem filtrar aqui, o Salvar reenviava "super_admin" pro
+  // servidor e o Zod rejeitava a chamada inteira com um erro técnico, antes
+  // até da checagem amigável de ehAlvoSuperAdmin em atualizarPapeisUsuario
+  // rodar.
+  const [papeisSelecionados, setPapeisSelecionados] = useState<Papel[]>(
+    usuario.papeis.filter((p) => TODOS_PAPEIS.includes(p)),
+  );
   const [novaSenha, setNovaSenha] = useState("");
   const [obrigarTroca, setObrigarTroca] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
   const abrirPapeis = () => {
-    setPapeisSelecionados(usuario.papeis);
+    setPapeisSelecionados(usuario.papeis.filter((p) => TODOS_PAPEIS.includes(p)));
     setPapeisOpen(true);
   };
 
