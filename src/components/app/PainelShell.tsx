@@ -26,6 +26,7 @@ import {
   Vote,
   Scale,
   Globe,
+  LifeBuoy,
 } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
 
@@ -197,6 +198,11 @@ export function PainelShell({ children }: { children: ReactNode }) {
               <Button variant="outline" className="w-full justify-start" asChild>
                 <Link to="/documentos" onClick={() => setMenuOpen(false)}>
                   <Scale className="mr-1.5 h-4 w-4" /> Legislação
+                </Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link to="/painel/chamados" onClick={() => setMenuOpen(false)}>
+                  <LifeBuoy className="mr-1.5 h-4 w-4" /> Chamados de Suporte
                 </Link>
               </Button>
               <Button variant="outline" className="w-full justify-start" asChild>

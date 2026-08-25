@@ -19,6 +19,7 @@ import {
   UsersRound,
   ShieldCheck,
   Settings,
+  LifeBuoy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -32,6 +33,7 @@ const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/admin-saas/usuarios", label: "Usuários", icon: UsersRound },
   { to: "/admin-saas/super-admins", label: "Super-admins", icon: ShieldCheck },
   { to: "/admin-saas/configuracoes", label: "Configurações", icon: Settings },
+  { to: "/admin-saas/chamados", label: "Chamados", icon: LifeBuoy },
 ];
 
 function PlataformaBrand() {

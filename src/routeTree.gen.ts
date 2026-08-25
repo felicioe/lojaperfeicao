@@ -96,6 +96,10 @@ import { Route as AuthenticatedTesourariaRecorrentesRouteImport } from './routes
 import { Route as AuthenticatedTesourariaTabelaValoresRouteImport } from './routes/_authenticated/tesouraria/tabela-valores'
 import { Route as AuthenticatedTesourariaTroncoRouteImport } from './routes/_authenticated/tesouraria/tronco'
 import { Route as AuthenticatedUsuariosIndexRouteImport } from './routes/_authenticated/usuarios/index'
+import { Route as AuthenticatedAdminSaasChamadosIndexRouteImport } from './routes/_authenticated/admin-saas/chamados/index'
+import { Route as AuthenticatedAdminSaasChamadosIdRouteImport } from './routes/_authenticated/admin-saas/chamados/$id'
+import { Route as AuthenticatedPainelChamadosIndexRouteImport } from './routes/_authenticated/painel/chamados/index'
+import { Route as AuthenticatedPainelChamadosIdRouteImport } from './routes/_authenticated/painel/chamados/$id'
 import { Route as AuthenticatedPainelFaturasIdRouteImport } from './routes/_authenticated/painel/faturas/$id'
 import { Route as AuthenticatedTesourariaFaturasIndexRouteImport } from './routes/_authenticated/tesouraria/faturas/index'
 import { Route as AuthenticatedTesourariaFaturasIdRouteImport } from './routes/_authenticated/tesouraria/faturas/$id'
@@ -608,6 +612,30 @@ const AuthenticatedUsuariosIndexRoute =
     path: '/usuarios/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminSaasChamadosIndexRoute =
+  AuthenticatedAdminSaasChamadosIndexRouteImport.update({
+    id: '/chamados/',
+    path: '/chamados/',
+    getParentRoute: () => AuthenticatedAdminSaasRouteRoute,
+  } as any)
+const AuthenticatedAdminSaasChamadosIdRoute =
+  AuthenticatedAdminSaasChamadosIdRouteImport.update({
+    id: '/chamados/$id',
+    path: '/chamados/$id',
+    getParentRoute: () => AuthenticatedAdminSaasRouteRoute,
+  } as any)
+const AuthenticatedPainelChamadosIndexRoute =
+  AuthenticatedPainelChamadosIndexRouteImport.update({
+    id: '/chamados/',
+    path: '/chamados/',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelChamadosIdRoute =
+  AuthenticatedPainelChamadosIdRouteImport.update({
+    id: '/chamados/$id',
+    path: '/chamados/$id',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
 const AuthenticatedPainelFaturasIdRoute =
   AuthenticatedPainelFaturasIdRouteImport.update({
     id: '/faturas/$id',
@@ -720,9 +748,13 @@ export interface FileRoutesByFullPath {
   '/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
   '/usuarios/': typeof AuthenticatedUsuariosIndexRoute
+  '/admin-saas/chamados/$id': typeof AuthenticatedAdminSaasChamadosIdRoute
+  '/painel/chamados/$id': typeof AuthenticatedPainelChamadosIdRoute
   '/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
   '/tesouraria/faturas/imprimir': typeof AuthenticatedTesourariaFaturasImprimirRoute
+  '/admin-saas/chamados/': typeof AuthenticatedAdminSaasChamadosIndexRoute
+  '/painel/chamados/': typeof AuthenticatedPainelChamadosIndexRoute
   '/tesouraria/faturas/': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
 export interface FileRoutesByTo {
@@ -810,9 +842,13 @@ export interface FileRoutesByTo {
   '/terceiros': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria': typeof AuthenticatedTesourariaIndexRoute
   '/usuarios': typeof AuthenticatedUsuariosIndexRoute
+  '/admin-saas/chamados/$id': typeof AuthenticatedAdminSaasChamadosIdRoute
+  '/painel/chamados/$id': typeof AuthenticatedPainelChamadosIdRoute
   '/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
   '/tesouraria/faturas/imprimir': typeof AuthenticatedTesourariaFaturasImprimirRoute
+  '/admin-saas/chamados': typeof AuthenticatedAdminSaasChamadosIndexRoute
+  '/painel/chamados': typeof AuthenticatedPainelChamadosIndexRoute
   '/tesouraria/faturas': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
 export interface FileRoutesById {
@@ -904,9 +940,13 @@ export interface FileRoutesById {
   '/_authenticated/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/_authenticated/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
   '/_authenticated/usuarios/': typeof AuthenticatedUsuariosIndexRoute
+  '/_authenticated/admin-saas/chamados/$id': typeof AuthenticatedAdminSaasChamadosIdRoute
+  '/_authenticated/painel/chamados/$id': typeof AuthenticatedPainelChamadosIdRoute
   '/_authenticated/painel/faturas/$id': typeof AuthenticatedPainelFaturasIdRoute
   '/_authenticated/tesouraria/faturas/$id': typeof AuthenticatedTesourariaFaturasIdRoute
   '/_authenticated/tesouraria/faturas/imprimir': typeof AuthenticatedTesourariaFaturasImprimirRoute
+  '/_authenticated/admin-saas/chamados/': typeof AuthenticatedAdminSaasChamadosIndexRoute
+  '/_authenticated/painel/chamados/': typeof AuthenticatedPainelChamadosIndexRoute
   '/_authenticated/tesouraria/faturas/': typeof AuthenticatedTesourariaFaturasIndexRoute
 }
 export interface FileRouteTypes {
@@ -998,9 +1038,13 @@ export interface FileRouteTypes {
     | '/terceiros/'
     | '/tesouraria/'
     | '/usuarios/'
+    | '/admin-saas/chamados/$id'
+    | '/painel/chamados/$id'
     | '/painel/faturas/$id'
     | '/tesouraria/faturas/$id'
     | '/tesouraria/faturas/imprimir'
+    | '/admin-saas/chamados/'
+    | '/painel/chamados/'
     | '/tesouraria/faturas/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1088,9 +1132,13 @@ export interface FileRouteTypes {
     | '/terceiros'
     | '/tesouraria'
     | '/usuarios'
+    | '/admin-saas/chamados/$id'
+    | '/painel/chamados/$id'
     | '/painel/faturas/$id'
     | '/tesouraria/faturas/$id'
     | '/tesouraria/faturas/imprimir'
+    | '/admin-saas/chamados'
+    | '/painel/chamados'
     | '/tesouraria/faturas'
   id:
     | '__root__'
@@ -1181,9 +1229,13 @@ export interface FileRouteTypes {
     | '/_authenticated/terceiros/'
     | '/_authenticated/tesouraria/'
     | '/_authenticated/usuarios/'
+    | '/_authenticated/admin-saas/chamados/$id'
+    | '/_authenticated/painel/chamados/$id'
     | '/_authenticated/painel/faturas/$id'
     | '/_authenticated/tesouraria/faturas/$id'
     | '/_authenticated/tesouraria/faturas/imprimir'
+    | '/_authenticated/admin-saas/chamados/'
+    | '/_authenticated/painel/chamados/'
     | '/_authenticated/tesouraria/faturas/'
   fileRoutesById: FileRoutesById
 }
@@ -1810,6 +1862,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsuariosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin-saas/chamados/': {
+      id: '/_authenticated/admin-saas/chamados/'
+      path: '/chamados'
+      fullPath: '/admin-saas/chamados/'
+      preLoaderRoute: typeof AuthenticatedAdminSaasChamadosIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminSaasRouteRoute
+    }
+    '/_authenticated/admin-saas/chamados/$id': {
+      id: '/_authenticated/admin-saas/chamados/$id'
+      path: '/chamados/$id'
+      fullPath: '/admin-saas/chamados/$id'
+      preLoaderRoute: typeof AuthenticatedAdminSaasChamadosIdRouteImport
+      parentRoute: typeof AuthenticatedAdminSaasRouteRoute
+    }
+    '/_authenticated/painel/chamados/': {
+      id: '/_authenticated/painel/chamados/'
+      path: '/chamados'
+      fullPath: '/painel/chamados/'
+      preLoaderRoute: typeof AuthenticatedPainelChamadosIndexRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/chamados/$id': {
+      id: '/_authenticated/painel/chamados/$id'
+      path: '/chamados/$id'
+      fullPath: '/painel/chamados/$id'
+      preLoaderRoute: typeof AuthenticatedPainelChamadosIdRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
     '/_authenticated/painel/faturas/$id': {
       id: '/_authenticated/painel/faturas/$id'
       path: '/faturas/$id'
@@ -1847,6 +1927,8 @@ interface AuthenticatedAdminSaasRouteRouteChildren {
   AuthenticatedAdminSaasSuperAdminsRoute: typeof AuthenticatedAdminSaasSuperAdminsRoute
   AuthenticatedAdminSaasUsuariosRoute: typeof AuthenticatedAdminSaasUsuariosRoute
   AuthenticatedAdminSaasIndexRoute: typeof AuthenticatedAdminSaasIndexRoute
+  AuthenticatedAdminSaasChamadosIdRoute: typeof AuthenticatedAdminSaasChamadosIdRoute
+  AuthenticatedAdminSaasChamadosIndexRoute: typeof AuthenticatedAdminSaasChamadosIndexRoute
 }
 
 const AuthenticatedAdminSaasRouteRouteChildren: AuthenticatedAdminSaasRouteRouteChildren =
@@ -1858,6 +1940,10 @@ const AuthenticatedAdminSaasRouteRouteChildren: AuthenticatedAdminSaasRouteRoute
       AuthenticatedAdminSaasSuperAdminsRoute,
     AuthenticatedAdminSaasUsuariosRoute: AuthenticatedAdminSaasUsuariosRoute,
     AuthenticatedAdminSaasIndexRoute: AuthenticatedAdminSaasIndexRoute,
+    AuthenticatedAdminSaasChamadosIdRoute:
+      AuthenticatedAdminSaasChamadosIdRoute,
+    AuthenticatedAdminSaasChamadosIndexRoute:
+      AuthenticatedAdminSaasChamadosIndexRoute,
   }
 
 const AuthenticatedAdminSaasRouteRouteWithChildren =
@@ -1874,7 +1960,9 @@ interface AuthenticatedPainelRouteRouteChildren {
   AuthenticatedPainelQuitacaoRoute: typeof AuthenticatedPainelQuitacaoRoute
   AuthenticatedPainelSessoesRoute: typeof AuthenticatedPainelSessoesRoute
   AuthenticatedPainelIndexRoute: typeof AuthenticatedPainelIndexRoute
+  AuthenticatedPainelChamadosIdRoute: typeof AuthenticatedPainelChamadosIdRoute
   AuthenticatedPainelFaturasIdRoute: typeof AuthenticatedPainelFaturasIdRoute
+  AuthenticatedPainelChamadosIndexRoute: typeof AuthenticatedPainelChamadosIndexRoute
 }
 
 const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildren =
@@ -1887,7 +1975,10 @@ const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildr
     AuthenticatedPainelQuitacaoRoute: AuthenticatedPainelQuitacaoRoute,
     AuthenticatedPainelSessoesRoute: AuthenticatedPainelSessoesRoute,
     AuthenticatedPainelIndexRoute: AuthenticatedPainelIndexRoute,
+    AuthenticatedPainelChamadosIdRoute: AuthenticatedPainelChamadosIdRoute,
     AuthenticatedPainelFaturasIdRoute: AuthenticatedPainelFaturasIdRoute,
+    AuthenticatedPainelChamadosIndexRoute:
+      AuthenticatedPainelChamadosIndexRoute,
   }
 
 const AuthenticatedPainelRouteRouteWithChildren =

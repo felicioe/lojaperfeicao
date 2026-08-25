@@ -1001,3 +1001,203 @@ export async function enviarArquivoPorEmail(params: {
     return resultados;
   });
 }
+
+// ---------- Chamados de suporte, Loja → super_admin (issue #363) ----------
+// Só nos marcos-chave (decisão do usuário): abertura, resposta do
+// super_admin e resolução/fechamento — não a cada mensagem do lado Loja,
+// pra não virar spam quando o chamado troca de mão várias vezes.
+//
+// `usuarios.email` pode ser só um login gerado a partir do nome civil (ver
+// tela de Usuários — "nome.sobrenome", sem precisar de e-mail real), então
+// não é destinatário confiável por si só: preferimos o e-mail de contato de
+// `irmaos` e só caímos para o login se ele parecer um e-mail de verdade.
+
+function pareceEmail(v: string | null | undefined): string | null {
+  return v && v.includes("@") ? v : null;
+}
+
+async function emailContatoDoUsuario(
+  conn: PoolConnection,
+  usuarioId: string,
+): Promise<string | null> {
+  const [[linha]] = await conn.query<RowDataPacket[]>(
+    `SELECT u.email AS login, i.email AS email_contato
+       FROM usuarios u LEFT JOIN irmaos i ON i.usuario_id = u.id AND i.loja_id = u.loja_id
+      WHERE u.id = ?`,
+    [usuarioId],
+  );
+  if (!linha) return null;
+  return pareceEmail(linha.email_contato) ?? pareceEmail(linha.login);
+}
+
+async function emailsDosSuperAdmins(conn: PoolConnection): Promise<string[]> {
+  const [rows] = await conn.query<RowDataPacket[]>(
+    `SELECT DISTINCT u.id, u.email AS login, i.email AS email_contato
+       FROM usuarios_papeis up
+       JOIN usuarios u ON u.id = up.usuario_id
+       LEFT JOIN irmaos i ON i.usuario_id = u.id AND i.loja_id = u.loja_id
+      WHERE up.papel = 'super_admin'`,
+  );
+  const emails = rows.map((r) => pareceEmail(r.email_contato) ?? pareceEmail(r.login));
+  return emails.filter((e): e is string => e !== null);
+}
+
+type DadosChamado = {
+  assunto: string;
+  prioridade: string;
+  aberto_por: string;
+  loja_nome: string;
+};
+
+async function carregarDadosChamado(
+  conn: PoolConnection,
+  chamadoId: string,
+): Promise<DadosChamado | null> {
+  const [[linha]] = await conn.query<RowDataPacket[]>(
+    `SELECT c.assunto, c.prioridade, c.aberto_por, l.nome AS loja_nome
+       FROM chamados c JOIN lojas l ON l.id = c.loja_id
+      WHERE c.id = ?`,
+    [chamadoId],
+  );
+  return linha
+    ? {
+        assunto: linha.assunto as string,
+        prioridade: linha.prioridade as string,
+        aberto_por: linha.aberto_por as string,
+        loja_nome: linha.loja_nome as string,
+      }
+    : null;
+}
+
+export async function enviarEmailChamadoAberto(chamadoId: string, lojaId: string): Promise<void> {
+  await withLojaConnection(lojaId, async (conn) => {
+    const chamado = await carregarDadosChamado(conn, chamadoId);
+    if (!chamado) return;
+    const linkLoja = `${origemPublica()}/painel/chamados/${chamadoId}`;
+    const linkPlataforma = `${origemPublica()}/admin-saas/chamados/${chamadoId}`;
+
+    const emailOpener = await emailContatoDoUsuario(conn, chamado.aberto_por);
+    if (emailOpener) {
+      const assunto = `Chamado aberto — ${chamado.assunto}`;
+      const html = `<p>Recebemos seu chamado de suporte.</p><p><strong>Assunto:</strong> ${chamado.assunto}</p><p>Acompanhe em <a href="${linkLoja}">${linkLoja}</a>.</p>`;
+      const texto = `Recebemos seu chamado de suporte. Assunto: ${chamado.assunto}. Acompanhe em ${linkLoja}.`;
+      const filaId = await gravarNaFila(conn, {
+        chave: `chamado_aberto:${chamadoId}`,
+        tipo: "comunicado",
+        destinatarios: [emailOpener],
+        assunto,
+        html,
+        texto,
+        lojaId,
+      });
+      await tentarEnviarFilaEmail(
+        conn,
+        filaId,
+        [emailOpener],
+        assunto,
+        html,
+        texto,
+        undefined,
+        lojaId,
+      );
+    }
+
+    const emailsSuperAdmins = await emailsDosSuperAdmins(conn);
+    if (emailsSuperAdmins.length > 0) {
+      const assunto = `Novo chamado — ${chamado.loja_nome}`;
+      const html = `<p>Novo chamado de suporte de <strong>${chamado.loja_nome}</strong>.</p><p><strong>Assunto:</strong> ${chamado.assunto}</p><p><strong>Prioridade:</strong> ${chamado.prioridade}</p><p>Acesse em <a href="${linkPlataforma}">${linkPlataforma}</a>.</p>`;
+      const texto = `Novo chamado de suporte de ${chamado.loja_nome}. Assunto: ${chamado.assunto}. Prioridade: ${chamado.prioridade}. Acesse ${linkPlataforma}.`;
+      const filaId = await gravarNaFila(conn, {
+        chave: `chamado_aberto_super_admin:${chamadoId}:${randomUUID()}`,
+        tipo: "comunicado",
+        destinatarios: emailsSuperAdmins,
+        assunto,
+        html,
+        texto,
+        lojaId,
+      });
+      await tentarEnviarFilaEmail(
+        conn,
+        filaId,
+        emailsSuperAdmins,
+        assunto,
+        html,
+        texto,
+        undefined,
+        lojaId,
+      );
+    }
+  });
+}
+
+export async function enviarEmailChamadoRespondido(
+  chamadoId: string,
+  lojaId: string,
+): Promise<void> {
+  await withLojaConnection(lojaId, async (conn) => {
+    const chamado = await carregarDadosChamado(conn, chamadoId);
+    if (!chamado) return;
+    const emailOpener = await emailContatoDoUsuario(conn, chamado.aberto_por);
+    if (!emailOpener) return;
+
+    const link = `${origemPublica()}/painel/chamados/${chamadoId}`;
+    const assunto = `Nova resposta no seu chamado — ${chamado.assunto}`;
+    const html = `<p>O suporte respondeu ao seu chamado.</p><p><strong>Assunto:</strong> ${chamado.assunto}</p><p>Veja a resposta em <a href="${link}">${link}</a>.</p>`;
+    const texto = `O suporte respondeu ao seu chamado. Assunto: ${chamado.assunto}. Veja em ${link}.`;
+    const filaId = await gravarNaFila(conn, {
+      chave: `chamado_respondido:${chamadoId}:${randomUUID()}`,
+      tipo: "comunicado",
+      destinatarios: [emailOpener],
+      assunto,
+      html,
+      texto,
+      lojaId,
+    });
+    await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      [emailOpener],
+      assunto,
+      html,
+      texto,
+      undefined,
+      lojaId,
+    );
+  });
+}
+
+export async function enviarEmailChamadoResolvido(
+  chamadoId: string,
+  lojaId: string,
+): Promise<void> {
+  await withLojaConnection(lojaId, async (conn) => {
+    const chamado = await carregarDadosChamado(conn, chamadoId);
+    if (!chamado) return;
+    const emailOpener = await emailContatoDoUsuario(conn, chamado.aberto_por);
+    if (!emailOpener) return;
+
+    const link = `${origemPublica()}/painel/chamados/${chamadoId}`;
+    const assunto = `Chamado resolvido — ${chamado.assunto}`;
+    const html = `<p>Seu chamado foi marcado como resolvido.</p><p><strong>Assunto:</strong> ${chamado.assunto}</p><p>Veja os detalhes em <a href="${link}">${link}</a>. Se o problema continuar, responda o chamado que ele reabre automaticamente.</p>`;
+    const texto = `Seu chamado foi marcado como resolvido. Assunto: ${chamado.assunto}. Veja em ${link}. Se o problema continuar, responda o chamado que ele reabre automaticamente.`;
+    const filaId = await gravarNaFila(conn, {
+      chave: `chamado_resolvido:${chamadoId}:${randomUUID()}`,
+      tipo: "comunicado",
+      destinatarios: [emailOpener],
+      assunto,
+      html,
+      texto,
+      lojaId,
+    });
+    await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      [emailOpener],
+      assunto,
+      html,
+      texto,
+      undefined,
+      lojaId,
+    );
+  });
+}

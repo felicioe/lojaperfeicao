@@ -24,6 +24,8 @@ const ACAO_LABEL: Record<string, string> = {
   promover_super_admin: "Super-admin concedido",
   revogar_super_admin: "Super-admin revogado",
   atualizar_configuracoes_plataforma: "Configurações atualizadas",
+  responder_chamado: "Chamado respondido",
+  atualizar_status_chamado: "Status de chamado atualizado",
 };
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR");
@@ -95,7 +97,7 @@ function PlataformaInicio() {
         </Card>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-base">Lojas</CardTitle>
@@ -157,6 +159,22 @@ function PlataformaInicio() {
           <CardContent>
             <p className="text-sm text-muted-foreground">
               Parâmetros que valem para todas as Lojas — hoje, o banner de manutenção/aviso.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Chamados</CardTitle>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin-saas/chamados">
+                Ver fila <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Suporte de todas as Lojas — thread, anexos, status e prazo por prioridade.
             </p>
           </CardContent>
         </Card>

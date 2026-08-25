@@ -37,6 +37,7 @@ import {
   Archive,
   Mail,
   BookMarked,
+  LifeBuoy,
   FolderKanban,
   ChevronDown,
   ChevronsLeft,
@@ -352,6 +353,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
         { to: "/documentos", label: "Legislação", icon: Scale, show: true },
+        { to: "/painel/chamados", label: "Chamados de Suporte", icon: LifeBuoy, show: true },
       ],
     },
   ];
@@ -602,6 +604,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           show: can.canManageFinancas,
         },
       ],
+    },
+    {
+      id: "suporte",
+      label: "Suporte",
+      icon: LifeBuoy,
+      items: [{ to: "/painel/chamados", label: "Chamados de Suporte", icon: LifeBuoy, show: true }],
     },
     {
       id: "administracao",
