@@ -58,7 +58,14 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
         })
       : null);
   const qrGerado = usePixQrCode(copiaCola);
-  const qrDataUrl = fatura.pix_qr_code_url || qrGerado;
+  // fatura.pix_qr_code_url pode ser um resquício de upload anterior à
+  // migração 0108 (era gravado como caminho em disco, public/uploads/, que
+  // não sobrevive a um novo deploy da Hostinger) — nesse caso o valor no
+  // banco não é vazio, então o fallback por "||" nunca entrava em ação, e a
+  // imagem ficava quebrada pra sempre. onError troca pro QR gerado no
+  // cliente a partir do Copia e Cola, que sempre funciona.
+  const [qrArmazenadoFalhou, setQrArmazenadoFalhou] = useState(false);
+  const qrDataUrl = (!qrArmazenadoFalhou && fatura.pix_qr_code_url) || qrGerado;
 
   const hoje = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date());
   const copiar = async () => {
@@ -204,6 +211,7 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
                     src={qrDataUrl}
                     alt="QR code Pix"
                     className="h-36 w-36 rounded border bg-white p-1.5"
+                    onError={() => setQrArmazenadoFalhou(true)}
                   />
                 )}
               </div>
