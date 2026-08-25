@@ -17,6 +17,7 @@ import {
   Sun,
   ArrowLeftRight,
   UsersRound,
+  ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -28,6 +29,7 @@ const NAV_ITEMS: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/admin-saas", label: "Início", icon: LayoutDashboard },
   { to: "/admin-saas/lojas", label: "Lojas", icon: Building2 },
   { to: "/admin-saas/usuarios", label: "Usuários", icon: UsersRound },
+  { to: "/admin-saas/super-admins", label: "Super-admins", icon: ShieldCheck },
 ];
 
 function PlataformaBrand() {

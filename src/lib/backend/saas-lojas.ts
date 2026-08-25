@@ -268,6 +268,7 @@ export type EventoPlataforma = {
   criado_em: string;
   usuario_email: string | null;
   loja_nome: string | null;
+  alvo_email: string | null;
   dados_depois: string | null;
 };
 
@@ -309,14 +310,18 @@ export const listarAuditoriaPlataforma = createServerFn({ method: "GET" }).handl
     comSuperAdmin(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         // loja_id IS NULL é o que distingue ação de plataforma de ação
-        // interna de loja sobre a entidade "loja" — ver
-        // registrarAuditoriaPlataforma.
+        // interna de loja — ver registrarAuditoriaPlataforma. entidade_tipo
+        // separa duas famílias de ação de plataforma: sobre uma Loja
+        // (entidade_id = lojas.id) ou sobre uma conta (entidade_id =
+        // usuarios.id, issue #361) — os dois LEFT JOINs abaixo só "acertam"
+        // no que corresponde ao tipo da linha.
         `SELECT a.id, a.acao, a.criado_em, u.email AS usuario_email,
-                l.nome AS loja_nome, a.dados_depois
+                l.nome AS loja_nome, alvo.email AS alvo_email, a.dados_depois
            FROM auditoria a
            LEFT JOIN usuarios u ON u.id = a.usuario_id
-           LEFT JOIN lojas l ON l.id = a.entidade_id
-          WHERE a.entidade_tipo = 'loja' AND a.loja_id IS NULL
+           LEFT JOIN lojas l ON l.id = a.entidade_id AND a.entidade_tipo = 'loja'
+           LEFT JOIN usuarios alvo ON alvo.id = a.entidade_id AND a.entidade_tipo = 'usuario'
+          WHERE a.entidade_tipo IN ('loja', 'usuario') AND a.loja_id IS NULL
           ORDER BY a.criado_em DESC
           LIMIT 100`,
       );
@@ -326,6 +331,7 @@ export const listarAuditoriaPlataforma = createServerFn({ method: "GET" }).handl
         criado_em: new Date(r.criado_em).toISOString(),
         usuario_email: r.usuario_email as string | null,
         loja_nome: r.loja_nome as string | null,
+        alvo_email: r.alvo_email as string | null,
         dados_depois: r.dados_depois === null ? null : JSON.stringify(r.dados_depois),
       }));
     }),

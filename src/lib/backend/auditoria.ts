@@ -51,17 +51,22 @@ export async function registrarAuditoriaPlataforma(
   conn: PoolConnection,
   usuarioId: string,
   acao: string,
-  lojaAfetadaId: string | null,
+  entidadeAfetadaId: string | null,
   dadosAntes: unknown = null,
   dadosDepois: unknown = null,
+  // 'usuario' foi acrescentado pela issue #361 (gestão de super_admins) —
+  // mesma ideia de "ação fora de qualquer Loja", mas a entidade afetada é
+  // uma conta, não uma Loja.
+  entidadeTipo: "loja" | "usuario" = "loja",
 ): Promise<void> {
   await conn.query(
     `INSERT INTO auditoria (loja_id, usuario_id, acao, entidade_tipo, entidade_id, dados_antes, dados_depois)
-     VALUES (NULL, ?, ?, 'loja', ?, ?, ?)`,
+     VALUES (NULL, ?, ?, ?, ?, ?, ?)`,
     [
       usuarioId,
       acao,
-      lojaAfetadaId,
+      entidadeTipo,
+      entidadeAfetadaId,
       dadosAntes === null ? null : JSON.stringify(dadosAntes),
       dadosDepois === null ? null : JSON.stringify(dadosDepois),
     ],

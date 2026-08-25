@@ -21,6 +21,8 @@ const ACAO_LABEL: Record<string, string> = {
   reenviar_convite_loja: "Convite reenviado",
   revogar_convite_loja: "Convite cancelado",
   aceitar_convite_loja: "Convite aceito",
+  promover_super_admin: "Super-admin concedido",
+  revogar_super_admin: "Super-admin revogado",
 };
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR");
@@ -92,7 +94,7 @@ function PlataformaInicio() {
         </Card>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-base">Lojas</CardTitle>
@@ -125,6 +127,22 @@ function PlataformaInicio() {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-base">Super-admins</CardTitle>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin-saas/super-admins">
+                Gerenciar <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Quem administra a plataforma inteira. Promover ou revogar exige confirmar senha e 2FA.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -141,6 +159,7 @@ function PlataformaInicio() {
                   <span className="tabular-nums">{dataHora(e.criado_em)}</span>
                   <span className="text-foreground">{ACAO_LABEL[e.acao] ?? e.acao}</span>
                   {e.loja_nome && <span className="text-foreground">— {e.loja_nome}</span>}
+                  {e.alvo_email && <span className="text-foreground">— {e.alvo_email}</span>}
                   {e.usuario_email && <span>por {e.usuario_email}</span>}
                 </li>
               ))}

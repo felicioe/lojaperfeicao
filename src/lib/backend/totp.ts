@@ -209,7 +209,7 @@ export const regenerarCodigosBackup = createServerFn({ method: "POST" })
 
 // ---------- Verificação compartilhada (self-service e login) ----------
 
-async function validarCodigoTotpOuBackup(
+export async function validarCodigoTotpOuBackup(
   conn: import("mysql2/promise").PoolConnection,
   usuarioId: string,
   codigo: string,
