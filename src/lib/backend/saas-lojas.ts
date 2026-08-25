@@ -279,10 +279,9 @@ export type ResumoPlataforma = {
   usuarios_ativos: number;
 };
 
-// Números gerais pro painel inicial da Plataforma (issue #358). De
-// propósito só o essencial — tendência, crescimento e ranking de Lojas
-// mais/menos ativas ficam pra issue de métricas dedicada (#360), que ainda
-// precisa definir o que conta como "atividade".
+// Números gerais pro painel inicial da Plataforma (issue #358) — total de
+// Lojas ativas/suspensas e usuários ativos. Crescimento e ranking de
+// atividade ficam em obterMetricasPlataforma (issue #360).
 export const obterResumoPlataforma = createServerFn({ method: "GET" }).handler(
   async (): Promise<ResumoPlataforma> =>
     comSuperAdmin(async (conn) => {
@@ -301,6 +300,109 @@ export const obterResumoPlataforma = createServerFn({ method: "GET" }).handler(
         lojas_ativas: lojasAtivas,
         lojas_suspensas: totalLojas - lojasAtivas,
         usuarios_ativos: Number(usuariosRow.usuarios_ativos),
+      };
+    }),
+);
+
+export type PontoMensal = { mes: string; total: number };
+
+export type LojaAtividade = {
+  id: string;
+  nome: string;
+  slug: string;
+  ultimo_acesso: string | null;
+};
+
+export type MetricasPlataforma = {
+  crescimentoLojas: PontoMensal[];
+  crescimentoUsuarios: PontoMensal[];
+  lojasMaisAtivas: LojaAtividade[];
+  lojasMenosAtivas: LojaAtividade[];
+};
+
+// 6 chaves "AAAA-MM" dos últimos 6 meses (incluindo o atual), mais antigo
+// primeiro — usado pra preencher com zero os meses sem nenhum registro,
+// já que agrupar direto no banco só devolve os meses que existem.
+function ultimosSeisMeses(): string[] {
+  const chaves: string[] = [];
+  const hoje = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    chaves.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return chaves;
+}
+
+function preencherMeses(chaves: string[], contagens: Map<string, number>): PontoMensal[] {
+  return chaves.map((mes) => ({ mes, total: contagens.get(mes) ?? 0 }));
+}
+
+// Métricas agregadas da plataforma (issue #360) — crescimento de Lojas e
+// usuários nos últimos 6 meses, e ranking de Lojas mais/menos ativas.
+// "Atividade" = login mais recente de qualquer usuário da Loja (decisão do
+// usuário) — mesma métrica e mesmo subquery já usados em listarLojas().
+// Só Lojas ativas entram no ranking: uma Loja suspensa já é sabidamente
+// inativa por definição, incluí-la só faria ruído nas duas pontas.
+export const obterMetricasPlataforma = createServerFn({ method: "GET" }).handler(
+  async (): Promise<MetricasPlataforma> =>
+    comSuperAdmin(async (conn) => {
+      const chaves = ultimosSeisMeses();
+
+      const [lojasRows] = await conn.query<RowDataPacket[]>(
+        `SELECT DATE_FORMAT(criada_em, '%Y-%m') AS mes, COUNT(*) AS total
+           FROM lojas
+          WHERE criada_em >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH)
+          GROUP BY mes`,
+      );
+      const [usuariosRows] = await conn.query<RowDataPacket[]>(
+        `SELECT DATE_FORMAT(criado_em, '%Y-%m') AS mes, COUNT(*) AS total
+           FROM usuarios
+          WHERE criado_em >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH)
+          GROUP BY mes`,
+      );
+      const mapaLojas = new Map(lojasRows.map((r) => [r.mes as string, Number(r.total)]));
+      const mapaUsuarios = new Map(usuariosRows.map((r) => [r.mes as string, Number(r.total)]));
+
+      const [maisAtivas] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.nome, l.slug, acesso.ultimo_acesso
+           FROM lojas l
+           LEFT JOIN (
+             SELECT u.loja_id, MAX(a.criado_em) AS ultimo_acesso
+               FROM auditoria a JOIN usuarios u ON u.id = a.usuario_id
+              WHERE a.acao = 'login'
+              GROUP BY u.loja_id
+           ) acesso ON acesso.loja_id = l.id
+          WHERE l.ativa = TRUE
+          ORDER BY (acesso.ultimo_acesso IS NULL) ASC, acesso.ultimo_acesso DESC
+          LIMIT 5`,
+      );
+      const [menosAtivas] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.nome, l.slug, acesso.ultimo_acesso
+           FROM lojas l
+           LEFT JOIN (
+             SELECT u.loja_id, MAX(a.criado_em) AS ultimo_acesso
+               FROM auditoria a JOIN usuarios u ON u.id = a.usuario_id
+              WHERE a.acao = 'login'
+              GROUP BY u.loja_id
+           ) acesso ON acesso.loja_id = l.id
+          WHERE l.ativa = TRUE
+          ORDER BY (acesso.ultimo_acesso IS NULL) DESC, acesso.ultimo_acesso ASC
+          LIMIT 5`,
+      );
+
+      const paraAtividade = (rows: RowDataPacket[]): LojaAtividade[] =>
+        rows.map((r) => ({
+          id: r.id as string,
+          nome: r.nome as string,
+          slug: r.slug as string,
+          ultimo_acesso: r.ultimo_acesso ? new Date(r.ultimo_acesso).toISOString() : null,
+        }));
+
+      return {
+        crescimentoLojas: preencherMeses(chaves, mapaLojas),
+        crescimentoUsuarios: preencherMeses(chaves, mapaUsuarios),
+        lojasMaisAtivas: paraAtividade(maisAtivas),
+        lojasMenosAtivas: paraAtividade(menosAtivas),
       };
     }),
 );

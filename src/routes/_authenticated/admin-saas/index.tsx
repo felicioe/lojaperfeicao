@@ -1,10 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { obterResumoPlataforma, listarAuditoriaPlataforma } from "@/lib/backend/saas-lojas";
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import {
+  obterResumoPlataforma,
+  obterMetricasPlataforma,
+  listarAuditoriaPlataforma,
+  type LojaAtividade,
+} from "@/lib/backend/saas-lojas";
 import { PageHeader } from "@/components/app/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { Building2, Users, PowerOff, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin-saas/")({
@@ -30,10 +42,54 @@ const ACAO_LABEL: Record<string, string> = {
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR");
 
+// "2026-03" -> "mar/26"
+const mesLabel = (chave: string) => {
+  const [ano, mes] = chave.split("-");
+  const data = new Date(Number(ano), Number(mes) - 1, 1);
+  return data.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+};
+
+const desdeUltimoAcesso = (iso: string | null) => {
+  if (!iso) return "nunca acessou";
+  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (dias <= 0) return "hoje";
+  if (dias === 1) return "há 1 dia";
+  return `há ${dias} dias`;
+};
+
+const configLojas = {
+  total: { label: "Novas Lojas", color: "var(--chart-1)" },
+} satisfies ChartConfig;
+const configUsuarios = {
+  total: { label: "Novos usuários", color: "var(--chart-2)" },
+} satisfies ChartConfig;
+
+function ListaAtividade({ lojas }: { lojas: LojaAtividade[] }) {
+  if (lojas.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nenhuma Loja ativa ainda.</p>;
+  }
+  return (
+    <ul className="space-y-2 text-sm">
+      {lojas.map((l) => (
+        <li key={l.id} className="flex items-center justify-between gap-2">
+          <span className="truncate text-foreground">{l.nome}</span>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {desdeUltimoAcesso(l.ultimo_acesso)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function PlataformaInicio() {
   const { data: resumo, isLoading } = useQuery({
     queryKey: ["saas-resumo"],
     queryFn: () => obterResumoPlataforma(),
+  });
+  const { data: metricas } = useQuery({
+    queryKey: ["saas-metricas"],
+    queryFn: () => obterMetricasPlataforma(),
   });
   const { data: eventos = [] } = useQuery({
     queryKey: ["saas-auditoria"],
@@ -93,6 +149,96 @@ function PlataformaInicio() {
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
               <Users className="h-5 w-5" />
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Crescimento de Lojas</CardTitle>
+            <CardDescription>Novas Lojas cadastradas por mês, últimos 6 meses.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!metricas ? (
+              <Skeleton className="h-40 w-full" />
+            ) : (
+              <ChartContainer config={configLojas} className="h-40 w-full">
+                <BarChart data={metricas.crescimentoLojas} margin={{ left: -20 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="mes"
+                    tickFormatter={mesLabel}
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <ChartTooltip
+                    content={<ChartTooltipContent labelFormatter={(v) => mesLabel(String(v))} />}
+                  />
+                  <Bar dataKey="total" fill="var(--color-total)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Crescimento de Usuários</CardTitle>
+            <CardDescription>Novos usuários criados por mês, últimos 6 meses.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!metricas ? (
+              <Skeleton className="h-40 w-full" />
+            ) : (
+              <ChartContainer config={configUsuarios} className="h-40 w-full">
+                <BarChart data={metricas.crescimentoUsuarios} margin={{ left: -20 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="mes"
+                    tickFormatter={mesLabel}
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
+                  <ChartTooltip
+                    content={<ChartTooltipContent labelFormatter={(v) => mesLabel(String(v))} />}
+                  />
+                  <Bar dataKey="total" fill="var(--color-total)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Lojas mais ativas</CardTitle>
+            <CardDescription>Por login mais recente de algum usuário.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!metricas ? (
+              <Skeleton className="h-24 w-full" />
+            ) : (
+              <ListaAtividade lojas={metricas.lojasMaisAtivas} />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Lojas menos ativas</CardTitle>
+            <CardDescription>Sem login recente — candidatas a um contato.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!metricas ? (
+              <Skeleton className="h-24 w-full" />
+            ) : (
+              <ListaAtividade lojas={metricas.lojasMenosAtivas} />
+            )}
           </CardContent>
         </Card>
       </div>
