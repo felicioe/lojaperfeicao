@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { getSessao } from "@/lib/backend/auth";
 import { AppShell } from "@/components/app/AppShell";
+import { PlataformaBanner } from "@/components/app/PlataformaBanner";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -18,8 +19,11 @@ export const Route = createFileRoute("/_authenticated")({
     return { usuario };
   },
   component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <>
+      <PlataformaBanner />
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </>
   ),
 });

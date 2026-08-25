@@ -22,6 +22,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
 import { Route as AuthenticatedAdminSaasIndexRouteImport } from './routes/_authenticated/admin-saas/index'
+import { Route as AuthenticatedAdminSaasConfiguracoesRouteImport } from './routes/_authenticated/admin-saas/configuracoes'
 import { Route as AuthenticatedAdminSaasLojasRouteImport } from './routes/_authenticated/admin-saas/lojas'
 import { Route as AuthenticatedAdminSaasSuperAdminsRouteImport } from './routes/_authenticated/admin-saas/super-admins'
 import { Route as AuthenticatedAdminSaasUsuariosRouteImport } from './routes/_authenticated/admin-saas/usuarios'
@@ -165,6 +166,12 @@ const AuthenticatedAdminSaasIndexRoute =
   AuthenticatedAdminSaasIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => AuthenticatedAdminSaasRouteRoute,
+  } as any)
+const AuthenticatedAdminSaasConfiguracoesRoute =
+  AuthenticatedAdminSaasConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
     getParentRoute: () => AuthenticatedAdminSaasRouteRoute,
   } as any)
 const AuthenticatedAdminSaasLojasRoute =
@@ -638,6 +645,7 @@ export interface FileRoutesByFullPath {
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/admin-saas/super-admins': typeof AuthenticatedAdminSaasSuperAdminsRoute
   '/admin-saas/usuarios': typeof AuthenticatedAdminSaasUsuariosRoute
@@ -727,6 +735,7 @@ export interface FileRoutesByTo {
   '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/admin-saas/super-admins': typeof AuthenticatedAdminSaasSuperAdminsRoute
   '/admin-saas/usuarios': typeof AuthenticatedAdminSaasUsuariosRoute
@@ -820,6 +829,7 @@ export interface FileRoutesById {
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/_authenticated/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/_authenticated/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/_authenticated/admin-saas/super-admins': typeof AuthenticatedAdminSaasSuperAdminsRoute
   '/_authenticated/admin-saas/usuarios': typeof AuthenticatedAdminSaasUsuariosRoute
@@ -913,6 +923,7 @@ export interface FileRouteTypes {
     | '/painel'
     | '/dashboard'
     | '/convite/$token'
+    | '/admin-saas/configuracoes'
     | '/admin-saas/lojas'
     | '/admin-saas/super-admins'
     | '/admin-saas/usuarios'
@@ -1002,6 +1013,7 @@ export interface FileRouteTypes {
     | '/trocar-senha'
     | '/dashboard'
     | '/convite/$token'
+    | '/admin-saas/configuracoes'
     | '/admin-saas/lojas'
     | '/admin-saas/super-admins'
     | '/admin-saas/usuarios'
@@ -1094,6 +1106,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
     | '/convite/$token'
+    | '/_authenticated/admin-saas/configuracoes'
     | '/_authenticated/admin-saas/lojas'
     | '/_authenticated/admin-saas/super-admins'
     | '/_authenticated/admin-saas/usuarios'
@@ -1277,6 +1290,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin-saas/'
       preLoaderRoute: typeof AuthenticatedAdminSaasIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminSaasRouteRoute
+    }
+    '/_authenticated/admin-saas/configuracoes': {
+      id: '/_authenticated/admin-saas/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/admin-saas/configuracoes'
+      preLoaderRoute: typeof AuthenticatedAdminSaasConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedAdminSaasRouteRoute
     }
     '/_authenticated/admin-saas/lojas': {
@@ -1822,6 +1842,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminSaasRouteRouteChildren {
+  AuthenticatedAdminSaasConfiguracoesRoute: typeof AuthenticatedAdminSaasConfiguracoesRoute
   AuthenticatedAdminSaasLojasRoute: typeof AuthenticatedAdminSaasLojasRoute
   AuthenticatedAdminSaasSuperAdminsRoute: typeof AuthenticatedAdminSaasSuperAdminsRoute
   AuthenticatedAdminSaasUsuariosRoute: typeof AuthenticatedAdminSaasUsuariosRoute
@@ -1830,6 +1851,8 @@ interface AuthenticatedAdminSaasRouteRouteChildren {
 
 const AuthenticatedAdminSaasRouteRouteChildren: AuthenticatedAdminSaasRouteRouteChildren =
   {
+    AuthenticatedAdminSaasConfiguracoesRoute:
+      AuthenticatedAdminSaasConfiguracoesRoute,
     AuthenticatedAdminSaasLojasRoute: AuthenticatedAdminSaasLojasRoute,
     AuthenticatedAdminSaasSuperAdminsRoute:
       AuthenticatedAdminSaasSuperAdminsRoute,
