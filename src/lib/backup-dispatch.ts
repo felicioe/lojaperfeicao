@@ -1,5 +1,3 @@
-import { mkdir, writeFile, unlink, stat, readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
 import { listarLojasAtivas, withUserConnection } from "./backend/db";
 
@@ -12,18 +10,22 @@ import { listarLojasAtivas, withUserConnection } from "./backend/db";
 // cliente, mesmo que backups.ts volte a exportar algo por engano no
 // futuro — mesma lição aprendida com o bug de bundle do passkey.
 //
-// Os arquivos ficam em BACKUPS_DIR, fora de public/ — nunca podem ser
-// servidos estaticamente. Download só via rota autenticada admin-only
-// (backups.ts).
+// O conteúdo fica na própria linha de `backups_gerados` (coluna `conteudo`,
+// migração 0112), não em disco: até essa migração os arquivos ficavam em
+// BACKUPS_DIR (fora de public/), e a Hostinger reconstrói o projeto do
+// zero a cada deploy (git clone + build) — a pasta não é parte do código
+// versionado nem do banco, então sumia a cada deploy, deixando "Baixar"
+// falhar pra qualquer backup anterior ao deploy mais recente (mesmo motivo
+// por trás da correção do QR Code Pix, migração 0108). Download só via
+// rota autenticada admin-only (backups.ts).
 //
 // Campos sensíveis (issue de segurança, revisão pós-#87): senha_hash e o
-// secret de TOTP nunca são gravados nem em disco nem no download — numa
+// secret de TOTP nunca são gravados nem no conteúdo nem no download — numa
 // restauração de desastre, cada usuário redefine senha e 2FA do zero,
 // decisão explícita do cliente (mais simples e mais seguro do que manter
 // esses campos vivos em qualquer backup). usuario_passkeys NÃO entra
 // nessa lista: por desenho do WebAuthn, o servidor só guarda a CHAVE
 // PÚBLICA da passkey — não há segredo nenhum ali para redigir.
-const BACKUPS_DIR = join(process.cwd(), "backups");
 const RETENCAO_MAXIMA = 7;
 const CAMPOS_SENSIVEIS: Record<string, string[]> = {
   usuarios: ["senha_hash"],
@@ -132,24 +134,22 @@ export async function executarBackupDaLoja(
       totalTabelas++;
     }
 
-    await mkdir(BACKUPS_DIR, { recursive: true });
     const carimbo = new Date().toISOString().replace(/[:.]/g, "-");
-    // O slug entra no nome do arquivo: com mais de uma Loja, uma pasta com
-    // "backup-<data>.json" repetido não diz de quem é cada arquivo.
+    // O slug entra no nome do arquivo: com mais de uma Loja, um nome com
+    // "backup-<data>.json" repetido não diria de quem é cada um no download.
     const nomeArquivo = `backup-${lojaSlug}-${carimbo}.json`;
     const conteudo = JSON.stringify(dump, null, 2);
-    await writeFile(join(BACKUPS_DIR, nomeArquivo), conteudo, "utf-8");
-    const { size } = await stat(join(BACKUPS_DIR, nomeArquivo));
+    const tamanhoBytes = Buffer.byteLength(conteudo, "utf-8");
 
     await conn.query(
-      `INSERT INTO backups_gerados (loja_id, nome_arquivo, tamanho_bytes, total_tabelas, total_linhas, origem)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [lojaId, nomeArquivo, size, totalTabelas, totalLinhas, origem],
+      `INSERT INTO backups_gerados (loja_id, nome_arquivo, tamanho_bytes, conteudo, total_tabelas, total_linhas, origem)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [lojaId, nomeArquivo, tamanhoBytes, conteudo, totalTabelas, totalLinhas, origem],
     );
 
     await aplicarRetencao(conn, lojaId);
 
-    return { nomeArquivo, tamanhoBytes: size, totalTabelas, totalLinhas };
+    return { nomeArquivo, tamanhoBytes, totalTabelas, totalLinhas };
   });
 }
 
@@ -177,32 +177,26 @@ export async function executarBackupAgendado(
   return resultados;
 }
 
-// Mantém só os últimos RETENCAO_MAXIMA backups DA LOJA — disco de hospedagem
-// compartilhada é limitado (decisão confirmada na issue #85). A retenção é por
-// Loja porque global significaria que, com N Lojas, cada uma guardaria
+// Mantém só os últimos RETENCAO_MAXIMA backups DA LOJA — o conteúdo agora
+// vive na própria linha (coluna `conteudo`, migração 0112), então apagar o
+// registro já libera o espaço, sem precisar tocar em disco. A retenção é
+// por Loja porque global significaria que, com N Lojas, cada uma guardaria
 // 7/N backups — e a Loja que gerasse um manual apagaria o da outra.
 async function aplicarRetencao(
   conn: import("mysql2/promise").PoolConnection,
   lojaId: string,
 ): Promise<void> {
-  const [antigos] = await conn.query<RowDataPacket[]>(
-    `SELECT id, nome_arquivo FROM backups_gerados
+  await conn.query(
+    `DELETE FROM backups_gerados
       WHERE loja_id = ?
-      ORDER BY criado_em DESC
-      LIMIT 1000 OFFSET ?`,
-    [lojaId, RETENCAO_MAXIMA],
+        AND id NOT IN (
+          SELECT id FROM (
+            SELECT id FROM backups_gerados
+             WHERE loja_id = ?
+             ORDER BY criado_em DESC
+             LIMIT ?
+          ) AS recentes
+        )`,
+    [lojaId, lojaId, RETENCAO_MAXIMA],
   );
-  for (const antigo of antigos) {
-    await unlink(join(BACKUPS_DIR, antigo.nome_arquivo)).catch(() => {
-      // arquivo já não existe em disco — ainda assim remove o registro.
-    });
-    await conn.query("DELETE FROM backups_gerados WHERE id = ? AND loja_id = ?", [
-      antigo.id,
-      lojaId,
-    ]);
-  }
-}
-
-export async function lerConteudoBackup(nomeArquivo: string): Promise<string> {
-  return readFile(join(BACKUPS_DIR, nomeArquivo), "utf-8");
 }

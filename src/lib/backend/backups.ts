@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
-import { executarBackupDaLoja, lerConteudoBackup } from "../backup-dispatch";
+import { executarBackupDaLoja } from "../backup-dispatch";
 
 const PAPEIS = ["admin"];
 
@@ -20,8 +20,12 @@ export type BackupGerado = {
 export const listarBackupsGerados = createServerFn({ method: "GET" }).handler(
   async (): Promise<BackupGerado[]> => {
     return comPapel(PAPEIS, async (conn) => {
+      // Sem `conteudo` (LONGTEXT) aqui de propósito: a listagem só precisa
+      // dos metadados, e trazer o dump inteiro de cada um dos últimos 7
+      // backups a cada carga da tela seria desperdício de banda sem motivo.
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT * FROM backups_gerados WHERE loja_id = @current_loja_id ORDER BY criado_em DESC",
+        `SELECT id, nome_arquivo, tamanho_bytes, total_tabelas, total_linhas, origem, criado_em
+           FROM backups_gerados WHERE loja_id = @current_loja_id ORDER BY criado_em DESC`,
       );
       return rows as BackupGerado[];
     });
@@ -44,16 +48,22 @@ export const baixarBackup = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ nomeArquivo: string; conteudo: string }> => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       const [[registro]] = await conn.query<RowDataPacket[]>(
-        "SELECT nome_arquivo FROM backups_gerados WHERE id = ? AND loja_id = @current_loja_id",
+        "SELECT nome_arquivo, conteudo FROM backups_gerados WHERE id = ? AND loja_id = @current_loja_id",
         [data.id],
       );
       if (!registro) throw new Error("Backup não encontrado nesta Loja.");
-      // nome_arquivo só é lido do banco (nunca do client) — sem risco de
-      // path traversal apontando pra fora de BACKUPS_DIR.
-      const conteudo = await lerConteudoBackup(registro.nome_arquivo);
+      // conteudo NULL = backup gerado antes da migração 0112 (arquivo ficava
+      // em disco, e não sobreviveu ao deploy seguinte) — não tem mais como
+      // recuperar; a mensagem diz isso em vez de um erro técnico de arquivo
+      // não encontrado.
+      if (!registro.conteudo) {
+        throw new Error(
+          "Este backup foi gerado antes de uma correção de armazenamento e não está mais disponível para download. Gere um novo backup.",
+        );
+      }
       await registrarAuditoria(conn, usuarioIdAtual, "baixar", "backup", data.id, null, {
         nome_arquivo: registro.nome_arquivo,
       });
-      return { nomeArquivo: registro.nome_arquivo, conteudo };
+      return { nomeArquivo: registro.nome_arquivo, conteudo: registro.conteudo };
     });
   });
