@@ -229,8 +229,10 @@ function AuthPage() {
             alt=""
             className="mx-auto mb-2 h-24 w-20 object-contain"
           />
-          <h1 className="font-serif text-3xl font-semibold leading-snug tracking-wide">SGLFM</h1>
-          <CardDescription>Sistema de Gestão de Loja Filosófica Maçônica</CardDescription>
+          <h1 className="font-serif text-2xl font-semibold leading-snug tracking-wide">
+            Sistema de Gestão de Loja Filosófica Maçônica
+          </h1>
+          <CardDescription>SGLFM</CardDescription>
         </CardHeader>
         <CardContent>
           {aguardando2FA ? (
@@ -435,6 +437,11 @@ function AuthPage() {
               }}
             />
           )}
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+            Acesso restrito aos irmãos da Loja. Seus dados são protegidos e não são compartilhados
+            com terceiros.
+          </p>
         </CardContent>
       </Card>
     </main>

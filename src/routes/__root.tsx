@@ -85,6 +85,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#0f172a" },
+      // Sistema privado atrás de login (dados financeiros/pessoais de
+      // associados) — não deveria estar indexável em lugar nenhum. Fica
+      // aqui, no root, pra valer em toda rota sem cada uma precisar
+      // lembrar de repetir (achado da auditoria de UX/segurança: o
+      // robots.txt liberava todos os crawlers pro site inteiro).
+      { name: "robots", content: "noindex, nofollow" },
       { title: "SGLFM" },
       {
         name: "description",
