@@ -21,6 +21,8 @@ import { Route as AuthenticatedAdminSaasRouteRouteImport } from './routes/_authe
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
+import { Route as RecuperarSenhaIndexRouteImport } from './routes/recuperar-senha/index'
+import { Route as RecuperarSenhaTokenRouteImport } from './routes/recuperar-senha/$token'
 import { Route as AuthenticatedAdminSaasIndexRouteImport } from './routes/_authenticated/admin-saas/index'
 import { Route as AuthenticatedAdminSaasConfiguracoesRouteImport } from './routes/_authenticated/admin-saas/configuracoes'
 import { Route as AuthenticatedAdminSaasLojasRouteImport } from './routes/_authenticated/admin-saas/lojas'
@@ -164,6 +166,16 @@ const AuthenticatedPainelRouteRoute =
 const ConviteTokenRoute = ConviteTokenRouteImport.update({
   id: '/convite/$token',
   path: '/convite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecuperarSenhaIndexRoute = RecuperarSenhaIndexRouteImport.update({
+  id: '/recuperar-senha/',
+  path: '/recuperar-senha/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecuperarSenhaTokenRoute = RecuperarSenhaTokenRouteImport.update({
+  id: '/recuperar-senha/$token',
+  path: '/recuperar-senha/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminSaasIndexRoute =
@@ -673,6 +685,8 @@ export interface FileRoutesByFullPath {
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/recuperar-senha/': typeof RecuperarSenhaIndexRoute
   '/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/admin-saas/super-admins': typeof AuthenticatedAdminSaasSuperAdminsRoute
@@ -767,6 +781,8 @@ export interface FileRoutesByTo {
   '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/recuperar-senha': typeof RecuperarSenhaIndexRoute
   '/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/admin-saas/super-admins': typeof AuthenticatedAdminSaasSuperAdminsRoute
@@ -865,6 +881,8 @@ export interface FileRoutesById {
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/recuperar-senha/': typeof RecuperarSenhaIndexRoute
   '/_authenticated/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/_authenticated/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
   '/_authenticated/admin-saas/super-admins': typeof AuthenticatedAdminSaasSuperAdminsRoute
@@ -963,6 +981,8 @@ export interface FileRouteTypes {
     | '/painel'
     | '/dashboard'
     | '/convite/$token'
+    | '/recuperar-senha/$token'
+    | '/recuperar-senha/'
     | '/admin-saas/configuracoes'
     | '/admin-saas/lojas'
     | '/admin-saas/super-admins'
@@ -1057,6 +1077,8 @@ export interface FileRouteTypes {
     | '/trocar-senha'
     | '/dashboard'
     | '/convite/$token'
+    | '/recuperar-senha/$token'
+    | '/recuperar-senha'
     | '/admin-saas/configuracoes'
     | '/admin-saas/lojas'
     | '/admin-saas/super-admins'
@@ -1154,6 +1176,8 @@ export interface FileRouteTypes {
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
     | '/convite/$token'
+    | '/recuperar-senha/$token'
+    | '/recuperar-senha/'
     | '/_authenticated/admin-saas/configuracoes'
     | '/_authenticated/admin-saas/lojas'
     | '/_authenticated/admin-saas/super-admins'
@@ -1249,6 +1273,8 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   TrocarSenhaRoute: typeof TrocarSenhaRoute
   ConviteTokenRoute: typeof ConviteTokenRoute
+  RecuperarSenhaTokenRoute: typeof RecuperarSenhaTokenRoute
+  RecuperarSenhaIndexRoute: typeof RecuperarSenhaIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1335,6 +1361,20 @@ declare module '@tanstack/react-router' {
       path: '/convite/$token'
       fullPath: '/convite/$token'
       preLoaderRoute: typeof ConviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recuperar-senha/': {
+      id: '/recuperar-senha/'
+      path: '/recuperar-senha'
+      fullPath: '/recuperar-senha/'
+      preLoaderRoute: typeof RecuperarSenhaIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recuperar-senha/$token': {
+      id: '/recuperar-senha/$token'
+      path: '/recuperar-senha/$token'
+      fullPath: '/recuperar-senha/$token'
+      preLoaderRoute: typeof RecuperarSenhaTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin-saas/': {
@@ -2176,6 +2216,8 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   TrocarSenhaRoute: TrocarSenhaRoute,
   ConviteTokenRoute: ConviteTokenRoute,
+  RecuperarSenhaTokenRoute: RecuperarSenhaTokenRoute,
+  RecuperarSenhaIndexRoute: RecuperarSenhaIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

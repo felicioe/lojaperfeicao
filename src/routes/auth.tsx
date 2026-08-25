@@ -541,7 +541,15 @@ function LoginForm({
         />
       </div>
       <div>
-        <Label htmlFor="login-senha">Senha</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="login-senha">Senha</Label>
+          <Link
+            to="/recuperar-senha"
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            Esqueci minha senha
+          </Link>
+        </div>
         <Input
           className={AUTH_CONTROL_CLASS}
           id="login-senha"

@@ -377,6 +377,63 @@ export async function enviarEmailBoasVindas(
   });
 }
 
+// ---------- Recuperação de senha self-service (issue #364, com fila) ----------
+// Só dispara se existir e-mail de contato de verdade (mesma restrição de
+// enviarEmailBoasVindas) — quem chama (recuperacao-senha.ts) já confere isso
+// antes de gerar o token, mas a checagem aqui também é a garantia de que
+// nenhum caminho novo manda esse e-mail pro login gerado sem "@".
+
+export async function enviarEmailRecuperacaoSenha(
+  usuarioId: string,
+  lojaId: string,
+  link: string,
+  validadeMinutos: number,
+): Promise<boolean> {
+  return withLojaConnection(lojaId, async (conn) => {
+    const [[dados]] = await conn.query<RowDataPacket[]>(
+      `SELECT i.nome_civil
+         FROM usuarios u LEFT JOIN irmaos i ON i.usuario_id = u.id AND i.loja_id = u.loja_id
+        WHERE u.id = ? AND u.loja_id = ?`,
+      [usuarioId, lojaId],
+    );
+    const emailDestino = await emailContatoDoUsuario(conn, usuarioId);
+    if (!emailDestino) return false;
+
+    const saudacao = dados?.nome_civil ? `Olá, ${dados.nome_civil}!` : "Olá!";
+    const assunto = "Redefinição de senha";
+    const html = `
+      <p>${saudacao}</p>
+      <p>Recebemos um pedido para redefinir sua senha no sistema de gestão da loja.
+      Se foi você, clique no link abaixo — ele vale por ${validadeMinutos} minutos:</p>
+      <p><a href="${link}">${link}</a></p>
+      <p>Se não foi você, ignore este e-mail — sua senha continua a mesma.</p>
+    `;
+    const texto = `${saudacao} Recebemos um pedido para redefinir sua senha. Se foi você, acesse ${link} (vale por ${validadeMinutos} minutos). Se não foi você, ignore este e-mail.`;
+
+    const filaId = await gravarNaFila(conn, {
+      chave: `recuperacao_senha:${usuarioId}:${randomUUID()}`,
+      tipo: "comunicado",
+      destinatarios: [emailDestino],
+      assunto,
+      html,
+      texto,
+      lojaId,
+    });
+
+    const resultado = await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      [emailDestino],
+      assunto,
+      html,
+      texto,
+      undefined,
+      lojaId,
+    );
+    return resultado.falhas === 0;
+  });
+}
+
 // ---------- Convite do primeiro admin de uma Loja (issue #339, com fila) ----------
 //
 // Único e-mail do sistema que sai de uma ação de PLATAFORMA, não de dentro de
@@ -1019,7 +1076,7 @@ function pareceEmail(v: string | null | undefined): string | null {
   return v && v.includes("@") ? v : null;
 }
 
-async function emailContatoDoUsuario(
+export async function emailContatoDoUsuario(
   conn: PoolConnection,
   usuarioId: string,
 ): Promise<string | null> {
