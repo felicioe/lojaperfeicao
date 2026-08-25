@@ -20,7 +20,27 @@ function mensagemDeErroSql(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-export const SENHA_PADRAO = "123";
+// Senha temporária gerada por acesso (issue #365 — achado de segurança da
+// auditoria de UX/SEO: login previsível (nome.sobrenome) + a mesma senha
+// fixa "123" pra todo mundo era adivinhável por qualquer um que soubesse o
+// padrão). Sem 0/O/1/l/I pra não confundir na hora de digitar; mostrada só
+// uma vez pro admin no momento da criação/reset, nunca fica guardada em
+// lugar nenhum além do hash no banco.
+//
+// Usa a Web Crypto API global (crypto.getRandomValues) em vez de
+// randomBytes do node:crypto: este arquivo também é referenciado do lado do
+// cliente (os stubs gerados por createServerFn), e randomBytes não existe no
+// polyfill de node:crypto do Vite pro navegador — quebrava o bundle do
+// cliente com "Cannot access randomBytes in client code" mesmo esta função
+// só sendo chamada de dentro de handlers server-only. getRandomValues existe
+// tanto no Node quanto no navegador.
+const SENHA_TEMP_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
+export function gerarSenhaTemporaria(tamanho = 10): string {
+  const valores = new Uint32Array(tamanho);
+  crypto.getRandomValues(valores);
+  return Array.from(valores, (v) => SENHA_TEMP_CHARSET[v % SENHA_TEMP_CHARSET.length]).join("");
+}
 
 // Login = nome.sobrenome (decisão explícita do cliente, fase de testes —
 // trocar para algo mais rígido depois). Gerado a partir de nome_civil, sem
@@ -162,13 +182,11 @@ export const listarIrmaosSemAcesso = createServerFn({ method: "GET" }).handler(
 );
 
 // Cria login para um irmão específico a partir do nome civil (nome.sobrenome)
-// e a senha padrão (decisão explícita do cliente — ver histórico da
-// conversa: login por nome em vez de e-mail, "123" fixo por enquanto,
-// fase de testes — trocar para algo mais rígido depois).
+// e uma senha temporária aleatória (issue #365, ver gerarSenhaTemporaria).
 const criarAcessoSchema = z.object({
   irmaoId: z.string().uuid(),
-  // true (padrão) = senha "123" é temporária, barrada em /trocar-senha no
-  // primeiro login. false = "fixar" — a pessoa fica com "123" até o admin
+  // true (padrão) = a senha gerada é temporária, barrada em /trocar-senha no
+  // primeiro login. false = "fixar" — a pessoa fica com ela até o admin
   // redefinir de novo (não recomendado, mas admin pode preferir em casos
   // pontuais).
   obrigarTrocaSenha: z.boolean().default(true),
@@ -180,7 +198,7 @@ const criarAcessoSchema = z.object({
 
 export const criarAcessoIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => criarAcessoSchema.parse(d))
-  .handler(async ({ data }): Promise<{ usuarioId: string; login: string }> => {
+  .handler(async ({ data }): Promise<{ usuarioId: string; login: string; senha: string }> => {
     return comPapel(["admin"], async (conn, usuarioIdAtual, lojaId) => {
       const [[irmao]] = await conn.query<RowDataPacket[]>(
         "SELECT nome_civil, usuario_id FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
@@ -190,7 +208,8 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
       if (irmao.usuario_id) throw new Error("Este irmão já tem um usuário vinculado.");
 
       const login = await gerarLoginUnico(conn, irmao.nome_civil);
-      const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
+      const senha = gerarSenhaTemporaria();
+      const senhaHash = await bcrypt.hash(senha, 10);
       let novoId: string;
       try {
         novoId = await criarUsuarioNaLoja(conn, lojaId, {
@@ -218,16 +237,16 @@ export const criarAcessoIrmao = createServerFn({ method: "POST" })
       });
       if (data.enviarBoasVindas) {
         const { enviarEmailBoasVindas } = await import("../email-dispatch");
-        enviarEmailBoasVindas(novoId, lojaId).catch((err) =>
+        enviarEmailBoasVindas(novoId, lojaId, senha).catch((err) =>
           console.error("Falha ao enviar e-mail de boas-vindas:", err),
         );
       }
-      return { usuarioId: novoId, login };
+      return { usuarioId: novoId, login, senha };
     });
   });
 
 export type RelatorioAcessosLote = {
-  criados: { nome: string; login: string }[];
+  criados: { nome: string; login: string; senha: string }[];
   falhas: { nome: string; motivo: string }[];
 };
 
@@ -247,13 +266,14 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" })
       const [irmaos] = await conn.query<RowDataPacket[]>(
         "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL AND loja_id = @current_loja_id ORDER BY nome_civil",
       );
-      const senhaHash = await bcrypt.hash(SENHA_PADRAO, 10);
-      const criados: { nome: string; login: string }[] = [];
+      const criados: { nome: string; login: string; senha: string }[] = [];
       const falhas: { nome: string; motivo: string }[] = [];
 
       for (const irmao of irmaos) {
         try {
           const login = await gerarLoginUnico(conn, irmao.nome_civil);
+          const senha = gerarSenhaTemporaria();
+          const senhaHash = await bcrypt.hash(senha, 10);
           const novoId = await criarUsuarioNaLoja(conn, lojaId, {
             login,
             senhaHash,
@@ -276,11 +296,11 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" })
           });
           if (data.enviarBoasVindas) {
             const { enviarEmailBoasVindas } = await import("../email-dispatch");
-            enviarEmailBoasVindas(novoId, lojaId).catch((err) =>
+            enviarEmailBoasVindas(novoId, lojaId, senha).catch((err) =>
               console.error("Falha ao enviar e-mail de boas-vindas:", err),
             );
           }
-          criados.push({ nome: irmao.nome_civil, login });
+          criados.push({ nome: irmao.nome_civil, login, senha });
         } catch (err) {
           falhas.push({ nome: irmao.nome_civil, motivo: mensagemDeErroSql(err) });
         }

@@ -52,10 +52,34 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { ROLE_LABEL } from "@/lib/format";
-import { ShieldAlert, KeyRound, UserPlus, ShieldCheck, UserX, UserCheck } from "lucide-react";
+import {
+  ShieldAlert,
+  KeyRound,
+  UserPlus,
+  ShieldCheck,
+  UserX,
+  UserCheck,
+  Dices,
+} from "lucide-react";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
+
+// Gerador client-side (Web Crypto — sem depender de nada do backend, que
+// carrega mysql2/bcrypt e não pode ser importado no bundle do navegador).
+// Mesmo alfabeto do gerador do servidor (gerarSenhaTemporaria em
+// usuarios.ts): sem 0/O/1/l/I pra não confundir na hora de digitar. Só usada
+// aqui pra sugerir um valor no campo de redefinição — quem decide o valor
+// final que vai pro servidor continua sendo o admin, editável antes de
+// enviar.
+const SENHA_TEMP_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+function gerarSenhaAleatoriaCliente(tamanho = 10): string {
+  const valores = new Uint32Array(tamanho);
+  crypto.getRandomValues(valores);
+  return Array.from(valores, (v) => SENHA_TEMP_CHARSET[v % SENHA_TEMP_CHARSET.length]).join("");
+}
+
+type CredencialCriada = { nome: string; login: string; senha: string };
 
 export const Route = createFileRoute("/_authenticated/usuarios/")({
   beforeLoad: ({ context }) => {
@@ -71,6 +95,7 @@ function UsuariosPage() {
   const qc = useQueryClient();
   const [obrigarTrocaNovosAcessos, setObrigarTrocaNovosAcessos] = useState(true);
   const [enviarBoasVindasNovosAcessos, setEnviarBoasVindasNovosAcessos] = useState(false);
+  const [credenciaisCriadas, setCredenciaisCriadas] = useState<CredencialCriada[] | null>(null);
 
   const usuarios = useQuery({ queryKey: ["usuarios"], queryFn: () => listarUsuarios() });
   const semAcesso = useQuery({
@@ -99,16 +124,16 @@ function UsuariosPage() {
     ord.itensOrdenados,
   );
 
-  const criarUm = async (irmaoId: string) => {
+  const criarUm = async (irmaoId: string, nomeCivil: string) => {
     try {
-      const { login } = await criarAcessoIrmao({
+      const { login, senha } = await criarAcessoIrmao({
         data: {
           irmaoId,
           obrigarTrocaSenha: obrigarTrocaNovosAcessos,
           enviarBoasVindas: enviarBoasVindasNovosAcessos,
         },
       });
-      toast.success(`Acesso criado — login: ${login}`);
+      setCredenciaisCriadas([{ nome: nomeCivil, login, senha }]);
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar acesso.");
@@ -123,8 +148,7 @@ function UsuariosPage() {
           enviarBoasVindas: enviarBoasVindasNovosAcessos,
         },
       });
-      if (relatorio.criados.length > 0)
-        toast.success(`${relatorio.criados.length} acesso(s) criado(s).`);
+      if (relatorio.criados.length > 0) setCredenciaisCriadas(relatorio.criados);
       if (relatorio.falhas.length > 0) {
         // mesmo motivo pra todo mundo (ex.: procedure ausente) é o caso comum
         // — mostra só uma vez em vez de repetir a mesma frase 27 vezes.
@@ -150,12 +174,11 @@ function UsuariosPage() {
 
       <Alert className="mb-6">
         <ShieldAlert className="h-4 w-4" />
-        <AlertTitle>Login e senha padrão (fase de testes)</AlertTitle>
+        <AlertTitle>Login gerado e senha temporária</AlertTitle>
         <AlertDescription>
           Acessos criados por aqui usam <strong>nome.sobrenome</strong> como login (gerado a partir
-          do nome civil, sem precisar de e-mail) e a senha padrão <strong>{"“123”"}</strong> para
-          todo mundo até o admin redefinir. Trocar para um esquema mais seguro depois que passar da
-          fase de testes.
+          do nome civil, sem precisar de e-mail) e uma senha temporária aleatória, diferente para
+          cada pessoa e mostrada uma única vez no momento da criação.
         </AlertDescription>
       </Alert>
 
@@ -193,8 +216,8 @@ function UsuariosPage() {
                     Criar acesso para {semAcesso.data?.length} irmão(s)?
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    Vai criar um login (nome.sobrenome) para cada irmão da lista abaixo, com a senha
-                    padrão {"“123”"}
+                    Vai criar um login (nome.sobrenome) e uma senha temporária aleatória para cada
+                    irmão da lista abaixo
                     {obrigarTrocaNovosAcessos ? ", com troca obrigatória no primeiro acesso" : ""}
                     {enviarBoasVindasNovosAcessos
                       ? ". Um e-mail de boas-vindas será enviado para quem tiver e-mail cadastrado."
@@ -238,7 +261,11 @@ function UsuariosPage() {
                       {i.loginSugerido}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => criarUm(i.id)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => criarUm(i.id, i.nome_civil)}
+                      >
                         Criar acesso
                       </Button>
                     </TableCell>
@@ -300,6 +327,48 @@ function UsuariosPage() {
           />
         </CardContent>
       </Card>
+
+      <Dialog
+        open={credenciaisCriadas !== null}
+        onOpenChange={(v) => !v && setCredenciaisCriadas(null)}
+      >
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>
+              {credenciaisCriadas && credenciaisCriadas.length > 1
+                ? `${credenciaisCriadas.length} acessos criados`
+                : "Acesso criado"}
+            </DialogTitle>
+            <DialogDescription>
+              Anote ou copie agora — a senha não fica salva em lugar nenhum além do hash e não vai
+              aparecer de novo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-80 overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Login</TableHead>
+                  <TableHead>Senha</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {credenciaisCriadas?.map((c) => (
+                  <TableRow key={c.login}>
+                    <TableCell>{c.nome}</TableCell>
+                    <TableCell className="font-mono text-sm">{c.login}</TableCell>
+                    <TableCell className="font-mono text-sm">{c.senha}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setCredenciaisCriadas(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -515,15 +584,15 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
                 id="nova-senha"
                 value={novaSenha}
                 onChange={(e) => setNovaSenha(e.target.value)}
-                placeholder="123"
+                placeholder="Digite ou gere uma senha"
               />
               <Button
                 type="button"
                 variant="link"
-                className="h-auto p-0 text-xs"
-                onClick={() => setNovaSenha("123")}
+                className="h-auto gap-1 p-0 text-xs"
+                onClick={() => setNovaSenha(gerarSenhaAleatoriaCliente())}
               >
-                Usar senha padrão (123)
+                <Dices className="h-3 w-3" /> Gerar senha aleatória
               </Button>
             </div>
             <div className="space-y-2">

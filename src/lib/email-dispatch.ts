@@ -5,7 +5,6 @@ import type { PoolConnection } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
 import { withUserConnection, withLojaConnection } from "./backend/db";
 import { decifrar } from "./backend/cripto";
-import { SENHA_PADRAO } from "./backend/usuarios";
 import { contarEnviosHoje, LIMITE_DIARIO_EMAIL_POR_LOJA } from "./rate-limit";
 
 // Envio de e-mail com fila (issue #103 + issue #XXX) — SMTP da própria
@@ -326,7 +325,11 @@ export async function enviarEmailFaturaEmitida(
 // Alternativa opcional ao fluxo já existente de admin comunicar login/senha
 // manualmente. Só dispara se o irmão tiver e-mail de contato cadastrado.
 
-export async function enviarEmailBoasVindas(usuarioId: string, lojaId: string): Promise<boolean> {
+export async function enviarEmailBoasVindas(
+  usuarioId: string,
+  lojaId: string,
+  senha: string,
+): Promise<boolean> {
   return withLojaConnection(lojaId, async (conn) => {
     const [[dados]] = await conn.query<RowDataPacket[]>(
       `SELECT u.email AS login, i.nome_civil, i.email AS email_contato
@@ -342,11 +345,11 @@ export async function enviarEmailBoasVindas(usuarioId: string, lojaId: string): 
       <p>Seu acesso ao sistema de gestão da loja foi criado. Use os dados abaixo para o primeiro acesso:</p>
       <ul>
         <li><strong>Login:</strong> ${dados.login}</li>
-        <li><strong>Senha:</strong> ${SENHA_PADRAO}</li>
+        <li><strong>Senha:</strong> ${senha}</li>
       </ul>
       <p>Acesse em <a href="${linkAcesso}">${linkAcesso}</a>.</p>
     `;
-    const texto = `Olá, ${dados.nome_civil}! Seu acesso foi criado. Login: ${dados.login}, senha: ${SENHA_PADRAO}. Acesse ${linkAcesso}.`;
+    const texto = `Olá, ${dados.nome_civil}! Seu acesso foi criado. Login: ${dados.login}, senha: ${senha}. Acesse ${linkAcesso}.`;
 
     const filaId = await gravarNaFila(conn, {
       chave: `boas_vindas:${usuarioId}:${randomUUID()}`,

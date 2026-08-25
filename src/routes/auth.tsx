@@ -517,18 +517,24 @@ function LoginForm({
   return (
     <form method="post" onSubmit={handleLogin} className="space-y-3" aria-busy={authBusy}>
       <div>
-        <Label htmlFor="login-email">E-mail</Label>
+        <Label htmlFor="login-email">E-mail ou login</Label>
         <Input
           className={AUTH_CONTROL_CLASS}
           id="login-email"
           name="email"
-          type="email"
+          // Texto, não "email": o backend aceita de propósito qualquer login
+          // não vazio (ver o comentário em loginSchema, auth.ts) — a maioria
+          // das contas usa nome.sobrenome, sem "@". Com type="email" o
+          // próprio navegador bloqueava o submit nesse caso (validação
+          // nativa do HTML), silenciosamente, antes até do onSubmit rodar —
+          // achado ao validar a issue #365 ao vivo.
+          type="text"
           autoCapitalize="none"
-          autoComplete="email"
+          autoComplete="username"
           autoCorrect="off"
           aria-describedby={authError ? "login-erro" : undefined}
           aria-invalid={!!authError}
-          placeholder="seu@email.com"
+          placeholder="seu@email.com ou nome.sobrenome"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
