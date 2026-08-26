@@ -76,7 +76,7 @@ function NoticiasPage() {
   const { data: noticias = [] } = useQuery({
     queryKey: ["noticias_all"],
     queryFn: () => listarNoticias(),
-    enabled: can.canManageIrmaos,
+    enabled: can.isSuperAdmin,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["noticias_all"] });
@@ -132,10 +132,10 @@ function NoticiasPage() {
     ord.itensOrdenados,
   );
 
-  if (!can.canManageIrmaos) {
+  if (!can.isSuperAdmin) {
     return (
       <Card className="p-6 text-center text-muted-foreground">
-        Apenas administradores e secretários podem acessar esta função.
+        Apenas o super administrador da plataforma pode acessar esta função.
       </Card>
     );
   }

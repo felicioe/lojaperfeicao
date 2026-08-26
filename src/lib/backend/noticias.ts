@@ -4,10 +4,12 @@ import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
-// CMS de notícias/publicações do site institucional (issue #366). Mesmos
-// papéis de escrita de eventos.ts/comunicacoes.ts — quem já cuida da
-// comunicação institucional da Loja.
-const PAPEIS_ESCRITA = ["admin", "secretario"];
+// CMS de notícias/publicações do site institucional (issue #366).
+// Exclusivo do super_admin (dono do domínio) — decisão do usuário: manter
+// o conteúdo do site institucional fora do alcance de um admin comum de
+// Loja, diferente de eventos.ts/comunicacoes.ts (que são conteúdo interno,
+// não o site público).
+const PAPEIS_ESCRITA = ["super_admin"];
 
 export type Noticia = {
   id: string;

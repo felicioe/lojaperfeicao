@@ -400,7 +400,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/noticias",
           label: "Notícias do Site",
           icon: Newspaper,
-          show: can.canManageIrmaos,
+          show: can.isSuperAdmin,
         },
       ],
     },
