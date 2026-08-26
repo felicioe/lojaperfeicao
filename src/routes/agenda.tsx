@@ -1,12 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { obterAgendaPublicaFn } from "@/lib/site-publico-serverfns";
+import { obterAgendaPublicaFn, obterMenuPublicoFn } from "@/lib/site-publico-serverfns";
 import { SiteInstitucionalLayout } from "@/components/app/SiteInstitucionalLayout";
 import { ConteudoPublicoHtml } from "@/components/app/ConteudoPublicoHtml";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/agenda")({
-  loader: () => obterAgendaPublicaFn(),
+  loader: async () => {
+    const [agenda, menu] = await Promise.all([obterAgendaPublicaFn(), obterMenuPublicoFn()]);
+    return { agenda, menu };
+  },
   head: () => ({
     meta: [
       { title: "Agenda — Associação Adonhiramita" },
@@ -26,15 +29,15 @@ const fmtData = (d: string) =>
   );
 
 function AgendaPublicaPage() {
-  const dadosIniciais = Route.useLoaderData();
-  const { data: agenda = dadosIniciais } = useQuery({
+  const { agenda: agendaInicial, menu } = Route.useLoaderData();
+  const { data: agenda = agendaInicial } = useQuery({
     queryKey: ["agenda_publica_site"],
     queryFn: () => obterAgendaPublicaFn(),
-    initialData: dadosIniciais,
+    initialData: agendaInicial,
   });
 
   return (
-    <SiteInstitucionalLayout>
+    <SiteInstitucionalLayout menuInicial={menu}>
       <h1 className="mb-6 text-3xl font-bold tracking-tight">Agenda</h1>
       {agenda.length === 0 && (
         <p className="text-muted-foreground">Nenhuma atividade programada no momento.</p>

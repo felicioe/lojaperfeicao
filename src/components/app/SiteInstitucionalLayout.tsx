@@ -56,11 +56,23 @@ function ItemDeMenu({ item }: { item: ItemMenuPublico }) {
   );
 }
 
-export function SiteInstitucionalLayout({ children }: { children: ReactNode }) {
+export function SiteInstitucionalLayout({
+  children,
+  menuInicial,
+}: {
+  children: ReactNode;
+  // Cada rota pública carrega o menu no próprio `loader` (SSR) e repassa
+  // aqui como dado inicial — sem isso, o header saía sem nenhum link até a
+  // hidratação terminar e o useQuery completar, quebrando a navegação para
+  // quem chega via crawler ou com JS desabilitado (achado do review
+  // automático da PR #386).
+  menuInicial: ItemMenuPublico[];
+}) {
   const [menuAberto, setMenuAberto] = useState(false);
-  const { data: menu = [] } = useQuery({
+  const { data: menu = menuInicial } = useQuery({
     queryKey: ["menu_publico"],
     queryFn: () => obterMenuPublicoFn(),
+    initialData: menuInicial,
     staleTime: 5 * 60_000,
   });
 

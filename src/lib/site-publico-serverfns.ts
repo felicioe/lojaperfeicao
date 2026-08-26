@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { carregarAgendaPublica } from "./agenda-publica";
-import { carregarNoticiasPublicas, carregarNoticiaPublicaPorId } from "./noticias-publica";
+import { carregarNoticiaPublicaPorId, listarNoticiasPublicasResumo } from "./noticias-publica";
 import { carregarMenuPublico } from "./menu-site-publica";
 import { listarPaginasPublicas, carregarPaginaPublicaPorSlug } from "./paginas-site-publica";
 
@@ -17,8 +17,8 @@ export const obterAgendaPublicaFn = createServerFn({ method: "GET" }).handler(()
   carregarAgendaPublica(),
 );
 
-export const obterNoticiasPublicasFn = createServerFn({ method: "GET" }).handler(() =>
-  carregarNoticiasPublicas(),
+export const obterNoticiasPublicasResumoFn = createServerFn({ method: "GET" }).handler(() =>
+  listarNoticiasPublicasResumo(),
 );
 
 export const obterNoticiaPublicaPorIdFn = createServerFn({ method: "GET" })

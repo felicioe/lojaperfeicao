@@ -166,8 +166,14 @@ function TituloDaAba() {
   });
 
   useEffect(() => {
+    // Sem sessão (rotas públicas do site institucional, issue #382, ou
+    // /auth) não há Loja pra nomear a aba — nesse caso, deixa o título que a
+    // própria rota já definiu via head() em vez de forçar "SGLFM" por cima
+    // dele (achado do review automático da PR #386: sobrescrevia o título
+    // certo assim que o efeito rodava, mesmo com o <title> certo no SSR).
+    if (!user) return;
     document.title = loja?.nome || "SGLFM";
-  }, [location.pathname, loja?.nome]);
+  }, [user, location.pathname, loja?.nome]);
 
   return null;
 }

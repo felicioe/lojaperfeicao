@@ -1,7 +1,11 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getSessao } from "@/lib/backend/auth";
-import { obterAgendaPublicaFn, obterNoticiasPublicasFn } from "@/lib/site-publico-serverfns";
+import {
+  obterAgendaPublicaFn,
+  obterNoticiasPublicasResumoFn,
+  obterMenuPublicoFn,
+} from "@/lib/site-publico-serverfns";
 import { SiteInstitucionalLayout } from "@/components/app/SiteInstitucionalLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,11 +20,12 @@ export const Route = createFileRoute("/")({
     if (usuario) throw redirect({ to: "/dashboard" });
   },
   loader: async () => {
-    const [agenda, noticias] = await Promise.all([
+    const [agenda, noticias, menu] = await Promise.all([
       obterAgendaPublicaFn(),
-      obterNoticiasPublicasFn(),
+      obterNoticiasPublicasResumoFn(),
+      obterMenuPublicoFn(),
     ]);
-    return { agenda: agenda.slice(0, 3), noticias: noticias.slice(0, 3) };
+    return { agenda: agenda.slice(0, 3), noticias: noticias.slice(0, 3), menu };
   },
   head: () => ({
     meta: [
@@ -39,18 +44,18 @@ const fmtData = (d: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(d.replace(" ", "T")));
 
 function HomePublica() {
-  const { agenda, noticias } = Route.useLoaderData();
+  const { agenda, noticias, menu } = Route.useLoaderData();
   const { data } = useQuery({
     queryKey: ["home_publica_site"],
     queryFn: async () => ({
       agenda: (await obterAgendaPublicaFn()).slice(0, 3),
-      noticias: (await obterNoticiasPublicasFn()).slice(0, 3),
+      noticias: (await obterNoticiasPublicasResumoFn()).slice(0, 3),
     }),
     initialData: { agenda, noticias },
   });
 
   return (
-    <SiteInstitucionalLayout>
+    <SiteInstitucionalLayout menuInicial={menu}>
       <section className="mb-10 text-center">
         <h1 className="text-4xl font-bold tracking-tight">Associação Adonhiramita</h1>
         <p className="mx-auto mt-3 max-w-xl text-muted-foreground">

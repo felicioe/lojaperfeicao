@@ -1,18 +1,21 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { obterPaginaPublicaPorSlugFn } from "@/lib/site-publico-serverfns";
+import { obterPaginaPublicaPorSlugFn, obterMenuPublicoFn } from "@/lib/site-publico-serverfns";
 import { SiteInstitucionalLayout } from "@/components/app/SiteInstitucionalLayout";
 import { ConteudoPublicoHtml } from "@/components/app/ConteudoPublicoHtml";
 
 export const Route = createFileRoute("/paginas/$slug")({
   loader: async ({ params }) => {
-    const pagina = await obterPaginaPublicaPorSlugFn({ data: { slug: params.slug } });
+    const [pagina, menu] = await Promise.all([
+      obterPaginaPublicaPorSlugFn({ data: { slug: params.slug } }),
+      obterMenuPublicoFn(),
+    ]);
     if (!pagina) throw notFound();
-    return pagina;
+    return { pagina, menu };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.titulo} — Associação Adonhiramita` },
+          { title: `${loaderData.pagina.titulo} — Associação Adonhiramita` },
           { name: "robots", content: "index, follow" },
         ]
       : [],
@@ -21,10 +24,10 @@ export const Route = createFileRoute("/paginas/$slug")({
 });
 
 function PaginaPublicaPage() {
-  const pagina = Route.useLoaderData();
+  const { pagina, menu } = Route.useLoaderData();
 
   return (
-    <SiteInstitucionalLayout>
+    <SiteInstitucionalLayout menuInicial={menu}>
       <h1 className="mb-6 text-3xl font-bold tracking-tight">{pagina.titulo}</h1>
       <ConteudoPublicoHtml html={pagina.conteudo} />
     </SiteInstitucionalLayout>
