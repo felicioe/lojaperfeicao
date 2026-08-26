@@ -67,6 +67,7 @@ import {
   FileText,
   Layers,
   Rocket,
+  Newspaper,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -395,6 +396,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
         { to: "/documentos", label: "Legislação", icon: Scale, show: true },
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
+        {
+          to: "/noticias",
+          label: "Notícias do Site",
+          icon: Newspaper,
+          show: can.canManageIrmaos,
+        },
       ],
     },
     {
