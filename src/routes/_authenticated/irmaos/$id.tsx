@@ -125,6 +125,7 @@ function IrmaoDetail() {
   const qc = useQueryClient();
   const [perfil, setPerfil] = useState<Irmao | null>(null);
   const [saving, setSaving] = useState(false);
+  const [fotoQuebrada, setFotoQuebrada] = useState(false);
   const podeEditar = can.canManageIrmaos;
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -202,8 +203,9 @@ function IrmaoDetail() {
         reader.readAsDataURL(file);
       });
       const { url } = await uploadFotoIrmao({
-        data: { irmaoId: id, nomeArquivo: file.name, dataUrl },
+        data: { irmaoId: id, dataUrl },
       });
+      setFotoQuebrada(false);
       setPerfil({ ...perfil, foto_url: url });
       toast.success("Foto enviada — clique em Salvar para confirmar.");
     } catch (err) {
@@ -274,12 +276,13 @@ function IrmaoDetail() {
           <Card>
             <CardContent className="grid gap-4 md:grid-cols-3 pt-6">
               <div className="md:col-span-3 flex items-center gap-4">
-                {perfil.foto_url && (
+                {perfil.foto_url && !fotoQuebrada && (
                   <img
                     src={perfil.foto_url}
                     alt={`Foto de ${perfil.nome_civil}`}
                     loading="lazy"
                     decoding="async"
+                    onError={() => setFotoQuebrada(true)}
                     className="h-20 w-20 rounded-full object-cover border"
                   />
                 )}

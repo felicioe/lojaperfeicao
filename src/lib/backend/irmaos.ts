@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { comSessao, comPapel, SemPermissaoError } from "./authz";
@@ -340,16 +338,19 @@ export const excluirIrmao = createServerFn({ method: "POST" })
     });
   });
 
-// Upload de foto: sem Supabase Storage, grava em disco sob public/uploads
-// (servido estaticamente pelo Vite/Nitro, mesma pasta de favicon.ico/robots.txt)
-// e devolve a URL pública relativa. Só grava o arquivo — persistir a URL em
-// irmaos.foto_url continua exigindo o "Salvar alterações" (atualizarPerfilIrmao),
-// igual ao fluxo original do Supabase Storage.
+// Upload de foto: guarda a imagem como data URL direto na coluna
+// (irmaos.foto_url é MEDIUMTEXT, migração 0116) em vez de gravar em disco —
+// public/uploads/ não é versionado no git e não sobrevive a um novo deploy
+// da Hostinger (git clone + build do zero), o que deixava a foto quebrada
+// assim que a aplicação era reimplantada depois do upload (mesma classe de
+// bug do QR Code Pix, migração 0108). Só devolve o data URL — persistir em
+// irmaos.foto_url continua exigindo o "Salvar alterações" (atualizarPerfilIrmao).
 const uploadFotoSchema = z.object({
   irmaoId: z.string().uuid(),
-  nomeArquivo: z.string().min(1),
   dataUrl: z.string().startsWith("data:"),
 });
+
+const TAMANHO_MAXIMO_FOTO_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export const uploadFotoIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadFotoSchema.parse(d))
@@ -357,13 +358,14 @@ export const uploadFotoIrmao = createServerFn({ method: "POST" })
     return comPapel(PAPEIS_ESCRITA, async () => {
       const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (!match) throw new Error("Arquivo inválido.");
+      if (!match[1].startsWith("image/")) {
+        throw new Error("Tipo de arquivo não permitido. Envie uma imagem.");
+      }
       const buffer = Buffer.from(match[2], "base64");
-      const nomeSeguro = data.nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const dir = join(process.cwd(), "public", "uploads", "irmaos", data.irmaoId);
-      await mkdir(dir, { recursive: true });
-      const nomeArquivoFinal = `${Date.now()}-${nomeSeguro}`;
-      await writeFile(join(dir, nomeArquivoFinal), buffer);
-      return { url: `/uploads/irmaos/${data.irmaoId}/${nomeArquivoFinal}` };
+      if (buffer.byteLength > TAMANHO_MAXIMO_FOTO_BYTES) {
+        throw new Error("Arquivo maior que o limite de 5 MB.");
+      }
+      return { url: data.dataUrl };
     });
   });
 
