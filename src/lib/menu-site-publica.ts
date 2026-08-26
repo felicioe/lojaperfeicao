@@ -16,10 +16,13 @@ export type ItemMenuPublico = {
 export async function carregarMenuPublico(): Promise<ItemMenuPublico[]> {
   return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [rows] = await conn.query<RowDataPacket[]>(
-      `SELECT id, parent_id, label, tipo_destino, destino
-       FROM menu_site
-       WHERE loja_id = @current_loja_id AND visivel = TRUE
-       ORDER BY ordem ASC`,
+      `SELECT m.id, m.parent_id, m.label, m.tipo_destino, m.destino
+       FROM menu_site m
+       LEFT JOIN paginas_site p
+         ON m.tipo_destino = 'pagina' AND p.loja_id = @current_loja_id AND p.slug = m.destino
+       WHERE m.loja_id = @current_loja_id AND m.visivel = TRUE
+         AND (m.tipo_destino <> 'pagina' OR p.status = 'publicado')
+       ORDER BY m.ordem ASC`,
     );
 
     const porId = new Map<string, ItemMenuPublico & { id: string; parent_id: string | null }>();
@@ -36,11 +39,14 @@ export async function carregarMenuPublico(): Promise<ItemMenuPublico[]> {
 
     const raiz: ItemMenuPublico[] = [];
     for (const item of porId.values()) {
-      if (item.parent_id && porId.has(item.parent_id)) {
-        porId.get(item.parent_id)!.filhos.push(item);
-      } else {
+      if (!item.parent_id) {
         raiz.push(item);
+      } else if (porId.has(item.parent_id)) {
+        porId.get(item.parent_id)!.filhos.push(item);
       }
+      // parent_id preenchido mas ausente de porId (pai oculto, rascunho ou
+      // excluído) — descarta em vez de promover o filho à raiz (achado do
+      // review automático da PR #385).
     }
     return raiz;
   });
