@@ -70,6 +70,7 @@ import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authentic
 import { Route as AuthenticatedNoticiasIndexRouteImport } from './routes/_authenticated/noticias/index'
 import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
 import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
+import { Route as AuthenticatedPaginasSiteIndexRouteImport } from './routes/_authenticated/paginas-site/index'
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel/index'
 import { Route as AuthenticatedPainelComunicacoesRouteImport } from './routes/_authenticated/painel/comunicacoes'
 import { Route as AuthenticatedPainelDadosRouteImport } from './routes/_authenticated/painel/dados'
@@ -459,6 +460,12 @@ const AuthenticatedOrgsPotenciasRoute =
     path: '/orgs/potencias',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPaginasSiteIndexRoute =
+  AuthenticatedPaginasSiteIndexRouteImport.update({
+    id: '/paginas-site/',
+    path: '/paginas-site/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPainelIndexRoute =
   AuthenticatedPainelIndexRouteImport.update({
     id: '/',
@@ -774,6 +781,7 @@ export interface FileRoutesByFullPath {
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/noticias/': typeof AuthenticatedNoticiasIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
+  '/paginas-site/': typeof AuthenticatedPaginasSiteIndexRoute
   '/painel/': typeof AuthenticatedPainelIndexRoute
   '/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
@@ -872,6 +880,7 @@ export interface FileRoutesByTo {
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
   '/noticias': typeof AuthenticatedNoticiasIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
+  '/paginas-site': typeof AuthenticatedPaginasSiteIndexRoute
   '/painel': typeof AuthenticatedPainelIndexRoute
   '/terceiros': typeof AuthenticatedTerceirosIndexRoute
   '/tesouraria': typeof AuthenticatedTesourariaIndexRoute
@@ -974,6 +983,7 @@ export interface FileRoutesById {
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/_authenticated/noticias/': typeof AuthenticatedNoticiasIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
+  '/_authenticated/paginas-site/': typeof AuthenticatedPaginasSiteIndexRoute
   '/_authenticated/painel/': typeof AuthenticatedPainelIndexRoute
   '/_authenticated/terceiros/': typeof AuthenticatedTerceirosIndexRoute
   '/_authenticated/tesouraria/': typeof AuthenticatedTesourariaIndexRoute
@@ -1076,6 +1086,7 @@ export interface FileRouteTypes {
     | '/irmaos/'
     | '/noticias/'
     | '/orgs/'
+    | '/paginas-site/'
     | '/painel/'
     | '/terceiros/'
     | '/tesouraria/'
@@ -1174,6 +1185,7 @@ export interface FileRouteTypes {
     | '/irmaos'
     | '/noticias'
     | '/orgs'
+    | '/paginas-site'
     | '/painel'
     | '/terceiros'
     | '/tesouraria'
@@ -1275,6 +1287,7 @@ export interface FileRouteTypes {
     | '/_authenticated/irmaos/'
     | '/_authenticated/noticias/'
     | '/_authenticated/orgs/'
+    | '/_authenticated/paginas-site/'
     | '/_authenticated/painel/'
     | '/_authenticated/terceiros/'
     | '/_authenticated/tesouraria/'
@@ -1732,6 +1745,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrgsPotenciasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/paginas-site/': {
+      id: '/_authenticated/paginas-site/'
+      path: '/paginas-site'
+      fullPath: '/paginas-site/'
+      preLoaderRoute: typeof AuthenticatedPaginasSiteIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/painel/': {
       id: '/_authenticated/painel/'
       path: '/'
@@ -2131,6 +2151,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
   AuthenticatedNoticiasIndexRoute: typeof AuthenticatedNoticiasIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
+  AuthenticatedPaginasSiteIndexRoute: typeof AuthenticatedPaginasSiteIndexRoute
   AuthenticatedTerceirosIndexRoute: typeof AuthenticatedTerceirosIndexRoute
   AuthenticatedTesourariaIndexRoute: typeof AuthenticatedTesourariaIndexRoute
   AuthenticatedUsuariosIndexRoute: typeof AuthenticatedUsuariosIndexRoute
@@ -2237,6 +2258,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
   AuthenticatedNoticiasIndexRoute: AuthenticatedNoticiasIndexRoute,
   AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,
+  AuthenticatedPaginasSiteIndexRoute: AuthenticatedPaginasSiteIndexRoute,
   AuthenticatedTerceirosIndexRoute: AuthenticatedTerceirosIndexRoute,
   AuthenticatedTesourariaIndexRoute: AuthenticatedTesourariaIndexRoute,
   AuthenticatedUsuariosIndexRoute: AuthenticatedUsuariosIndexRoute,
