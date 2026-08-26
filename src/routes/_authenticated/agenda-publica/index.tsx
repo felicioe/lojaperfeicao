@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listarAgendaPublicaAdmin,
@@ -125,6 +125,7 @@ function LinhaAgendaPublica({
   const [rascunhoTrabalhos, setRascunhoTrabalhos] = useState<RascunhoTrabalho[]>([]);
   const [removidosIds, setRemovidosIds] = useState<string[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const painelEdicaoRef = useRef<HTMLDivElement>(null);
 
   const { data: irmaos = [] } = useQuery({
     queryKey: ["irmaos_para_trabalho"],
@@ -146,6 +147,12 @@ function LinhaAgendaPublica({
     setRascunhoObservacao(item.observacao_publica ?? "");
     setRascunhoOculto(item.oculto_agenda_publica);
     setRemovidosIds([]);
+    // Sem isso, editar uma sessão perto do fim da lista atualiza o painel
+    // fora da área visível e passa a impressão de que o clique não fez nada
+    // (achado do usuário testando em produção).
+    requestAnimationFrame(() => {
+      painelEdicaoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editando]);
 
@@ -230,7 +237,7 @@ function LinhaAgendaPublica({
       {editando && (
         <TableRow>
           <TableCell colSpan={6} className="bg-muted/30">
-            <div className="space-y-4 py-2">
+            <div ref={painelEdicaoRef} className="space-y-4 py-2">
               <div>
                 <Label htmlFor={`data-sessao-${item.id}`}>Data da sessão</Label>
                 <Input
