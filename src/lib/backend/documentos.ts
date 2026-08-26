@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
@@ -142,7 +140,9 @@ export const excluirDocumento = createServerFn({ method: "POST" })
     });
   });
 
-// Upload do arquivo anexo (PDF/DOCX): mesmo padrão de uploadArquivoPeca.
+// Upload do arquivo anexo (PDF): guarda o conteúdo como data URL direto na
+// coluna (documentos.arquivo_url é LONGTEXT, migração 0117) em vez de
+// gravar em disco — mesmo motivo e mesma correção de uploadArquivoPeca.
 const uploadArquivoSchema = z.object({
   nomeArquivo: z.string().min(1),
   dataUrl: z.string().startsWith("data:"),
@@ -165,13 +165,8 @@ export const uploadArquivoDocumento = createServerFn({ method: "POST" })
       if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {
         throw new Error("Arquivo maior que 15 MB.");
       }
-      const nomeSeguro = data.nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const dir = join(process.cwd(), "public", "uploads", "documentos");
-      await mkdir(dir, { recursive: true });
-      const nomeArquivoFinal = `${Date.now()}-${nomeSeguro}`;
-      await writeFile(join(dir, nomeArquivoFinal), buffer);
       return {
-        url: `/uploads/documentos/${nomeArquivoFinal}`,
+        url: data.dataUrl,
         nomeOriginal: data.nomeArquivo,
         mime,
       };

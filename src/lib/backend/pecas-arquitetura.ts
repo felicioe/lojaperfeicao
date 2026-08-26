@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel, SemPermissaoError } from "./authz";
@@ -283,9 +281,14 @@ export const rejeitarPecaArquitetura = createServerFn({ method: "POST" })
     });
   });
 
-// Upload do arquivo (PDF/DOCX): mesmo padrão de uploadFotoIrmao/uploadLogoOrg
-// — grava em disco sob public/uploads e devolve só a URL pública; persistir
-// na tabela é responsabilidade de criar/atualizarPecaArquitetura.
+// Upload do arquivo (PDF): guarda o conteúdo como data URL direto na coluna
+// (pecas_arquitetura.arquivo_url é LONGTEXT, migração 0117) em vez de
+// gravar em disco — public/uploads/ não é versionado no git e não
+// sobrevive a um novo deploy da Hostinger (git clone + build do zero), o
+// que deixava o link do arquivo quebrado assim que a aplicação era
+// reimplantada depois do upload (mesma classe de bug do QR Code Pix,
+// migração 0108). Só devolve o data URL — persistir na tabela é
+// responsabilidade de criar/atualizarPecaArquitetura.
 const uploadArquivoSchema = z.object({
   nomeArquivo: z.string().min(1),
   dataUrl: z.string().startsWith("data:"),
@@ -315,13 +318,8 @@ export const uploadArquivoPeca = createServerFn({ method: "POST" })
       if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {
         throw new Error("Arquivo maior que 15 MB.");
       }
-      const nomeSeguro = data.nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const dir = join(process.cwd(), "public", "uploads", "pecas-arquitetura");
-      await mkdir(dir, { recursive: true });
-      const nomeArquivoFinal = `${Date.now()}-${nomeSeguro}`;
-      await writeFile(join(dir, nomeArquivoFinal), buffer);
       return {
-        url: `/uploads/pecas-arquitetura/${nomeArquivoFinal}`,
+        url: data.dataUrl,
         nomeOriginal: data.nomeArquivo,
         mime,
       };

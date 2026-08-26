@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   listarPecasArquitetura,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/backend/pecas-arquitetura";
 import { listarIrmaosNomes, obterMeuIrmao } from "@/lib/backend/irmaos";
 import { listarSessoes } from "@/lib/backend/sessoes";
+import { dataUrlParaBlobUrl, ehUrlCompartilhavel } from "@/lib/data-url";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,21 @@ function BibliotecaPage() {
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [visualizando, setVisualizando] = useState<PecaArquitetura | null>(null);
   const [loteAberto, setLoteAberto] = useState(false);
+  // Nova aba/Imprimir navegam a janela pro arquivo — data URL nessa
+  // navegação é bloqueada/inconsistente entre navegadores, então converte
+  // pra blob URL (revogado ao trocar/fechar) só pra esses dois usos.
+  const [urlVisualizacaoBlob, setUrlVisualizacaoBlob] = useState<string | null>(null);
+  useEffect(() => {
+    if (!visualizando?.arquivo_url) {
+      setUrlVisualizacaoBlob(null);
+      return;
+    }
+    const blobUrl = dataUrlParaBlobUrl(visualizando.arquivo_url);
+    setUrlVisualizacaoBlob(blobUrl);
+    return () => {
+      if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
+    };
+  }, [visualizando?.arquivo_url]);
 
   const {
     data: pecas = [],
@@ -299,6 +315,10 @@ function BibliotecaPage() {
   const compartilhar = async (peca: PecaArquitetura) => {
     if (!peca.arquivo_url) return;
     const url = urlPeca(peca);
+    if (!ehUrlCompartilhavel(url)) {
+      toast.error("Este arquivo não tem um link compartilhável — use Baixar e envie o arquivo.");
+      return;
+    }
     try {
       if (navigator.share) await navigator.share({ title: peca.titulo, url });
       else {
@@ -672,11 +692,13 @@ function BibliotecaPage() {
                 <Button variant="outline" size="sm" onClick={() => void compartilhar(visualizando)}>
                   <Share2 className="mr-1.5 h-4 w-4" /> Compartilhar
                 </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <a href={urlWhatsapp(visualizando)} target="_blank" rel="noopener noreferrer">
-                    <MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp
-                  </a>
-                </Button>
+                {ehUrlCompartilhavel(urlPeca(visualizando)) && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={urlWhatsapp(visualizando)} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp
+                    </a>
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" asChild>
                   <a
                     href={visualizando.arquivo_url}
@@ -688,9 +710,11 @@ function BibliotecaPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={!urlVisualizacaoBlob}
                   onClick={() => {
+                    if (!urlVisualizacaoBlob) return;
                     const janela = window.open(
-                      visualizando.arquivo_url!,
+                      urlVisualizacaoBlob,
                       "_blank",
                       "noopener,noreferrer",
                     );
@@ -700,15 +724,15 @@ function BibliotecaPage() {
                 >
                   <Printer className="mr-1.5 h-4 w-4" /> Imprimir
                 </Button>
-                <Button variant="ghost" size="sm" asChild>
-                  <a href={visualizando.arquivo_url} target="_blank" rel="noopener noreferrer">
+                <Button variant="ghost" size="sm" disabled={!urlVisualizacaoBlob} asChild>
+                  <a href={urlVisualizacaoBlob ?? "#"} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="mr-1.5 h-4 w-4" /> Nova aba
                   </a>
                 </Button>
               </div>
               <iframe
                 title={`Visualização de ${visualizando.titulo}`}
-                src={visualizando.arquivo_url}
+                src={urlVisualizacaoBlob ?? undefined}
                 className="min-h-0 flex-1 rounded-lg border bg-white"
               />
             </>
