@@ -1,36 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
-import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
-import { LOJA_PORTAL_PUBLICO } from "../loja-portal-publico";
+import { comPapelPortalPublico } from "./portal-publico-authz";
 
 // CMS de notícias/publicações do site institucional (issue #366).
 // Exclusivo do super_admin (dono do domínio) — decisão do usuário: manter
 // o conteúdo do site institucional fora do alcance de um admin comum de
 // Loja, diferente de eventos.ts/comunicacoes.ts (que são conteúdo interno,
 // não o site público).
-const PAPEIS_ESCRITA = ["super_admin"];
-
-/**
- * O portal público (noticias-publica.ts) só lê da Loja hardcoded em
- * loja-portal-publico.ts — enquanto não existir resolução de Loja por
- * requisição (issue #341), um super_admin de outra Loja conseguiria criar
- * e "publicar" notícias aqui que nunca apareceriam em /api/publico/noticias,
- * uma falha silenciosa (achado do review automático da PR #368). Recusa
- * cedo em vez de deixar a Loja errada acumular conteúdo fantasma.
- */
-function comPapelPortalPublico<T>(
-  fn: (conn: PoolConnection, usuarioId: string, lojaId: string) => Promise<T>,
-): Promise<T> {
-  return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId, lojaId) => {
-    if (lojaId !== LOJA_PORTAL_PUBLICO) {
-      throw new Error("Notícias do site só podem ser geridas pela Loja do portal institucional.");
-    }
-    return fn(conn, usuarioId, lojaId);
-  });
-}
 
 export type Noticia = {
   id: string;
