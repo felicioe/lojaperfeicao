@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listarLogosInstitucionais } from "@/lib/backend/orgs";
 import { obterLojaAtual } from "@/lib/backend/loja-atual";
@@ -16,6 +17,11 @@ export function CabecalhoInstitucional({ compacto = false }: { compacto?: boolea
     queryKey: ["loja_atual"],
     queryFn: () => obterLojaAtual(),
   });
+  // Logos antigos (path em disco de antes da migração 0118) ficam com a URL
+  // salva apontando pro nada — esconde a imagem quebrada em vez de mostrar
+  // o ícone de "não carregou" no cabeçalho impresso, mesmo padrão do
+  // FaturaCard/QR Pix.
+  const [quebrados, setQuebrados] = useState<Set<string>>(new Set());
 
   if (logos.length === 0 && !loja) return null;
 
@@ -28,14 +34,17 @@ export function CabecalhoInstitucional({ compacto = false }: { compacto?: boolea
       }`}
     >
       <div className="flex items-center gap-2 flex-wrap" aria-label="Logos institucionais">
-        {logos.map((logo) => (
-          <img
-            key={logo.logoUrl}
-            src={logo.logoUrl}
-            alt={logo.nome}
-            className={`${tamanho} object-contain`}
-          />
-        ))}
+        {logos
+          .filter((logo) => !quebrados.has(logo.logoUrl))
+          .map((logo) => (
+            <img
+              key={logo.logoUrl}
+              src={logo.logoUrl}
+              alt={logo.nome}
+              className={`${tamanho} object-contain`}
+              onError={() => setQuebrados((atual) => new Set(atual).add(logo.logoUrl))}
+            />
+          ))}
       </div>
 
       {loja && (

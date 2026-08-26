@@ -46,6 +46,7 @@ function Potencias() {
   const can = useCan();
   const qc = useQueryClient();
   const [form, setForm] = useState(FORM_VAZIO);
+  const [logoQuebrado, setLogoQuebrado] = useState(false);
 
   const {
     data = [],
@@ -96,8 +97,9 @@ function Potencias() {
         reader.readAsDataURL(file);
       });
       const { url } = await uploadLogoPotencia({
-        data: { potenciaId: form.id, nomeArquivo: file.name, dataUrl },
+        data: { potenciaId: form.id, dataUrl },
       });
+      setLogoQuebrado(false);
       setForm({ ...form, logo_url: url });
       toast.success("Logo enviado — clique em Salvar para confirmar.");
     } catch (err) {
@@ -131,10 +133,11 @@ function Potencias() {
           <CardContent className="grid gap-3 md:grid-cols-4">
             {form.id && (
               <div className="md:col-span-4 flex items-center gap-4">
-                {form.logo_url && (
+                {form.logo_url && !logoQuebrado && (
                   <img
                     src={form.logo_url}
                     alt="Logo"
+                    onError={() => setLogoQuebrado(true)}
                     className="h-16 w-16 rounded object-contain border bg-white p-1"
                   />
                 )}
@@ -252,7 +255,8 @@ function Potencias() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
+                      onClick={() => {
+                        setLogoQuebrado(false);
                         setForm({
                           id: p.id,
                           nome: p.nome,
@@ -260,8 +264,8 @@ function Potencias() {
                           jurisdicao: p.jurisdicao ?? "",
                           site: p.site ?? "",
                           logo_url: p.logo_url,
-                        })
-                      }
+                        });
+                      }}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>

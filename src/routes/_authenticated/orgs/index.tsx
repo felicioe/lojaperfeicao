@@ -96,6 +96,7 @@ function Orgs() {
   const can = useCan();
   const qc = useQueryClient();
   const [form, setForm] = useState(FORM_VAZIO);
+  const [logoQuebrado, setLogoQuebrado] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
 
   const {
@@ -167,8 +168,9 @@ function Orgs() {
         reader.readAsDataURL(file);
       });
       const { url } = await uploadLogoOrg({
-        data: { orgId: form.id, nomeArquivo: file.name, dataUrl },
+        data: { orgId: form.id, dataUrl },
       });
+      setLogoQuebrado(false);
       setForm({ ...form, logo_url: url });
       toast.success("Logo enviado — clique em Salvar para confirmar.");
     } catch (err) {
@@ -176,7 +178,8 @@ function Orgs() {
     }
   };
 
-  const editar = (o: Org) =>
+  const editar = (o: Org) => {
+    setLogoQuebrado(false);
     setForm({
       id: o.id,
       potencia_id: o.potencia_id ?? "none",
@@ -197,6 +200,7 @@ function Orgs() {
       endereco: o.endereco ?? "",
       logo_url: o.logo_url,
     });
+  };
 
   const alternarAtivo = async (o: Org) => {
     try {
@@ -272,10 +276,11 @@ function Orgs() {
           <CardContent className="grid gap-3 md:grid-cols-4">
             {form.id && (
               <div className="md:col-span-4 flex items-center gap-4">
-                {form.logo_url && (
+                {form.logo_url && !logoQuebrado && (
                   <img
                     src={form.logo_url}
                     alt="Logo"
+                    onError={() => setLogoQuebrado(true)}
                     className="h-16 w-16 rounded object-contain border bg-white p-1"
                   />
                 )}
