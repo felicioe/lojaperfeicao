@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AceiteTermosRouteImport } from './routes/aceite-termos'
+import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FacebookConcluirRouteImport } from './routes/facebook-concluir'
 import { Route as GoogleConcluirRouteImport } from './routes/google-concluir'
@@ -21,6 +22,9 @@ import { Route as AuthenticatedAdminSaasRouteRouteImport } from './routes/_authe
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
+import { Route as NoticiasIndexRouteImport } from './routes/noticias/index'
+import { Route as NoticiasIdRouteImport } from './routes/noticias/$id'
+import { Route as PaginasSlugRouteImport } from './routes/paginas/$slug'
 import { Route as RecuperarSenhaIndexRouteImport } from './routes/recuperar-senha/index'
 import { Route as RecuperarSenhaTokenRouteImport } from './routes/recuperar-senha/$token'
 import { Route as AuthenticatedAdminSaasIndexRouteImport } from './routes/_authenticated/admin-saas/index'
@@ -68,7 +72,7 @@ import { Route as AuthenticatedIrmaosIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedIrmaosIdRouteImport } from './routes/_authenticated/irmaos/$id'
 import { Route as AuthenticatedIrmaosNovoRouteImport } from './routes/_authenticated/irmaos/novo'
 import { Route as AuthenticatedMenuSiteIndexRouteImport } from './routes/_authenticated/menu-site/index'
-import { Route as AuthenticatedNoticiasIndexRouteImport } from './routes/_authenticated/noticias/index'
+import { Route as AuthenticatedNoticiasSiteIndexRouteImport } from './routes/_authenticated/noticias-site/index'
 import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
 import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 import { Route as AuthenticatedPaginasSiteIndexRouteImport } from './routes/_authenticated/paginas-site/index'
@@ -125,6 +129,11 @@ const AceiteTermosRoute = AceiteTermosRouteImport.update({
   path: '/aceite-termos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgendaRoute = AgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -170,6 +179,21 @@ const AuthenticatedPainelRouteRoute =
 const ConviteTokenRoute = ConviteTokenRouteImport.update({
   id: '/convite/$token',
   path: '/convite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoticiasIndexRoute = NoticiasIndexRouteImport.update({
+  id: '/noticias/',
+  path: '/noticias/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoticiasIdRoute = NoticiasIdRouteImport.update({
+  id: '/noticias/$id',
+  path: '/noticias/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaginasSlugRoute = PaginasSlugRouteImport.update({
+  id: '/paginas/$slug',
+  path: '/paginas/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecuperarSenhaIndexRoute = RecuperarSenhaIndexRouteImport.update({
@@ -450,10 +474,10 @@ const AuthenticatedMenuSiteIndexRoute =
     path: '/menu-site/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedNoticiasIndexRoute =
-  AuthenticatedNoticiasIndexRouteImport.update({
-    id: '/noticias/',
-    path: '/noticias/',
+const AuthenticatedNoticiasSiteIndexRoute =
+  AuthenticatedNoticiasSiteIndexRouteImport.update({
+    id: '/noticias-site/',
+    path: '/noticias-site/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedOrgsIndexRoute = AuthenticatedOrgsIndexRouteImport.update({
@@ -704,6 +728,7 @@ const AuthenticatedTesourariaFaturasImprimirRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/aceite-termos': typeof AceiteTermosRoute
+  '/agenda': typeof AgendaRoute
   '/auth': typeof AuthRoute
   '/facebook-concluir': typeof FacebookConcluirRoute
   '/google-concluir': typeof GoogleConcluirRoute
@@ -713,7 +738,10 @@ export interface FileRoutesByFullPath {
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/noticias/$id': typeof NoticiasIdRoute
+  '/paginas/$slug': typeof PaginasSlugRoute
   '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/noticias/': typeof NoticiasIndexRoute
   '/recuperar-senha/': typeof RecuperarSenhaIndexRoute
   '/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
@@ -787,7 +815,7 @@ export interface FileRoutesByFullPath {
   '/interstico/': typeof AuthenticatedIntersticoIndexRoute
   '/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/menu-site/': typeof AuthenticatedMenuSiteIndexRoute
-  '/noticias/': typeof AuthenticatedNoticiasIndexRoute
+  '/noticias-site/': typeof AuthenticatedNoticiasSiteIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/paginas-site/': typeof AuthenticatedPaginasSiteIndexRoute
   '/painel/': typeof AuthenticatedPainelIndexRoute
@@ -806,6 +834,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/aceite-termos': typeof AceiteTermosRoute
+  '/agenda': typeof AgendaRoute
   '/auth': typeof AuthRoute
   '/facebook-concluir': typeof FacebookConcluirRoute
   '/google-concluir': typeof GoogleConcluirRoute
@@ -813,7 +842,10 @@ export interface FileRoutesByTo {
   '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/noticias/$id': typeof NoticiasIdRoute
+  '/paginas/$slug': typeof PaginasSlugRoute
   '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/noticias': typeof NoticiasIndexRoute
   '/recuperar-senha': typeof RecuperarSenhaIndexRoute
   '/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
@@ -887,7 +919,7 @@ export interface FileRoutesByTo {
   '/interstico': typeof AuthenticatedIntersticoIndexRoute
   '/irmaos': typeof AuthenticatedIrmaosIndexRoute
   '/menu-site': typeof AuthenticatedMenuSiteIndexRoute
-  '/noticias': typeof AuthenticatedNoticiasIndexRoute
+  '/noticias-site': typeof AuthenticatedNoticiasSiteIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
   '/paginas-site': typeof AuthenticatedPaginasSiteIndexRoute
   '/painel': typeof AuthenticatedPainelIndexRoute
@@ -908,6 +940,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/aceite-termos': typeof AceiteTermosRoute
+  '/agenda': typeof AgendaRoute
   '/auth': typeof AuthRoute
   '/facebook-concluir': typeof FacebookConcluirRoute
   '/google-concluir': typeof GoogleConcluirRoute
@@ -917,7 +950,10 @@ export interface FileRoutesById {
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/noticias/$id': typeof NoticiasIdRoute
+  '/paginas/$slug': typeof PaginasSlugRoute
   '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/noticias/': typeof NoticiasIndexRoute
   '/recuperar-senha/': typeof RecuperarSenhaIndexRoute
   '/_authenticated/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
   '/_authenticated/admin-saas/lojas': typeof AuthenticatedAdminSaasLojasRoute
@@ -991,7 +1027,7 @@ export interface FileRoutesById {
   '/_authenticated/interstico/': typeof AuthenticatedIntersticoIndexRoute
   '/_authenticated/irmaos/': typeof AuthenticatedIrmaosIndexRoute
   '/_authenticated/menu-site/': typeof AuthenticatedMenuSiteIndexRoute
-  '/_authenticated/noticias/': typeof AuthenticatedNoticiasIndexRoute
+  '/_authenticated/noticias-site/': typeof AuthenticatedNoticiasSiteIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/_authenticated/paginas-site/': typeof AuthenticatedPaginasSiteIndexRoute
   '/_authenticated/painel/': typeof AuthenticatedPainelIndexRoute
@@ -1012,6 +1048,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/aceite-termos'
+    | '/agenda'
     | '/auth'
     | '/facebook-concluir'
     | '/google-concluir'
@@ -1021,7 +1058,10 @@ export interface FileRouteTypes {
     | '/painel'
     | '/dashboard'
     | '/convite/$token'
+    | '/noticias/$id'
+    | '/paginas/$slug'
     | '/recuperar-senha/$token'
+    | '/noticias/'
     | '/recuperar-senha/'
     | '/admin-saas/configuracoes'
     | '/admin-saas/lojas'
@@ -1095,7 +1135,7 @@ export interface FileRouteTypes {
     | '/interstico/'
     | '/irmaos/'
     | '/menu-site/'
-    | '/noticias/'
+    | '/noticias-site/'
     | '/orgs/'
     | '/paginas-site/'
     | '/painel/'
@@ -1114,6 +1154,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/aceite-termos'
+    | '/agenda'
     | '/auth'
     | '/facebook-concluir'
     | '/google-concluir'
@@ -1121,7 +1162,10 @@ export interface FileRouteTypes {
     | '/trocar-senha'
     | '/dashboard'
     | '/convite/$token'
+    | '/noticias/$id'
+    | '/paginas/$slug'
     | '/recuperar-senha/$token'
+    | '/noticias'
     | '/recuperar-senha'
     | '/admin-saas/configuracoes'
     | '/admin-saas/lojas'
@@ -1195,7 +1239,7 @@ export interface FileRouteTypes {
     | '/interstico'
     | '/irmaos'
     | '/menu-site'
-    | '/noticias'
+    | '/noticias-site'
     | '/orgs'
     | '/paginas-site'
     | '/painel'
@@ -1215,6 +1259,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/aceite-termos'
+    | '/agenda'
     | '/auth'
     | '/facebook-concluir'
     | '/google-concluir'
@@ -1224,7 +1269,10 @@ export interface FileRouteTypes {
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
     | '/convite/$token'
+    | '/noticias/$id'
+    | '/paginas/$slug'
     | '/recuperar-senha/$token'
+    | '/noticias/'
     | '/recuperar-senha/'
     | '/_authenticated/admin-saas/configuracoes'
     | '/_authenticated/admin-saas/lojas'
@@ -1298,7 +1346,7 @@ export interface FileRouteTypes {
     | '/_authenticated/interstico/'
     | '/_authenticated/irmaos/'
     | '/_authenticated/menu-site/'
-    | '/_authenticated/noticias/'
+    | '/_authenticated/noticias-site/'
     | '/_authenticated/orgs/'
     | '/_authenticated/paginas-site/'
     | '/_authenticated/painel/'
@@ -1319,13 +1367,17 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AceiteTermosRoute: typeof AceiteTermosRoute
+  AgendaRoute: typeof AgendaRoute
   AuthRoute: typeof AuthRoute
   FacebookConcluirRoute: typeof FacebookConcluirRoute
   GoogleConcluirRoute: typeof GoogleConcluirRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TrocarSenhaRoute: typeof TrocarSenhaRoute
   ConviteTokenRoute: typeof ConviteTokenRoute
+  NoticiasIdRoute: typeof NoticiasIdRoute
+  PaginasSlugRoute: typeof PaginasSlugRoute
   RecuperarSenhaTokenRoute: typeof RecuperarSenhaTokenRoute
+  NoticiasIndexRoute: typeof NoticiasIndexRoute
   RecuperarSenhaIndexRoute: typeof RecuperarSenhaIndexRoute
 }
 
@@ -1350,6 +1402,13 @@ declare module '@tanstack/react-router' {
       path: '/aceite-termos'
       fullPath: '/aceite-termos'
       preLoaderRoute: typeof AceiteTermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agenda': {
+      id: '/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AgendaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -1413,6 +1472,27 @@ declare module '@tanstack/react-router' {
       path: '/convite/$token'
       fullPath: '/convite/$token'
       preLoaderRoute: typeof ConviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/noticias/': {
+      id: '/noticias/'
+      path: '/noticias'
+      fullPath: '/noticias/'
+      preLoaderRoute: typeof NoticiasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/noticias/$id': {
+      id: '/noticias/$id'
+      path: '/noticias/$id'
+      fullPath: '/noticias/$id'
+      preLoaderRoute: typeof NoticiasIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/paginas/$slug': {
+      id: '/paginas/$slug'
+      path: '/paginas/$slug'
+      fullPath: '/paginas/$slug'
+      preLoaderRoute: typeof PaginasSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recuperar-senha/': {
@@ -1744,11 +1824,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMenuSiteIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/noticias/': {
-      id: '/_authenticated/noticias/'
-      path: '/noticias'
-      fullPath: '/noticias/'
-      preLoaderRoute: typeof AuthenticatedNoticiasIndexRouteImport
+    '/_authenticated/noticias-site/': {
+      id: '/_authenticated/noticias-site/'
+      path: '/noticias-site'
+      fullPath: '/noticias-site/'
+      preLoaderRoute: typeof AuthenticatedNoticiasSiteIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/orgs/': {
@@ -2170,7 +2250,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIntersticoIndexRoute: typeof AuthenticatedIntersticoIndexRoute
   AuthenticatedIrmaosIndexRoute: typeof AuthenticatedIrmaosIndexRoute
   AuthenticatedMenuSiteIndexRoute: typeof AuthenticatedMenuSiteIndexRoute
-  AuthenticatedNoticiasIndexRoute: typeof AuthenticatedNoticiasIndexRoute
+  AuthenticatedNoticiasSiteIndexRoute: typeof AuthenticatedNoticiasSiteIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
   AuthenticatedPaginasSiteIndexRoute: typeof AuthenticatedPaginasSiteIndexRoute
   AuthenticatedTerceirosIndexRoute: typeof AuthenticatedTerceirosIndexRoute
@@ -2278,7 +2358,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIntersticoIndexRoute: AuthenticatedIntersticoIndexRoute,
   AuthenticatedIrmaosIndexRoute: AuthenticatedIrmaosIndexRoute,
   AuthenticatedMenuSiteIndexRoute: AuthenticatedMenuSiteIndexRoute,
-  AuthenticatedNoticiasIndexRoute: AuthenticatedNoticiasIndexRoute,
+  AuthenticatedNoticiasSiteIndexRoute: AuthenticatedNoticiasSiteIndexRoute,
   AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,
   AuthenticatedPaginasSiteIndexRoute: AuthenticatedPaginasSiteIndexRoute,
   AuthenticatedTerceirosIndexRoute: AuthenticatedTerceirosIndexRoute,
@@ -2298,13 +2378,17 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AceiteTermosRoute: AceiteTermosRoute,
+  AgendaRoute: AgendaRoute,
   AuthRoute: AuthRoute,
   FacebookConcluirRoute: FacebookConcluirRoute,
   GoogleConcluirRoute: GoogleConcluirRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TrocarSenhaRoute: TrocarSenhaRoute,
   ConviteTokenRoute: ConviteTokenRoute,
+  NoticiasIdRoute: NoticiasIdRoute,
+  PaginasSlugRoute: PaginasSlugRoute,
   RecuperarSenhaTokenRoute: RecuperarSenhaTokenRoute,
+  NoticiasIndexRoute: NoticiasIndexRoute,
   RecuperarSenhaIndexRoute: RecuperarSenhaIndexRoute,
 }
 export const routeTree = rootRouteImport

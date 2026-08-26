@@ -45,7 +45,7 @@ import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
-export const Route = createFileRoute("/_authenticated/noticias/")({
+export const Route = createFileRoute("/_authenticated/noticias-site/")({
   head: () => ({ meta: [{ title: "Notícias — Gestão Maçônica" }] }),
   component: NoticiasPage,
 });

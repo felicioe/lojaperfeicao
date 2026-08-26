@@ -398,7 +398,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/documentos", label: "Legislação", icon: Scale, show: true },
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
         {
-          to: "/noticias",
+          to: "/noticias-site",
           label: "Notícias do Site",
           icon: Newspaper,
           show: can.isSuperAdmin,

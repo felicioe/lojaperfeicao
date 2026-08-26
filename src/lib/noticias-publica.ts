@@ -29,3 +29,23 @@ export async function carregarNoticiasPublicas(): Promise<NoticiaPublica[]> {
     }));
   });
 }
+
+/** Detalhe de uma notícia publicada — usado pela rota pública /noticias/:id
+ * (issue #382). Mesma regra de status das demais: rascunho nunca sai daqui. */
+export async function carregarNoticiaPublicaPorId(id: string): Promise<NoticiaPublica | null> {
+  return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
+    const [[row]] = await conn.query<RowDataPacket[]>(
+      `SELECT id, titulo, resumo, conteudo, publicado_em FROM noticias
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ?`,
+      [id],
+    );
+    if (!row) return null;
+    return {
+      id: row.id,
+      titulo: row.titulo,
+      resumo: row.resumo,
+      conteudo: sanitizarRichTextPublico(row.conteudo),
+      publicado_em: row.publicado_em,
+    };
+  });
+}
