@@ -156,6 +156,7 @@ function NoticiasPage() {
             <Label htmlFor="noticia-titulo">Título</Label>
             <Input
               id="noticia-titulo"
+              maxLength={200}
               value={form.titulo}
               onChange={(e) => setForm({ ...form, titulo: e.target.value })}
             />
