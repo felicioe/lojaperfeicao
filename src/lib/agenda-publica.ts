@@ -1,12 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 import { withLojaConnection } from "./backend/db";
 import { sanitizarRichTextPublico } from "./rich-text-server";
-
-// Portal institucional público é hoje um site só, hardcoded (ver o CORS fixo
-// em src/server.ts pra este mesmo endpoint) — não há ainda um mecanismo de
-// escolher a Loja a partir da requisição pública. Enquanto isso não existe,
-// a agenda publicada é sempre a desta Loja semente.
-const LOJA_PORTAL_PUBLICO = "00000000-0000-4000-8000-000000000001";
+import { LOJA_PORTAL_PUBLICO } from "./loja-portal-publico";
 
 export type ItemAgendaPublica = {
   id: string;

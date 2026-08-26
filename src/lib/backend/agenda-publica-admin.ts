@@ -1,15 +1,34 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+import { LOJA_PORTAL_PUBLICO } from "../loja-portal-publico";
 
 // Editor da agenda pública do site institucional (issue #367). Mesmo
 // papel exclusivo de noticias.ts — manutenção do site é tarefa do super
 // administrador (dono do domínio), não de qualquer admin/secretário de
-// Loja. Continua restrito às sessões futuras da própria Loja do super
-// admin (@current_loja_id), que hoje é a mesma Loja do site público.
+// Loja.
 const PAPEIS_ESCRITA = ["super_admin"];
+
+/**
+ * agenda-publica.ts (o loader consumido por /api/publico/agenda) só lê da
+ * Loja hardcoded em loja-portal-publico.ts. Sem esta checagem, um
+ * super_admin de outra Loja curaria uma agenda que nunca apareceria no
+ * site — mesma falha silenciosa corrigida em noticias.ts (achado do review
+ * automático da PR #368).
+ */
+function comPapelPortalPublico<T>(
+  fn: (conn: PoolConnection, usuarioId: string, lojaId: string) => Promise<T>,
+): Promise<T> {
+  return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId, lojaId) => {
+    if (lojaId !== LOJA_PORTAL_PUBLICO) {
+      throw new Error("A agenda pública só pode ser gerida pela Loja do portal institucional.");
+    }
+    return fn(conn, usuarioId, lojaId);
+  });
+}
 
 export type ItemAgendaPublicaAdmin = {
   id: string;
@@ -24,7 +43,7 @@ export type ItemAgendaPublicaAdmin = {
 
 export const listarAgendaPublicaAdmin = createServerFn({ method: "GET" }).handler(
   async (): Promise<ItemAgendaPublicaAdmin[]> => {
-    return comPapel(PAPEIS_ESCRITA, async (conn) => {
+    return comPapelPortalPublico(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT s.id, s.data, s.tipo, s.grau, og.nome AS nome_grau, o.nome AS corpo,
                 s.observacao_publica, s.oculto_agenda_publica
@@ -49,7 +68,7 @@ const salvarSchema = z.object({
 export const salvarAgendaPublicaSessao = createServerFn({ method: "POST" })
   .validator((d: unknown) => salvarSchema.parse(d))
   .handler(async ({ data }) => {
-    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+    return comPapelPortalPublico(async (conn, usuarioIdAtual) => {
       await conn.query(
         `UPDATE sessoes SET observacao_publica = ?, oculto_agenda_publica = ?
          WHERE id = ? AND loja_id = @current_loja_id`,
