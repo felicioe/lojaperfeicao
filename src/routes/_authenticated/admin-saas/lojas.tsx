@@ -52,7 +52,6 @@ import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { mensagemDeErro } from "@/lib/erro";
 import {
-  AlertTriangle,
   Building2,
   Copy,
   Loader2,
@@ -250,26 +249,6 @@ function LojasPlataforma() {
           </Button>
         }
       />
-
-      {/* O aviso é o oposto de decorativo: esta tela deixa a um clique de
-          distância exatamente a ação que o sistema ainda não sustenta. O
-          isolamento entre Lojas está pela metade (issue #337 — Tesouraria
-          pronta, Cadastros/Relatórios/Contabilidade/Atividades/SGCAB não), e
-          medido ao vivo: o admin de uma Loja nova enxerga a Tesouraria dela
-          vazia, como deve, mas a tela de Irmãos mostra os irmãos da Adonhiram.
-          Some quando a #337 fechar. */}
-      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-        <p className="flex items-start gap-2 font-medium">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500" />O
-          isolamento entre Lojas ainda não está completo.
-        </p>
-        <p className="mt-1 text-muted-foreground">
-          Cadastrar uma segunda Loja e convidar o administrador dela funciona, mas as telas de
-          Cadastros, Relatórios, Contabilidade, Atividades e SGCAB ainda não filtram por Loja — quem
-          entrar na Loja nova vai ver dados da Adonhiram nelas. Use por enquanto só para testes, não
-          com uma Loja real.
-        </p>
-      </div>
 
       <Card>
         <CardHeader>
