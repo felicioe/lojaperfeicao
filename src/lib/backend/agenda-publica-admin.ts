@@ -1,34 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
-import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
-import { LOJA_PORTAL_PUBLICO } from "../loja-portal-publico";
+import { comPapelPortalPublico } from "./portal-publico-authz";
 
 // Editor da agenda pública do site institucional (issue #367). Mesmo
 // papel exclusivo de noticias.ts — manutenção do site é tarefa do super
 // administrador (dono do domínio), não de qualquer admin/secretário de
 // Loja.
-const PAPEIS_ESCRITA = ["super_admin"];
-
-/**
- * agenda-publica.ts (o loader consumido por /api/publico/agenda) só lê da
- * Loja hardcoded em loja-portal-publico.ts. Sem esta checagem, um
- * super_admin de outra Loja curaria uma agenda que nunca apareceria no
- * site — mesma falha silenciosa corrigida em noticias.ts (achado do review
- * automático da PR #368).
- */
-function comPapelPortalPublico<T>(
-  fn: (conn: PoolConnection, usuarioId: string, lojaId: string) => Promise<T>,
-): Promise<T> {
-  return comPapel(PAPEIS_ESCRITA, async (conn, usuarioId, lojaId) => {
-    if (lojaId !== LOJA_PORTAL_PUBLICO) {
-      throw new Error("A agenda pública só pode ser gerida pela Loja do portal institucional.");
-    }
-    return fn(conn, usuarioId, lojaId);
-  });
-}
 
 export type ItemAgendaPublicaAdmin = {
   id: string;

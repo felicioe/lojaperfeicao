@@ -408,6 +408,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: CalendarPlus,
           show: can.isSuperAdmin,
         },
+        {
+          to: "/paginas-site",
+          label: "Páginas do Site",
+          icon: FileText,
+          show: can.isSuperAdmin,
+        },
       ],
     },
     {

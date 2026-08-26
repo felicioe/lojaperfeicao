@@ -9,6 +9,7 @@ import { tratarCallbackFacebook } from "./lib/facebook-oauth-callback";
 import { executarLembretesFaturas, processarFilaEmails } from "./lib/email-dispatch";
 import { carregarAgendaPublica } from "./lib/agenda-publica";
 import { carregarNoticiasPublicas } from "./lib/noticias-publica";
+import { listarPaginasPublicas, carregarPaginaPublicaPorSlug } from "./lib/paginas-site-publica";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -212,6 +213,56 @@ async function tratarNoticiasPublicas(request: Request): Promise<Response | null
   }
 }
 
+const CORS_HEADERS_PORTAL_PUBLICO = {
+  "cache-control": "public, max-age=300, stale-while-revalidate=900",
+  "access-control-allow-origin": "https://associacaoadonhiramita.org",
+  "x-content-type-options": "nosniff",
+} as const;
+
+// Duas rotas: /api/publico/paginas (índice título+slug, pra montar navegação
+// — issue #382) e /api/publico/paginas/:slug (conteúdo de uma página). Path
+// dinâmico, então não dá pra comparar pathname inteiro como os outros
+// endpoints públicos deste arquivo.
+async function tratarPaginasSitePublicas(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  const prefixo = "/api/publico/paginas";
+  if (!url.pathname.startsWith(prefixo)) return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  const resto = url.pathname.slice(prefixo.length).replace(/^\/+/, "");
+  try {
+    if (!resto) {
+      const paginas = await listarPaginasPublicas();
+      return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), paginas }), {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          ...CORS_HEADERS_PORTAL_PUBLICO,
+        },
+      });
+    }
+
+    const pagina = await carregarPaginaPublicaPorSlug(decodeURIComponent(resto));
+    if (!pagina) {
+      return new Response(JSON.stringify({ erro: "Página não encontrada." }), {
+        status: 404,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      });
+    }
+    return new Response(JSON.stringify(pagina), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        ...CORS_HEADERS_PORTAL_PUBLICO,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: "Página temporariamente indisponível." }), {
+      status: 503,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
+}
+
 // Callback OAuth do Google — GET puro feito pelo navegador (redirect do
 // Google), não pelo `fetch` da aplicação, então precisa ser um endpoint
 // bruto fora do roteador do TanStack Start, mesmo motivo dos crons acima.
@@ -248,6 +299,9 @@ export default {
 
       const noticiasResponse = await tratarNoticiasPublicas(request);
       if (noticiasResponse) return noticiasResponse;
+
+      const paginasSiteResponse = await tratarPaginasSitePublicas(request);
+      if (paginasSiteResponse) return paginasSiteResponse;
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
       if (googleResponse) return googleResponse;
