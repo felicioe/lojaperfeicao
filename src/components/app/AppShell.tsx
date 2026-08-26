@@ -402,6 +402,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Newspaper,
           show: can.isSuperAdmin,
         },
+        {
+          to: "/agenda-publica",
+          label: "Agenda Pública",
+          icon: CalendarPlus,
+          show: can.isSuperAdmin,
+        },
       ],
     },
     {

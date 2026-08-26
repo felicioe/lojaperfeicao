@@ -36,6 +36,7 @@ import { Route as AuthenticatedAdministracaoEmailRouteImport } from './routes/_a
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoFechamentoPeriodoRouteImport } from './routes/_authenticated/administracao/fechamento-periodo'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
+import { Route as AuthenticatedAgendaPublicaIndexRouteImport } from './routes/_authenticated/agenda-publica/index'
 import { Route as AuthenticatedBibliotecaIndexRouteImport } from './routes/_authenticated/biblioteca/index'
 import { Route as AuthenticatedCalendarioIndexRouteImport } from './routes/_authenticated/calendario/index'
 import { Route as AuthenticatedComissoesIndexRouteImport } from './routes/_authenticated/comissoes/index'
@@ -255,6 +256,12 @@ const AuthenticatedAdministracaoResetarFinanceiroRoute =
   AuthenticatedAdministracaoResetarFinanceiroRouteImport.update({
     id: '/administracao/resetar-financeiro',
     path: '/administracao/resetar-financeiro',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAgendaPublicaIndexRoute =
+  AuthenticatedAgendaPublicaIndexRouteImport.update({
+    id: '/agenda-publica/',
+    path: '/agenda-publica/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedBibliotecaIndexRoute =
@@ -753,6 +760,7 @@ export interface FileRoutesByFullPath {
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/admin-saas/': typeof AuthenticatedAdminSaasIndexRoute
+  '/agenda-publica/': typeof AuthenticatedAgendaPublicaIndexRoute
   '/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
   '/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes/': typeof AuthenticatedComissoesIndexRoute
@@ -850,6 +858,7 @@ export interface FileRoutesByTo {
   '/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/admin-saas': typeof AuthenticatedAdminSaasIndexRoute
+  '/agenda-publica': typeof AuthenticatedAgendaPublicaIndexRoute
   '/biblioteca': typeof AuthenticatedBibliotecaIndexRoute
   '/calendario': typeof AuthenticatedCalendarioIndexRoute
   '/comissoes': typeof AuthenticatedComissoesIndexRoute
@@ -951,6 +960,7 @@ export interface FileRoutesById {
   '/_authenticated/tesouraria/tabela-valores': typeof AuthenticatedTesourariaTabelaValoresRoute
   '/_authenticated/tesouraria/tronco': typeof AuthenticatedTesourariaTroncoRoute
   '/_authenticated/admin-saas/': typeof AuthenticatedAdminSaasIndexRoute
+  '/_authenticated/agenda-publica/': typeof AuthenticatedAgendaPublicaIndexRoute
   '/_authenticated/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
   '/_authenticated/calendario/': typeof AuthenticatedCalendarioIndexRoute
   '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
@@ -1052,6 +1062,7 @@ export interface FileRouteTypes {
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
     | '/admin-saas/'
+    | '/agenda-publica/'
     | '/biblioteca/'
     | '/calendario/'
     | '/comissoes/'
@@ -1149,6 +1160,7 @@ export interface FileRouteTypes {
     | '/tesouraria/tabela-valores'
     | '/tesouraria/tronco'
     | '/admin-saas'
+    | '/agenda-publica'
     | '/biblioteca'
     | '/calendario'
     | '/comissoes'
@@ -1249,6 +1261,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tesouraria/tabela-valores'
     | '/_authenticated/tesouraria/tronco'
     | '/_authenticated/admin-saas/'
+    | '/_authenticated/agenda-publica/'
     | '/_authenticated/biblioteca/'
     | '/_authenticated/calendario/'
     | '/_authenticated/comissoes/'
@@ -1479,6 +1492,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/resetar-financeiro'
       fullPath: '/administracao/resetar-financeiro'
       preLoaderRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/agenda-publica/': {
+      id: '/_authenticated/agenda-publica/'
+      path: '/agenda-publica'
+      fullPath: '/agenda-publica/'
+      preLoaderRoute: typeof AuthenticatedAgendaPublicaIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/biblioteca/': {
@@ -2097,6 +2117,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTesourariaRecorrentesRoute: typeof AuthenticatedTesourariaRecorrentesRoute
   AuthenticatedTesourariaTabelaValoresRoute: typeof AuthenticatedTesourariaTabelaValoresRoute
   AuthenticatedTesourariaTroncoRoute: typeof AuthenticatedTesourariaTroncoRoute
+  AuthenticatedAgendaPublicaIndexRoute: typeof AuthenticatedAgendaPublicaIndexRoute
   AuthenticatedBibliotecaIndexRoute: typeof AuthenticatedBibliotecaIndexRoute
   AuthenticatedCalendarioIndexRoute: typeof AuthenticatedCalendarioIndexRoute
   AuthenticatedComissoesIndexRoute: typeof AuthenticatedComissoesIndexRoute
@@ -2202,6 +2223,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTesourariaTabelaValoresRoute:
     AuthenticatedTesourariaTabelaValoresRoute,
   AuthenticatedTesourariaTroncoRoute: AuthenticatedTesourariaTroncoRoute,
+  AuthenticatedAgendaPublicaIndexRoute: AuthenticatedAgendaPublicaIndexRoute,
   AuthenticatedBibliotecaIndexRoute: AuthenticatedBibliotecaIndexRoute,
   AuthenticatedCalendarioIndexRoute: AuthenticatedCalendarioIndexRoute,
   AuthenticatedComissoesIndexRoute: AuthenticatedComissoesIndexRoute,
