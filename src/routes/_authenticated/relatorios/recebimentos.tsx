@@ -124,7 +124,18 @@ function Recebimentos() {
         title="Relatório de Recebimentos no Mês"
         description="Entradas já pagas, com filtros por competência, período, conta, categoria, irmão e forma de pagamento."
         actions={
-          <ExportarRelatorio titulo="Recebimentos" colunas={COLUNAS} linhas={linhasExportacao} />
+          <ExportarRelatorio
+            titulo="Recebimentos"
+            colunas={COLUNAS}
+            linhas={linhasExportacao}
+            totais={[
+              { rotulo: "Total recebido", valor: totalGeral },
+              ...Array.from(porFormaPagamento.entries()).map(([forma, valor]) => ({
+                rotulo: forma,
+                valor,
+              })),
+            ]}
+          />
         }
       />
 

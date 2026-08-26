@@ -191,6 +191,13 @@ function ExtratoIrmao() {
               titulo={`Extrato — ${irmaoNome}`}
               colunas={COLUNAS}
               linhas={linhasExportacao}
+              totais={[
+                { rotulo: "Total pago à Loja", valor: totalPago },
+                { rotulo: "Em aberto — Loja", valor: totalAberto },
+                { rotulo: "Total atrasado", valor: totalAtrasado },
+                { rotulo: "Total devido ao SGCAB", valor: totalSgcabAberto },
+                { rotulo: "Visão global — total devido", valor: totalGeralDevido },
+              ]}
             />
           )
         }

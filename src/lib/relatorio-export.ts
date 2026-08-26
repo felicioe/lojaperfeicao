@@ -11,6 +11,15 @@ export type ColunaRelatorio = { chave: string; titulo: string };
 export type LinhaRelatorio = Record<string, string | number | null>;
 export type FormatoRelatorio = "xlsx" | "pdf" | "csv" | "txt";
 export type LogoRelatorio = { nome: string; logoUrl: string };
+export type TotalRelatorio = { rotulo: string; valor: number };
+
+// Nenhum relatório exportado deve ser só uma tabela genérica (pedido do
+// usuário) — todo PDF/XLSX ganha um resumo de totais (quando o chamador
+// informa) e um rodapé com data de geração + quem gerou. CSV/TXT ficam de
+// fora, mesma decisão já tomada para logo (formato de texto puro).
+function formatarMoedaRelatorio(valor: number): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(valor);
+}
 
 export function mimeTypePara(formato: FormatoRelatorio): string {
   if (formato === "xlsx")
@@ -37,6 +46,8 @@ export async function gerarXlsxBuffer(
   colunas: ColunaRelatorio[],
   linhas: LinhaRelatorio[],
   logos: LogoRelatorio[] = [],
+  totais: TotalRelatorio[] = [],
+  geradoPor: string | null = null,
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const planilha = workbook.addWorksheet(titulo.slice(0, 31) || "Relatório");
@@ -77,6 +88,27 @@ export async function gerarXlsxBuffer(
   linhaTitulos.font = { bold: true };
 
   for (const linha of linhas) planilha.addRow(linha);
+
+  if (totais.length > 0) {
+    planilha.addRow({});
+    for (const total of totais) {
+      const linhaTotal = planilha.addRow({
+        [colunas[0].chave]: `${total.rotulo}: ${formatarMoedaRelatorio(total.valor)}`,
+      });
+      linhaTotal.font = { bold: true };
+    }
+  }
+
+  const dataGeracaoRodape = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date());
+  planilha.addRow({});
+  const linhaRodape = planilha.addRow({
+    [colunas[0].chave]: `Gerado em ${dataGeracaoRodape}${geradoPor ? ` por ${geradoPor}` : ""}`,
+  });
+  linhaRodape.font = { italic: true, size: 9, color: { argb: "FF8B95A5" } };
+
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
 }
@@ -86,6 +118,8 @@ export async function gerarPdfBuffer(
   colunas: ColunaRelatorio[],
   linhas: LinhaRelatorio[],
   logos: LogoRelatorio[] = [],
+  totais: TotalRelatorio[] = [],
+  geradoPor: string | null = null,
 ): Promise<Buffer> {
   const pdf = new PdfSimplesPaisagem();
   // Prepara os logos ANTES de desenhar qualquer página — os objetos de
@@ -128,11 +162,27 @@ export async function gerarPdfBuffer(
       cor: "#172033",
     });
     cursorY += 22;
-    pdf.escreverTexto(`Gerado em ${dataGeracao}`, 36, cursorY, {
-      tamanho: 8,
-      cor: "#5b6475",
-    });
-    cursorY += 18;
+    // Resumo de totais (issue #377) — em vez da simples "Gerado em ..." de
+    // antes, que agora vive só no rodapé. Quebrado em grupos de até 3 pra
+    // não estourar a largura da página com relatórios de muitos totais
+    // (ex.: Extrato do Irmão tem 5).
+    if (totais.length > 0) {
+      const TOTAIS_POR_LINHA = 3;
+      for (let i = 0; i < totais.length; i += TOTAIS_POR_LINHA) {
+        const grupo = totais.slice(i, i + TOTAIS_POR_LINHA);
+        const textoGrupo = grupo
+          .map((t) => `${t.rotulo}: ${formatarMoedaRelatorio(t.valor)}`)
+          .join("      ");
+        pdf.desenharRetangulo(36, cursorY - 4, pdf.larguraPagina - 72, 17, "#eef3fc");
+        pdf.escreverTexto(textoGrupo, 40, cursorY - 1, {
+          fonte: "bold",
+          tamanho: 8.5,
+          cor: "#1d4ed8",
+        });
+        cursorY += 18;
+      }
+      cursorY += 4;
+    }
     pdf.desenharRetangulo(36, cursorY - 4, pdf.larguraPagina - 72, 22, "#e8edf5");
     colunas.forEach((coluna, indice) => {
       pdf.escreverTexto(
@@ -173,6 +223,15 @@ export async function gerarPdfBuffer(
     });
     cursorY += 20;
   });
+
+  // Rodapé (issue #377) em todas as páginas já criadas — data de geração e
+  // quem gerou, do jeito que já existe em qualquer documento impresso.
+  pdf.escreverTextoEmTodasPaginas(
+    `Gerado em ${dataGeracao}${geradoPor ? ` por ${geradoPor}` : ""}`,
+    36,
+    pdf.alturaPagina - 26,
+    { tamanho: 7, cor: "#8b95a5" },
+  );
 
   return pdf.finalizar();
 }
@@ -239,13 +298,28 @@ class PdfSimplesPaisagem {
   }
 
   escreverTexto(texto: string, x: number, yTopo: number, opcoes: OpcaoTextoPdf = {}) {
+    this.adicionarOperacao(this.operacaoTexto(texto, x, yTopo, opcoes));
+  }
+
+  // Mesmo texto em toda página já criada até aqui — usado pro rodapé
+  // (data de geração + usuário, issue #377), que deve repetir em cada
+  // página do PDF, não só na última.
+  escreverTextoEmTodasPaginas(texto: string, x: number, yTopo: number, opcoes: OpcaoTextoPdf = {}) {
+    const operacao = this.operacaoTexto(texto, x, yTopo, opcoes);
+    this.paginas = this.paginas.map((pagina) => `${pagina}${operacao}\n`);
+  }
+
+  private operacaoTexto(
+    texto: string,
+    x: number,
+    yTopo: number,
+    opcoes: OpcaoTextoPdf = {},
+  ): string {
     const fonte = opcoes.fonte === "bold" ? "/F2" : "/F1";
     const tamanho = opcoes.tamanho ?? 10;
     const [r, g, b] = corHexParaPdf(opcoes.cor ?? "#000000");
     const yPdf = this.alturaPagina - yTopo - tamanho;
-    this.adicionarOperacao(
-      `BT ${fonte} ${numeroPdf(tamanho)} Tf ${numeroPdf(r)} ${numeroPdf(g)} ${numeroPdf(b)} rg 1 0 0 1 ${numeroPdf(x)} ${numeroPdf(yPdf)} Tm ${textoPdf(texto)} Tj ET`,
-    );
+    return `BT ${fonte} ${numeroPdf(tamanho)} Tf ${numeroPdf(r)} ${numeroPdf(g)} ${numeroPdf(b)} rg 1 0 0 1 ${numeroPdf(x)} ${numeroPdf(yPdf)} Tm ${textoPdf(texto)} Tj ET`;
   }
 
   desenharRetangulo(x: number, yTopo: number, largura: number, altura: number, cor: string) {
@@ -545,11 +619,14 @@ export async function gerarArquivo(
   colunas: ColunaRelatorio[],
   linhas: LinhaRelatorio[],
   logos: LogoRelatorio[] = [],
+  totais: TotalRelatorio[] = [],
+  geradoPor: string | null = null,
 ): Promise<Buffer> {
-  // CSV/TXT ficam sem logo de propósito — são formato de texto puro, sem
-  // como embutir imagem (decisão do usuário, issue #376).
-  if (formato === "xlsx") return gerarXlsxBuffer(titulo, colunas, linhas, logos);
-  if (formato === "pdf") return gerarPdfBuffer(titulo, colunas, linhas, logos);
+  // CSV/TXT ficam sem logo/totais/rodapé de propósito — são formato de
+  // texto puro pra importar em outro sistema, não pra leitura humana
+  // (mesma decisão já tomada pro logo na issue #376).
+  if (formato === "xlsx") return gerarXlsxBuffer(titulo, colunas, linhas, logos, totais, geradoPor);
+  if (formato === "pdf") return gerarPdfBuffer(titulo, colunas, linhas, logos, totais, geradoPor);
   if (formato === "csv") return Buffer.from(gerarCsv(colunas, linhas), "utf-8");
   return Buffer.from(gerarTxt(colunas, linhas), "utf-8");
 }

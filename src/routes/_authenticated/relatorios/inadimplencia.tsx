@@ -237,6 +237,7 @@ function InadimplenciaDetalhada() {
             titulo="Inadimplência Detalhada"
             colunas={COLUNAS}
             linhas={linhasExportacao}
+            totais={[{ rotulo: "Total em atraso (atualizado)", valor: totalAtualizado }]}
           />
         }
       />

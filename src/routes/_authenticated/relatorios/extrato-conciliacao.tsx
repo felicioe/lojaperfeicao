@@ -132,6 +132,10 @@ function ExtratoConciliacao() {
               titulo="Extrato da Conciliação"
               colunas={COLUNAS}
               linhas={linhasExportacao}
+              totais={[
+                { rotulo: "Conciliado", valor: totalConciliado },
+                { rotulo: "Pendente", valor: totalPendente },
+              ]}
             />
           )
         }

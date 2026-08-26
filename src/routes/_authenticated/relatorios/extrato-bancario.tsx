@@ -137,6 +137,16 @@ function ExtratoBancario() {
               titulo="Extrato Bancário"
               colunas={COLUNAS}
               linhas={linhasExportacao}
+              totais={
+                saldoFinal !== null && saldoInicial !== null
+                  ? [
+                      { rotulo: "Saldo inicial", valor: saldoInicial },
+                      { rotulo: "Entradas", valor: totalEntradas },
+                      { rotulo: "Saídas", valor: totalSaidas },
+                      { rotulo: "Saldo final", valor: saldoFinal },
+                    ]
+                  : undefined
+              }
             />
           )
         }

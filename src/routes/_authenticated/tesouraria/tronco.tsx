@@ -118,6 +118,12 @@ function Tronco() {
                 titulo="Relatório do Tronco de Beneficência"
                 colunas={COLUNAS_TRONCO}
                 linhas={linhasExportacao}
+                totais={[
+                  { rotulo: "Saldo inicial", valor: resumo.saldoInicial },
+                  { rotulo: "Entradas", valor: resumo.entradas },
+                  { rotulo: "Saídas", valor: resumo.saidas },
+                  { rotulo: "Saldo atual", valor: resumo.saldoAtual },
+                ]}
                 permitirImpressao
                 permitirWhatsapp
                 resumoCompartilhamento={`Saldo atual: ${brl(resumo.saldoAtual)} · Entradas: ${brl(resumo.entradas)} · Saídas: ${brl(resumo.saidas)}`}

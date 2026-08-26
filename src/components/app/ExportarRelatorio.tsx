@@ -30,7 +30,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/lib/auth-hooks";
 import { gerarArquivoRelatorio, enviarRelatorioPorEmail } from "@/lib/backend/relatorio-exportacao";
-import type { ColunaRelatorio, FormatoRelatorio, LinhaRelatorio } from "@/lib/relatorio-export";
+import type {
+  ColunaRelatorio,
+  FormatoRelatorio,
+  LinhaRelatorio,
+  TotalRelatorio,
+} from "@/lib/relatorio-export";
 
 const FORMATO_LABEL: Record<FormatoRelatorio, string> = {
   xlsx: "Excel (.xlsx)",
@@ -59,6 +64,7 @@ export function ExportarRelatorio({
   titulo,
   colunas,
   linhas,
+  totais,
   permitirImpressao = false,
   permitirWhatsapp = false,
   resumoCompartilhamento,
@@ -66,6 +72,7 @@ export function ExportarRelatorio({
   titulo: string;
   colunas: ColunaRelatorio[];
   linhas: LinhaRelatorio[];
+  totais?: TotalRelatorio[];
   permitirImpressao?: boolean;
   permitirWhatsapp?: boolean;
   resumoCompartilhamento?: string;
@@ -81,7 +88,7 @@ export function ExportarRelatorio({
     setExportando(formato);
     try {
       const resultado = await gerarArquivoRelatorio({
-        data: { formato, titulo, colunas, linhas },
+        data: { formato, titulo, colunas, linhas, totais },
       });
       baixarBlob(base64ParaBlob(resultado.base64, resultado.mimeType), resultado.nomeArquivo);
     } catch (err) {
@@ -105,7 +112,7 @@ export function ExportarRelatorio({
     setEnviando(true);
     try {
       const resultado = await enviarRelatorioPorEmail({
-        data: { formato: formatoEmail, titulo, colunas, linhas, destinatarios: lista },
+        data: { formato: formatoEmail, titulo, colunas, linhas, totais, destinatarios: lista },
       });
       const falhas = resultado.filter((r) => !r.sucesso);
       if (falhas.length === 0) {
