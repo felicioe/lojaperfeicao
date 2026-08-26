@@ -523,11 +523,29 @@ export type LogoInstitucional = { nome: string; logoUrl: string };
 // Extraído de listarLogosInstitucionais pra ser reaproveitado por
 // relatorio-exportacao.ts (issue #376) — os relatórios exportados também
 // precisam dos logos, mas rodam dentro de comPapel, não comSessao.
+//
+// Cada tabela é tentada isoladamente: um ambiente com uma migração de
+// schema atrasada (já aconteceu — potencias.logo_url só chegou na 0118b)
+// não pode derrubar TODO relatório exportado do sistema por causa de um
+// SELECT de logo. Falha numa tabela vira "sem logo dessa fonte", não erro
+// pro usuário — mas fica no log do servidor pra não passar despercebido.
+async function consultarLogos(conn: PoolConnection, sql: string): Promise<RowDataPacket[]> {
+  try {
+    const [rows] = await conn.query<RowDataPacket[]>(sql);
+    return rows;
+  } catch (erro) {
+    console.error("[obterLogosInstitucionais] falha ao consultar logos:", erro);
+    return [];
+  }
+}
+
 export async function obterLogosInstitucionais(conn: PoolConnection): Promise<LogoInstitucional[]> {
-  const [orgs] = await conn.query<RowDataPacket[]>(
+  const orgs = await consultarLogos(
+    conn,
     "SELECT nome, logo_url FROM orgs WHERE loja_id = @current_loja_id AND ativo = TRUE AND logo_url IS NOT NULL ORDER BY nome",
   );
-  const [potencias] = await conn.query<RowDataPacket[]>(
+  const potencias = await consultarLogos(
+    conn,
     "SELECT nome, logo_url FROM potencias WHERE loja_id = @current_loja_id AND ativo = TRUE AND logo_url IS NOT NULL ORDER BY nome",
   );
   return [...orgs, ...potencias].map((r) => ({
