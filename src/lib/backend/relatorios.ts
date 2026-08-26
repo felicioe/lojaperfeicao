@@ -438,14 +438,22 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
   .validator((d: unknown) => filtroExtratoIrmaoSchema.parse(d))
   .handler(async ({ data }): Promise<ItemExtratoIrmao[]> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+      // Filtra por vencimento (com fallback pra emissão nos lançamentos sem
+      // vencimento formal — saída/estorno/transferência), não por emissão:
+      // a tela inteira é organizada em torno de vencimento (ordenação
+      // padrão, "Atrasado"/"A vencer", cards de total), então "De"/"Até"
+      // filtrando por outra coisa surpreendia o usuário — um "Até" sem
+      // "De" cortava faturas com vencimento dentro do período mas emitidas
+      // antes dele (achado do usuário). Mesmo padrão já usado no extrato
+      // SGCAB logo abaixo (COALESCE(sf.vencimento, DATE(sf.criado_em))).
       const condicoes = ["l.irmao_id = ?"];
       const valores: unknown[] = [data.irmaoId];
       if (data.de) {
-        condicoes.push("l.data >= ?");
+        condicoes.push("COALESCE(l.data_vencimento, l.data) >= ?");
         valores.push(data.de);
       }
       if (data.ate) {
-        condicoes.push("l.data <= ?");
+        condicoes.push("COALESCE(l.data_vencimento, l.data) <= ?");
         valores.push(data.ate);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
