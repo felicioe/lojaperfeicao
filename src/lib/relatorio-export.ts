@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { deflateSync, inflateSync } from "node:zlib";
 
 // Gerador de arquivo compartilhado (issue #111) — server-only apesar de
 // não importar db.ts: `exceljs` é pesado e orientado a Node, então segue
@@ -9,6 +10,7 @@ import ExcelJS from "exceljs";
 export type ColunaRelatorio = { chave: string; titulo: string };
 export type LinhaRelatorio = Record<string, string | number | null>;
 export type FormatoRelatorio = "xlsx" | "pdf" | "csv" | "txt";
+export type LogoRelatorio = { nome: string; logoUrl: string };
 
 export function mimeTypePara(formato: FormatoRelatorio): string {
   if (formato === "xlsx")
@@ -22,19 +24,58 @@ export function extensaoPara(formato: FormatoRelatorio): string {
   return formato;
 }
 
+// Extensão que o ExcelJS aceita pro par de formatos que os uploads de logo
+// (SGCAB, irmão, org/potência — issues #371-#375) permitem gravar.
+function extensaoImagemDe(dataUrl: string): "png" | "jpeg" | null {
+  const match = dataUrl.match(/^data:image\/(png|jpeg|jpg);base64,/i);
+  if (!match) return null;
+  return /^png$/i.test(match[1]) ? "png" : "jpeg";
+}
+
 export async function gerarXlsxBuffer(
   titulo: string,
   colunas: ColunaRelatorio[],
   linhas: LinhaRelatorio[],
+  logos: LogoRelatorio[] = [],
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const planilha = workbook.addWorksheet(titulo.slice(0, 31) || "Relatório");
+  // Sem `header` aqui de propósito: com logo, o título das colunas não vai
+  // necessariamente na linha 1 (issue #376) — a linha certa é escrita
+  // manualmente abaixo, e addRow() já roteia pelos `key` independente disso.
   planilha.columns = colunas.map((c) => ({
-    header: c.titulo,
     key: c.chave,
     width: Math.max(c.titulo.length + 2, 14),
   }));
-  planilha.getRow(1).font = { bold: true };
+
+  let linhaCabecalho = 1;
+  if (logos.length > 0) {
+    planilha.getRow(1).height = 50;
+    let colOffset = 0;
+    for (const logo of logos) {
+      const extensao = extensaoImagemDe(logo.logoUrl);
+      if (!extensao) continue;
+      try {
+        const imageId = workbook.addImage({ base64: logo.logoUrl, extension: extensao });
+        planilha.addImage(imageId, {
+          tl: { col: colOffset, row: 0 },
+          ext: { width: 48, height: 48 },
+        });
+      } catch {
+        // Logo num formato/tamanho que o ExcelJS não consegue embutir —
+        // não impede o resto do relatório de sair.
+      }
+      colOffset += 1;
+    }
+    linhaCabecalho = 2;
+  }
+
+  const linhaTitulos = planilha.getRow(linhaCabecalho);
+  colunas.forEach((c, indice) => {
+    linhaTitulos.getCell(indice + 1).value = c.titulo;
+  });
+  linhaTitulos.font = { bold: true };
+
   for (const linha of linhas) planilha.addRow(linha);
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
@@ -44,8 +85,18 @@ export async function gerarPdfBuffer(
   titulo: string,
   colunas: ColunaRelatorio[],
   linhas: LinhaRelatorio[],
+  logos: LogoRelatorio[] = [],
 ): Promise<Buffer> {
   const pdf = new PdfSimplesPaisagem();
+  // Prepara os logos ANTES de desenhar qualquer página — os objetos de
+  // imagem do PDF precisam existir pra entrar no /Resources de cada
+  // página (issue #376). Logo em formato que decodificarPng não suporta
+  // (bit depth != 8, entrelaçado, paleta) volta null e é ignorado, sem
+  // quebrar o resto do relatório.
+  const logosPreparados = logos
+    .map((logo) => pdf.prepararImagem(logo.logoUrl))
+    .filter((r): r is { indice: number; largura: number; altura: number } => r !== null);
+
   const larguraColuna = (pdf.larguraPagina - pdf.margem * 2) / Math.max(colunas.length, 1);
   const caracPorColuna = Math.max(6, Math.floor((larguraColuna - 8) / 4.2));
   const dataGeracao = new Intl.DateTimeFormat("pt-BR", {
@@ -53,9 +104,24 @@ export async function gerarPdfBuffer(
     timeStyle: "short",
   }).format(new Date());
 
+  const ALTURA_LOGO = 28;
+  const GAP_LOGO = 6;
+
   let cursorY = pdf.margem;
 
   const desenharCabecalho = () => {
+    if (logosPreparados.length > 0) {
+      // Alinhados à direita, no topo — não empurra o título/colunas, que
+      // seguem exatamente como antes de existir logo.
+      let xLogo = pdf.larguraPagina - pdf.margem;
+      for (let i = logosPreparados.length - 1; i >= 0; i--) {
+        const logo = logosPreparados[i];
+        const larguraLogo = (logo.largura / logo.altura) * ALTURA_LOGO;
+        xLogo -= larguraLogo;
+        pdf.desenharImagem(logo.indice, xLogo, pdf.margem, larguraLogo, ALTURA_LOGO);
+        xLogo -= GAP_LOGO;
+      }
+    }
     pdf.escreverTexto(titulo, 36, cursorY, {
       fonte: "bold",
       tamanho: 16,
@@ -125,14 +191,51 @@ function truncarTexto(texto: string, maxCaracteres: number): string {
 type FontePdf = "regular" | "bold";
 type OpcaoTextoPdf = { fonte?: FontePdf; tamanho?: number; cor?: string };
 
+type ImagemPreparada = {
+  largura: number;
+  altura: number;
+  grayscale: boolean;
+  dadosComprimidos: Buffer;
+  alfaComprimido: Buffer | null;
+};
+
 class PdfSimplesPaisagem {
   readonly larguraPagina = 841.89;
   readonly alturaPagina = 595.28;
   readonly margem = 36;
   private paginas: string[] = [""];
+  private imagens: ImagemPreparada[] = [];
 
   novaPagina() {
     this.paginas.push("");
+  }
+
+  // Decodifica um PNG (data URL) e registra como imagem embutível — usado
+  // pelos logos institucionais nos relatórios exportados (issue #376).
+  // Retorna null pra qualquer formato/variação não suportada (JPEG, PNG
+  // com paleta, bit depth != 8, entrelaçado) em vez de lançar: um logo que
+  // o decodificador não entende não pode derrubar o relatório inteiro.
+  prepararImagem(dataUrl: string): { indice: number; largura: number; altura: number } | null {
+    const decodificada = decodificarPng(dataUrl);
+    if (!decodificada) return null;
+    this.imagens.push({
+      largura: decodificada.largura,
+      altura: decodificada.altura,
+      grayscale: decodificada.grayscale,
+      dadosComprimidos: deflateSync(decodificada.rgbOuGray),
+      alfaComprimido: decodificada.alfa ? deflateSync(decodificada.alfa) : null,
+    });
+    const indice = this.imagens.length - 1;
+    return { indice, largura: decodificada.largura, altura: decodificada.altura };
+  }
+
+  // x/yTopo/largura/altura na mesma convenção de escreverTexto/desenharRetangulo
+  // (origem no canto superior esquerdo da página).
+  desenharImagem(indice: number, x: number, yTopo: number, largura: number, altura: number) {
+    const yPdf = this.alturaPagina - yTopo - altura;
+    this.adicionarOperacao(
+      `q ${numeroPdf(largura)} 0 0 ${numeroPdf(altura)} ${numeroPdf(x)} ${numeroPdf(yPdf)} cm /Im${indice} Do Q`,
+    );
   }
 
   escreverTexto(texto: string, x: number, yTopo: number, opcoes: OpcaoTextoPdf = {}) {
@@ -158,13 +261,41 @@ class PdfSimplesPaisagem {
     const refsPaginas: number[] = [];
     let proximoObjeto = 5;
 
+    // Objetos de imagem (issue #376) alocados antes das páginas — cada
+    // imagem ocupa 1 objeto XObject, +1 objeto de SMask se tiver alfa. O
+    // /XObject entra no /Resources de TODAS as páginas (mesma lista de
+    // logos aparece no cabeçalho de cada uma), não só das que desenham.
+    const refsImagens = this.imagens.map((imagem) => {
+      const objImagem = proximoObjeto++;
+      const objSmask = imagem.alfaComprimido ? proximoObjeto++ : null;
+      if (objSmask !== null && imagem.alfaComprimido) {
+        objetos[objSmask] = bufferImagemPdf(objSmask, {
+          largura: imagem.largura,
+          altura: imagem.altura,
+          colorSpace: "/DeviceGray",
+          dados: imagem.alfaComprimido,
+          smaskRef: null,
+        });
+      }
+      objetos[objImagem] = bufferImagemPdf(objImagem, {
+        largura: imagem.largura,
+        altura: imagem.altura,
+        colorSpace: imagem.grayscale ? "/DeviceGray" : "/DeviceRGB",
+        dados: imagem.dadosComprimidos,
+        smaskRef: objSmask,
+      });
+      return objImagem;
+    });
+    const xObjectDict = refsImagens.map((ref, indice) => `/Im${indice} ${ref} 0 R`).join(" ");
+    const resources = `<< /Font << /F1 3 0 R /F2 4 0 R >>${xObjectDict ? ` /XObject << ${xObjectDict} >>` : ""} >>`;
+
     this.paginas.forEach((conteudo) => {
       const objPagina = proximoObjeto++;
       const objConteudo = proximoObjeto++;
       refsPaginas.push(objPagina);
       objetos[objPagina] = bufferObjetoPdf(
         objPagina,
-        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${numeroPdf(this.larguraPagina)} ${numeroPdf(this.alturaPagina)}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${objConteudo} 0 R >>`,
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${numeroPdf(this.larguraPagina)} ${numeroPdf(this.alturaPagina)}] /Resources ${resources} /Contents ${objConteudo} 0 R >>`,
       );
       objetos[objConteudo] = bufferStreamPdf(objConteudo, conteudo || " ");
     });
@@ -224,6 +355,142 @@ function bufferStreamPdf(numero: number, conteudo: string): Buffer {
   return Buffer.concat([prefixo, dados, sufixo]);
 }
 
+function bufferImagemPdf(
+  numero: number,
+  opcoes: {
+    largura: number;
+    altura: number;
+    colorSpace: string;
+    dados: Buffer;
+    smaskRef: number | null;
+  },
+): Buffer {
+  const dicionario =
+    `<< /Type /XObject /Subtype /Image /Width ${opcoes.largura} /Height ${opcoes.altura} ` +
+    `/ColorSpace ${opcoes.colorSpace} /BitsPerComponent 8 /Filter /FlateDecode` +
+    `${opcoes.smaskRef !== null ? ` /SMask ${opcoes.smaskRef} 0 R` : ""} /Length ${opcoes.dados.length} >>`;
+  return Buffer.concat([
+    Buffer.from(`${numero} 0 obj\n${dicionario}\nstream\n`, "binary"),
+    opcoes.dados,
+    Buffer.from("\nendstream\nendobj\n", "binary"),
+  ]);
+}
+
+// Decodificador de PNG mínimo pros logos institucionais nos relatórios
+// exportados (issue #376) — sem lib externa, só node:zlib. Cobre o caso
+// comum de logo (8 bits por canal, sem entrelaçamento, grayscale/RGB/RGBA)
+// e devolve null pra qualquer coisa fora disso (paleta, 16 bits,
+// entrelaçado, arquivo corrompido) em vez de lançar — quem chama trata
+// null como "sem logo pra essa entidade", sem derrubar o relatório.
+type ImagemDecodificada = {
+  largura: number;
+  altura: number;
+  grayscale: boolean;
+  rgbOuGray: Buffer;
+  alfa: Buffer | null;
+};
+
+const ASSINATURA_PNG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+function paethPredictor(a: number, b: number, c: number): number {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+}
+
+function decodificarPng(dataUrl: string): ImagemDecodificada | null {
+  try {
+    const match = dataUrl.match(/^data:image\/png;base64,(.+)$/i);
+    if (!match) return null;
+    const arquivo = Buffer.from(match[1], "base64");
+    if (arquivo.length < 8 || !arquivo.subarray(0, 8).equals(ASSINATURA_PNG)) return null;
+
+    let largura = 0;
+    let altura = 0;
+    let bitDepth = 0;
+    let colorType = -1;
+    let interlace = 0;
+    const partesIdat: Buffer[] = [];
+
+    let offset = 8;
+    while (offset + 8 <= arquivo.length) {
+      const tamanho = arquivo.readUInt32BE(offset);
+      const tipo = arquivo.toString("ascii", offset + 4, offset + 8);
+      const dados = arquivo.subarray(offset + 8, offset + 8 + tamanho);
+      if (tipo === "IHDR") {
+        largura = dados.readUInt32BE(0);
+        altura = dados.readUInt32BE(4);
+        bitDepth = dados.readUInt8(8);
+        colorType = dados.readUInt8(9);
+        interlace = dados.readUInt8(12);
+      } else if (tipo === "IDAT") {
+        partesIdat.push(dados);
+      } else if (tipo === "IEND") {
+        break;
+      }
+      offset += 12 + tamanho; // 4 (tamanho) + 4 (tipo) + dados + 4 (CRC)
+    }
+
+    // Só o caso comum de logo: 8 bits, sem entrelaçamento, sem paleta.
+    if (bitDepth !== 8 || interlace !== 0) return null;
+    if (colorType !== 0 && colorType !== 2 && colorType !== 6) return null;
+    if (largura <= 0 || altura <= 0 || largura > 4000 || altura > 4000) return null;
+    if (partesIdat.length === 0) return null;
+
+    const canais = colorType === 0 ? 1 : colorType === 2 ? 3 : 4;
+    const bruto = inflateSync(Buffer.concat(partesIdat));
+    const stride = largura * canais;
+    if (bruto.length < (stride + 1) * altura) return null;
+
+    let linhaAnterior = Buffer.alloc(stride);
+    const saida = Buffer.alloc(stride * altura);
+    let posEntrada = 0;
+
+    for (let y = 0; y < altura; y++) {
+      const tipoFiltro = bruto[posEntrada];
+      posEntrada += 1;
+      const linhaAtual = saida.subarray(y * stride, (y + 1) * stride);
+      for (let x = 0; x < stride; x++) {
+        const brutoX = bruto[posEntrada + x];
+        const esquerda = x >= canais ? linhaAtual[x - canais] : 0;
+        const cima = linhaAnterior[x];
+        const cimaEsquerda = x >= canais ? linhaAnterior[x - canais] : 0;
+        let valor: number;
+        if (tipoFiltro === 0) valor = brutoX;
+        else if (tipoFiltro === 1) valor = brutoX + esquerda;
+        else if (tipoFiltro === 2) valor = brutoX + cima;
+        else if (tipoFiltro === 3) valor = brutoX + Math.floor((esquerda + cima) / 2);
+        else if (tipoFiltro === 4) valor = brutoX + paethPredictor(esquerda, cima, cimaEsquerda);
+        else return null;
+        linhaAtual[x] = valor & 0xff;
+      }
+      posEntrada += stride;
+      linhaAnterior = Buffer.from(linhaAtual);
+    }
+
+    if (colorType === 6) {
+      const totalPixels = largura * altura;
+      const rgb = Buffer.alloc(totalPixels * 3);
+      const alfa = Buffer.alloc(totalPixels);
+      for (let p = 0; p < totalPixels; p++) {
+        rgb[p * 3] = saida[p * 4];
+        rgb[p * 3 + 1] = saida[p * 4 + 1];
+        rgb[p * 3 + 2] = saida[p * 4 + 2];
+        alfa[p] = saida[p * 4 + 3];
+      }
+      return { largura, altura, grayscale: false, rgbOuGray: rgb, alfa };
+    }
+
+    return { largura, altura, grayscale: colorType === 0, rgbOuGray: saida, alfa: null };
+  } catch {
+    return null;
+  }
+}
+
 function textoPdf(texto: string): string {
   const seguro = normalizarTextoPdf(texto);
   return `<${Buffer.from(seguro, "latin1").toString("hex").toUpperCase()}>`;
@@ -277,9 +544,12 @@ export async function gerarArquivo(
   titulo: string,
   colunas: ColunaRelatorio[],
   linhas: LinhaRelatorio[],
+  logos: LogoRelatorio[] = [],
 ): Promise<Buffer> {
-  if (formato === "xlsx") return gerarXlsxBuffer(titulo, colunas, linhas);
-  if (formato === "pdf") return gerarPdfBuffer(titulo, colunas, linhas);
+  // CSV/TXT ficam sem logo de propósito — são formato de texto puro, sem
+  // como embutir imagem (decisão do usuário, issue #376).
+  if (formato === "xlsx") return gerarXlsxBuffer(titulo, colunas, linhas, logos);
+  if (formato === "pdf") return gerarPdfBuffer(titulo, colunas, linhas, logos);
   if (formato === "csv") return Buffer.from(gerarCsv(colunas, linhas), "utf-8");
   return Buffer.from(gerarTxt(colunas, linhas), "utf-8");
 }

@@ -22,9 +22,17 @@ const baseSchema = z.object({
 export const gerarArquivoRelatorio = createServerFn({ method: "POST" })
   .validator((d: unknown) => baseSchema.parse(d))
   .handler(async ({ data }): Promise<{ base64: string; nomeArquivo: string; mimeType: string }> => {
-    return comPapel(PAPEIS, async () => {
+    return comPapel(PAPEIS, async (conn) => {
       const { gerarArquivo, mimeTypePara, extensaoPara } = await import("../relatorio-export");
-      const buffer = await gerarArquivo(data.formato, data.titulo, data.colunas, data.linhas);
+      const { obterLogosInstitucionais } = await import("./orgs");
+      const logos = await obterLogosInstitucionais(conn);
+      const buffer = await gerarArquivo(
+        data.formato,
+        data.titulo,
+        data.colunas,
+        data.linhas,
+        logos,
+      );
       return {
         base64: buffer.toString("base64"),
         nomeArquivo: `${data.titulo}.${extensaoPara(data.formato)}`,
@@ -45,10 +53,18 @@ export const enviarRelatorioPorEmail = createServerFn({ method: "POST" })
   // `erro` acompanha o resultado para a tela poder dizer POR QUE falhou.
   .handler(
     async ({ data }): Promise<{ destinatario: string; sucesso: boolean; erro?: string }[]> => {
-      return comPapel(PAPEIS, async (_conn, _usuarioId, lojaId) => {
+      return comPapel(PAPEIS, async (conn, _usuarioId, lojaId) => {
         const { gerarArquivo, mimeTypePara, extensaoPara } = await import("../relatorio-export");
         const { enviarArquivoPorEmail } = await import("../email-dispatch");
-        const buffer = await gerarArquivo(data.formato, data.titulo, data.colunas, data.linhas);
+        const { obterLogosInstitucionais } = await import("./orgs");
+        const logos = await obterLogosInstitucionais(conn);
+        const buffer = await gerarArquivo(
+          data.formato,
+          data.titulo,
+          data.colunas,
+          data.linhas,
+          logos,
+        );
         return enviarArquivoPorEmail({
           lojaId,
           destinatarios: data.destinatarios,

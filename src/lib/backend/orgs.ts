@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
+import type { PoolConnection } from "mysql2/promise";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
@@ -519,22 +520,27 @@ export const uploadLogoPotencia = createServerFn({ method: "POST" })
 
 export type LogoInstitucional = { nome: string; logoUrl: string };
 
+// Extraído de listarLogosInstitucionais pra ser reaproveitado por
+// relatorio-exportacao.ts (issue #376) — os relatórios exportados também
+// precisam dos logos, mas rodam dentro de comPapel, não comSessao.
+export async function obterLogosInstitucionais(conn: PoolConnection): Promise<LogoInstitucional[]> {
+  const [orgs] = await conn.query<RowDataPacket[]>(
+    "SELECT nome, logo_url FROM orgs WHERE loja_id = @current_loja_id AND ativo = TRUE AND logo_url IS NOT NULL ORDER BY nome",
+  );
+  const [potencias] = await conn.query<RowDataPacket[]>(
+    "SELECT nome, logo_url FROM potencias WHERE loja_id = @current_loja_id AND ativo = TRUE AND logo_url IS NOT NULL ORDER BY nome",
+  );
+  return [...orgs, ...potencias].map((r) => ({
+    nome: r.nome as string,
+    logoUrl: r.logo_url as string,
+  }));
+}
+
 // Cabeçalho institucional (issue #340): toda entidade da Loja com logo
 // cadastrado — Orgs (corpos maçônicos) e Potências — em vez dos 3 arquivos
 // fixos que existiam antes (uma Loja específica, hardcoded no componente).
 export const listarLogosInstitucionais = createServerFn({ method: "GET" }).handler(
   async (): Promise<LogoInstitucional[]> => {
-    return comSessao(async (conn) => {
-      const [orgs] = await conn.query<RowDataPacket[]>(
-        "SELECT nome, logo_url FROM orgs WHERE loja_id = @current_loja_id AND ativo = TRUE AND logo_url IS NOT NULL ORDER BY nome",
-      );
-      const [potencias] = await conn.query<RowDataPacket[]>(
-        "SELECT nome, logo_url FROM potencias WHERE loja_id = @current_loja_id AND ativo = TRUE AND logo_url IS NOT NULL ORDER BY nome",
-      );
-      return [...orgs, ...potencias].map((r) => ({
-        nome: r.nome as string,
-        logoUrl: r.logo_url as string,
-      }));
-    });
+    return comSessao(async (conn) => obterLogosInstitucionais(conn));
   },
 );
