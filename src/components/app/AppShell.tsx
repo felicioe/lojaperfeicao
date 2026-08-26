@@ -395,6 +395,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
         { to: "/documentos", label: "Legislação", icon: Scale, show: true },
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
+        {
+          to: "/agenda-publica",
+          label: "Agenda Pública",
+          icon: CalendarPlus,
+          show: can.isSuperAdmin,
+        },
       ],
     },
     {
