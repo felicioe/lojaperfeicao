@@ -10,6 +10,7 @@ import { tratarCallbackGoogle } from "./lib/google-oauth-callback";
 import { tratarCallbackFacebook } from "./lib/facebook-oauth-callback";
 import { executarLembretesFaturas, processarFilaEmails } from "./lib/email-dispatch";
 import { carregarAgendaPublica } from "./lib/agenda-publica";
+import { carregarNoticiasPublicas } from "./lib/noticias-publica";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -235,6 +236,30 @@ async function tratarAgendaPublica(request: Request): Promise<Response | null> {
   }
 }
 
+async function tratarNoticiasPublicas(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/publico/noticias") return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    const noticias = await carregarNoticiasPublicas();
+    return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), noticias }), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=300, stale-while-revalidate=900",
+        "access-control-allow-origin": "https://associacaoadonhiramita.org",
+        "x-content-type-options": "nosniff",
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: "Notícias temporariamente indisponíveis." }), {
+      status: 503,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
+}
+
 // Callback OAuth do Google — GET puro feito pelo navegador (redirect do
 // Google), não pelo `fetch` da aplicação, então precisa ser um endpoint
 // bruto fora do roteador do TanStack Start, mesmo motivo dos crons acima.
@@ -271,6 +296,9 @@ export default {
 
       const agendaResponse = await tratarAgendaPublica(request);
       if (agendaResponse) return agendaResponse;
+
+      const noticiasResponse = await tratarNoticiasPublicas(request);
+      if (noticiasResponse) return noticiasResponse;
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
       if (googleResponse) return googleResponse;
