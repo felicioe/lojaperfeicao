@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
@@ -384,11 +382,14 @@ export const listarOrgsGraus = createServerFn({ method: "GET" })
 export const gerarGrausPadraoOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ orgId: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<number> => {
-    return comSessao(async (conn) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn) => {
       // A procedure (0002) não conhece loja: ela lê grau_min/grau_max do org e
       // insere em orgs_graus sem filtro nenhum. Reescrevê-la é a issue #349;
       // até lá, a garantia é esta — o org precisa ser desta Loja, e como a
       // procedure só age sobre esse org, o resultado fica dentro do escopo.
+      // comPapel (não comSessao): é uma inserção em massa em orgs_graus, mesma
+      // tabela que as outras escritas abaixo (criarOrgGrau etc.) exigem
+      // PAPEIS_ESCRITA pra tocar — achado da auditoria de autorização, issue #370.
       const [[org]] = await conn.query<RowDataPacket[]>(
         "SELECT id FROM orgs WHERE id = ? AND loja_id = @current_loja_id",
         [data.orgId],
@@ -462,16 +463,21 @@ export const removerOrgGrau = createServerFn({ method: "POST" })
     });
   });
 
-// Mesmo padrão de uploadFotoIrmao (irmaos.ts): só grava o arquivo em
-// public/uploads/ e devolve a URL — persistir em orgs.logo_url/potencias.logo_url
-// continua exigindo o "Salvar alterações" (salvarOrg/salvarPotencia).
+// Guarda o logo como data URL direto na coluna (orgs.logo_url/
+// potencias.logo_url são MEDIUMTEXT, migração 0118) em vez de gravar em
+// disco — public/uploads/ não é versionado no git e não sobrevive a um
+// novo deploy da Hostinger (git clone + build do zero), o que deixava o
+// logo quebrado assim que a aplicação era reimplantada depois do upload
+// (mesma classe de bug do QR Code Pix, migração 0108). Só devolve o data
+// URL — persistir em orgs.logo_url/potencias.logo_url continua exigindo o
+// "Salvar alterações" (salvarOrg/salvarPotencia).
 //
 // Validação de tipo/tamanho no servidor (achado da revisão da issue #340):
 // uploadLogoOrg não tinha, diferente do padrão pós-#154 (uploadComprovanteSgcab)
 // — o atributo accept="image/*" do <input> no cliente é só cosmético.
 const TAMANHO_MAXIMO_LOGO_BYTES = 5 * 1024 * 1024; // 5 MB — é logo, não anexo
 
-function decodificarImagemUpload(dataUrl: string): Buffer {
+function validarImagemUpload(dataUrl: string): void {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) throw new Error("Arquivo inválido.");
   if (!match[1].startsWith("image/")) {
@@ -481,26 +487,10 @@ function decodificarImagemUpload(dataUrl: string): Buffer {
   if (buffer.byteLength > TAMANHO_MAXIMO_LOGO_BYTES) {
     throw new Error("Arquivo maior que o limite de 5 MB.");
   }
-  return buffer;
-}
-
-async function salvarImagemEmDisco(
-  recurso: string,
-  id: string,
-  nomeArquivo: string,
-  buffer: Buffer,
-): Promise<string> {
-  const nomeSeguro = nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const dir = join(process.cwd(), "public", "uploads", recurso, id);
-  await mkdir(dir, { recursive: true });
-  const nomeArquivoFinal = `${Date.now()}-${nomeSeguro}`;
-  await writeFile(join(dir, nomeArquivoFinal), buffer);
-  return `/uploads/${recurso}/${id}/${nomeArquivoFinal}`;
 }
 
 const uploadLogoSchema = z.object({
   orgId: z.string().uuid(),
-  nomeArquivo: z.string().min(1),
   dataUrl: z.string().startsWith("data:"),
 });
 
@@ -508,15 +498,13 @@ export const uploadLogoOrg = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadLogoSchema.parse(d))
   .handler(async ({ data }): Promise<{ url: string }> => {
     return comPapel(PAPEIS_ESCRITA, async () => {
-      const buffer = decodificarImagemUpload(data.dataUrl);
-      const url = await salvarImagemEmDisco("orgs", data.orgId, data.nomeArquivo, buffer);
-      return { url };
+      validarImagemUpload(data.dataUrl);
+      return { url: data.dataUrl };
     });
   });
 
 const uploadLogoPotenciaSchema = z.object({
   potenciaId: z.string().uuid(),
-  nomeArquivo: z.string().min(1),
   dataUrl: z.string().startsWith("data:"),
 });
 
@@ -524,9 +512,8 @@ export const uploadLogoPotencia = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadLogoPotenciaSchema.parse(d))
   .handler(async ({ data }): Promise<{ url: string }> => {
     return comPapel(PAPEIS_ESCRITA, async () => {
-      const buffer = decodificarImagemUpload(data.dataUrl);
-      const url = await salvarImagemEmDisco("potencias", data.potenciaId, data.nomeArquivo, buffer);
-      return { url };
+      validarImagemUpload(data.dataUrl);
+      return { url: data.dataUrl };
     });
   });
 
