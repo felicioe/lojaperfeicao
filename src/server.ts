@@ -10,6 +10,7 @@ import { executarLembretesFaturas, processarFilaEmails } from "./lib/email-dispa
 import { carregarAgendaPublica } from "./lib/agenda-publica";
 import { carregarNoticiasPublicas } from "./lib/noticias-publica";
 import { listarPaginasPublicas, carregarPaginaPublicaPorSlug } from "./lib/paginas-site-publica";
+import { carregarMenuPublico } from "./lib/menu-site-publica";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -263,6 +264,28 @@ async function tratarPaginasSitePublicas(request: Request): Promise<Response | n
   }
 }
 
+async function tratarMenuSitePublico(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/publico/menu") return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    const menu = await carregarMenuPublico();
+    return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), menu }), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        ...CORS_HEADERS_PORTAL_PUBLICO,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: "Menu temporariamente indisponível." }), {
+      status: 503,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
+}
+
 // Callback OAuth do Google — GET puro feito pelo navegador (redirect do
 // Google), não pelo `fetch` da aplicação, então precisa ser um endpoint
 // bruto fora do roteador do TanStack Start, mesmo motivo dos crons acima.
@@ -302,6 +325,9 @@ export default {
 
       const paginasSiteResponse = await tratarPaginasSitePublicas(request);
       if (paginasSiteResponse) return paginasSiteResponse;
+
+      const menuSiteResponse = await tratarMenuSitePublico(request);
+      if (menuSiteResponse) return menuSiteResponse;
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
       if (googleResponse) return googleResponse;
