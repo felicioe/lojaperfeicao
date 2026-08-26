@@ -554,7 +554,7 @@ function AtualizarStatusDialog({ fatura, onDone }: { fatura: SgcabFatura; onDone
       reader.readAsDataURL(file);
     });
     const r = await uploadComprovanteSgcab({
-      data: { cobrancaId: fatura.id, nomeArquivo: file.name, dataUrl },
+      data: { cobrancaId: fatura.id, dataUrl },
     });
     setComprovanteUrl(r.url);
   };

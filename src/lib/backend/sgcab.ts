@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
@@ -452,20 +450,21 @@ export const atualizarFaturaSgcab = createServerFn({ method: "POST" })
     });
   });
 
-// Upload de comprovante: mesmo padrão de uploadFotoIrmao (irmaos.ts) — sem
-// Supabase Storage, grava em disco sob public/uploads e devolve a URL
-// pública relativa.
+// Upload de comprovante: guarda a imagem/PDF como data URL direto na coluna
+// (comprovante_url é MEDIUMTEXT, migração 0115) em vez de gravar em disco —
+// public/uploads/ não é versionado no git e não sobrevive a um novo deploy
+// da Hostinger (git clone + build do zero), o que deixava o link do
+// comprovante quebrado assim que a aplicação era reimplantada depois do
+// upload (mesma classe de bug do QR Code Pix, migração 0108).
 const uploadComprovanteSchema = z.object({
   cobrancaId: z.string().uuid(),
-  nomeArquivo: z.string().min(1),
   dataUrl: z.string().startsWith("data:"),
 });
 
-// O atributo accept="image/*,application/pdf" do <input> no cliente
-// (sgcab/cobrancas.tsx) é só cosmético — a validação real de tipo/tamanho
-// tem que acontecer aqui, senão qualquer arquivo de qualquer tamanho pode
-// ser gravado no servidor por quem chamar a função direto (achado #154 da
-// revisão de segurança).
+// A validação real de tipo/tamanho tem que acontecer aqui — o atributo
+// accept="image/*,application/pdf" do <input> no cliente (sgcab/cobrancas.tsx)
+// é só cosmético, senão qualquer arquivo de qualquer tamanho poderia ser
+// aceito por quem chamar a função direto (achado #154 da revisão de segurança).
 const TAMANHO_MAXIMO_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export const uploadComprovanteSgcab = createServerFn({ method: "POST" })
@@ -482,11 +481,6 @@ export const uploadComprovanteSgcab = createServerFn({ method: "POST" })
       if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {
         throw new Error("Arquivo maior que o limite de 10 MB.");
       }
-      const nomeSeguro = data.nomeArquivo.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const dir = join(process.cwd(), "public", "uploads", "sgcab", data.cobrancaId);
-      await mkdir(dir, { recursive: true });
-      const nomeArquivoFinal = `${Date.now()}-${nomeSeguro}`;
-      await writeFile(join(dir, nomeArquivoFinal), buffer);
-      return { url: `/uploads/sgcab/${data.cobrancaId}/${nomeArquivoFinal}` };
+      return { url: data.dataUrl };
     });
   });
