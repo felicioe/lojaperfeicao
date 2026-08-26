@@ -88,3 +88,99 @@ export const salvarAgendaPublicaSessao = createServerFn({ method: "POST" })
       );
     });
   });
+
+// Trabalhos (sessao_responsaveis) exibidos por sessão no site público —
+// "GRAU 4 (Mestre Perfeito) Peça de Arq. sobre: ... — Apresentação: Fulano".
+// Nascem do importador de PDF de cronograma (importacao-pdf-sessoes.ts),
+// que não deixa corrigir um nome extraído errado ou um título mal quebrado
+// sem reimportar o PDF inteiro — daqui dá pra editar direto.
+export type TrabalhoSessaoAdmin = {
+  id: string;
+  sessao_id: string;
+  nome_extraido: string;
+  apelido_extraido: string | null;
+  atividade: string | null;
+};
+
+export const listarTrabalhosSessaoAdmin = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ sessaoId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<TrabalhoSessaoAdmin[]> => {
+    return comPapelPortalPublico(async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, sessao_id, nome_extraido, apelido_extraido, atividade
+         FROM sessao_responsaveis
+         WHERE sessao_id = ? AND loja_id = @current_loja_id
+         ORDER BY criado_em`,
+        [data.sessaoId],
+      );
+      return rows as TrabalhoSessaoAdmin[];
+    });
+  });
+
+const trabalhoSchema = z.object({
+  id: z.string().uuid().nullable(),
+  sessaoId: z.string().uuid(),
+  nomeExtraido: z.string().trim().min(1),
+  apelidoExtraido: z.string().trim().nullable(),
+  atividade: z.string().trim().nullable(),
+});
+
+export const salvarTrabalhoSessao = createServerFn({ method: "POST" })
+  .validator((d: unknown) => trabalhoSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapelPortalPublico(async (conn, usuarioIdAtual, lojaId) => {
+      const [[sessao]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM sessoes WHERE id = ? AND loja_id = @current_loja_id",
+        [data.sessaoId],
+      );
+      if (!sessao) throw new Error("Sessão não encontrada nesta Loja.");
+
+      if (data.id) {
+        await conn.query(
+          `UPDATE sessao_responsaveis SET nome_extraido=?, apelido_extraido=?, atividade=?
+           WHERE id=? AND loja_id = @current_loja_id`,
+          [data.nomeExtraido, data.apelidoExtraido, data.atividade, data.id],
+        );
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          "atualizar",
+          "sessao_responsavel",
+          data.id,
+          null,
+          {
+            ...data,
+          },
+        );
+      } else {
+        await conn.query(
+          `INSERT INTO sessao_responsaveis (loja_id, sessao_id, nome_extraido, apelido_extraido, atividade)
+           VALUES (?, ?, ?, ?, ?)`,
+          [lojaId, data.sessaoId, data.nomeExtraido, data.apelidoExtraido, data.atividade],
+        );
+        await registrarAuditoria(conn, usuarioIdAtual, "criar", "sessao_responsavel", null, null, {
+          ...data,
+        });
+      }
+    });
+  });
+
+export const excluirTrabalhoSessao = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapelPortalPublico(async (conn, usuarioIdAtual) => {
+      await conn.query(
+        "DELETE FROM sessao_responsaveis WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "excluir",
+        "sessao_responsavel",
+        data.id,
+        null,
+        null,
+      );
+    });
+  });

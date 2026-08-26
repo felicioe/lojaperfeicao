@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listarNoticias,
@@ -72,6 +72,7 @@ function NoticiasPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState(FORM_VAZIO);
   const [expandido, setExpandido] = useState<string | null>(null);
+  const formularioRef = useRef<HTMLDivElement>(null);
 
   const { data: noticias = [] } = useQuery({
     queryKey: ["noticias_all"],
@@ -100,8 +101,15 @@ function NoticiasPage() {
     }
   };
 
-  const editar = (n: Noticia) =>
+  const editar = (n: Noticia) => {
     setForm({ id: n.id, titulo: n.titulo, resumo: n.resumo ?? "", conteudo: n.conteudo });
+    // Sem isso, editar uma notícia mais abaixo na lista atualiza o
+    // formulário fora da área visível e parece que o clique não fez nada
+    // (achado do usuário testando em produção).
+    requestAnimationFrame(() => {
+      formularioRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   const alternarStatus = async (n: Noticia) => {
     try {
@@ -147,7 +155,7 @@ function NoticiasPage() {
         description="Publicações exibidas no site institucional (associacaoadonhiramita.org)."
       />
 
-      <Card className="mb-4">
+      <Card ref={formularioRef} className="mb-4">
         <CardHeader>
           <CardTitle className="text-base">{form.id ? "Editar notícia" : "Nova notícia"}</CardTitle>
         </CardHeader>

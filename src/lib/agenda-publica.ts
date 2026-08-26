@@ -32,9 +32,14 @@ type LinhaAgenda = RowDataPacket & {
 /**
  * Agenda própria para publicação no portal institucional.
  *
- * A consulta deliberadamente não seleciona nome_civil, nome_extraido nem
- * qualquer outro identificador pessoal. Se o irmão não tiver nome simbólico
- * cadastrado, o trabalho permanece público, mas sem autoria identificada.
+ * A consulta deliberadamente não seleciona nome_civil nem qualquer outro
+ * identificador pessoal. `nome_historico` prioriza
+ * `sessao_responsaveis.apelido_extraido` — o campo que o editor da Agenda
+ * Pública deixa corrigir manualmente — e só cai para o `nome_simbolico` do
+ * irmão vinculado quando ninguém preencheu esse campo; sem essa prioridade,
+ * editar o apelido ali não mudava nada no site (achado do próprio usuário
+ * comparando a tela de edição com o que aparecia publicado). Se nenhum dos
+ * dois existir, o trabalho permanece público, mas sem autoria identificada.
  *
  * `oculto_agenda_publica` (issue #367) deixa a secretaria tirar uma sessão
  * específica do site sem mexer na agenda interna nem apagar o registro.
@@ -47,7 +52,9 @@ export async function carregarAgendaPublica(): Promise<ItemAgendaPublica[]> {
     const [rows] = await conn.query<LinhaAgenda[]>(
       `SELECT s.id, s.data, s.tipo, s.grau,
               og.nome AS nome_grau, o.nome AS corpo, s.observacao_publica,
-              sr.atividade, NULLIF(TRIM(i.nome_simbolico), '') AS nome_historico
+              sr.atividade,
+              COALESCE(NULLIF(TRIM(sr.apelido_extraido), ''), NULLIF(TRIM(i.nome_simbolico), ''))
+                AS nome_historico
        FROM sessoes s
        LEFT JOIN orgs o ON o.id = s.org_id
        LEFT JOIN orgs_graus og ON og.org_id = s.org_id AND og.grau = s.grau
