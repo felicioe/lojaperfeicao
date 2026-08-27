@@ -188,3 +188,15 @@ export async function listarLojasAtivas(): Promise<{ id: string; slug: string; n
     conn.release();
   }
 }
+
+export async function verificarSaudeBanco(): Promise<{ ok: true }> {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.query("SELECT 1 AS ok");
+    return { ok: true };
+  } catch (err) {
+    traduzirErroDeSchema(err);
+  } finally {
+    conn.release();
+  }
+}

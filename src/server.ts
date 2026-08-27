@@ -11,6 +11,7 @@ import { carregarAgendaPublica } from "./lib/agenda-publica";
 import { carregarNoticiasPublicas } from "./lib/noticias-publica";
 import { listarPaginasPublicas, carregarPaginaPublicaPorSlug } from "./lib/paginas-site-publica";
 import { carregarMenuPublico } from "./lib/menu-site-publica";
+import { verificarSaudeBanco } from "./lib/backend/db";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -141,7 +142,7 @@ async function tratarCronLembretesEmail(request: Request): Promise<Response | nu
 }
 
 // Mesmo padrão, para processar fila de emails com retry automático
-// (issue #XXX — fila de envio). CRON @ a cada 2 minutos.
+// (mesma frente da issue #103 — fila de envio). CRON @ a cada 2 minutos.
 async function tratarCronFilaEmails(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== "/api/cron/processar-fila-email") return null;
@@ -286,6 +287,46 @@ async function tratarMenuSitePublico(request: Request): Promise<Response | null>
   }
 }
 
+async function tratarHealthcheck(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/health") return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    await verificarSaudeBanco();
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        service: "lojaperfeicao",
+        checked_at: new Date().toISOString(),
+      }),
+      {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+        },
+      },
+    );
+  } catch (error) {
+    console.error(error);
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        service: "lojaperfeicao",
+        checked_at: new Date().toISOString(),
+        erro: error instanceof Error ? error.message : "Falha interna.",
+      }),
+      {
+        status: 503,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+        },
+      },
+    );
+  }
+}
+
 // Callback OAuth do Google — GET puro feito pelo navegador (redirect do
 // Google), não pelo `fetch` da aplicação, então precisa ser um endpoint
 // bruto fora do roteador do TanStack Start, mesmo motivo dos crons acima.
@@ -328,6 +369,9 @@ export default {
 
       const menuSiteResponse = await tratarMenuSitePublico(request);
       if (menuSiteResponse) return menuSiteResponse;
+
+      const healthResponse = await tratarHealthcheck(request);
+      if (healthResponse) return healthResponse;
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
       if (googleResponse) return googleResponse;
