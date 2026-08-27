@@ -652,7 +652,7 @@ function AgingCard({ query }: { query: ConsultaFaixas }) {
     { label: "Acima de 60 dias", value: query.data?.vencidoAcima60 ?? 0 },
   ];
 
-  return (
+  const conteudo = (
     <Card className="h-full">
       <CardContent className="flex h-full flex-col p-0">
         {query.isPending ? (
@@ -702,17 +702,25 @@ function AgingCard({ query }: { query: ConsultaFaixas }) {
               ))}
             </div>
             <div className="border-t px-3.5 py-2 sm:px-4">
-              <Link
-                to="/relatorios/inadimplencia"
-                className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline sm:min-h-9"
-              >
+              <div className="inline-flex min-h-11 items-center gap-1 text-xs font-medium text-primary sm:min-h-9">
                 Ver valores vencidos <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
+              </div>
             </div>
           </>
         )}
       </CardContent>
     </Card>
+  );
+
+  return !query.isPending && !query.isError ? (
+    <Link
+      to="/relatorios/inadimplencia"
+      className="block rounded-xl transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {conteudo}
+    </Link>
+  ) : (
+    conteudo
   );
 }
 

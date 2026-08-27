@@ -28,6 +28,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useSession } from "@/lib/auth-hooks";
 import { gerarArquivoRelatorio, enviarRelatorioPorEmail } from "@/lib/backend/relatorio-exportacao";
 import type {
@@ -210,15 +217,15 @@ export function ExportarRelatorio({
             </div>
             <div>
               <Label htmlFor="exportar-formato-email">Formato do anexo</Label>
-              <select
-                id="exportar-formato-email"
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={formatoEmail}
-                onChange={(e) => setFormatoEmail(e.target.value as "xlsx" | "pdf")}
-              >
-                <option value="xlsx">Excel (.xlsx)</option>
-                <option value="pdf">PDF (.pdf)</option>
-              </select>
+              <Select value={formatoEmail} onValueChange={(value) => setFormatoEmail(value as "xlsx" | "pdf")}>
+                <SelectTrigger id="exportar-formato-email" className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
+                  <SelectItem value="pdf">PDF (.pdf)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

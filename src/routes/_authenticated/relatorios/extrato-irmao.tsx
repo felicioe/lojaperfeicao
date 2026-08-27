@@ -275,7 +275,7 @@ function ExtratoIrmao() {
                 </div>
               )}
             </Card>
-            <Card className="p-4 bg-muted/25">
+            <Card className="p-4">
               <div className="text-sm text-muted-foreground">Visão global — total devido</div>
               <div className="text-2xl font-semibold">{brl(totalGeralDevido)}</div>
               <div className="text-xs text-muted-foreground">
