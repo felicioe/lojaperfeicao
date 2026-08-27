@@ -1,5 +1,8 @@
 import "./lib/error-capture";
 
+import defaultServerEntry, { createServerEntry } from "@tanstack/react-start/server-entry";
+export * from "@tanstack/react-start/server";
+
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { executarDisparoNotificacoes } from "./lib/push-dispatch";
@@ -14,19 +17,9 @@ import { carregarMenuPublico } from "./lib/menu-site-publica";
 import { verificarSaudeBanco } from "./lib/backend/db";
 
 type ServerEntry = {
-  fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
+  fetch: (request: Request, opts?: unknown) => Promise<Response> | Response;
 };
-
-let serverEntryPromise: Promise<ServerEntry> | undefined;
-
-async function getServerEntry(): Promise<ServerEntry> {
-  if (!serverEntryPromise) {
-    serverEntryPromise = import("@tanstack/react-start/server-entry").then(
-      (m) => (m.default ?? m) as ServerEntry,
-    );
-  }
-  return serverEntryPromise;
-}
+const serverEntry = defaultServerEntry as ServerEntry;
 
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
@@ -343,8 +336,8 @@ async function tratarCallbackFacebookOuNull(request: Request): Promise<Response 
   return tratarCallbackFacebook(request);
 }
 
-export default {
-  async fetch(request: Request, env: unknown, ctx: unknown) {
+export default createServerEntry({
+  async fetch(request: Request, opts?: unknown) {
     try {
       const cronResponse = await tratarCronNotificacoes(request);
       if (cronResponse) return cronResponse;
@@ -379,8 +372,7 @@ export default {
       const facebookResponse = await tratarCallbackFacebookOuNull(request);
       if (facebookResponse) return facebookResponse;
 
-      const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
+      const response = await serverEntry.fetch(request, opts);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);
@@ -390,4 +382,4 @@ export default {
       });
     }
   },
-};
+});
