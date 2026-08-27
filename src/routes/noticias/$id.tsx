@@ -19,7 +19,11 @@ export const Route = createFileRoute("/noticias/$id")({
       obterMenuPublicoFn(),
     ]);
     if (noticia.status !== "fulfilled") {
-      return { noticia: null, menu: menu.status === "fulfilled" ? menu.value : [], indisponivel: true };
+      return {
+        noticia: null,
+        menu: menu.status === "fulfilled" ? menu.value : [],
+        indisponivel: true,
+      };
     }
     if (!noticia.value) throw notFound();
     return {
@@ -55,7 +59,7 @@ function NoticiaPublicaPage() {
       </Button>
       {indisponivel || !noticia ? (
         <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-          Esta notÃ­cia estÃ¡ temporariamente indisponÃ­vel. Tente novamente em instantes.
+          Esta notícia está temporariamente indisponível. Tente novamente em instantes.
         </div>
       ) : (
         <>

@@ -217,7 +217,10 @@ export function ExportarRelatorio({
             </div>
             <div>
               <Label htmlFor="exportar-formato-email">Formato do anexo</Label>
-              <Select value={formatoEmail} onValueChange={(value) => setFormatoEmail(value as "xlsx" | "pdf")}>
+              <Select
+                value={formatoEmail}
+                onValueChange={(value) => setFormatoEmail(value as "xlsx" | "pdf")}
+              >
                 <SelectTrigger id="exportar-formato-email" className="mt-1">
                   <SelectValue />
                 </SelectTrigger>

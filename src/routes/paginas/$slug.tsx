@@ -10,7 +10,11 @@ export const Route = createFileRoute("/paginas/$slug")({
       obterMenuPublicoFn(),
     ]);
     if (pagina.status !== "fulfilled") {
-      return { pagina: null, menu: menu.status === "fulfilled" ? menu.value : [], indisponivel: true };
+      return {
+        pagina: null,
+        menu: menu.status === "fulfilled" ? menu.value : [],
+        indisponivel: true,
+      };
     }
     if (!pagina.value) throw notFound();
     return {
@@ -37,7 +41,7 @@ function PaginaPublicaPage() {
     <SiteInstitucionalLayout menuInicial={menu}>
       {indisponivel || !pagina ? (
         <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-          Esta pÃ¡gina estÃ¡ temporariamente indisponÃ­vel. Tente novamente em instantes.
+          Esta página está temporariamente indisponível. Tente novamente em instantes.
         </div>
       ) : (
         <>

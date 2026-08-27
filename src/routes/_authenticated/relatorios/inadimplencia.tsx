@@ -45,13 +45,13 @@ import { gerarArquivoRelatorio } from "@/lib/backend/relatorio-exportacao";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/relatorios/inadimplencia")({
-  head: () => ({ meta: [{ title: "InadimplÃªncia Detalhada â€” GestÃ£o MaÃ§Ã´nica" }] }),
+  head: () => ({ meta: [{ title: "Inadimplência Detalhada — Gestão Maçônica" }] }),
   component: InadimplenciaDetalhada,
 });
 
 const COLUNAS: ColunaRelatorio[] = [
-  { chave: "nome_civil", titulo: "IrmÃ£o" },
-  { chave: "descricao", titulo: "DescriÃ§Ã£o" },
+  { chave: "nome_civil", titulo: "Irmão" },
+  { chave: "descricao", titulo: "Descrição" },
   { chave: "vencimento", titulo: "Vencimento" },
   { chave: "dias_atraso", titulo: "Dias de atraso" },
   { chave: "valor_original", titulo: "Valor original" },
@@ -135,7 +135,7 @@ function InadimplenciaDetalhada() {
       const resultado = await gerarArquivoRelatorio({
         data: {
           formato: "pdf",
-          titulo: "CobranÃ§a â€” Faturas em atraso",
+          titulo: "Cobrança — Faturas em atraso",
           colunas: COLUNAS,
           linhas: linhasCobranca,
         },
@@ -152,7 +152,7 @@ function InadimplenciaDetalhada() {
       setIdsDaPrevia([...selecionados]);
       setPreviewOpen(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar a prÃ©via da cobranÃ§a.");
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar a prévia da cobrança.");
     } finally {
       setGerandoPdf(false);
     }
@@ -166,18 +166,18 @@ function InadimplenciaDetalhada() {
       const sucesso = resultado.filter((r) => r.sucesso).length;
       const idsComFalha = resultado.filter((r) => !r.sucesso).map((r) => r.id);
       if (idsComFalha.length === 0) {
-        toast.success(`CobranÃ§a enviada para ${sucesso} fatura(s).`);
+        toast.success(`Cobrança enviada para ${sucesso} fatura(s).`);
         setSelecionados([]);
         setPreviewOpen(false);
       } else {
         toast.error(
-          `${sucesso} enviada(s), ${idsComFalha.length} falharam. As pendÃªncias com falha continuam selecionadas.`,
+          `${sucesso} enviada(s), ${idsComFalha.length} falharam. As pendências com falha continuam selecionadas.`,
         );
         setSelecionados(idsComFalha);
         setIdsDaPrevia(idsComFalha);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao enviar cobranÃ§a.");
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar cobrança.");
     } finally {
       setEnviando(false);
     }
@@ -199,8 +199,8 @@ function InadimplenciaDetalhada() {
     if (navigator.share && navigator.canShare?.({ files: [arquivo] })) {
       try {
         await navigator.share({
-          title: "CobranÃ§a â€” Faturas em atraso",
-          text: "Segue a cobranÃ§a para conferÃªncia.",
+          title: "Cobrança — Faturas em atraso",
+          text: "Segue a cobrança para conferência.",
           files: [arquivo],
         });
         return;
@@ -235,11 +235,11 @@ function InadimplenciaDetalhada() {
   return (
     <>
       <PageHeader
-        title="RelatÃ³rio de InadimplÃªncia Detalhado"
-        description="IrmÃ£os com faturas vencidas em aberto, com multa/juros calculados atÃ© hoje."
+        title="Relatório de Inadimplência Detalhado"
+        description="Irmãos com faturas vencidas em aberto, com multa/juros calculados até hoje."
         actions={
           <ExportarRelatorio
-            titulo="InadimplÃªncia Detalhada"
+            titulo="Inadimplência Detalhada"
             colunas={COLUNAS}
             linhas={linhasExportacao}
             totais={[{ rotulo: "Total em atraso (atualizado)", valor: totalAtualizado }]}
@@ -250,7 +250,7 @@ function InadimplenciaDetalhada() {
       <Card className="mb-4 grid gap-3 p-4 md:grid-cols-3">
         <div>
           <Label className="text-xs" htmlFor="inadimplencia-irmao">
-            IrmÃ£o
+            Irmão
           </Label>
           <Select value={irmaoId} onValueChange={setIrmaoId}>
             <SelectTrigger id="inadimplencia-irmao">
@@ -279,7 +279,7 @@ function InadimplenciaDetalhada() {
         </div>
         <div>
           <Label className="text-xs" htmlFor="inadimplencia-vencimento-ate">
-            Vencimento atÃ©
+            Vencimento até
           </Label>
           <Input
             id="inadimplencia-vencimento-ate"
@@ -320,7 +320,7 @@ function InadimplenciaDetalhada() {
               ) : (
                 <FileText className="mr-1 h-3.5 w-3.5" />
               )}
-              Gerar e visualizar cobranÃ§a ({selecionados.length})
+              Gerar e visualizar cobrança ({selecionados.length})
             </Button>
           )}
         </Card>
@@ -333,10 +333,10 @@ function InadimplenciaDetalhada() {
               <TableRow>
                 <TableHead></TableHead>
                 <TableHeadOrdenavel campo="irmao" ord={ord}>
-                  IrmÃ£o
+                  Irmão
                 </TableHeadOrdenavel>
                 <TableHeadOrdenavel campo="descricao" ord={ord}>
-                  DescriÃ§Ã£o
+                  Descrição
                 </TableHeadOrdenavel>
                 <TableHeadOrdenavel campo="vencimento" ord={ord}>
                   Vencimento
@@ -362,7 +362,7 @@ function InadimplenciaDetalhada() {
               {isError && (
                 <TableRow>
                   <TableCell colSpan={9} className="py-6 text-center text-destructive">
-                    Erro ao carregar o relatÃ³rio. Tente novamente.
+                    Erro ao carregar o relatório. Tente novamente.
                   </TableCell>
                 </TableRow>
               )}
@@ -416,10 +416,10 @@ function InadimplenciaDetalhada() {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-4 py-4 sm:px-5">
-            <DialogTitle>PrÃ©via da cobranÃ§a</DialogTitle>
+            <DialogTitle>Prévia da cobrança</DialogTitle>
             <DialogDescription>
-              Confira o PDF antes de baixar, compartilhar ou enviar. Cada irmÃ£o receberÃ¡ somente a
-              cobranÃ§a das prÃ³prias faturas.
+              Confira o PDF antes de baixar, compartilhar ou enviar. Cada irmão receberá somente a
+              cobrança das próprias faturas.
             </DialogDescription>
           </DialogHeader>
 
@@ -428,11 +428,13 @@ function InadimplenciaDetalhada() {
               <div className="space-y-3">
                 <iframe
                   src={pdfUrl}
-                  title="PrÃ©via em PDF da cobranÃ§a"
+                  title="Prévia em PDF da cobrança"
                   className="h-[56dvh] min-h-80 w-full rounded-lg border bg-background"
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 text-xs text-muted-foreground">
-                  <span>No celular ou em navegadores com bloqueio de preview, abra o PDF em nova aba.</span>
+                  <span>
+                    No celular ou em navegadores com bloqueio de preview, abra o PDF em nova aba.
+                  </span>
                   <Button type="button" variant="outline" size="sm" onClick={abrirPdfEmNovaAba}>
                     Abrir em nova aba
                   </Button>
@@ -440,7 +442,7 @@ function InadimplenciaDetalhada() {
               </div>
             ) : (
               <div className="flex h-[56dvh] min-h-80 items-center justify-center rounded-lg border bg-background text-sm text-muted-foreground">
-                A prÃ©via do PDF nÃ£o estÃ¡ disponÃ­vel.
+                A prévia do PDF não está disponível.
               </div>
             )}
           </div>
@@ -458,7 +460,7 @@ function InadimplenciaDetalhada() {
               ) : (
                 <Mail aria-hidden="true" />
               )}
-              {enviando ? "Enviandoâ€¦" : "Enviar por e-mail"}
+              {enviando ? "Enviando⬦" : "Enviar por e-mail"}
             </Button>
           </DialogFooter>
         </DialogContent>

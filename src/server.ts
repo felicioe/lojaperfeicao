@@ -252,9 +252,8 @@ async function tratarPaginasSitePublicas(request: Request): Promise<Response | n
 
   const resto = url.pathname.slice(prefixo.length).replace(/^\/+/, "");
   try {
-    const { listarPaginasPublicas, carregarPaginaPublicaPorSlug } = await import(
-      "./lib/paginas-site-publica"
-    );
+    const { listarPaginasPublicas, carregarPaginaPublicaPorSlug } =
+      await import("./lib/paginas-site-publica");
     if (!resto) {
       const paginas = await listarPaginasPublicas();
       return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), paginas }), {
