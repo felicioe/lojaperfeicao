@@ -2,16 +2,6 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
-import { executarDisparoNotificacoes } from "./lib/push-dispatch";
-import { executarBackupAgendado } from "./lib/backup-dispatch";
-import { tratarCallbackGoogle } from "./lib/google-oauth-callback";
-import { tratarCallbackFacebook } from "./lib/facebook-oauth-callback";
-import { executarLembretesFaturas, processarFilaEmails } from "./lib/email-dispatch";
-import { carregarAgendaPublica } from "./lib/agenda-publica";
-import { carregarNoticiasPublicas } from "./lib/noticias-publica";
-import { listarPaginasPublicas, carregarPaginaPublicaPorSlug } from "./lib/paginas-site-publica";
-import { carregarMenuPublico } from "./lib/menu-site-publica";
-import { verificarSaudeBanco } from "./lib/backend/db";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -70,6 +60,7 @@ async function tratarCronNotificacoes(request: Request): Promise<Response | null
   }
 
   try {
+    const { executarDisparoNotificacoes } = await import("./lib/push-dispatch");
     const resultado = await executarDisparoNotificacoes();
     return new Response(JSON.stringify(resultado), {
       headers: { "content-type": "application/json" },
@@ -97,6 +88,7 @@ async function tratarCronBackup(request: Request): Promise<Response | null> {
   }
 
   try {
+    const { executarBackupAgendado } = await import("./lib/backup-dispatch");
     const resultado = await executarBackupAgendado("cron");
     return new Response(JSON.stringify(resultado), {
       headers: { "content-type": "application/json" },
@@ -123,6 +115,7 @@ async function tratarCronLembretesEmail(request: Request): Promise<Response | nu
   }
 
   try {
+    const { executarLembretesFaturas } = await import("./lib/email-dispatch");
     const resultado = await executarLembretesFaturas();
     // Todas as tentativas falharam (ex.: SMTP nunca configurado) — responder
     // 200 aqui deixaria o agendador do painel da Hostinger achar que o job
@@ -154,6 +147,7 @@ async function tratarCronFilaEmails(request: Request): Promise<Response | null> 
   }
 
   try {
+    const { processarFilaEmails } = await import("./lib/email-dispatch");
     const resultado = await processarFilaEmails();
     return new Response(JSON.stringify(resultado), {
       headers: { "content-type": "application/json" },
@@ -173,6 +167,7 @@ async function tratarAgendaPublica(request: Request): Promise<Response | null> {
   if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
 
   try {
+    const { carregarAgendaPublica } = await import("./lib/agenda-publica");
     const agenda = await carregarAgendaPublica();
     return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), agenda }), {
       headers: {
@@ -197,6 +192,7 @@ async function tratarNoticiasPublicas(request: Request): Promise<Response | null
   if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
 
   try {
+    const { carregarNoticiasPublicas } = await import("./lib/noticias-publica");
     const noticias = await carregarNoticiasPublicas();
     return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), noticias }), {
       headers: {
@@ -233,6 +229,9 @@ async function tratarPaginasSitePublicas(request: Request): Promise<Response | n
 
   const resto = url.pathname.slice(prefixo.length).replace(/^\/+/, "");
   try {
+    const { listarPaginasPublicas, carregarPaginaPublicaPorSlug } = await import(
+      "./lib/paginas-site-publica"
+    );
     if (!resto) {
       const paginas = await listarPaginasPublicas();
       return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), paginas }), {
@@ -271,6 +270,7 @@ async function tratarMenuSitePublico(request: Request): Promise<Response | null>
   if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
 
   try {
+    const { carregarMenuPublico } = await import("./lib/menu-site-publica");
     const menu = await carregarMenuPublico();
     return new Response(JSON.stringify({ atualizado_em: new Date().toISOString(), menu }), {
       headers: {
@@ -293,6 +293,7 @@ async function tratarHealthcheck(request: Request): Promise<Response | null> {
   if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
 
   try {
+    const { verificarSaudeBanco } = await import("./lib/backend/db");
     await verificarSaudeBanco();
     return new Response(
       JSON.stringify({
@@ -333,6 +334,7 @@ async function tratarHealthcheck(request: Request): Promise<Response | null> {
 async function tratarCallbackGoogleOuNull(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== "/api/auth/google/callback") return null;
+  const { tratarCallbackGoogle } = await import("./lib/google-oauth-callback");
   return tratarCallbackGoogle(request);
 }
 
@@ -340,6 +342,7 @@ async function tratarCallbackGoogleOuNull(request: Request): Promise<Response | 
 async function tratarCallbackFacebookOuNull(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== "/api/auth/facebook/callback") return null;
+  const { tratarCallbackFacebook } = await import("./lib/facebook-oauth-callback");
   return tratarCallbackFacebook(request);
 }
 
