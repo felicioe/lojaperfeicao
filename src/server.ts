@@ -173,10 +173,22 @@ async function tratarAgendaPublica(request: Request): Promise<Response | null> {
     });
   } catch (error) {
     console.error(error);
-    return new Response(JSON.stringify({ erro: "Agenda temporariamente indisponível." }), {
-      status: 503,
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
+    return new Response(
+      JSON.stringify({
+        atualizado_em: new Date().toISOString(),
+        agenda: [],
+        degradado: true,
+        erro: "Agenda temporariamente indisponível.",
+      }),
+      {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "https://associacaoadonhiramita.org",
+          "x-content-type-options": "nosniff",
+        },
+      },
+    );
   }
 }
 
@@ -198,15 +210,32 @@ async function tratarNoticiasPublicas(request: Request): Promise<Response | null
     });
   } catch (error) {
     console.error(error);
-    return new Response(JSON.stringify({ erro: "Notícias temporariamente indisponíveis." }), {
-      status: 503,
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
+    return new Response(
+      JSON.stringify({
+        atualizado_em: new Date().toISOString(),
+        noticias: [],
+        degradado: true,
+        erro: "Notícias temporariamente indisponíveis.",
+      }),
+      {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "https://associacaoadonhiramita.org",
+          "x-content-type-options": "nosniff",
+        },
+      },
+    );
   }
 }
 
 const CORS_HEADERS_PORTAL_PUBLICO = {
   "cache-control": "public, max-age=300, stale-while-revalidate=900",
+  "access-control-allow-origin": "https://associacaoadonhiramita.org",
+  "x-content-type-options": "nosniff",
+} as const;
+
+const CORS_HEADERS_PORTAL_PUBLICO_SEM_CACHE = {
   "access-control-allow-origin": "https://associacaoadonhiramita.org",
   "x-content-type-options": "nosniff",
 } as const;
@@ -251,10 +280,21 @@ async function tratarPaginasSitePublicas(request: Request): Promise<Response | n
     });
   } catch (error) {
     console.error(error);
-    return new Response(JSON.stringify({ erro: "Página temporariamente indisponível." }), {
-      status: 503,
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
+    return new Response(
+      JSON.stringify({
+        atualizado_em: new Date().toISOString(),
+        paginas: resto ? null : [],
+        degradado: true,
+        erro: "Página temporariamente indisponível.",
+      }),
+      {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          ...CORS_HEADERS_PORTAL_PUBLICO_SEM_CACHE,
+        },
+      },
+    );
   }
 }
 
@@ -274,10 +314,21 @@ async function tratarMenuSitePublico(request: Request): Promise<Response | null>
     });
   } catch (error) {
     console.error(error);
-    return new Response(JSON.stringify({ erro: "Menu temporariamente indisponível." }), {
-      status: 503,
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
+    return new Response(
+      JSON.stringify({
+        atualizado_em: new Date().toISOString(),
+        menu: [],
+        degradado: true,
+        erro: "Menu temporariamente indisponível.",
+      }),
+      {
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          ...CORS_HEADERS_PORTAL_PUBLICO_SEM_CACHE,
+        },
+      },
+    );
   }
 }
 

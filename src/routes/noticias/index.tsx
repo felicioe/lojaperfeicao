@@ -6,11 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/noticias/")({
   loader: async () => {
-    const [noticias, menu] = await Promise.all([
+    const [noticias, menu] = await Promise.allSettled([
       obterNoticiasPublicasResumoFn(),
       obterMenuPublicoFn(),
     ]);
-    return { noticias, menu };
+    return {
+      noticias: noticias.status === "fulfilled" ? noticias.value : [],
+      menu: menu.status === "fulfilled" ? menu.value : [],
+    };
   },
   head: () => ({
     meta: [
@@ -32,7 +35,13 @@ function NoticiasPublicasPage() {
   const { noticias: noticiasIniciais, menu } = Route.useLoaderData();
   const { data: noticias = noticiasIniciais } = useQuery({
     queryKey: ["noticias_publicas_site"],
-    queryFn: () => obterNoticiasPublicasResumoFn(),
+    queryFn: async () => {
+      try {
+        return await obterNoticiasPublicasResumoFn();
+      } catch {
+        return noticiasIniciais;
+      }
+    },
     initialData: noticiasIniciais,
   });
 

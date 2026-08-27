@@ -14,15 +14,22 @@ export const Route = createFileRoute("/noticias/$id")({
     // confundida com "notícia não existe" (achado do review automático da
     // PR #386).
     if (!UUID_REGEX.test(params.id)) throw notFound();
-    const [noticia, menu] = await Promise.all([
+    const [noticia, menu] = await Promise.allSettled([
       obterNoticiaPublicaPorIdFn({ data: { id: params.id } }),
       obterMenuPublicoFn(),
     ]);
-    if (!noticia) throw notFound();
-    return { noticia, menu };
+    if (noticia.status !== "fulfilled") {
+      return { noticia: null, menu: menu.status === "fulfilled" ? menu.value : [], indisponivel: true };
+    }
+    if (!noticia.value) throw notFound();
+    return {
+      noticia: noticia.value,
+      menu: menu.status === "fulfilled" ? menu.value : [],
+      indisponivel: false,
+    };
   },
   head: ({ loaderData }) => ({
-    meta: loaderData
+    meta: loaderData?.noticia
       ? [
           { title: `${loaderData.noticia.titulo} — Associação Adonhiramita` },
           { name: "description", content: loaderData.noticia.resumo ?? loaderData.noticia.titulo },
@@ -37,7 +44,7 @@ const fmtData = (d: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(d.replace(" ", "T")));
 
 function NoticiaPublicaPage() {
-  const { noticia, menu } = Route.useLoaderData();
+  const { noticia, menu, indisponivel } = Route.useLoaderData();
 
   return (
     <SiteInstitucionalLayout menuInicial={menu}>
@@ -46,9 +53,17 @@ function NoticiaPublicaPage() {
           <ArrowLeft className="mr-1.5 h-4 w-4" /> Voltar às notícias
         </Link>
       </Button>
-      <h1 className="mb-1 text-3xl font-bold tracking-tight">{noticia.titulo}</h1>
-      <p className="mb-6 text-sm text-muted-foreground">{fmtData(noticia.publicado_em)}</p>
-      <ConteudoPublicoHtml html={noticia.conteudo} />
+      {indisponivel || !noticia ? (
+        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
+          Esta notÃ­cia estÃ¡ temporariamente indisponÃ­vel. Tente novamente em instantes.
+        </div>
+      ) : (
+        <>
+          <h1 className="mb-1 text-3xl font-bold tracking-tight">{noticia.titulo}</h1>
+          <p className="mb-6 text-sm text-muted-foreground">{fmtData(noticia.publicado_em)}</p>
+          <ConteudoPublicoHtml html={noticia.conteudo} />
+        </>
+      )}
     </SiteInstitucionalLayout>
   );
 }

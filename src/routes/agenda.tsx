@@ -7,8 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/agenda")({
   loader: async () => {
-    const [agenda, menu] = await Promise.all([obterAgendaPublicaFn(), obterMenuPublicoFn()]);
-    return { agenda, menu };
+    const [agenda, menu] = await Promise.allSettled([obterAgendaPublicaFn(), obterMenuPublicoFn()]);
+    return {
+      agenda: agenda.status === "fulfilled" ? agenda.value : [],
+      menu: menu.status === "fulfilled" ? menu.value : [],
+    };
   },
   head: () => ({
     meta: [
@@ -32,7 +35,13 @@ function AgendaPublicaPage() {
   const { agenda: agendaInicial, menu } = Route.useLoaderData();
   const { data: agenda = agendaInicial } = useQuery({
     queryKey: ["agenda_publica_site"],
-    queryFn: () => obterAgendaPublicaFn(),
+    queryFn: async () => {
+      try {
+        return await obterAgendaPublicaFn();
+      } catch {
+        return agendaInicial;
+      }
+    },
     initialData: agendaInicial,
   });
 

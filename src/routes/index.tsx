@@ -20,12 +20,16 @@ export const Route = createFileRoute("/")({
     if (usuario) throw redirect({ to: "/dashboard" });
   },
   loader: async () => {
-    const [agenda, noticias, menu] = await Promise.all([
+    const [agenda, noticias, menu] = await Promise.allSettled([
       obterAgendaPublicaFn(),
       obterNoticiasPublicasResumoFn(),
       obterMenuPublicoFn(),
     ]);
-    return { agenda: agenda.slice(0, 3), noticias: noticias.slice(0, 3), menu };
+    return {
+      agenda: agenda.status === "fulfilled" ? agenda.value.slice(0, 3) : [],
+      noticias: noticias.status === "fulfilled" ? noticias.value.slice(0, 3) : [],
+      menu: menu.status === "fulfilled" ? menu.value : [],
+    };
   },
   head: () => ({
     meta: [
@@ -47,10 +51,17 @@ function HomePublica() {
   const { agenda, noticias, menu } = Route.useLoaderData();
   const { data } = useQuery({
     queryKey: ["home_publica_site"],
-    queryFn: async () => ({
-      agenda: (await obterAgendaPublicaFn()).slice(0, 3),
-      noticias: (await obterNoticiasPublicasResumoFn()).slice(0, 3),
-    }),
+    queryFn: async () => {
+      const [agendaAtual, noticiasAtuais] = await Promise.allSettled([
+        obterAgendaPublicaFn(),
+        obterNoticiasPublicasResumoFn(),
+      ]);
+      return {
+        agenda: agendaAtual.status === "fulfilled" ? agendaAtual.value.slice(0, 3) : agenda,
+        noticias:
+          noticiasAtuais.status === "fulfilled" ? noticiasAtuais.value.slice(0, 3) : noticias,
+      };
+    },
     initialData: { agenda, noticias },
   });
 
