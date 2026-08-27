@@ -355,12 +355,22 @@ async function tratarHealthcheck(request: Request): Promise<Response | null> {
     );
   } catch (error) {
     console.error(error);
+    const detalhe =
+      error && typeof error === "object"
+        ? {
+            erro: error instanceof Error ? error.message : "Falha interna.",
+            code: "code" in error ? error.code : undefined,
+            errno: "errno" in error ? error.errno : undefined,
+            syscall: "syscall" in error ? error.syscall : undefined,
+            path: "path" in error ? error.path : undefined,
+          }
+        : { erro: "Falha interna." };
     return new Response(
       JSON.stringify({
         ok: false,
         service: "lojaperfeicao",
         checked_at: new Date().toISOString(),
-        erro: error instanceof Error ? error.message : "Falha interna.",
+        ...detalhe,
       }),
       {
         status: 503,
