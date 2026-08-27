@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "checar:escopo-loja": "node scripts/checar-escopo-loja.mjs",
     "checar:defaults-loja-id": "node scripts/checar-defaults-loja-id.mjs",
+    "verificar:cms": "node scripts/verificar-cms-publicacao.mjs",
     "format": "prettier --write .",
     "impeccable:detect": "impeccable detect .",
     "impeccable:detect:ci": "impeccable detect --json . > impeccable-report.json || true",
