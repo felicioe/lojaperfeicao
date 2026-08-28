@@ -10,6 +10,9 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 const floatingUiReactDomEsm = fileURLToPath(
   new URL("./node_modules/@floating-ui/react-dom/dist/floating-ui.react-dom.mjs", import.meta.url),
 );
+const nodeProcessShim = fileURLToPath(
+  new URL("./src/lib/backend/process-shim.cjs", import.meta.url),
+);
 
 export default defineConfig({
   tanstackStart: {
@@ -23,6 +26,11 @@ export default defineConfig({
       // the current Nitro/Vite production SSR bundling path on Hostinger.
       alias: {
         "@floating-ui/react-dom": floatingUiReactDomEsm,
+        // O sandbox Node da Hostinger lança `open EEXIST` ao materializar a
+        // fachada ESM do builtin `process` (ela tenta sincronizar stdin).
+        // mysql2 usa `require("process")`; apontá-lo para o process global
+        // evita essa fachada sem alterar nenhuma API consumida pelo driver.
+        process: nodeProcessShim,
       },
     },
   },
