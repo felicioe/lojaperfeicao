@@ -43,6 +43,8 @@ import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from 
 import { Route as AuthenticatedAgendaPublicaIndexRouteImport } from './routes/_authenticated/agenda-publica/index'
 import { Route as AuthenticatedBibliotecaIndexRouteImport } from './routes/_authenticated/biblioteca/index'
 import { Route as AuthenticatedCalendarioIndexRouteImport } from './routes/_authenticated/calendario/index'
+import { Route as AuthenticatedCmsAprovacoesIndexRouteImport } from './routes/_authenticated/cms-aprovacoes/index'
+import { Route as AuthenticatedCmsEditoresIndexRouteImport } from './routes/_authenticated/cms-editores/index'
 import { Route as AuthenticatedComissoesIndexRouteImport } from './routes/_authenticated/comissoes/index'
 import { Route as AuthenticatedComunicacoesIndexRouteImport } from './routes/_authenticated/comunicacoes/index'
 import { Route as AuthenticatedContaSegurancaRouteImport } from './routes/_authenticated/conta/seguranca'
@@ -300,6 +302,18 @@ const AuthenticatedCalendarioIndexRoute =
   AuthenticatedCalendarioIndexRouteImport.update({
     id: '/calendario/',
     path: '/calendario/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCmsAprovacoesIndexRoute =
+  AuthenticatedCmsAprovacoesIndexRouteImport.update({
+    id: '/cms-aprovacoes/',
+    path: '/cms-aprovacoes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedCmsEditoresIndexRoute =
+  AuthenticatedCmsEditoresIndexRouteImport.update({
+    id: '/cms-editores/',
+    path: '/cms-editores/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedComissoesIndexRoute =
@@ -805,6 +819,8 @@ export interface FileRoutesByFullPath {
   '/agenda-publica/': typeof AuthenticatedAgendaPublicaIndexRoute
   '/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
   '/calendario/': typeof AuthenticatedCalendarioIndexRoute
+  '/cms-aprovacoes/': typeof AuthenticatedCmsAprovacoesIndexRoute
+  '/cms-editores/': typeof AuthenticatedCmsEditoresIndexRoute
   '/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/contabilidade/': typeof AuthenticatedContabilidadeIndexRoute
@@ -909,6 +925,8 @@ export interface FileRoutesByTo {
   '/agenda-publica': typeof AuthenticatedAgendaPublicaIndexRoute
   '/biblioteca': typeof AuthenticatedBibliotecaIndexRoute
   '/calendario': typeof AuthenticatedCalendarioIndexRoute
+  '/cms-aprovacoes': typeof AuthenticatedCmsAprovacoesIndexRoute
+  '/cms-editores': typeof AuthenticatedCmsEditoresIndexRoute
   '/comissoes': typeof AuthenticatedComissoesIndexRoute
   '/comunicacoes': typeof AuthenticatedComunicacoesIndexRoute
   '/contabilidade': typeof AuthenticatedContabilidadeIndexRoute
@@ -1017,6 +1035,8 @@ export interface FileRoutesById {
   '/_authenticated/agenda-publica/': typeof AuthenticatedAgendaPublicaIndexRoute
   '/_authenticated/biblioteca/': typeof AuthenticatedBibliotecaIndexRoute
   '/_authenticated/calendario/': typeof AuthenticatedCalendarioIndexRoute
+  '/_authenticated/cms-aprovacoes/': typeof AuthenticatedCmsAprovacoesIndexRoute
+  '/_authenticated/cms-editores/': typeof AuthenticatedCmsEditoresIndexRoute
   '/_authenticated/comissoes/': typeof AuthenticatedComissoesIndexRoute
   '/_authenticated/comunicacoes/': typeof AuthenticatedComunicacoesIndexRoute
   '/_authenticated/contabilidade/': typeof AuthenticatedContabilidadeIndexRoute
@@ -1125,6 +1145,8 @@ export interface FileRouteTypes {
     | '/agenda-publica/'
     | '/biblioteca/'
     | '/calendario/'
+    | '/cms-aprovacoes/'
+    | '/cms-editores/'
     | '/comissoes/'
     | '/comunicacoes/'
     | '/contabilidade/'
@@ -1229,6 +1251,8 @@ export interface FileRouteTypes {
     | '/agenda-publica'
     | '/biblioteca'
     | '/calendario'
+    | '/cms-aprovacoes'
+    | '/cms-editores'
     | '/comissoes'
     | '/comunicacoes'
     | '/contabilidade'
@@ -1336,6 +1360,8 @@ export interface FileRouteTypes {
     | '/_authenticated/agenda-publica/'
     | '/_authenticated/biblioteca/'
     | '/_authenticated/calendario/'
+    | '/_authenticated/cms-aprovacoes/'
+    | '/_authenticated/cms-editores/'
     | '/_authenticated/comissoes/'
     | '/_authenticated/comunicacoes/'
     | '/_authenticated/contabilidade/'
@@ -1619,6 +1645,20 @@ declare module '@tanstack/react-router' {
       path: '/calendario'
       fullPath: '/calendario/'
       preLoaderRoute: typeof AuthenticatedCalendarioIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cms-aprovacoes/': {
+      id: '/_authenticated/cms-aprovacoes/'
+      path: '/cms-aprovacoes'
+      fullPath: '/cms-aprovacoes/'
+      preLoaderRoute: typeof AuthenticatedCmsAprovacoesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cms-editores/': {
+      id: '/_authenticated/cms-editores/'
+      path: '/cms-editores'
+      fullPath: '/cms-editores/'
+      preLoaderRoute: typeof AuthenticatedCmsEditoresIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/comissoes/': {
@@ -2240,6 +2280,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendaPublicaIndexRoute: typeof AuthenticatedAgendaPublicaIndexRoute
   AuthenticatedBibliotecaIndexRoute: typeof AuthenticatedBibliotecaIndexRoute
   AuthenticatedCalendarioIndexRoute: typeof AuthenticatedCalendarioIndexRoute
+  AuthenticatedCmsAprovacoesIndexRoute: typeof AuthenticatedCmsAprovacoesIndexRoute
+  AuthenticatedCmsEditoresIndexRoute: typeof AuthenticatedCmsEditoresIndexRoute
   AuthenticatedComissoesIndexRoute: typeof AuthenticatedComissoesIndexRoute
   AuthenticatedComunicacoesIndexRoute: typeof AuthenticatedComunicacoesIndexRoute
   AuthenticatedContabilidadeIndexRoute: typeof AuthenticatedContabilidadeIndexRoute
@@ -2348,6 +2390,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendaPublicaIndexRoute: AuthenticatedAgendaPublicaIndexRoute,
   AuthenticatedBibliotecaIndexRoute: AuthenticatedBibliotecaIndexRoute,
   AuthenticatedCalendarioIndexRoute: AuthenticatedCalendarioIndexRoute,
+  AuthenticatedCmsAprovacoesIndexRoute: AuthenticatedCmsAprovacoesIndexRoute,
+  AuthenticatedCmsEditoresIndexRoute: AuthenticatedCmsEditoresIndexRoute,
   AuthenticatedComissoesIndexRoute: AuthenticatedComissoesIndexRoute,
   AuthenticatedComunicacoesIndexRoute: AuthenticatedComunicacoesIndexRoute,
   AuthenticatedContabilidadeIndexRoute: AuthenticatedContabilidadeIndexRoute,
