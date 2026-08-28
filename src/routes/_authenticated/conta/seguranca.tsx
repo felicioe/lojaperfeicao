@@ -23,11 +23,6 @@ import {
   iniciarVinculacaoGoogle,
   desvincularGoogle,
 } from "@/lib/backend/google-auth";
-import {
-  statusVinculacaoFacebook,
-  iniciarVinculacaoFacebook,
-  desvincularFacebook,
-} from "@/lib/backend/facebook-auth";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -79,7 +74,6 @@ function SegurancaPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <PasskeysCard />
         <GoogleCard />
-        <FacebookCard />
         <Totp2FACard />
         <TrocarSenhaCard />
       </div>
@@ -170,81 +164,6 @@ function GoogleCard() {
         ) : (
           <Button size="sm" disabled={loading} onClick={vincular}>
             {loading ? "Redirecionando…" : "Vincular Google"}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function FacebookCard() {
-  const qc = useQueryClient();
-  const [loading, setLoading] = useState(false);
-
-  const { data: status } = useQuery({
-    queryKey: ["status_vinculacao_facebook"],
-    queryFn: () => statusVinculacaoFacebook(),
-  });
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const facebook = params.get("facebook");
-    const erroFacebook = params.get("erroFacebook");
-    if (facebook === "vinculado") toast.success("Conta Facebook vinculada.");
-    if (erroFacebook === "ja_vinculada") {
-      toast.error("Essa conta Facebook já está vinculada a outro usuário.");
-    } else if (erroFacebook) {
-      toast.error("Erro ao vincular conta Facebook.");
-    }
-  }, []);
-
-  const vincular = async () => {
-    setLoading(true);
-    try {
-      const { url } = await iniciarVinculacaoFacebook();
-      window.location.href = url;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao iniciar vinculação.");
-      setLoading(false);
-    }
-  };
-
-  const desvincular = async () => {
-    try {
-      await desvincularFacebook();
-      toast.success("Conta Facebook desvinculada.");
-      qc.invalidateQueries({ queryKey: ["status_vinculacao_facebook"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao desvincular.");
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="#1877F2" aria-hidden="true">
-            <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.89v2.26h3.32l-.53 3.49h-2.79V24C19.61 23.09 24 18.1 24 12.07Z" />
-          </svg>
-          Login com Facebook
-        </CardTitle>
-        <CardDescription>
-          Entre sem senha usando sua conta Facebook, depois de vincular aqui uma vez.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {status?.vinculado ? (
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm text-emerald-600">
-              <CheckCircle2 className="h-4 w-4" /> Conta Facebook vinculada
-            </span>
-            <Button variant="outline" size="sm" onClick={desvincular}>
-              Desvincular
-            </Button>
-          </div>
-        ) : (
-          <Button size="sm" disabled={loading} onClick={vincular}>
-            {loading ? "Redirecionando…" : "Vincular Facebook"}
           </Button>
         )}
       </CardContent>

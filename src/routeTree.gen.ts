@@ -14,7 +14,6 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AceiteTermosRouteImport } from './routes/aceite-termos'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as FacebookConcluirRouteImport } from './routes/facebook-concluir'
 import { Route as GoogleConcluirRouteImport } from './routes/google-concluir'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as TrocarSenhaRouteImport } from './routes/trocar-senha'
@@ -139,11 +138,6 @@ const AgendaRoute = AgendaRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FacebookConcluirRoute = FacebookConcluirRouteImport.update({
-  id: '/facebook-concluir',
-  path: '/facebook-concluir',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GoogleConcluirRoute = GoogleConcluirRouteImport.update({
@@ -744,7 +738,6 @@ export interface FileRoutesByFullPath {
   '/aceite-termos': typeof AceiteTermosRoute
   '/agenda': typeof AgendaRoute
   '/auth': typeof AuthRoute
-  '/facebook-concluir': typeof FacebookConcluirRoute
   '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
@@ -852,7 +845,6 @@ export interface FileRoutesByTo {
   '/aceite-termos': typeof AceiteTermosRoute
   '/agenda': typeof AgendaRoute
   '/auth': typeof AuthRoute
-  '/facebook-concluir': typeof FacebookConcluirRoute
   '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
@@ -960,7 +952,6 @@ export interface FileRoutesById {
   '/aceite-termos': typeof AceiteTermosRoute
   '/agenda': typeof AgendaRoute
   '/auth': typeof AuthRoute
-  '/facebook-concluir': typeof FacebookConcluirRoute
   '/google-concluir': typeof GoogleConcluirRoute
   '/privacidade': typeof PrivacidadeRoute
   '/trocar-senha': typeof TrocarSenhaRoute
@@ -1070,7 +1061,6 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/agenda'
     | '/auth'
-    | '/facebook-concluir'
     | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
@@ -1178,7 +1168,6 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/agenda'
     | '/auth'
-    | '/facebook-concluir'
     | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
@@ -1285,7 +1274,6 @@ export interface FileRouteTypes {
     | '/aceite-termos'
     | '/agenda'
     | '/auth'
-    | '/facebook-concluir'
     | '/google-concluir'
     | '/privacidade'
     | '/trocar-senha'
@@ -1395,7 +1383,6 @@ export interface RootRouteChildren {
   AceiteTermosRoute: typeof AceiteTermosRoute
   AgendaRoute: typeof AgendaRoute
   AuthRoute: typeof AuthRoute
-  FacebookConcluirRoute: typeof FacebookConcluirRoute
   GoogleConcluirRoute: typeof GoogleConcluirRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TrocarSenhaRoute: typeof TrocarSenhaRoute
@@ -1442,13 +1429,6 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/facebook-concluir': {
-      id: '/facebook-concluir'
-      path: '/facebook-concluir'
-      fullPath: '/facebook-concluir'
-      preLoaderRoute: typeof FacebookConcluirRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/google-concluir': {
@@ -2424,7 +2404,6 @@ const rootRouteChildren: RootRouteChildren = {
   AceiteTermosRoute: AceiteTermosRoute,
   AgendaRoute: AgendaRoute,
   AuthRoute: AuthRoute,
-  FacebookConcluirRoute: FacebookConcluirRoute,
   GoogleConcluirRoute: GoogleConcluirRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TrocarSenhaRoute: TrocarSenhaRoute,

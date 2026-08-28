@@ -6,7 +6,6 @@ import { login, signup, contarUsuarios, getSessao } from "@/lib/backend/auth";
 import { iniciarLoginPasskey, confirmarLoginPasskey } from "@/lib/backend/passkeys";
 import { confirmarLogin2FA } from "@/lib/backend/totp";
 import { iniciarLoginGoogle } from "@/lib/backend/google-auth";
-import { iniciarLoginFacebook } from "@/lib/backend/facebook-auth";
 import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,17 +23,6 @@ const ERRO_GOOGLE_LABEL: Record<string, string> = {
     "Sua conta Google ainda não está vinculada. Entre com sua senha e vincule em Segurança da Conta.",
   nao_configurado: "Login com Google não está disponível no momento.",
   falha_token: "Não foi possível confirmar o login com Google.",
-  loja_desconhecida:
-    "Este endereço não corresponde a nenhuma loja ativa. Verifique o link de acesso.",
-};
-
-const ERRO_FACEBOOK_LABEL: Record<string, string> = {
-  cancelado: "Login com Facebook cancelado.",
-  expirado: "Sessão do login com Facebook expirou — tente novamente.",
-  nao_vinculado:
-    "Sua conta Facebook ainda não está vinculada. Entre com sua senha e vincule em Segurança da Conta.",
-  nao_configurado: "Login com Facebook não está disponível no momento.",
-  falha_token: "Não foi possível confirmar o login com Facebook.",
   loja_desconhecida:
     "Este endereço não corresponde a nenhuma loja ativa. Verifique o link de acesso.",
 };
@@ -75,10 +63,9 @@ function AuthPage() {
   const [aguardando2FA, setAguardando2FA] = useState(false);
   const [codigo2FA, setCodigo2FA] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [facebookLoading, setFacebookLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const authBusy = loading || passkeyLoading || googleLoading || facebookLoading;
+  const authBusy = loading || passkeyLoading || googleLoading;
 
   useEffect(() => {
     contarUsuarios().then((total) => setFirstUser(total === 0));
@@ -92,13 +79,9 @@ function AuthPage() {
     if (erroGoogle) {
       toast.error(ERRO_GOOGLE_LABEL[erroGoogle] ?? "Erro ao entrar com Google.");
     }
-    const erroFacebook = params.get("erroFacebook");
-    if (erroFacebook) {
-      toast.error(ERRO_FACEBOOK_LABEL[erroFacebook] ?? "Erro ao entrar com Facebook.");
-    }
-    // Login por Google/Facebook com 2FA ativo (mesmo gate do login por
-    // senha) — o próprio servidor já guardou o login pendente, só falta
-    // mostrar o formulário de código aqui.
+    // Login por Google com 2FA ativo (mesmo gate do login por senha) — o
+    // próprio servidor já guardou o login pendente, só falta mostrar o
+    // formulário de código aqui.
     if (params.get("totpPendente") === "1") {
       setAguardando2FA(true);
     }
@@ -113,18 +96,6 @@ function AuthPage() {
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Erro ao iniciar login com Google.");
       setGoogleLoading(false);
-    }
-  };
-
-  const handleFacebookLogin = async () => {
-    setAuthError(null);
-    setFacebookLoading(true);
-    try {
-      const { url } = await iniciarLoginFacebook();
-      window.location.href = url;
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : "Erro ao iniciar login com Facebook.");
-      setFacebookLoading(false);
     }
   };
 
@@ -410,8 +381,6 @@ function AuthPage() {
                     handlePasskeyLogin,
                     googleLoading,
                     handleGoogleLogin,
-                    facebookLoading,
-                    handleFacebookLogin,
                   }}
                 />
               </TabsContent>
@@ -432,8 +401,6 @@ function AuthPage() {
                 handlePasskeyLogin,
                 googleLoading,
                 handleGoogleLogin,
-                facebookLoading,
-                handleFacebookLogin,
               }}
             />
           )}
@@ -471,14 +438,6 @@ function GoogleIcon() {
   );
 }
 
-function FacebookIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="mr-1.5 h-4 w-4" fill="#1877F2" aria-hidden="true">
-      <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.09 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.7 4.53-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.89v2.26h3.32l-.53 3.49h-2.79V24C19.61 23.09 24 18.1 24 12.07Z" />
-    </svg>
-  );
-}
-
 interface LoginFormProps {
   email: string;
   setEmail: React.Dispatch<React.SetStateAction<string>>;
@@ -493,8 +452,6 @@ interface LoginFormProps {
   handlePasskeyLogin: () => Promise<void>;
   googleLoading: boolean;
   handleGoogleLogin: () => Promise<void>;
-  facebookLoading: boolean;
-  handleFacebookLogin: () => Promise<void>;
 }
 
 function LoginForm({
@@ -511,8 +468,6 @@ function LoginForm({
   handlePasskeyLogin,
   googleLoading,
   handleGoogleLogin,
-  facebookLoading,
-  handleFacebookLogin,
 }: LoginFormProps) {
   return (
     <form method="post" onSubmit={handleLogin} className="space-y-3" aria-busy={authBusy}>
@@ -592,16 +547,6 @@ function LoginForm({
       >
         <GoogleIcon />
         {googleLoading ? "Redirecionando…" : "Entrar com Google"}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        className="min-h-11 w-full sm:min-h-10"
-        disabled={authBusy}
-        onClick={handleFacebookLogin}
-      >
-        <FacebookIcon />
-        {facebookLoading ? "Redirecionando…" : "Entrar com Facebook"}
       </Button>
       <p className="text-xs text-muted-foreground pt-2">
         Novas contas são criadas pelo administrador.

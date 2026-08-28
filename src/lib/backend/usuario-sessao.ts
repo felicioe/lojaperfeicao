@@ -45,7 +45,7 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
     // Loja suspensa pelo super-admin (issue #339) tem exatamente a mesma
     // semântica, um nível acima: ninguém da loja entra, e quem já estava
     // dentro cai na próxima navegação. Como todos os caminhos de login
-    // (senha, passkey, 2FA, Google, Facebook) terminam aqui, esta é a única
+    // (senha, passkey, 2FA, Google) terminam aqui, esta é a única
     // checagem necessária — sem ela a pessoa autenticava normalmente e só
     // encontrava telas vazias, sem explicação nenhuma.
     if (!usuario.loja_ativa) return null;
