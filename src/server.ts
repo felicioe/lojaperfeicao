@@ -362,6 +362,10 @@ async function tratarHealthcheck(request: Request): Promise<Response | null> {
             errno: "errno" in error ? error.errno : undefined,
             syscall: "syscall" in error ? error.syscall : undefined,
             path: "path" in error ? error.path : undefined,
+            // Mantém o diagnóstico acionável no provedor, que não expõe os
+            // logs de runtime pelo mesmo canal dos logs de build. Não há
+            // valores de ambiente nem credenciais na stack do driver.
+            stack: error instanceof Error ? error.stack : undefined,
           }
         : { erro: "Falha interna." };
     return new Response(

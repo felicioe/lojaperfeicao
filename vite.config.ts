@@ -34,8 +34,6 @@ export default defineConfig({
   // fotos (node:fs/promises). Ver mysql/README.md, seção 13.
   nitro: {
     preset: "node-server",
-    rollupConfig: { external: [/^mysql2(?:\/.*)?$/] },
-    rolldownConfig: { external: [/^mysql2(?:\/.*)?$/] },
     // `minify` não está no tipo exposto por LovableViteTanstackOptions (a
     // interface só cobre preset/output/cloudflare de propósito), mas é
     // repassado como está para o nitro() real — cast só para calar o tsc.
