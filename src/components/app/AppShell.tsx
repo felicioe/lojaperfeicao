@@ -70,8 +70,6 @@ import {
   Rocket,
   Newspaper,
   Globe2,
-  ClipboardCheck,
-  UserCog,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -402,13 +400,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
       ],
     },
-    // Menu próprio pro site institucional (issues #366/#367/#380, ampliado
-    // pela #391 com Editor CMS/Aprovador CMS). Agenda Pública e Menu do Site
-    // continuam exclusivos de super_admin — comPapelPortalPublico, sem
-    // mudança — por não terem um "grão" que faça sentido pra um colunista
-    // (decisão registrada na #391). Notícias e Páginas agora também abrem
-    // pra editor_cms/aprovador_cms, com o que cada um pode fazer decidido
-    // dentro da própria tela (comPapelEditorialCms).
+    // Menu próprio, visível só pro super-admin da plataforma: manutenção do
+    // site institucional (issues #366/#367/#380) é tarefa dele, não de
+    // qualquer admin/secretário de Loja — ver comPapelPortalPublico em
+    // portal-publico-authz.ts, que já recusa a escrita no servidor pra quem
+    // não tem o papel. Antes esses 4 itens ficavam soltos dentro de
+    // "Atividades" com a mesma guarda; separar em grupo próprio deixa
+    // explícito, na navegação, que é uma área diferente.
     {
       id: "site-institucional",
       label: "Site Institucional",
@@ -418,7 +416,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/noticias-site",
           label: "Notícias do Site",
           icon: Newspaper,
-          show: can.canAcessarCms,
+          show: can.isSuperAdmin,
         },
         {
           to: "/agenda-publica",
@@ -430,24 +428,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/paginas-site",
           label: "Páginas do Site",
           icon: FileText,
-          show: can.canAcessarCms,
+          show: can.isSuperAdmin,
         },
         {
           to: "/menu-site",
           label: "Menu do Site",
           icon: ListTree,
-          show: can.isSuperAdmin,
-        },
-        {
-          to: "/cms-aprovacoes",
-          label: "Aprovações do Site",
-          icon: ClipboardCheck,
-          show: can.isSuperAdmin || can.isAprovadorCms,
-        },
-        {
-          to: "/cms-editores",
-          label: "Editores do Site",
-          icon: UserCog,
           show: can.isSuperAdmin,
         },
       ],

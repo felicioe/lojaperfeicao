@@ -4,8 +4,7 @@ import { withUserConnection } from "./db";
 // `super_admin` é o administrador da PLATAFORMA (issue #339), não da loja:
 // cadastra e suspende lojas, e não enxerga o dado interno de nenhuma. Os
 // outros quatro papéis são todos internos a uma loja.
-export type Papel =
-  "admin" | "tesoureiro" | "secretario" | "irmao" | "super_admin" | "editor_cms" | "aprovador_cms";
+export type Papel = "admin" | "tesoureiro" | "secretario" | "irmao" | "super_admin";
 
 export type UsuarioSessao = {
   id: string;

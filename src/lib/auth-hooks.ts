@@ -34,29 +34,16 @@ export function useCan() {
   // demais de propósito: administrar o SaaS não dá acesso a dado de loja
   // nenhuma, então isSuperAdmin não implica isAdmin — nem o contrário.
   const isSuperAdmin = has("super_admin");
-  // Papéis do CMS do site institucional (issue #391) — também de fora da
-  // cascata dos demais, mesmo raciocínio de isSuperAdmin: mexer no site não
-  // dá nem tira nenhum outro poder de Loja.
-  const isEditorCms = has("editor_cms");
-  const isAprovadorCms = has("aprovador_cms");
   return {
     roles,
     isAdmin,
     isTesoureiro,
     isSecretario,
     isSuperAdmin,
-    isEditorCms,
-    isAprovadorCms,
-    canAcessarCms: isSuperAdmin || isEditorCms || isAprovadorCms,
     canManageIrmaos: isAdmin || has("secretario"),
     canManageFinancas: isAdmin || has("tesoureiro"),
     // só tem o papel "irmao", sem nenhum papel privilegiado — vai para o
-    // painel reduzido (/painel) em vez do dashboard administrativo. Um
-    // colunista comum não tem admin/tesoureiro/secretario, então sem excluir
-    // editor_cms/aprovador_cms aqui ele cairia no painel reduzido e nunca
-    // veria o grupo "Site Institucional" (groupsMemberOnly não tem esse
-    // grupo — ver AppShell.tsx).
-    isMemberOnly:
-      has("irmao") && !isAdmin && !isTesoureiro && !isSecretario && !isEditorCms && !isAprovadorCms,
+    // painel reduzido (/painel) em vez do dashboard administrativo.
+    isMemberOnly: has("irmao") && !isAdmin && !isTesoureiro && !isSecretario,
   };
 }
