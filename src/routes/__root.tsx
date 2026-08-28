@@ -85,6 +85,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#0f172a" },
+      // Sem isto o iOS Safari trata "Adicionar à Tela de Início" como um
+      // atalho comum: abre dentro do Safari, com barra de endereço e tudo.
+      // Com "yes", abre em janela própria (display standalone), do jeito
+      // que o manifest.json já pede pro Chrome/Android — sem essa meta o
+      // iOS simplesmente ignora o manifest nesse quesito (não lê `display`
+      // de lá, é tag própria da Apple desde antes do manifest existir).
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      // Nome curto embaixo do ícone na tela de início do iOS — sem isto,
+      // usa o <title> da página (que muda por rota) em vez do nome do app.
+      { name: "apple-mobile-web-app-title", content: "SGLFM" },
+      // "black-translucent" deixa a barra de status por cima do conteúdo
+      // (mesmo visual escuro do resto do app, ver theme_color/background_color
+      // acima) em vez da barra cinza padrão do Safari.
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       // Sistema privado atrás de login (dados financeiros/pessoais de
       // associados) — não deveria estar indexável em lugar nenhum. Fica
       // aqui, no root, pra valer em toda rota sem cada uma precisar
