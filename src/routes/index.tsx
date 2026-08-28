@@ -16,8 +16,16 @@ import { Button } from "@/components/ui/button";
 // tem sessão continua caindo direto no dashboard, como sempre.
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
-    const usuario = await getSessao();
-    if (usuario) throw redirect({ to: "/dashboard" });
+    try {
+      const usuario = await getSessao();
+      if (usuario) throw redirect({ to: "/dashboard" });
+    } catch (error) {
+      // O portal institucional deve continuar disponível mesmo quando o
+      // banco estiver temporariamente indisponível. Redirecionamentos são
+      // respostas de controle do roteador e precisam continuar propagando.
+      if (isRedirectResponse(error)) throw error;
+      console.error("Falha ao verificar a sessão na home pública:", error);
+    }
   },
   loader: async () => {
     const [agenda, noticias, menu] = await Promise.allSettled([
@@ -43,6 +51,13 @@ export const Route = createFileRoute("/")({
   }),
   component: HomePublica,
 });
+
+function isRedirectResponse(error: unknown): boolean {
+  return (
+    error instanceof Response ||
+    (typeof error === "object" && error !== null && "isRedirect" in error)
+  );
+}
 
 const fmtData = (d: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(d.replace(" ", "T")));
