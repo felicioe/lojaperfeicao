@@ -69,6 +69,7 @@ import {
   Layers,
   Rocket,
   Newspaper,
+  Globe2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -397,6 +398,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
         { to: "/documentos", label: "Legislação", icon: Scale, show: true },
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
+      ],
+    },
+    // Menu próprio, visível só pro super-admin da plataforma: manutenção do
+    // site institucional (issues #366/#367/#380) é tarefa dele, não de
+    // qualquer admin/secretário de Loja — ver comPapelPortalPublico em
+    // portal-publico-authz.ts, que já recusa a escrita no servidor pra quem
+    // não tem o papel. Antes esses 4 itens ficavam soltos dentro de
+    // "Atividades" com a mesma guarda; separar em grupo próprio deixa
+    // explícito, na navegação, que é uma área diferente.
+    {
+      id: "site-institucional",
+      label: "Site Institucional",
+      icon: Globe2,
+      items: [
         {
           to: "/noticias-site",
           label: "Notícias do Site",
