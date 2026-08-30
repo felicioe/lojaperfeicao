@@ -106,11 +106,6 @@ const EXCECOES = [
     motivo:
       "usuarioTemTotpAtivo: decide se o login pede segundo fator — roda entre a senha e a sessão.",
   },
-  {
-    arquivo: "src/lib/facebook-oauth-callback.ts",
-    contem: "SELECT id FROM usuarios WHERE facebook_id",
-    motivo: "Login por Facebook, pré-autenticação — mesmo caso do login por senha.",
-  },
   // ---- issue #341/#350: pendências revisadas que não precisam de escopo —
   // são bootstrap global (conta o sistema inteiro, não uma Loja) ou o
   // usuário só nunca opera sobre si mesmo (id vem da própria sessão, de um
@@ -149,13 +144,6 @@ const EXCECOES = [
     contem: "SELECT email FROM usuarios WHERE id = ?",
     motivo:
       "enviarEmailDeTeste: busca o e-mail do próprio usuário da sessão (comPapel) pra mandar o teste — nunca de outro.",
-  },
-  {
-    arquivo: "src/lib/facebook-oauth-callback.ts",
-    contem: "UPDATE usuarios SET facebook_id = ? WHERE id = ?",
-    motivo:
-      "Vincular conta Facebook: o id vem de estado.usuario_id_vinculacao, um ticket assinado de " +
-      "OAuth emitido para um usuário já autenticado — não é controlável pelo request.",
   },
   {
     arquivo: "src/lib/google-oauth-callback.ts",
