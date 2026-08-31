@@ -7,7 +7,7 @@ const versaoAtual = {
 
 const minimo = {
   major: 22,
-  minor: 12,
+  minor: 0,
 };
 
 const atendeMinimo =
@@ -18,7 +18,7 @@ if (!atendeMinimo) {
   console.error(
     [
       `Node ${process.versions.node} não é suportado por este projeto.`,
-      "Use Node 22.12.0 ou superior antes de executar o build/deploy.",
+      "Use Node 22 ou superior antes de executar o build/deploy.",
       "Isso evita publicação inconsistente no Hostinger e falhas intermitentes em SSR/exportação.",
     ].join(" "),
   );
