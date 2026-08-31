@@ -30,6 +30,14 @@ function ehLinkExterno(item: ItemMenuPublico): boolean {
   return item.tipo_destino === "link_externo";
 }
 
+// Link fixo pro login do sistema interno — não depende do item "Área
+// restrita"/"Acesso restrito" cadastrado em /menu-site (conteúdo do CMS,
+// editável e já visto quebrar por URL cadastrada errada: sem o subdomínio
+// certo, ou sem o /auth no final, já que "/" sozinho não é mais tela de
+// login nenhuma, é a home pública — ver src/routes/index.tsx). Fica sempre
+// certo, independente do que estiver salvo no menu editável.
+const LINK_ACESSO_RESTRITO = "https://sistema.associacaoadonhiramita.org/auth";
+
 function ItemDeMenu({ item }: { item: ItemMenuPublico }) {
   const href = destinoParaHref(item);
   // Sem target="_blank": em modo standalone (PWA instalado na tela de
@@ -93,6 +101,11 @@ export function SiteInstitucionalLayout({
               {menu.map((item) => (
                 <ItemDeMenu key={item.label + item.destino} item={item} />
               ))}
+              <li>
+                <a href={LINK_ACESSO_RESTRITO} className="hover:text-primary">
+                  Acesso restrito
+                </a>
+              </li>
             </ul>
           </nav>
           <Button
@@ -134,6 +147,11 @@ export function SiteInstitucionalLayout({
                   )}
                 </li>
               ))}
+              <li>
+                <a href={LINK_ACESSO_RESTRITO} onClick={() => setMenuAberto(false)}>
+                  Acesso restrito
+                </a>
+              </li>
             </ul>
           </nav>
         )}
