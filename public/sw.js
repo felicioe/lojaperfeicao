@@ -1,10 +1,15 @@
 // Service worker (issue #27) — cache-first para estáticos, network-first
 // com fallback offline para navegação, nunca cacheia chamadas de API
 // (/_serverFn/ e /api/), igual ao comportamento do sw.js do legado PHP.
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `loja-cache-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
-const PRECACHE_URLS = [OFFLINE_URL, "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
+const PRECACHE_URLS = [
+  OFFLINE_URL,
+  "/manifest.json",
+  "/icons/sglfm-app-v2-192.png",
+  "/icons/sglfm-app-v2-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -73,8 +78,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      icon: "/icons/sglfm-app-v2-192.png",
+      badge: "/icons/sglfm-app-v2-192.png",
     }),
   );
 });

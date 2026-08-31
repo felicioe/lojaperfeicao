@@ -52,6 +52,20 @@ sempre validar de verdade antes de dar por concluído:
 
 ## Handoff operacional — recuperação de produção em 2026-08-30/31
 
+### Correção do ícone PWA em 2026-08-31
+
+- O manifesto do sistema apontava para `public/icons/icon-192.png`, que em
+  produção renderizava somente um círculo branco e permitia a reutilização do
+  ícone antigo do Lovable armazenado pelo aparelho.
+- A marca institucional foi rasterizada corretamente em 192 px e 512 px, com
+  variante `maskable`, usando nomes versionados `sglfm-app-v2-*`.
+- `public/manifest.json`, o favicon, o `apple-touch-icon`, as notificações e o
+  precache do service worker agora usam exclusivamente os novos arquivos.
+- O cache do service worker passou de `loja-cache-v1` para `loja-cache-v2` para
+  descartar os ícones antigos.
+- Validação local: inspeção visual dos PNGs, ESLint limpo no arquivo alterado e
+  `npm run build` concluído sem erros.
+
 Estado confirmado após a recuperação:
 
 - `https://sistema.associacaoadonhiramita.org/` voltou a responder `200 OK`.
