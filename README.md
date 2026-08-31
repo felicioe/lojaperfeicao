@@ -14,15 +14,12 @@ Dashboard inicial com três painéis: Contas a Pagar (próximos 30 dias), Saldo 
 
 Use autenticação de usuários (login), controle de acesso por perfil/permissão, e um layout limpo e profissional adequado para uso administrativo.
 
-This project was built with [Lovable](https://lovable.dev).
+## Deploy
 
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/24760221-3ce7-4467-b95a-dba23693d672).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+O deploy roda exclusivamente na Hostinger: ela puxa este repositório do GitHub
+e roda o build ela mesma, num Node normal (`nitro.preset = "node-server"` em
+`vite.config.ts`). As variáveis de ambiente ficam no painel Node.js da
+Hostinger — não há leitura de `.env` em produção.
 
 ## Development
 
