@@ -32,8 +32,13 @@ function ehLinkExterno(item: ItemMenuPublico): boolean {
 
 function ItemDeMenu({ item }: { item: ItemMenuPublico }) {
   const href = destinoParaHref(item);
+  // Sem target="_blank": em modo standalone (PWA instalado na tela de
+  // início, iOS/Android) abrir nova aba costuma falhar silenciosamente — o
+  // toque não faz nada, fica na mesma página, sem erro. "Área restrita"
+  // (o link mais importante daqui, leva pro sistema/login) é o caso mais
+  // grave disso. Navegar na mesma aba funciona em qualquer modo.
   const conteudo = ehLinkExterno(item) ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="hover:text-primary">
+    <a href={href} className="hover:text-primary">
       {item.label}
     </a>
   ) : (
@@ -106,9 +111,7 @@ export function SiteInstitucionalLayout({
               {menu.map((item) => (
                 <li key={item.label + item.destino}>
                   {ehLinkExterno(item) ? (
-                    <a href={destinoParaHref(item)} target="_blank" rel="noopener noreferrer">
-                      {item.label}
-                    </a>
+                    <a href={destinoParaHref(item)}>{item.label}</a>
                   ) : (
                     <Link to={destinoParaHref(item)} onClick={() => setMenuAberto(false)}>
                       {item.label}
@@ -119,13 +122,7 @@ export function SiteInstitucionalLayout({
                       {item.filhos.map((filho) => (
                         <li key={filho.label + filho.destino}>
                           {ehLinkExterno(filho) ? (
-                            <a
-                              href={destinoParaHref(filho)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {filho.label}
-                            </a>
+                            <a href={destinoParaHref(filho)}>{filho.label}</a>
                           ) : (
                             <Link to={destinoParaHref(filho)} onClick={() => setMenuAberto(false)}>
                               {filho.label}
