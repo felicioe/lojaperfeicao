@@ -248,9 +248,23 @@ export type SaldoPlanoContas = {
 // número errado e plausível, que é o pior tipo. Reescrita inline com o mesmo
 // cálculo, agora escopada. A view em si continua existindo pra ser corrigida
 // (ou removida) na #349; o sistema simplesmente não depende mais dela.
-export const listarSaldoPlanoContas = createServerFn({ method: "GET" }).handler(
-  async (): Promise<SaldoPlanoContas[]> => {
+export const listarSaldoPlanoContas = createServerFn({ method: "GET" })
+  .validator((d: unknown) =>
+    z.object({ de: z.string().nullable(), ate: z.string().nullable() }).parse(d),
+  )
+  .handler(async ({ data }): Promise<SaldoPlanoContas[]> => {
     return comPapel(PAPEIS, async (conn) => {
+      const condicoesData: string[] = [];
+      const valoresData: unknown[] = [];
+      if (data.de) {
+        condicoesData.push("lc.data >= ?");
+        valoresData.push(data.de);
+      }
+      if (data.ate) {
+        condicoesData.push("lc.data <= ?");
+        valoresData.push(data.ate);
+      }
+      const filtroData = condicoesData.length > 0 ? `AND ${condicoesData.join(" AND ")}` : "";
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT c.id, c.codigo, c.nome, c.tipo,
                 COALESCE(SUM(CASE WHEN i.tipo = 'debito' THEN i.valor ELSE 0 END), 0) AS total_debito,
@@ -259,14 +273,15 @@ export const listarSaldoPlanoContas = createServerFn({ method: "GET" }).handler(
                   - COALESCE(SUM(CASE WHEN i.tipo = 'credito' THEN i.valor ELSE 0 END), 0) AS saldo_devedor
            FROM plano_contas c
            LEFT JOIN lancamentos_contabeis_itens i ON i.conta_id = c.id AND i.loja_id = c.loja_id
-          WHERE c.loja_id = @current_loja_id AND c.analitica = TRUE
+           LEFT JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
+          WHERE c.loja_id = @current_loja_id AND c.analitica = TRUE ${filtroData}
           GROUP BY c.id, c.codigo, c.nome, c.tipo
           ORDER BY c.codigo`,
+        valoresData,
       );
       return rows as SaldoPlanoContas[];
     });
-  },
-);
+  });
 
 export type AuditoriaDesbalanceado = {
   lancamento_id: string;
@@ -279,13 +294,26 @@ export type AuditoriaDesbalanceado = {
   diferenca: number;
 };
 
-export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" }).handler(
-  async (): Promise<AuditoriaDesbalanceado[]> => {
+export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" })
+  .validator((d: unknown) =>
+    z.object({ de: z.string().nullable(), ate: z.string().nullable() }).parse(d),
+  )
+  .handler(async ({ data }): Promise<AuditoriaDesbalanceado[]> => {
     return comPapel(PAPEIS, async (conn) => {
       // Mesmo caso da v_saldo_plano_contas acima: a view não expõe loja_id e
       // varre todas as Lojas, então a tela de auditoria contábil de uma Loja
       // apontaria lançamento desbalanceado de outra — sem nem existir tela
       // onde investigar. Reescrita inline com o mesmo cálculo, escopada.
+      const condicoes = ["l.loja_id = @current_loja_id"];
+      const valores: unknown[] = [];
+      if (data.de) {
+        condicoes.push("l.data >= ?");
+        valores.push(data.de);
+      }
+      if (data.ate) {
+        condicoes.push("l.data <= ?");
+        valores.push(data.ate);
+      }
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT l.id AS lancamento_id, l.data, l.descricao, l.origem_tipo, l.origem_id,
                 COALESCE(SUM(CASE WHEN i.tipo = 'debito' THEN i.valor ELSE 0 END), 0) AS total_debito,
@@ -294,11 +322,11 @@ export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" }).h
                   - COALESCE(SUM(CASE WHEN i.tipo = 'credito' THEN i.valor ELSE 0 END), 0) AS diferenca
            FROM lancamentos_contabeis l
            JOIN lancamentos_contabeis_itens i ON i.lancamento_id = l.id AND i.loja_id = l.loja_id
-          WHERE l.loja_id = @current_loja_id
+          WHERE ${condicoes.join(" AND ")}
           GROUP BY l.id, l.data, l.descricao, l.origem_tipo, l.origem_id
          HAVING total_debito <> total_credito`,
+        valores,
       );
       return rows as AuditoriaDesbalanceado[];
     });
-  },
-);
+  });
