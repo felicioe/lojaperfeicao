@@ -3,7 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { listarAuditoriaDesbalanceados, listarSaldoPlanoContas } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
+import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -15,24 +25,57 @@ import {
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
+import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/auditoria")({
   head: () => ({ meta: [{ title: "Auditoria Contábil — Gestão Maçônica" }] }),
   component: AuditoriaContabil,
 });
 
+const COLUNAS_DESBALANCEADOS: ColunaRelatorio[] = [
+  { chave: "data", titulo: "Data" },
+  { chave: "descricao", titulo: "Descrição" },
+  { chave: "origem", titulo: "Origem" },
+  { chave: "debito", titulo: "Débito" },
+  { chave: "credito", titulo: "Crédito" },
+  { chave: "diferenca", titulo: "Diferença" },
+];
+
+const COLUNAS_SALDOS: ColunaRelatorio[] = [
+  { chave: "codigo", titulo: "Código" },
+  { chave: "conta", titulo: "Conta" },
+  { chave: "tipo", titulo: "Tipo" },
+  { chave: "debito", titulo: "Débito" },
+  { chave: "credito", titulo: "Crédito" },
+  { chave: "saldo", titulo: "Saldo devedor" },
+];
+
+const TIPO_LABEL: Record<string, string> = {
+  ativo: "Ativo",
+  passivo: "Passivo",
+  patrimonio_liquido: "Patrimônio Líquido",
+  receita: "Receita",
+  despesa: "Despesa",
+};
+
 function AuditoriaContabil() {
+  const [de, setDe] = useState("");
+  const [ate, setAte] = useState("");
+  const [buscaConta, setBuscaConta] = useState("");
+  const [tipoConta, setTipoConta] = useState("todos");
+
   const { data: desbalanceados = [], isLoading: loadingDesbalanceados } = useQuery({
-    queryKey: ["v_auditoria_contabil_desbalanceados"],
-    queryFn: () => listarAuditoriaDesbalanceados(),
+    queryKey: ["v_auditoria_contabil_desbalanceados", de, ate],
+    queryFn: () => listarAuditoriaDesbalanceados({ data: { de: de || null, ate: ate || null } }),
   });
 
   const { data: saldos = [] } = useQuery({
-    queryKey: ["v_saldo_plano_contas"],
-    queryFn: () => listarSaldoPlanoContas(),
+    queryKey: ["v_saldo_plano_contas", de, ate],
+    queryFn: () => listarSaldoPlanoContas({ data: { de: de || null, ate: ate || null } }),
   });
 
   const ordDesbalanceados = useOrdenacao(desbalanceados, {
@@ -44,7 +87,17 @@ function AuditoriaContabil() {
     diferenca: (d) => Number(d.diferenca),
   });
 
-  const ordSaldos = useOrdenacao(saldos, {
+  const buscaNormalizada = buscaConta.trim().toLowerCase();
+  const saldosFiltrados = saldos.filter((c) => {
+    if (tipoConta !== "todos" && c.tipo !== tipoConta) return false;
+    if (!buscaNormalizada) return true;
+    return (
+      c.codigo.toLowerCase().includes(buscaNormalizada) ||
+      c.nome.toLowerCase().includes(buscaNormalizada)
+    );
+  });
+
+  const ordSaldos = useOrdenacao(saldosFiltrados, {
     codigo: (c) => c.codigo,
     conta: (c) => c.nome,
     tipo: (c) => c.tipo,
@@ -56,9 +109,27 @@ function AuditoriaContabil() {
     ordSaldos.itensOrdenados,
   );
 
-  const totalDebito = saldos.reduce((s, c) => s + Number(c.total_debito), 0);
-  const totalCredito = saldos.reduce((s, c) => s + Number(c.total_credito), 0);
+  const totalDebito = saldosFiltrados.reduce((s, c) => s + Number(c.total_debito), 0);
+  const totalCredito = saldosFiltrados.reduce((s, c) => s + Number(c.total_credito), 0);
   const consistente = !loadingDesbalanceados && desbalanceados.length === 0;
+
+  const linhasDesbalanceadosExportacao = desbalanceados.map((d) => ({
+    data: fmtDate(d.data),
+    descricao: d.descricao,
+    origem: d.origem_tipo ?? "",
+    debito: Number(d.total_debito),
+    credito: Number(d.total_credito),
+    diferenca: Number(d.diferenca),
+  }));
+
+  const linhasSaldosExportacao = saldosFiltrados.map((c) => ({
+    codigo: c.codigo,
+    conta: c.nome,
+    tipo: TIPO_LABEL[c.tipo] ?? c.tipo,
+    debito: Number(c.total_debito),
+    credito: Number(c.total_credito),
+    saldo: Number(c.saldo_devedor),
+  }));
 
   return (
     <>
@@ -66,6 +137,50 @@ function AuditoriaContabil() {
         title="Auditoria Contábil"
         description="Verifica se todos os lançamentos em partida dobrada estão balanceados (débito = crédito)."
       />
+
+      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
+        <div>
+          <Label htmlFor="auditoria-de">De</Label>
+          <Input id="auditoria-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="auditoria-ate">Até</Label>
+          <Input
+            id="auditoria-ate"
+            type="date"
+            value={ate}
+            onChange={(e) => setAte(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="auditoria-busca">Buscar conta</Label>
+          <Input
+            id="auditoria-busca"
+            placeholder="Código ou nome…"
+            value={buscaConta}
+            onChange={(e) => setBuscaConta(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="auditoria-tipo">Tipo</Label>
+          <Select value={tipoConta} onValueChange={setTipoConta}>
+            <SelectTrigger id="auditoria-tipo">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {Object.entries(TIPO_LABEL).map(([valor, rotulo]) => (
+                <SelectItem key={valor} value={valor}>
+                  {rotulo}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+      <p className="text-xs text-muted-foreground mb-4 -mt-2">
+        Sem período selecionado, considera todo o histórico — como sempre foi.
+      </p>
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
         <Card>
@@ -101,8 +216,13 @@ function AuditoriaContabil() {
 
       {!consistente && (
         <Card className="mb-6 border-destructive">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-base">Lançamentos desbalanceados</CardTitle>
+            <ExportarRelatorio
+              titulo="Auditoria Contábil — Lançamentos desbalanceados"
+              colunas={COLUNAS_DESBALANCEADOS}
+              linhas={linhasDesbalanceadosExportacao}
+            />
           </CardHeader>
           <CardContent>
             <Table>
@@ -156,8 +276,13 @@ function AuditoriaContabil() {
       )}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-base">Saldo por conta analítica</CardTitle>
+          <ExportarRelatorio
+            titulo="Auditoria Contábil — Saldo por conta"
+            colunas={COLUNAS_SALDOS}
+            linhas={linhasSaldosExportacao}
+          />
         </CardHeader>
         <CardContent>
           <Table>
@@ -189,9 +314,7 @@ function AuditoriaContabil() {
                   <TableCell className="font-mono">{c.codigo}</TableCell>
                   <TableCell>{c.nome}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {c.tipo === "receita" ? "Receita" : c.tipo === "despesa" ? "Despesa" : c.tipo}
-                    </Badge>
+                    <Badge variant="outline">{TIPO_LABEL[c.tipo] ?? c.tipo}</Badge>
                   </TableCell>
                   <TableCell className="text-right">{brl(c.total_debito)}</TableCell>
                   <TableCell className="text-right">{brl(c.total_credito)}</TableCell>
