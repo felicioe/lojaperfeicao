@@ -54,10 +54,10 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "descricao", titulo: "Descrição" },
   { chave: "vencimento", titulo: "Vencimento" },
   { chave: "dias_atraso", titulo: "Dias de atraso" },
-  { chave: "valor_original", titulo: "Valor original" },
-  { chave: "valor_multa", titulo: "Multa" },
-  { chave: "valor_juros", titulo: "Juros" },
-  { chave: "valor_total", titulo: "Total atualizado" },
+  { chave: "valor_original", titulo: "Valor original", formato: "moeda" },
+  { chave: "valor_multa", titulo: "Multa", formato: "moeda" },
+  { chave: "valor_juros", titulo: "Juros", formato: "moeda" },
+  { chave: "valor_total", titulo: "Total atualizado", formato: "moeda" },
 ];
 
 type Ordenacao = "dias_atraso" | "valor_total";

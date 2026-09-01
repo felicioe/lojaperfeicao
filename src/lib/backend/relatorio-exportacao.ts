@@ -11,7 +11,11 @@ import { comPapel } from "./authz";
 // parâmetro em vez de constante.
 const PAPEIS = ["admin", "tesoureiro"];
 
-const colunaSchema = z.object({ chave: z.string(), titulo: z.string() });
+const colunaSchema = z.object({
+  chave: z.string(),
+  titulo: z.string(),
+  formato: z.enum(["moeda"]).optional(),
+});
 const linhaSchema = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
 const totalSchema = z.object({ rotulo: z.string(), valor: z.number() });
 
