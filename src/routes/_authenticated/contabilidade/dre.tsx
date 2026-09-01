@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listarItensContabeisPeriodo } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
@@ -37,8 +37,16 @@ type Linha = {
 };
 
 function Dre() {
+  const navigate = useNavigate();
   const [de, setDe] = useState(primeiroDiaDoAno());
   const [ate, setAte] = useState(toISODate(new Date()));
+
+  // Clicar numa conta abre o Razão Contábil dela, já filtrado pelo mesmo
+  // período do DRE (issue #405) — reaproveita a tela que já mostra saldo
+  // anterior/atual e a movimentação, em vez de duplicar essa visão aqui.
+  const abrirRazao = (contaId: string) => {
+    navigate({ to: "/contabilidade/razao", search: { contaId, de, ate } });
+  };
 
   const { data: linhas = [] } = useQuery({
     queryKey: ["dre", de, ate],
@@ -129,9 +137,13 @@ function Dre() {
               </TableRow>
             )}
             {receitas.map((l) => (
-              <TableRow key={l.id}>
+              <TableRow
+                key={l.id}
+                className="cursor-pointer hover:bg-muted/40"
+                onClick={() => abrirRazao(l.id)}
+              >
                 <TableCell className="font-mono w-24">{l.codigo}</TableCell>
-                <TableCell>{l.nome}</TableCell>
+                <TableCell className="underline decoration-dotted">{l.nome}</TableCell>
                 <TableCell className="text-right">{brl(l.valor)}</TableCell>
               </TableRow>
             ))}
@@ -155,9 +167,13 @@ function Dre() {
               </TableRow>
             )}
             {despesas.map((l) => (
-              <TableRow key={l.id}>
+              <TableRow
+                key={l.id}
+                className="cursor-pointer hover:bg-muted/40"
+                onClick={() => abrirRazao(l.id)}
+              >
                 <TableCell className="font-mono w-24">{l.codigo}</TableCell>
-                <TableCell>{l.nome}</TableCell>
+                <TableCell className="underline decoration-dotted">{l.nome}</TableCell>
                 <TableCell className="text-right">{brl(l.valor)}</TableCell>
               </TableRow>
             ))}

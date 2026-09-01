@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import {
   listarContasAnaliticas,
   obterSaldoAnteriorConta,
@@ -31,8 +32,19 @@ import { Download } from "lucide-react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 
+// Parâmetros opcionais na URL (issue #405) — permite chegar aqui já filtrado
+// a partir de outra tela (DRE: clicar numa conta abre o Razão dela no mesmo
+// período), sem duplicar a visão "lançamentos de uma conta num período" que
+// já existe aqui.
+const razaoSearchSchema = z.object({
+  contaId: z.string().uuid().optional(),
+  de: z.string().optional(),
+  ate: z.string().optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/contabilidade/razao")({
   head: () => ({ meta: [{ title: "Razão Contábil — Gestão Maçônica" }] }),
+  validateSearch: (search) => razaoSearchSchema.parse(search),
   component: Razao,
 });
 
@@ -42,9 +54,10 @@ function primeiroDiaDoAno() {
 }
 
 function Razao() {
-  const [contaId, setContaId] = useState("");
-  const [de, setDe] = useState(primeiroDiaDoAno());
-  const [ate, setAte] = useState(toISODate(new Date()));
+  const busca = Route.useSearch();
+  const [contaId, setContaId] = useState(busca.contaId ?? "");
+  const [de, setDe] = useState(busca.de ?? primeiroDiaDoAno());
+  const [ate, setAte] = useState(busca.ate ?? toISODate(new Date()));
 
   const { data: contas = [] } = useQuery({
     queryKey: ["plano_contas_analiticas"],
