@@ -2,11 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listarItensContabeisPeriodo } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
-import { Button } from "@/components/ui/button";
+import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -15,9 +16,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useState } from "react";
-import { CheckCircle2, AlertTriangle, Download } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { brl, toISODate } from "@/lib/format";
+import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/balancete")({
   head: () => ({ meta: [{ title: "Balancete — Gestão Maçônica" }] }),
@@ -60,11 +62,25 @@ type LinhaBalancete = {
   credito: number;
 };
 
+const COLUNAS: ColunaRelatorio[] = [
+  { chave: "classe", titulo: "Classe" },
+  { chave: "codigo", titulo: "Código" },
+  { chave: "conta", titulo: "Conta" },
+  { chave: "saldoAnterior", titulo: "Saldo anterior" },
+  { chave: "debito", titulo: "Débito" },
+  { chave: "credito", titulo: "Crédito" },
+  { chave: "saldoAtual", titulo: "Saldo atual" },
+];
+
 function Balancete() {
   const [de, setDe] = useState(primeiroDiaDoAno());
   const [ate, setAte] = useState(toISODate(new Date()));
+  const [classesSelecionadas, setClassesSelecionadas] = useState<Set<string>>(
+    () => new Set(ORDEM_CLASSE),
+  );
+  const [buscaConta, setBuscaConta] = useState("");
 
-  const { data: linhas = [] } = useQuery({
+  const { data: todasLinhas = [] } = useQuery({
     queryKey: ["balancete", de, ate],
     queryFn: async () => {
       const [itensAnteriores, itensPeriodo] = await Promise.all([
@@ -99,6 +115,29 @@ function Balancete() {
     },
   });
 
+  const toggleClasse = (classe: string) => {
+    setClassesSelecionadas((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(classe)) novo.delete(classe);
+      else novo.add(classe);
+      return novo;
+    });
+  };
+
+  const buscaNormalizada = buscaConta.trim().toLowerCase();
+  const linhas = useMemo(
+    () =>
+      todasLinhas.filter((l) => {
+        if (!classesSelecionadas.has(l.tipo)) return false;
+        if (!buscaNormalizada) return true;
+        return (
+          l.codigo.toLowerCase().includes(buscaNormalizada) ||
+          l.nome.toLowerCase().includes(buscaNormalizada)
+        );
+      }),
+    [todasLinhas, classesSelecionadas, buscaNormalizada],
+  );
+
   const saldoAtual = (l: LinhaBalancete) => l.saldoAnterior + l.debito - l.credito;
 
   const totalDebito = linhas.reduce((s, l) => s + l.debito, 0);
@@ -106,45 +145,15 @@ function Balancete() {
   const diferenca = totalDebito - totalCredito;
   const fechado = Math.abs(diferenca) < 0.01;
 
-  const exportarCSV = () => {
-    const cabecalho = [
-      "Classe",
-      "Código",
-      "Conta",
-      "Saldo anterior",
-      "Débito",
-      "Crédito",
-      "Saldo atual",
-    ];
-    const linhasCsv = linhas.map((l) => [
-      CLASSE_LABEL[l.tipo] ?? l.tipo,
-      l.codigo,
-      l.nome,
-      l.saldoAnterior.toFixed(2),
-      l.debito.toFixed(2),
-      l.credito.toFixed(2),
-      saldoAtual(l).toFixed(2),
-    ]);
-    linhasCsv.push([
-      "Total",
-      "",
-      "",
-      linhas.reduce((s, l) => s + l.saldoAnterior, 0).toFixed(2),
-      totalDebito.toFixed(2),
-      totalCredito.toFixed(2),
-      linhas.reduce((s, l) => s + saldoAtual(l), 0).toFixed(2),
-    ]);
-    const csv = [cabecalho, ...linhasCsv]
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `balancete_${de}_a_${ate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const linhasExportacao = linhas.map((l) => ({
+    classe: CLASSE_LABEL[l.tipo] ?? l.tipo,
+    codigo: l.codigo,
+    conta: l.nome,
+    saldoAnterior: l.saldoAnterior,
+    debito: l.debito,
+    credito: l.credito,
+    saldoAtual: saldoAtual(l),
+  }));
 
   return (
     <>
@@ -152,9 +161,15 @@ function Balancete() {
         title="Balancete de Verificação"
         description="Saldo anterior, débitos e créditos do período e saldo atual, pelo regime de caixa, agrupados por classe."
         actions={
-          <Button variant="outline" onClick={exportarCSV} disabled={linhas.length === 0}>
-            <Download className="h-4 w-4 mr-1" /> Exportar CSV
-          </Button>
+          <ExportarRelatorio
+            titulo="Balancete de Verificação"
+            colunas={COLUNAS}
+            linhas={linhasExportacao}
+            totais={[
+              { rotulo: "Débito", valor: totalDebito },
+              { rotulo: "Crédito", valor: totalCredito },
+            ]}
+          />
         }
       />
 
@@ -172,7 +187,30 @@ function Balancete() {
             onChange={(e) => setAte(e.target.value)}
           />
         </div>
-        <div className="md:col-span-2 flex items-center gap-2">
+        <div className="md:col-span-2">
+          <Label htmlFor="balancete-busca">Buscar conta</Label>
+          <Input
+            id="balancete-busca"
+            placeholder="Código ou nome…"
+            value={buscaConta}
+            onChange={(e) => setBuscaConta(e.target.value)}
+          />
+        </div>
+      </Card>
+
+      <Card className="mb-4 p-4 flex flex-wrap items-center gap-2">
+        {ORDEM_CLASSE.map((classe) => (
+          <Button
+            key={classe}
+            type="button"
+            size="sm"
+            variant={classesSelecionadas.has(classe) ? "default" : "outline"}
+            onClick={() => toggleClasse(classe)}
+          >
+            {CLASSE_LABEL[classe]}
+          </Button>
+        ))}
+        <span className="ml-auto">
           {fechado ? (
             <Badge className="gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" /> Balancete fechado — débitos = créditos
@@ -183,10 +221,10 @@ function Balancete() {
               Auditoria Contábil
             </Badge>
           )}
-        </div>
+        </span>
       </Card>
 
-      {ORDEM_CLASSE.map((classe) => {
+      {ORDEM_CLASSE.filter((classe) => classesSelecionadas.has(classe)).map((classe) => {
         const doGrupo = linhas.filter((l) => l.tipo === classe);
         if (doGrupo.length === 0) return null;
         const subAnterior = doGrupo.reduce((s, l) => s + l.saldoAnterior, 0);
