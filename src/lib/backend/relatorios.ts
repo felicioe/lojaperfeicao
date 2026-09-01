@@ -848,165 +848,281 @@ export const relatorioExtratoBancario = createServerFn({ method: "GET" })
   .validator((d: unknown) => filtroExtratoBancarioSchema.parse(d))
   .handler(async ({ data }): Promise<ItemExtratoBancario[]> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
-      const movimentosSql =
-        data.modo === "compensado"
-          ? `SELECT l.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
-                    l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
-                    pc.nome AS plano_conta_nome,
-                    CASE
-                      WHEN l.conta_destino_id = ? THEN l.valor
-                      WHEN l.tipo = 'entrada' THEN l.valor
-                      ELSE -l.valor
-                    END AS valor_sinal
-             FROM lancamentos l
-             LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
-             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
-             WHERE l.loja_id = @current_loja_id
-               AND l.pago = TRUE AND (l.conta_id = ? OR l.conta_destino_id = ?)`
-          : `SELECT r.id, r.data AS data, r.criado_em,
-                    CASE WHEN COUNT(*) = 1 THEN MAX(l.descricao)
-                         ELSE CONCAT(COUNT(*), ' fatura(s) quitada(s)') END AS descricao,
-                    'entrada' AS tipo,
-                    CASE WHEN COUNT(DISTINCT l.categoria_recebimento) = 1 THEN MAX(l.categoria_recebimento) END AS categoria_recebimento,
-                    MAX(i.nome_civil) AS irmao_nome, GROUP_CONCAT(DISTINCT l.irmao_id) AS irmao_ids,
-                    NULL AS plano_conta_nome, r.valor_total AS valor_sinal
-             FROM recibos r
-             JOIN recibo_itens ri ON ri.recibo_id = r.id AND ri.loja_id = r.loja_id
-             JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
-             LEFT JOIN irmaos i ON i.id = r.irmao_id AND i.loja_id = r.loja_id
-             WHERE r.loja_id = @current_loja_id AND r.conta_financeira_id = ?
-             GROUP BY r.id, r.data, r.criado_em, r.valor_total
-
-             UNION ALL
-
-             SELECT c.id, c.data_conciliacao AS data, c.criado_em,
-                    CASE WHEN COUNT(*) = 1 THEN MAX(l.descricao)
-                         ELSE CONCAT(COUNT(*), ' item(ns) conciliado(s)') END AS descricao,
-                    CASE WHEN SUM(CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END) >= 0
-                         THEN 'entrada' ELSE 'saida' END AS tipo,
-                    CASE WHEN COUNT(DISTINCT l.categoria_recebimento) = 1 THEN MAX(l.categoria_recebimento) END AS categoria_recebimento,
-                    CASE WHEN COUNT(DISTINCT l.irmao_id) = 1 THEN MAX(i.nome_civil) END AS irmao_nome,
-                    GROUP_CONCAT(DISTINCT l.irmao_id) AS irmao_ids,
-                    NULL AS plano_conta_nome,
-                    SUM(CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END) AS valor_sinal
-             FROM conciliacoes c
-             JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id AND cl.loja_id = c.loja_id
-             JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
-             LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
-             WHERE c.loja_id = @current_loja_id AND c.conta_financeira_id = ? AND c.status = 'ativa'
-             GROUP BY c.id, c.data_conciliacao, c.criado_em
-
-             UNION ALL
-
-             SELECT o.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
-                    l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
-                    pc.nome AS plano_conta_nome,
-                    CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
-             FROM ofx_lancamentos o
-             JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
-             LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
-             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
-             WHERE o.loja_id = @current_loja_id
-               AND o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.conta_financeira_id = ?
-
-             UNION ALL
-
-             SELECT l.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
-                    l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
-                    pc.nome AS plano_conta_nome,
-                    CASE
-                      WHEN l.conta_destino_id = ? THEN l.valor
-                      WHEN l.tipo = 'entrada' THEN l.valor
-                      ELSE -l.valor
-                    END AS valor_sinal
-             FROM lancamentos l
-             LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
-             LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
-             WHERE l.loja_id = @current_loja_id
-               AND l.pago = TRUE
-               AND (l.conta_id = ? OR l.conta_destino_id = ?)
-               AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
-               AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id)
-               AND NOT EXISTS (
-                 SELECT 1 FROM ofx_lancamentos o
-                  WHERE o.lancamento_id = l.id AND o.loja_id = l.loja_id AND o.conciliacao_id IS NULL
-               )`;
-
-      const movimentosParams =
-        data.modo === "compensado"
-          ? [data.contaId, data.contaId, data.contaId]
-          : [data.contaId, data.contaId, data.contaId, data.contaId, data.contaId, data.contaId];
-
-      const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, data, criado_em, descricao, tipo, categoria_recebimento, irmao_nome, irmao_ids,
-                plano_conta_nome, valor_sinal,
-                (SELECT saldo_inicial FROM contas_financeiras
-                  WHERE id = ? AND loja_id = @current_loja_id)
-                  + SUM(valor_sinal) OVER (ORDER BY data, criado_em, id) AS saldo_corrente
-         FROM (${movimentosSql}) movimentos
-         WHERE ? IS NULL OR data <= ?
-         ORDER BY data, criado_em, id`,
-        [data.contaId, ...movimentosParams, data.ate, data.ate],
-      );
-
-      let faturasPorRecibo = new Map<string, FaturaExtratoBancario[]>();
-      let faturasPorConciliacao = new Map<string, FaturaExtratoBancario[]>();
-      if (data.modo === "creditado") {
-        const [reciboRows] = await conn.query<RowDataPacket[]>(
-          `SELECT r.id AS recibo_id, l.id, l.descricao,
-                  (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor
-           FROM recibos r
-           JOIN recibo_itens ri ON ri.recibo_id = r.id AND ri.loja_id = r.loja_id
-           JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
-           WHERE r.loja_id = @current_loja_id AND r.conta_financeira_id = ?`,
-          [data.contaId],
-        );
-        faturasPorRecibo = agruparFaturas(reciboRows, "recibo_id");
-
-        const [conciliacaoRows] = await conn.query<RowDataPacket[]>(
-          `SELECT c.id AS conciliacao_id, l.id, l.descricao, cl.valor_aplicado AS valor
-           FROM conciliacoes c
-           JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c.id AND cl.loja_id = c.loja_id
-           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
-           WHERE c.loja_id = @current_loja_id AND c.conta_financeira_id = ? AND c.status = 'ativa'`,
-          [data.contaId],
-        );
-        faturasPorConciliacao = agruparFaturas(conciliacaoRows, "conciliacao_id");
-      }
-
-      const idsRecibo = new Set(faturasPorRecibo.keys());
-      const idsConciliacao = new Set(faturasPorConciliacao.keys());
-
-      return (rows as LinhaBrutaExtratoBancario[])
-        .filter((r) => !data.de || r.data >= data.de)
-        .filter((r) => !data.tipo || r.tipo === data.tipo)
-        .filter((r) => !data.categoria || r.categoria_recebimento === data.categoria)
-        .filter((r) => !data.irmaoId || (r.irmao_ids ?? "").split(",").includes(data.irmaoId!))
-        .map((r) => ({
-          id: r.id,
-          data: r.data,
-          descricao: r.descricao,
-          tipo: r.tipo,
-          categoria_recebimento: r.categoria_recebimento,
-          irmao_nome: r.irmao_nome,
-          plano_conta_nome: r.plano_conta_nome,
-          valor_sinal: Number(r.valor_sinal),
-          saldo_corrente: Number(r.saldo_corrente),
-          faturas:
-            data.modo !== "creditado"
-              ? null
-              : idsRecibo.has(r.id)
-                ? (faturasPorRecibo.get(r.id) ?? [])
-                : idsConciliacao.has(r.id)
-                  ? (faturasPorConciliacao.get(r.id) ?? [])
-                  : [{ id: r.id, descricao: r.descricao, valor: Math.abs(Number(r.valor_sinal)) }],
-        }));
+      if (data.modo === "compensado") return relatorioExtratoBancarioCompensado(conn, data);
+      return relatorioExtratoBancarioCreditado(conn, data);
     });
   });
 
+type FiltroExtratoBancario = z.infer<typeof filtroExtratoBancarioSchema>;
+
+async function relatorioExtratoBancarioCompensado(
+  conn: PoolConnection,
+  data: FiltroExtratoBancario,
+): Promise<ItemExtratoBancario[]> {
+  const movimentosSql = `SELECT l.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
+              l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
+              pc.nome AS plano_conta_nome,
+              CASE
+                WHEN l.conta_destino_id = ? THEN l.valor
+                WHEN l.tipo = 'entrada' THEN l.valor
+                ELSE -l.valor
+              END AS valor_sinal
+       FROM lancamentos l
+       LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+       LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
+       WHERE l.loja_id = @current_loja_id
+         AND l.pago = TRUE AND (l.conta_id = ? OR l.conta_destino_id = ?)`;
+  const [rows] = await conn.query<RowDataPacket[]>(
+    `SELECT id, data, criado_em, descricao, tipo, categoria_recebimento, irmao_nome, irmao_ids,
+            plano_conta_nome, valor_sinal,
+            (SELECT saldo_inicial FROM contas_financeiras
+              WHERE id = ? AND loja_id = @current_loja_id)
+              + SUM(valor_sinal) OVER (ORDER BY data, criado_em, id) AS saldo_corrente
+     FROM (${movimentosSql}) movimentos
+     WHERE ? IS NULL OR data <= ?
+     ORDER BY data, criado_em, id`,
+    [data.contaId, data.contaId, data.contaId, data.contaId, data.ate, data.ate],
+  );
+  return filtrarOrdenarExtratoBancario(rows as LinhaBrutaExtratoBancario[], data, null);
+}
+
+// "creditado": uma linha por evento real de caixa. Recibo (sempre 1 evento)
+// e legado/avulso (sempre 1:1) continuam vindo prontos do SQL; a
+// conciliação em lote (issue #110) é a exceção — um evento pode juntar N
+// linhas do banco datadas de dias diferentes, e a query antiga agrupava
+// isso numa linha só (GROUP BY conciliacao_id), datada do dia do evento —
+// não refletia o extrato bancário de verdade (achado do usuário, mesmo
+// motivo da correção em relatorioExtratoConciliacao/relatorioExtratoIrmao).
+// Por isso o lote é montado à parte, uma linha por linha OFX real, com
+// parearLotePorOrdem reconstruindo qual fatura cada uma pagou — e o saldo
+// corrente é somado aqui em JS (não dá mais pra usar só a window function
+// do SQL, já que as linhas do lote não vêm da mesma query).
+async function relatorioExtratoBancarioCreditado(
+  conn: PoolConnection,
+  data: FiltroExtratoBancario,
+): Promise<ItemExtratoBancario[]> {
+  const movimentosSql = `SELECT r.id, r.data AS data, r.criado_em,
+                CASE WHEN COUNT(*) = 1 THEN MAX(l.descricao)
+                     ELSE CONCAT(COUNT(*), ' fatura(s) quitada(s)') END AS descricao,
+                'entrada' AS tipo,
+                CASE WHEN COUNT(DISTINCT l.categoria_recebimento) = 1 THEN MAX(l.categoria_recebimento) END AS categoria_recebimento,
+                MAX(i.nome_civil) AS irmao_nome, GROUP_CONCAT(DISTINCT l.irmao_id) AS irmao_ids,
+                NULL AS plano_conta_nome, r.valor_total AS valor_sinal
+         FROM recibos r
+         JOIN recibo_itens ri ON ri.recibo_id = r.id AND ri.loja_id = r.loja_id
+         JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+         LEFT JOIN irmaos i ON i.id = r.irmao_id AND i.loja_id = r.loja_id
+         WHERE r.loja_id = @current_loja_id AND r.conta_financeira_id = ?
+         GROUP BY r.id, r.data, r.criado_em, r.valor_total
+
+         UNION ALL
+
+         SELECT o.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
+                l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
+                pc.nome AS plano_conta_nome,
+                CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
+         FROM ofx_lancamentos o
+         JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
+         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
+         WHERE o.loja_id = @current_loja_id
+           AND o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.conta_financeira_id = ?
+
+         UNION ALL
+
+         SELECT l.id, COALESCE(l.data_pagamento, l.data) AS data, l.criado_em, l.descricao, l.tipo,
+                l.categoria_recebimento, i.nome_civil AS irmao_nome, l.irmao_id AS irmao_ids,
+                pc.nome AS plano_conta_nome,
+                CASE
+                  WHEN l.conta_destino_id = ? THEN l.valor
+                  WHEN l.tipo = 'entrada' THEN l.valor
+                  ELSE -l.valor
+                END AS valor_sinal
+         FROM lancamentos l
+         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         LEFT JOIN plano_contas pc ON pc.id = l.plano_conta_id AND pc.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id
+           AND l.pago = TRUE
+           AND (l.conta_id = ? OR l.conta_destino_id = ?)
+           AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
+           AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id)
+           AND NOT EXISTS (
+             SELECT 1 FROM ofx_lancamentos o
+              WHERE o.lancamento_id = l.id AND o.loja_id = l.loja_id AND o.conciliacao_id IS NULL
+           )`;
+
+  const [linhasBase] = await conn.query<RowDataPacket[]>(
+    `SELECT id, data, criado_em, descricao, tipo, categoria_recebimento, irmao_nome, irmao_ids,
+            plano_conta_nome, valor_sinal
+     FROM (${movimentosSql}) movimentos`,
+    [data.contaId, data.contaId, data.contaId, data.contaId, data.contaId],
+  );
+
+  const [reciboRows] = await conn.query<RowDataPacket[]>(
+    `SELECT r.id AS recibo_id, l.id, l.descricao,
+            (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor
+     FROM recibos r
+     JOIN recibo_itens ri ON ri.recibo_id = r.id AND ri.loja_id = r.loja_id
+     JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
+     WHERE r.loja_id = @current_loja_id AND r.conta_financeira_id = ?`,
+    [data.contaId],
+  );
+  const faturasPorRecibo = agruparFaturas(reciboRows, "recibo_id");
+
+  // Linhas do lote (uma por linha OFX real, não por evento) — ver
+  // comentário da função. Precisa de TODAS as linhas OFX e TODOS os
+  // lançamentos de cada evento (não só os desta conta — mas por construção
+  // um evento nunca mistura contas, ver conciliar_ofx_lote/0044) pra saber
+  // a quantidade real N e M de cada lado.
+  const linhasLote: LinhaBrutaExtratoBancario[] = [];
+  const faturasPorOfxId = new Map<string, FaturaExtratoBancario[]>();
+  const [ofxDoLote] = await conn.query<RowDataPacket[]>(
+    `SELECT o.id, o.data, o.importado_em AS criado_em, o.valor, o.conciliacao_id
+     FROM ofx_lancamentos o
+     JOIN conciliacoes c ON c.id = o.conciliacao_id AND c.loja_id = o.loja_id AND c.status = 'ativa'
+     WHERE o.loja_id = @current_loja_id AND o.conciliacao_id IS NOT NULL AND c.conta_financeira_id = ?`,
+    [data.contaId],
+  );
+  if (ofxDoLote.length > 0) {
+    const idsConciliacao = [...new Set(ofxDoLote.map((o) => o.conciliacao_id as string))];
+    const [lancDoLote] = await conn.query<RowDataPacket[]>(
+      `SELECT cl.conciliacao_id, l.id, l.descricao, cl.valor_aplicado AS valor,
+              l.categoria_recebimento, l.irmao_id, i.nome_civil AS irmao_nome,
+              COALESCE(l.data_vencimento, l.data) AS ordenacao
+       FROM conciliacao_lancamentos cl
+       JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+       LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+       WHERE cl.conciliacao_id IN (?) AND cl.loja_id = @current_loja_id`,
+      [idsConciliacao],
+    );
+    const ofxPorConciliacao = new Map<string, RowDataPacket[]>();
+    for (const o of ofxDoLote) {
+      const lista = ofxPorConciliacao.get(o.conciliacao_id) ?? [];
+      lista.push(o);
+      ofxPorConciliacao.set(o.conciliacao_id, lista);
+    }
+    const lancPorConciliacao = new Map<string, RowDataPacket[]>();
+    for (const l of lancDoLote) {
+      const lista = lancPorConciliacao.get(l.conciliacao_id) ?? [];
+      lista.push(l);
+      lancPorConciliacao.set(l.conciliacao_id, lista);
+    }
+
+    for (const conciliacaoId of idsConciliacao) {
+      const ofxDoEvento = ofxPorConciliacao.get(conciliacaoId) ?? [];
+      const lancDoEvento = lancPorConciliacao.get(conciliacaoId) ?? [];
+      const pares =
+        ofxDoEvento.length > 1
+          ? parearLotePorOrdem(
+              ofxDoEvento.map((o) => ({ id: o.id, data: String(o.data) })),
+              lancDoEvento.map((l) => ({ id: l.id, ordenacao: String(l.ordenacao) })),
+            )
+          : null;
+
+      for (const o of ofxDoEvento) {
+        // Só 1 linha OFX no evento: sem ambiguidade, ela é a origem de
+        // todos os lançamentos do lote. Mais de 1: usa o pareamento (vazio
+        // quando as quantidades não batem — não inventa vínculo).
+        const ligados =
+          ofxDoEvento.length <= 1
+            ? lancDoEvento
+            : lancDoEvento.filter((l) => l.id === pares?.get(o.id));
+
+        const categorias = new Set(ligados.map((l) => l.categoria_recebimento).filter(Boolean));
+        const irmaosUnicos = new Set(ligados.map((l) => l.irmao_id).filter(Boolean));
+        const nomeIrmaoUnico =
+          irmaosUnicos.size === 1 ? (ligados.find((l) => l.irmao_id)?.irmao_nome ?? null) : null;
+
+        linhasLote.push({
+          id: o.id,
+          data: String(o.data),
+          criado_em: o.criado_em,
+          descricao:
+            ligados.length === 0
+              ? "Conciliado em lote (sem separação por linha)"
+              : ligados.length === 1
+                ? String(ligados[0].descricao)
+                : `${ligados.length} fatura(s) quitada(s)`,
+          tipo: Number(o.valor) >= 0 ? "entrada" : "saida",
+          categoria_recebimento: categorias.size === 1 ? String([...categorias][0]) : null,
+          irmao_nome: nomeIrmaoUnico,
+          irmao_ids: [...irmaosUnicos].join(","),
+          plano_conta_nome: null,
+          valor_sinal: Number(o.valor),
+          saldo_corrente: 0,
+        });
+        if (ligados.length > 0) {
+          faturasPorOfxId.set(
+            o.id,
+            ligados.map((l) => ({ id: l.id, descricao: l.descricao, valor: Number(l.valor) })),
+          );
+        }
+      }
+    }
+  }
+
+  const [[contaRow]] = await conn.query<RowDataPacket[]>(
+    "SELECT saldo_inicial FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
+    [data.contaId],
+  );
+  const saldoInicial = contaRow ? Number(contaRow.saldo_inicial) : 0;
+
+  const todasLinhas = [...(linhasBase as LinhaBrutaExtratoBancario[]), ...linhasLote].sort(
+    (a, b) =>
+      String(a.data).localeCompare(String(b.data)) ||
+      String(a.criado_em ?? "").localeCompare(String(b.criado_em ?? "")) ||
+      a.id.localeCompare(b.id),
+  );
+  let acumulado = saldoInicial;
+  for (const linha of todasLinhas) {
+    acumulado += Number(linha.valor_sinal);
+    linha.saldo_corrente = acumulado;
+  }
+  const linhasNoPeriodo = data.ate
+    ? todasLinhas.filter((l) => String(l.data) <= data.ate!)
+    : todasLinhas;
+
+  return filtrarOrdenarExtratoBancario(linhasNoPeriodo, data, {
+    faturasPorRecibo,
+    faturasPorLote: faturasPorOfxId,
+  });
+}
+
+function filtrarOrdenarExtratoBancario(
+  linhas: LinhaBrutaExtratoBancario[],
+  data: FiltroExtratoBancario,
+  faturas: {
+    faturasPorRecibo: Map<string, FaturaExtratoBancario[]>;
+    faturasPorLote: Map<string, FaturaExtratoBancario[]>;
+  } | null,
+): ItemExtratoBancario[] {
+  return linhas
+    .filter((r) => !data.de || r.data >= data.de)
+    .filter((r) => !data.tipo || r.tipo === data.tipo)
+    .filter((r) => !data.categoria || r.categoria_recebimento === data.categoria)
+    .filter((r) => !data.irmaoId || (r.irmao_ids ?? "").split(",").includes(data.irmaoId!))
+    .map((r) => ({
+      id: r.id,
+      data: r.data,
+      descricao: r.descricao,
+      tipo: r.tipo,
+      categoria_recebimento: r.categoria_recebimento,
+      irmao_nome: r.irmao_nome,
+      plano_conta_nome: r.plano_conta_nome,
+      valor_sinal: Number(r.valor_sinal),
+      saldo_corrente: Number(r.saldo_corrente),
+      faturas: !faturas
+        ? null
+        : (faturas.faturasPorRecibo.get(r.id) ??
+          faturas.faturasPorLote.get(r.id) ?? [
+            { id: r.id, descricao: r.descricao, valor: Math.abs(Number(r.valor_sinal)) },
+          ]),
+    }));
+}
+
 function agruparFaturas(
   rows: RowDataPacket[],
-  chave: "recibo_id" | "conciliacao_id",
+  chave: "recibo_id",
 ): Map<string, FaturaExtratoBancario[]> {
   const mapa = new Map<string, FaturaExtratoBancario[]>();
   for (const r of rows) {
