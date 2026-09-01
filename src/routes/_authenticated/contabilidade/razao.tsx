@@ -86,7 +86,7 @@ function Razao() {
       "Data",
       "Descrição",
       "Irmão / contraparte",
-      "Origem",
+      "Conta de contrapartida",
       "Débito",
       "Crédito",
       "Saldo",
@@ -95,7 +95,7 @@ function Razao() {
       fmtDate(l.lancamentos_contabeis.data),
       l.descricao ?? l.lancamentos_contabeis.descricao,
       l.contraparte ?? "",
-      l.lancamentos_contabeis.origem_tipo ?? "",
+      l.contrapartida ?? "",
       l.tipo === "debito" ? l.valor : "",
       l.tipo === "credito" ? l.valor : "",
       l.saldo.toFixed(2),
@@ -178,7 +178,7 @@ function Razao() {
                   <TableHead>Data</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Irmão / contraparte</TableHead>
-                  <TableHead>Origem</TableHead>
+                  <TableHead>Conta de contrapartida</TableHead>
                   <TableHead className="text-right">Débito</TableHead>
                   <TableHead className="text-right">Crédito</TableHead>
                   <TableHead className="text-right">Saldo</TableHead>
@@ -209,7 +209,7 @@ function Razao() {
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {l.lancamentos_contabeis.origem_tipo ?? "—"}
+                      {l.contrapartida ?? "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       {l.tipo === "debito" ? brl(l.valor) : ""}
