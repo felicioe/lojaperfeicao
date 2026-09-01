@@ -48,7 +48,13 @@ export type ItemRazao = {
   descricao: string | null;
   contraparte: string | null;
   contraparte_tipo: "irmao" | "terceiro" | null;
-  lancamentos_contabeis: { data: string; descricao: string; origem_tipo: string | null };
+  // Conta(s) do outro lado da partida dobrada do MESMO lançamento contábil
+  // (issue #403) — se esta linha está em débito, é a(s) conta(s) creditada(s)
+  // no mesmo lancamento_id, e vice-versa. Quase sempre 1 só, mas um
+  // lançamento pode ter mais de duas pernas (ex.: rateio) — concatenado
+  // quando houver mais de uma.
+  contrapartida: string | null;
+  lancamentos_contabeis: { data: string; descricao: string };
 };
 
 export const listarItensRazao = createServerFn({ method: "GET" })
@@ -59,13 +65,18 @@ export const listarItensRazao = createServerFn({ method: "GET" })
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT i.id, i.tipo, i.valor, i.descricao, lc.data, lc.descricao AS lc_descricao,
-                lc.origem_tipo,
                 COALESCE(irm.nome_civil, terc.nome) AS contraparte,
                 CASE
                   WHEN irm.id IS NOT NULL THEN 'irmao'
                   WHEN terc.id IS NOT NULL THEN 'terceiro'
                   ELSE NULL
-                END AS contraparte_tipo
+                END AS contraparte_tipo,
+                (SELECT GROUP_CONCAT(DISTINCT CONCAT(pc2.codigo, ' — ', pc2.nome)
+                          ORDER BY pc2.codigo SEPARATOR '; ')
+                   FROM lancamentos_contabeis_itens i2
+                   JOIN plano_contas pc2 ON pc2.id = i2.conta_id AND pc2.loja_id = i2.loja_id
+                  WHERE i2.lancamento_id = i.lancamento_id AND i2.loja_id = i.loja_id
+                    AND i2.tipo <> i.tipo) AS contrapartida
          FROM lancamentos_contabeis_itens i
          JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
          LEFT JOIN lancamentos l ON l.id = lc.origem_id AND l.loja_id = lc.loja_id
@@ -88,10 +99,10 @@ export const listarItensRazao = createServerFn({ method: "GET" })
         descricao: r.descricao,
         contraparte: r.contraparte,
         contraparte_tipo: r.contraparte_tipo,
+        contrapartida: r.contrapartida,
         lancamentos_contabeis: {
           data: r.data,
           descricao: r.lc_descricao,
-          origem_tipo: r.origem_tipo,
         },
       }));
     });
