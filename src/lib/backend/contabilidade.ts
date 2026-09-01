@@ -128,9 +128,30 @@ export type LancamentoDiario = {
 };
 
 export const listarLancamentosDiario = createServerFn({ method: "GET" })
-  .validator((d: unknown) => z.object({ de: z.string(), ate: z.string() }).parse(d))
+  .validator((d: unknown) =>
+    z
+      .object({
+        de: z.string(),
+        ate: z.string(),
+        irmaoId: z.string().uuid().nullable(),
+        contaId: z.string().uuid().nullable(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data }): Promise<LancamentoDiario[]> => {
     return comPapel(PAPEIS, async (conn) => {
+      const condicoes = ["lc.loja_id = @current_loja_id", "lc.data >= ?", "lc.data <= ?"];
+      const valores: unknown[] = [data.de, data.ate];
+      if (data.irmaoId) {
+        condicoes.push("irm.id = ?");
+        valores.push(data.irmaoId);
+      }
+      if (data.contaId) {
+        condicoes.push(
+          "EXISTS (SELECT 1 FROM lancamentos_contabeis_itens i2 WHERE i2.lancamento_id = lc.id AND i2.loja_id = lc.loja_id AND i2.conta_id = ?)",
+        );
+        valores.push(data.contaId);
+      }
       const [lancamentos] = await conn.query<RowDataPacket[]>(
         `SELECT lc.id, lc.data, lc.descricao, irm.nome_civil AS irmao_nome
          FROM lancamentos_contabeis lc
@@ -142,9 +163,9 @@ export const listarLancamentosDiario = createServerFn({ method: "GET" })
            ON p.id = lc.origem_id AND p.loja_id = lc.loja_id AND lc.origem_tipo = 'parcelamento'
          LEFT JOIN irmaos irm ON irm.id = COALESCE(r.irmao_id, p.irmao_id, l.irmao_id)
                              AND irm.loja_id = lc.loja_id
-          WHERE lc.loja_id = @current_loja_id AND lc.data >= ? AND lc.data <= ?
+          WHERE ${condicoes.join(" AND ")}
           ORDER BY lc.data, lc.criado_em`,
-        [data.de, data.ate],
+        valores,
       );
       if (lancamentos.length === 0) return [];
 
