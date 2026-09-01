@@ -108,6 +108,120 @@ export const listarItensRazao = createServerFn({ method: "GET" })
     });
   });
 
+// Razão de várias contas de uma vez (issue seguinte à #403) — "Tudo" ou um
+// grupo de contas em vez de precisar abrir uma de cada vez. Cada conta
+// mantém sua própria lista de lançamentos e seu próprio saldo corrente —
+// nunca soma saldo de contas diferentes junto (débito de Caixa não é a
+// mesma coisa que débito de Despesas), então o resultado é "N razões, um
+// atrás do outro", não uma tabela só. Contas sem nenhum saldo anterior e
+// sem nenhum lançamento no período ficam de fora — não tem sentido mostrar
+// uma conta totalmente parada.
+export type ContaComRazao = {
+  contaId: string;
+  codigo: string;
+  nome: string;
+  tipo: "ativo" | "passivo" | "patrimonio_liquido" | "receita" | "despesa";
+  saldoAnterior: number;
+  itens: ItemRazao[];
+};
+
+export const listarItensRazaoVariasContas = createServerFn({ method: "GET" })
+  .validator((d: unknown) =>
+    z
+      .object({
+        contaIds: z.array(z.string().uuid()).nullable(),
+        de: z.string(),
+        ate: z.string(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }): Promise<ContaComRazao[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [contasRows] = await conn.query<RowDataPacket[]>(
+        data.contaIds
+          ? `SELECT id, codigo, nome, tipo FROM plano_contas
+             WHERE loja_id = @current_loja_id AND analitica = TRUE AND id IN (?)`
+          : `SELECT id, codigo, nome, tipo FROM plano_contas
+             WHERE loja_id = @current_loja_id AND analitica = TRUE`,
+        data.contaIds ? [data.contaIds] : [],
+      );
+      if (contasRows.length === 0) return [];
+      const ids = contasRows.map((c) => c.id);
+
+      const [saldosRows] = await conn.query<RowDataPacket[]>(
+        `SELECT i.conta_id, i.tipo, i.valor FROM lancamentos_contabeis_itens i
+         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
+         WHERE i.loja_id = @current_loja_id AND i.conta_id IN (?) AND lc.data < ?`,
+        [ids, data.de],
+      );
+      const saldoAnteriorPorConta = new Map<string, number>();
+      for (const r of saldosRows) {
+        const atual = saldoAnteriorPorConta.get(r.conta_id) ?? 0;
+        saldoAnteriorPorConta.set(
+          r.conta_id,
+          atual + (r.tipo === "debito" ? Number(r.valor) : -Number(r.valor)),
+        );
+      }
+
+      const [itensRows] = await conn.query<RowDataPacket[]>(
+        `SELECT i.id, i.conta_id, i.tipo, i.valor, i.descricao, lc.data, lc.descricao AS lc_descricao,
+                COALESCE(irm.nome_civil, terc.nome) AS contraparte,
+                CASE
+                  WHEN irm.id IS NOT NULL THEN 'irmao'
+                  WHEN terc.id IS NOT NULL THEN 'terceiro'
+                  ELSE NULL
+                END AS contraparte_tipo,
+                (SELECT GROUP_CONCAT(DISTINCT CONCAT(pc2.codigo, ' — ', pc2.nome)
+                          ORDER BY pc2.codigo SEPARATOR '; ')
+                   FROM lancamentos_contabeis_itens i2
+                   JOIN plano_contas pc2 ON pc2.id = i2.conta_id AND pc2.loja_id = i2.loja_id
+                  WHERE i2.lancamento_id = i.lancamento_id AND i2.loja_id = i.loja_id
+                    AND i2.tipo <> i.tipo) AS contrapartida
+         FROM lancamentos_contabeis_itens i
+         JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
+         LEFT JOIN lancamentos l ON l.id = lc.origem_id AND l.loja_id = lc.loja_id
+         LEFT JOIN recibos r
+           ON r.id = lc.origem_id AND r.loja_id = lc.loja_id
+          AND lc.origem_tipo IN ('recibo_baixa', 'recibo_baixa_parcial')
+         LEFT JOIN parcelamentos p
+           ON p.id = lc.origem_id AND p.loja_id = lc.loja_id AND lc.origem_tipo = 'parcelamento'
+         LEFT JOIN irmaos irm ON irm.id = COALESCE(r.irmao_id, p.irmao_id, l.irmao_id)
+                             AND irm.loja_id = lc.loja_id
+         LEFT JOIN terceiros terc ON terc.id = l.terceiro_id AND terc.loja_id = lc.loja_id
+         WHERE i.loja_id = @current_loja_id AND i.conta_id IN (?) AND lc.data >= ? AND lc.data <= ?
+         ORDER BY lc.data, lc.criado_em`,
+        [ids, data.de, data.ate],
+      );
+      const itensPorConta = new Map<string, ItemRazao[]>();
+      for (const r of itensRows) {
+        const lista = itensPorConta.get(r.conta_id) ?? [];
+        lista.push({
+          id: r.id,
+          tipo: r.tipo,
+          valor: r.valor,
+          descricao: r.descricao,
+          contraparte: r.contraparte,
+          contraparte_tipo: r.contraparte_tipo,
+          contrapartida: r.contrapartida,
+          lancamentos_contabeis: { data: r.data, descricao: r.lc_descricao },
+        });
+        itensPorConta.set(r.conta_id, lista);
+      }
+
+      return (contasRows as { id: string; codigo: string; nome: string; tipo: string }[])
+        .map((c) => ({
+          contaId: c.id,
+          codigo: c.codigo,
+          nome: c.nome,
+          tipo: c.tipo as ContaComRazao["tipo"],
+          saldoAnterior: saldoAnteriorPorConta.get(c.id) ?? 0,
+          itens: itensPorConta.get(c.id) ?? [],
+        }))
+        .filter((c) => c.saldoAnterior !== 0 || c.itens.length > 0)
+        .sort((a, b) => a.codigo.localeCompare(b.codigo));
+    });
+  });
+
 // ---------- Diário contábil ----------
 export type LancamentoDiario = {
   id: string;
