@@ -4,9 +4,9 @@ import { listarAuditoriaDesbalanceados, listarSaldoPlanoContas } from "@/lib/bac
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
+import { BarraFiltros, CampoFiltroCompacto, SeparadorFiltro } from "@/components/app/BarraFiltros";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -67,6 +67,16 @@ function AuditoriaContabil() {
   const [ate, setAte] = useState("");
   const [buscaConta, setBuscaConta] = useState("");
   const [tipoConta, setTipoConta] = useState("todos");
+
+  const temFiltroAtivo =
+    de !== "" || ate !== "" || buscaConta.trim() !== "" || tipoConta !== "todos";
+
+  const limparFiltros = () => {
+    setDe("");
+    setAte("");
+    setBuscaConta("");
+    setTipoConta("todos");
+  };
 
   const { data: desbalanceados = [], isLoading: loadingDesbalanceados } = useQuery({
     queryKey: ["v_auditoria_contabil_desbalanceados", de, ate],
@@ -138,33 +148,38 @@ function AuditoriaContabil() {
         description="Verifica se todos os lançamentos em partida dobrada estão balanceados (débito = crédito)."
       />
 
-      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
-        <div>
-          <Label htmlFor="auditoria-de">De</Label>
-          <Input id="auditoria-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
-        </div>
-        <div>
-          <Label htmlFor="auditoria-ate">Até</Label>
+      <BarraFiltros temFiltroAtivo={temFiltroAtivo} onLimpar={limparFiltros}>
+        <CampoFiltroCompacto label="De" htmlFor="auditoria-de">
+          <Input
+            id="auditoria-de"
+            type="date"
+            className="h-8 w-[150px]"
+            value={de}
+            onChange={(e) => setDe(e.target.value)}
+          />
+        </CampoFiltroCompacto>
+        <CampoFiltroCompacto label="Até" htmlFor="auditoria-ate">
           <Input
             id="auditoria-ate"
             type="date"
+            className="h-8 w-[150px]"
             value={ate}
             onChange={(e) => setAte(e.target.value)}
           />
-        </div>
-        <div>
-          <Label htmlFor="auditoria-busca">Buscar conta</Label>
+        </CampoFiltroCompacto>
+        <SeparadorFiltro />
+        <CampoFiltroCompacto label="Buscar conta" htmlFor="auditoria-busca">
           <Input
             id="auditoria-busca"
             placeholder="Código ou nome…"
+            className="h-8 w-[180px]"
             value={buscaConta}
             onChange={(e) => setBuscaConta(e.target.value)}
           />
-        </div>
-        <div>
-          <Label htmlFor="auditoria-tipo">Tipo</Label>
+        </CampoFiltroCompacto>
+        <CampoFiltroCompacto label="Tipo" htmlFor="auditoria-tipo">
           <Select value={tipoConta} onValueChange={setTipoConta}>
-            <SelectTrigger id="auditoria-tipo">
+            <SelectTrigger id="auditoria-tipo" className="h-8 w-[170px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -176,8 +191,8 @@ function AuditoriaContabil() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </Card>
+        </CampoFiltroCompacto>
+      </BarraFiltros>
       <p className="text-xs text-muted-foreground mb-4 -mt-2">
         Sem período selecionado, considera todo o histórico — como sempre foi.
       </p>
