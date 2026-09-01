@@ -63,7 +63,7 @@ const COLUNAS_TRONCO: ColunaRelatorio[] = [
   { chave: "data", titulo: "Data" },
   { chave: "descricao", titulo: "Descrição" },
   { chave: "tipo", titulo: "Tipo" },
-  { chave: "valor", titulo: "Valor" },
+  { chave: "valor", titulo: "Valor", formato: "moeda" },
 ];
 
 function Tronco() {

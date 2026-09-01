@@ -45,7 +45,7 @@ export const Route = createFileRoute("/_authenticated/relatorios/extrato-concili
 const COLUNAS: ColunaRelatorio[] = [
   { chave: "data", titulo: "Data" },
   { chave: "descricao", titulo: "Descrição (OFX)" },
-  { chave: "valor", titulo: "Valor" },
+  { chave: "valor", titulo: "Valor", formato: "moeda" },
   { chave: "status", titulo: "Status" },
   { chave: "vinculados", titulo: "Lançamento(s) vinculado(s)" },
 ];

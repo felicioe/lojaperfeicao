@@ -66,9 +66,9 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "descricao", titulo: "Descrição" },
   { chave: "contraparte", titulo: "Irmão / contraparte" },
   { chave: "contrapartida", titulo: "Conta de contrapartida" },
-  { chave: "debito", titulo: "Débito" },
-  { chave: "credito", titulo: "Crédito" },
-  { chave: "saldo", titulo: "Saldo" },
+  { chave: "debito", titulo: "Débito", formato: "moeda" },
+  { chave: "credito", titulo: "Crédito", formato: "moeda" },
+  { chave: "saldo", titulo: "Saldo", formato: "moeda" },
 ];
 
 function primeiroDiaDoAno() {

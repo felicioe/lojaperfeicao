@@ -7,7 +7,13 @@ import { deflateSync, inflateSync } from "node:zlib";
 // importar este arquivo direto de uma rota cliente, só via import()
 // dinâmico dentro de handler de createServerFn.
 
-export type ColunaRelatorio = { chave: string; titulo: string };
+// `formato: "moeda"` (issue do usuário — valores exportados sem vírgula/
+// centavo) diz pro gerador pra exibir esse número com separador decimal
+// pt-BR (1.234,56). No XLSX o valor da célula continua numérico de
+// verdade (só a máscara de exibição muda) — quem abre a planilha ainda
+// consegue somar/fazer conta em cima da coluna; em CSV/PDF/TXT (texto
+// puro, sem conceito de "célula numérica") o valor já sai formatado.
+export type ColunaRelatorio = { chave: string; titulo: string; formato?: "moeda" };
 export type LinhaRelatorio = Record<string, string | number | null>;
 export type FormatoRelatorio = "xlsx" | "pdf" | "csv" | "txt";
 export type LogoRelatorio = { nome: string; logoUrl: string };
@@ -57,6 +63,12 @@ export async function gerarXlsxBuffer(
   planilha.columns = colunas.map((c) => ({
     key: c.chave,
     width: Math.max(c.titulo.length + 2, 14),
+    // Célula continua numérica de verdade (dá pra somar/fazer conta em
+    // cima dela na planilha) — só a máscara de exibição vira vírgula/
+    // centavo. O Excel converte "#,##0.00" pro separador da localidade
+    // de quem abre o arquivo sozinho, então isso já sai certo em pt-BR
+    // sem precisar escrever a máscara com vírgula literal.
+    style: c.formato === "moeda" ? { numFmt: "#,##0.00" } : undefined,
   }));
 
   let linhaCabecalho = 1;
@@ -212,7 +224,7 @@ export async function gerarPdfBuffer(
     }
     colunas.forEach((coluna, indice) => {
       pdf.escreverTexto(
-        truncarTexto(formatarValor(linha[coluna.chave]), caracPorColuna),
+        truncarTexto(formatarValor(linha[coluna.chave], coluna.formato), caracPorColuna),
         40 + indice * larguraColuna,
         cursorY + 2,
         {
@@ -236,9 +248,20 @@ export async function gerarPdfBuffer(
   return pdf.finalizar();
 }
 
-function formatarValor(v: string | number | null): string {
+function formatarValor(v: string | number | null, formato?: "moeda"): string {
   if (v === null || v === undefined) return "";
+  if (formato === "moeda" && typeof v === "number") return formatarMoedaSemSimbolo(v);
   return String(v);
+}
+
+// Vírgula decimal, ponto de milhar, sempre 2 casas — sem "R$" na frente:
+// as colunas já se chamam "Débito"/"Crédito"/"Saldo", o símbolo repetido
+// em toda linha só teria poluído a planilha/PDF.
+function formatarMoedaSemSimbolo(v: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(v);
 }
 
 function truncarTexto(texto: string, maxCaracteres: number): string {
@@ -603,13 +626,17 @@ function numeroPdf(valor: number): string {
 // client-side existentes (dre.tsx, balancete.tsx etc.).
 export function gerarCsv(colunas: ColunaRelatorio[], linhas: LinhaRelatorio[]): string {
   const cabecalho = colunas.map((c) => c.titulo).join(";");
-  const corpo = linhas.map((l) => colunas.map((c) => formatarValor(l[c.chave])).join(";"));
+  const corpo = linhas.map((l) =>
+    colunas.map((c) => formatarValor(l[c.chave], c.formato)).join(";"),
+  );
   return "\uFEFF" + [cabecalho, ...corpo].join("\r\n");
 }
 
 export function gerarTxt(colunas: ColunaRelatorio[], linhas: LinhaRelatorio[]): string {
   const cabecalho = colunas.map((c) => c.titulo).join("\t");
-  const corpo = linhas.map((l) => colunas.map((c) => formatarValor(l[c.chave])).join("\t"));
+  const corpo = linhas.map((l) =>
+    colunas.map((c) => formatarValor(l[c.chave], c.formato)).join("\t"),
+  );
   return [cabecalho, ...corpo].join("\n");
 }
 

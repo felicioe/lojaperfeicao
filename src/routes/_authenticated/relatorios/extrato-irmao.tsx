@@ -46,7 +46,7 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "data", titulo: "Emissão" },
   { chave: "vencimento", titulo: "Vencimento" },
   { chave: "descricao", titulo: "Descrição" },
-  { chave: "valor", titulo: "Valor" },
+  { chave: "valor", titulo: "Valor", formato: "moeda" },
   { chave: "status", titulo: "Status" },
   { chave: "pago_em", titulo: "Pago em" },
 ];

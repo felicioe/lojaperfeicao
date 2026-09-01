@@ -44,8 +44,8 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "tipo", titulo: "D/C" },
   { chave: "conta", titulo: "Conta" },
   { chave: "irmao", titulo: "Irmão" },
-  { chave: "debito", titulo: "Débito" },
-  { chave: "credito", titulo: "Crédito" },
+  { chave: "debito", titulo: "Débito", formato: "moeda" },
+  { chave: "credito", titulo: "Crédito", formato: "moeda" },
 ];
 
 function Diario() {

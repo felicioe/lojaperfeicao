@@ -40,18 +40,18 @@ const COLUNAS_DESBALANCEADOS: ColunaRelatorio[] = [
   { chave: "data", titulo: "Data" },
   { chave: "descricao", titulo: "Descrição" },
   { chave: "origem", titulo: "Origem" },
-  { chave: "debito", titulo: "Débito" },
-  { chave: "credito", titulo: "Crédito" },
-  { chave: "diferenca", titulo: "Diferença" },
+  { chave: "debito", titulo: "Débito", formato: "moeda" },
+  { chave: "credito", titulo: "Crédito", formato: "moeda" },
+  { chave: "diferenca", titulo: "Diferença", formato: "moeda" },
 ];
 
 const COLUNAS_SALDOS: ColunaRelatorio[] = [
   { chave: "codigo", titulo: "Código" },
   { chave: "conta", titulo: "Conta" },
   { chave: "tipo", titulo: "Tipo" },
-  { chave: "debito", titulo: "Débito" },
-  { chave: "credito", titulo: "Crédito" },
-  { chave: "saldo", titulo: "Saldo devedor" },
+  { chave: "debito", titulo: "Débito", formato: "moeda" },
+  { chave: "credito", titulo: "Crédito", formato: "moeda" },
+  { chave: "saldo", titulo: "Saldo devedor", formato: "moeda" },
 ];
 
 const TIPO_LABEL: Record<string, string> = {

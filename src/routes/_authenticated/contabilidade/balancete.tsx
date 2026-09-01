@@ -66,10 +66,10 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "classe", titulo: "Classe" },
   { chave: "codigo", titulo: "Código" },
   { chave: "conta", titulo: "Conta" },
-  { chave: "saldoAnterior", titulo: "Saldo anterior" },
-  { chave: "debito", titulo: "Débito" },
-  { chave: "credito", titulo: "Crédito" },
-  { chave: "saldoAtual", titulo: "Saldo atual" },
+  { chave: "saldoAnterior", titulo: "Saldo anterior", formato: "moeda" },
+  { chave: "debito", titulo: "Débito", formato: "moeda" },
+  { chave: "credito", titulo: "Crédito", formato: "moeda" },
+  { chave: "saldoAtual", titulo: "Saldo atual", formato: "moeda" },
 ];
 
 function Balancete() {

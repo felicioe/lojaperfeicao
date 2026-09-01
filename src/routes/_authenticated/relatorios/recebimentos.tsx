@@ -44,7 +44,7 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "categoria", titulo: "Categoria" },
   { chave: "forma_pagamento", titulo: "Forma de pagamento" },
   { chave: "conta_nome", titulo: "Conta" },
-  { chave: "valor", titulo: "Valor" },
+  { chave: "valor", titulo: "Valor", formato: "moeda" },
 ];
 
 function Recebimentos() {

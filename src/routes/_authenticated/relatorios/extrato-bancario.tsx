@@ -50,8 +50,8 @@ const COLUNAS: ColunaRelatorio[] = [
   { chave: "irmao", titulo: "Irmão" },
   { chave: "conta_contabil", titulo: "Conta contábil" },
   { chave: "tipo", titulo: "Tipo" },
-  { chave: "valor", titulo: "Valor" },
-  { chave: "saldo", titulo: "Saldo corrente" },
+  { chave: "valor", titulo: "Valor", formato: "moeda" },
+  { chave: "saldo", titulo: "Saldo corrente", formato: "moeda" },
 ];
 
 function ExtratoBancario() {
