@@ -113,7 +113,11 @@ export type LancamentoDiario = {
   id: string;
   data: string;
   descricao: string;
-  origem_tipo: string | null;
+  // Nome do Irmão relacionado ao lançamento, quando cabe (issue #404) —
+  // mesmo caminho de resolução já usado no Razão (listarItensRazao):
+  // lc.origem_id aponta pra um recibo, parcelamento ou lançamento
+  // financeiro, e cada um desses tem seu próprio irmao_id.
+  irmao_nome: string | null;
   lancamentos_contabeis_itens: {
     id: string;
     tipo: "debito" | "credito";
@@ -128,9 +132,18 @@ export const listarLancamentosDiario = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<LancamentoDiario[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [lancamentos] = await conn.query<RowDataPacket[]>(
-        `SELECT id, data, descricao, origem_tipo FROM lancamentos_contabeis
-          WHERE loja_id = @current_loja_id AND data >= ? AND data <= ?
-          ORDER BY data, criado_em`,
+        `SELECT lc.id, lc.data, lc.descricao, irm.nome_civil AS irmao_nome
+         FROM lancamentos_contabeis lc
+         LEFT JOIN lancamentos l ON l.id = lc.origem_id AND l.loja_id = lc.loja_id
+         LEFT JOIN recibos r
+           ON r.id = lc.origem_id AND r.loja_id = lc.loja_id
+          AND lc.origem_tipo IN ('recibo_baixa', 'recibo_baixa_parcial')
+         LEFT JOIN parcelamentos p
+           ON p.id = lc.origem_id AND p.loja_id = lc.loja_id AND lc.origem_tipo = 'parcelamento'
+         LEFT JOIN irmaos irm ON irm.id = COALESCE(r.irmao_id, p.irmao_id, l.irmao_id)
+                             AND irm.loja_id = lc.loja_id
+          WHERE lc.loja_id = @current_loja_id AND lc.data >= ? AND lc.data <= ?
+          ORDER BY lc.data, lc.criado_em`,
         [data.de, data.ate],
       );
       if (lancamentos.length === 0) return [];
@@ -159,7 +172,7 @@ export const listarLancamentosDiario = createServerFn({ method: "GET" })
         id: l.id,
         data: l.data,
         descricao: l.descricao,
-        origem_tipo: l.origem_tipo,
+        irmao_nome: l.irmao_nome,
         lancamentos_contabeis_itens: itensPorLancamento.get(l.id) ?? [],
       }));
     });

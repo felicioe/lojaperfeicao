@@ -15,8 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useState } from "react";
-import { Download } from "lucide-react";
+import { Fragment, useState } from "react";
+import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 
@@ -33,6 +33,7 @@ function primeiroDiaDoMes() {
 function Diario() {
   const [de, setDe] = useState(primeiroDiaDoMes());
   const [ate, setAte] = useState(toISODate(new Date()));
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
 
   const { data: lancamentos = [] } = useQuery({
     queryKey: ["diario_lancamentos", de, ate],
@@ -41,24 +42,31 @@ function Diario() {
   const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } =
     usePaginacao(lancamentos);
 
-  const totalGeral = lancamentos.reduce(
-    (s, l) =>
-      s +
-      (l.lancamentos_contabeis_itens ?? [])
-        .filter((i) => i.tipo === "debito")
-        .reduce((s2, i) => s2 + Number(i.valor), 0),
-    0,
-  );
+  const valorDoLancamento = (l: (typeof lancamentos)[number]) =>
+    (l.lancamentos_contabeis_itens ?? [])
+      .filter((i) => i.tipo === "debito")
+      .reduce((s, i) => s + Number(i.valor), 0);
+
+  const totalGeral = lancamentos.reduce((s, l) => s + valorDoLancamento(l), 0);
+
+  const alternarExpandido = (id: string) => {
+    setExpandidos((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  };
 
   const exportarCSV = () => {
-    const cabecalho = ["Data", "Lançamento", "Origem", "Conta", "Tipo", "Valor"];
+    const cabecalho = ["Data", "Histórico", "Irmão", "Conta", "Tipo", "Valor"];
     const linhas: string[][] = [];
     for (const l of lancamentos) {
       for (const it of l.lancamentos_contabeis_itens ?? []) {
         linhas.push([
           fmtDate(l.data),
           l.descricao,
-          l.origem_tipo ?? "",
+          l.irmao_nome ?? "",
           `${it.plano_contas?.codigo} — ${it.plano_contas?.nome}`,
           it.tipo,
           String(it.valor),
@@ -104,61 +112,87 @@ function Diario() {
         </div>
       </Card>
 
-      <div className="space-y-3">
-        {lancamentos.length === 0 && (
-          <Card className="p-6 text-center text-muted-foreground">
-            Nenhum lançamento no período.
-          </Card>
-        )}
-        {itensPagina.map((l) => (
-          <Card key={l.id}>
-            <div className="flex items-center justify-between p-3 border-b">
-              <div>
-                <div className="font-medium">{l.descricao}</div>
-                <div className="text-xs text-muted-foreground">
-                  {fmtDate(l.data)}
-                  {l.origem_tipo ? ` · ${l.origem_tipo}` : ""}
-                </div>
-              </div>
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Conta</TableHead>
-                  <TableHead className="text-right">Débito</TableHead>
-                  <TableHead className="text-right">Crédito</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(l.lancamentos_contabeis_itens ?? []).map((it) => (
-                  <TableRow key={it.id}>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8"></TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Histórico</TableHead>
+              <TableHead>Irmão</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lancamentos.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  Nenhum lançamento no período.
+                </TableCell>
+              </TableRow>
+            )}
+            {itensPagina.map((l) => {
+              const aberto = expandidos.has(l.id);
+              return (
+                <Fragment key={l.id}>
+                  <TableRow className="cursor-pointer" onClick={() => alternarExpandido(l.id)}>
                     <TableCell>
-                      {it.plano_contas?.codigo} — {it.plano_contas?.nome}
+                      {aberto ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      {it.tipo === "debito" ? brl(it.valor) : ""}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {it.tipo === "credito" ? brl(it.valor) : ""}
+                    <TableCell>{fmtDate(l.data)}</TableCell>
+                    <TableCell>{l.descricao}</TableCell>
+                    <TableCell>{l.irmao_nome ?? "—"}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {brl(valorDoLancamento(l))}
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        ))}
-      </div>
-      {totalPaginas > 1 && (
-        <Card className="mt-3">
-          <TabelaPaginacao
-            pagina={pagina}
-            totalPaginas={totalPaginas}
-            totalItens={totalItens}
-            tamanhoPagina={tamanhoPagina}
-            setPagina={setPagina}
-          />
-        </Card>
-      )}
+                  {aberto && (
+                    <TableRow className="bg-muted/20">
+                      <TableCell colSpan={5} className="p-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="pl-10">Conta</TableHead>
+                              <TableHead className="text-right">Débito</TableHead>
+                              <TableHead className="text-right">Crédito</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(l.lancamentos_contabeis_itens ?? []).map((it) => (
+                              <TableRow key={it.id}>
+                                <TableCell className="pl-10">
+                                  {it.plano_contas?.codigo} — {it.plano_contas?.nome}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {it.tipo === "debito" ? brl(it.valor) : ""}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {it.tipo === "credito" ? brl(it.valor) : ""}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <TabelaPaginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          totalItens={totalItens}
+          tamanhoPagina={tamanhoPagina}
+          setPagina={setPagina}
+        />
+      </Card>
     </>
   );
 }
