@@ -110,7 +110,11 @@ function ExtratoConciliacao() {
     descricao: i.descricao ?? "—",
     valor: Number(i.valor),
     status: i.anulacao_ofx ? "Lançamento indevido" : i.conciliado ? "Conciliado" : "Pendente",
-    vinculados: i.historico ?? (i.lancamentos_vinculados.map((l) => l.descricao).join("; ") || "—"),
+    vinculados:
+      i.historico ??
+      (i.lote_sem_separacao
+        ? `Lote com outras ${(i.lote_qtd_ofx ?? 1) - 1} linha(s) — sem separação possível`
+        : i.lancamentos_vinculados.map((l) => l.descricao).join("; ") || "—"),
   }));
 
   const ord = useOrdenacao(itens, {
@@ -268,6 +272,11 @@ function ExtratoConciliacao() {
                       <TableCell className="text-muted-foreground">
                         {i.anulacao_ofx ? (
                           i.historico
+                        ) : i.lote_sem_separacao ? (
+                          <span className="text-xs italic">
+                            Conciliado em lote com outras {(i.lote_qtd_ofx ?? 1) - 1} linha(s) do
+                            extrato — não é possível separar por linha individual.
+                          </span>
                         ) : i.lancamentos_vinculados.length > 0 ? (
                           <div className="grid gap-1">
                             {i.lancamentos_vinculados.map((l) => (

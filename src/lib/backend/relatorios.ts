@@ -275,6 +275,37 @@ export type LancamentoVinculado = {
   irmao_nome: string | null;
 };
 
+// Reconstrói, por evento de conciliação em lote, qual linha do OFX pagou
+// qual lançamento — a procedure conciliar_ofx_lote (0044) só grava que a
+// SOMA de N linhas do banco bateu com a SOMA de M lançamentos, nunca o
+// par individual. Achado do usuário: um evento com 6 Pix de R$ 70 em datas
+// diferentes, batido contra 6 mensalidades de meses diferentes, aparecia
+// nos relatórios com as 6 mensalidades penduradas em CADA uma das 6 linhas
+// do banco — cada Pix "vinculado" a mensalidades que na prática outro Pix
+// pagou.
+//
+// Só reconstrói quando dá pra deduzir com certeza: mesma quantidade dos
+// dois lados, casados em ordem cronológica (a suposição razoável para
+// pagamentos recorrentes — 1º Pix por data paga a 1ª fatura por
+// vencimento, e assim por diante). Quantidades diferentes não permitem
+// nenhuma dedução segura — nesse caso quem chama deve mostrar que é um
+// lote sem separação possível, não inventar um vínculo.
+function parearLotePorOrdem(
+  ofx: { id: string; data: string }[],
+  lancamentos: { id: string; ordenacao: string }[],
+): Map<string, string> | null {
+  if (ofx.length === 0 || ofx.length !== lancamentos.length) return null;
+  const ofxOrdenado = [...ofx].sort(
+    (a, b) => a.data.localeCompare(b.data) || a.id.localeCompare(b.id),
+  );
+  const lancOrdenado = [...lancamentos].sort(
+    (a, b) => a.ordenacao.localeCompare(b.ordenacao) || a.id.localeCompare(b.id),
+  );
+  const pares = new Map<string, string>();
+  ofxOrdenado.forEach((o, i) => pares.set(o.id, lancOrdenado[i].id));
+  return pares;
+}
+
 export type ItemExtratoConciliacao = {
   id: string;
   data: string;
@@ -286,6 +317,13 @@ export type ItemExtratoConciliacao = {
   anulacao_ofx: boolean;
   historico: string | null;
   lancamentos_vinculados: LancamentoVinculado[];
+  // true = esta linha faz parte de um evento de conciliação em lote com
+  // quantidades de linhas OFX/lançamentos que não permitem deduzir com
+  // certeza qual pagou qual (ver parearLotePorOrdem) — lancamentos_vinculados
+  // vem vazio de propósito nesse caso, pra tela mostrar o aviso de lote em
+  // vez de uma lista que misturaria vínculos de outras linhas do mesmo lote.
+  lote_sem_separacao: boolean;
+  lote_qtd_ofx: number | null;
 };
 
 const filtroExtratoConciliacaoSchema = z.object({
@@ -360,6 +398,10 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
       }
 
       const loteMap = new Map<string, LancamentoVinculado[]>();
+      // Ordenação pra reconstruir o par (ver parearLotePorOrdem): vencimento
+      // quando existe, senão a própria data do lançamento (saída/estorno sem
+      // vencimento formal) — mesmo fallback já usado no extrato do irmão.
+      const ordenacaoLancPorId = new Map<string, string>();
       if (idsConciliacao.length > 0) {
         // cl.valor_aplicado (não l.valor): o valor de face da fatura só bate
         // com o que essa conciliação aplicou quando ela fechou a fatura
@@ -369,7 +411,8 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
         // mesma correção já aplicada em relatorioExtratoBancario).
         const [rows] = await conn.query<RowDataPacket[]>(
           `SELECT l.id, l.descricao, cl.valor_aplicado AS valor, l.tipo, l.irmao_id,
-                  cl.conciliacao_id, i.nome_civil AS irmao_nome
+                  cl.conciliacao_id, i.nome_civil AS irmao_nome,
+                  COALESCE(l.data_vencimento, l.data) AS data_ordenacao
            FROM conciliacao_lancamentos cl
            JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
            LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
@@ -387,25 +430,90 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
             irmao_nome: r.irmao_nome,
           });
           loteMap.set(r.conciliacao_id, lista);
+          ordenacaoLancPorId.set(r.id, String(r.data_ordenacao));
         }
       }
 
-      return linhas.map((l) => ({
-        id: l.id,
-        data: l.data,
-        valor: l.valor,
-        tipo_ofx: l.tipo_ofx,
-        descricao: l.descricao,
-        conciliado: !!l.conciliado,
-        conciliacao_id: l.conciliacao_id,
-        anulacao_ofx: !!l.anulacao_ofx,
-        historico: l.historico,
-        lancamentos_vinculados: l.conciliacao_id
-          ? (loteMap.get(l.conciliacao_id) ?? [])
-          : l.lancamento_id && legadoMap.has(l.lancamento_id)
-            ? [legadoMap.get(l.lancamento_id)!]
-            : [],
-      }));
+      // Reconstrói o vínculo linha-a-linha por evento (ver parearLotePorOrdem)
+      // — precisa de TODAS as linhas OFX do evento, não só as que passaram no
+      // filtro de data/conta desta consulta, pra saber a quantidade real N.
+      const parPorOfxId = new Map<string, string>();
+      const qtdOfxPorConciliacao = new Map<string, number>();
+      if (idsConciliacao.length > 0) {
+        const [ofxDoLote] = await conn.query<RowDataPacket[]>(
+          `SELECT id, conciliacao_id, data FROM ofx_lancamentos
+           WHERE conciliacao_id IN (?) AND loja_id = @current_loja_id`,
+          [idsConciliacao],
+        );
+        const porConciliacao = new Map<string, { id: string; data: string }[]>();
+        for (const o of ofxDoLote) {
+          const lista = porConciliacao.get(o.conciliacao_id) ?? [];
+          lista.push({ id: o.id, data: String(o.data) });
+          porConciliacao.set(o.conciliacao_id, lista);
+        }
+        for (const conciliacaoId of idsConciliacao) {
+          const ofxDesteLote = porConciliacao.get(conciliacaoId) ?? [];
+          qtdOfxPorConciliacao.set(conciliacaoId, ofxDesteLote.length);
+          const lancDesteLote = (loteMap.get(conciliacaoId) ?? []).map((lv) => ({
+            id: lv.id,
+            ordenacao: ordenacaoLancPorId.get(lv.id) ?? "",
+          }));
+          const pares = parearLotePorOrdem(ofxDesteLote, lancDesteLote);
+          if (pares) for (const [ofxId, lancId] of pares) parPorOfxId.set(ofxId, lancId);
+        }
+      }
+
+      return linhas.map((l) => {
+        if (!l.conciliacao_id) {
+          return {
+            id: l.id,
+            data: l.data,
+            valor: l.valor,
+            tipo_ofx: l.tipo_ofx,
+            descricao: l.descricao,
+            conciliado: !!l.conciliado,
+            conciliacao_id: null,
+            anulacao_ofx: !!l.anulacao_ofx,
+            historico: l.historico,
+            lancamentos_vinculados:
+              l.lancamento_id && legadoMap.has(l.lancamento_id)
+                ? [legadoMap.get(l.lancamento_id)!]
+                : [],
+            lote_sem_separacao: false,
+            lote_qtd_ofx: null,
+          };
+        }
+        const qtdOfx = qtdOfxPorConciliacao.get(l.conciliacao_id) ?? 1;
+        const lancamentosDoLote = loteMap.get(l.conciliacao_id) ?? [];
+        // Só 1 linha OFX no evento: sem ambiguidade nenhuma, ela é mesmo a
+        // origem de todos os lançamentos do lote (ex.: um depósito único
+        // cobrindo várias faturas de uma vez — issue #131).
+        let lancamentosVinculados: LancamentoVinculado[];
+        let loteSemSeparacao: boolean;
+        if (qtdOfx <= 1) {
+          lancamentosVinculados = lancamentosDoLote;
+          loteSemSeparacao = false;
+        } else {
+          const lancId = parPorOfxId.get(l.id);
+          const vinculado = lancId ? lancamentosDoLote.find((lv) => lv.id === lancId) : undefined;
+          lancamentosVinculados = vinculado ? [vinculado] : [];
+          loteSemSeparacao = !vinculado;
+        }
+        return {
+          id: l.id,
+          data: l.data,
+          valor: l.valor,
+          tipo_ofx: l.tipo_ofx,
+          descricao: l.descricao,
+          conciliado: !!l.conciliado,
+          conciliacao_id: l.conciliacao_id,
+          anulacao_ofx: !!l.anulacao_ofx,
+          historico: l.historico,
+          lancamentos_vinculados: lancamentosVinculados,
+          lote_sem_separacao: loteSemSeparacao,
+          lote_qtd_ofx: qtdOfx,
+        };
+      });
     });
   });
 
@@ -457,26 +565,13 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
         valores.push(data.ate);
       }
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data, l.data_vencimento,
-                COALESCE(
-                  (SELECT MAX(o.data)
-                     FROM ofx_lancamentos o
-                    WHERE o.loja_id = l.loja_id
-                      AND (
-                        o.lancamento_id = l.id
-                        OR EXISTS (
-                          SELECT 1
-                            FROM conciliacao_lancamentos cl
-                            JOIN conciliacoes c
-                              ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
-                             AND c.status = 'ativa'
-                           WHERE cl.loja_id = l.loja_id
-                             AND cl.lancamento_id = l.id
-                             AND cl.conciliacao_id = o.conciliacao_id
-                        )
-                      )),
-                  l.data_pagamento
-                ) AS data_pagamento,
+        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento AS data_pagamento_evento,
+                (SELECT o.data FROM ofx_lancamentos o
+                  WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id LIMIT 1) AS data_pagamento_direta,
+                (SELECT cl.conciliacao_id FROM conciliacao_lancamentos cl
+                   JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                                       AND c.status = 'ativa'
+                  WHERE cl.loja_id = l.loja_id AND cl.lancamento_id = l.id LIMIT 1) AS conciliacao_id_lote,
                 l.descricao, l.valor, l.valor_pago,
                 l.tipo, l.pago, l.forma_pagamento
          FROM lancamentos l
@@ -485,9 +580,85 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
          LIMIT 2000`,
         valores,
       );
+
+      // Mesma reconstrução de src/lib/backend/relatorios.ts#parearLotePorOrdem:
+      // a data de pagamento de um lançamento pago via conciliação em lote
+      // (issue #110) não pode ser "a data mais recente entre todas as linhas
+      // do lote" (o que era MAX(o.data) antes) — isso mostra a data de um Pix
+      // de outro mês como se fosse quando ESTE lançamento foi pago. Só
+      // resolve com certeza quando dá pra parear 1:1 por ordem; senão cai
+      // pra l.data_pagamento (a data do evento, que já é o melhor dado
+      // honesto disponível quando não dá pra separar por linha).
+      const idsConciliacaoLote = [
+        ...new Set(rows.map((r) => r.conciliacao_id_lote).filter(Boolean)),
+      ];
+      const dataPagamentoPorLancamento = new Map<string, string>();
+      if (idsConciliacaoLote.length > 0) {
+        const [ofxDoLote] = await conn.query<RowDataPacket[]>(
+          `SELECT id, conciliacao_id, data FROM ofx_lancamentos
+           WHERE conciliacao_id IN (?) AND loja_id = @current_loja_id`,
+          [idsConciliacaoLote],
+        );
+        const [lancDoLote] = await conn.query<RowDataPacket[]>(
+          `SELECT cl.conciliacao_id, cl.lancamento_id,
+                  COALESCE(l2.data_vencimento, l2.data) AS ordenacao
+           FROM conciliacao_lancamentos cl
+           JOIN lancamentos l2 ON l2.id = cl.lancamento_id AND l2.loja_id = cl.loja_id
+           WHERE cl.conciliacao_id IN (?) AND cl.loja_id = @current_loja_id`,
+          [idsConciliacaoLote],
+        );
+        const ofxPorConciliacao = new Map<string, { id: string; data: string }[]>();
+        const dataPorOfxId = new Map<string, string>();
+        for (const o of ofxDoLote) {
+          const lista = ofxPorConciliacao.get(o.conciliacao_id) ?? [];
+          lista.push({ id: o.id, data: String(o.data) });
+          ofxPorConciliacao.set(o.conciliacao_id, lista);
+          dataPorOfxId.set(o.id, String(o.data));
+        }
+        const lancPorConciliacao = new Map<string, { id: string; ordenacao: string }[]>();
+        for (const r of lancDoLote) {
+          const lista = lancPorConciliacao.get(r.conciliacao_id) ?? [];
+          lista.push({ id: r.lancamento_id, ordenacao: String(r.ordenacao) });
+          lancPorConciliacao.set(r.conciliacao_id, lista);
+        }
+        for (const conciliacaoId of idsConciliacaoLote) {
+          const ofxDesteLote = ofxPorConciliacao.get(conciliacaoId) ?? [];
+          if (ofxDesteLote.length === 1) {
+            // Sem ambiguidade: só 1 linha do banco no evento, é ela mesma.
+            for (const l of lancPorConciliacao.get(conciliacaoId) ?? []) {
+              dataPagamentoPorLancamento.set(l.id, ofxDesteLote[0].data);
+            }
+            continue;
+          }
+          const pares = parearLotePorOrdem(
+            ofxDesteLote,
+            lancPorConciliacao.get(conciliacaoId) ?? [],
+          );
+          if (!pares) continue;
+          for (const [ofxId, lancId] of pares) {
+            dataPagamentoPorLancamento.set(lancId, dataPorOfxId.get(ofxId)!);
+          }
+        }
+      }
+
+      const itens: ItemExtratoIrmao[] = rows.map((r) => ({
+        id: r.id,
+        data: r.data,
+        data_vencimento: r.data_vencimento,
+        data_pagamento:
+          r.data_pagamento_direta ??
+          dataPagamentoPorLancamento.get(r.id) ??
+          r.data_pagamento_evento,
+        descricao: r.descricao,
+        valor: r.valor,
+        valor_pago: r.valor_pago,
+        tipo: r.tipo,
+        pago: r.pago,
+        forma_pagamento: r.forma_pagamento,
+      }));
       // Mesmo motivo do relatório de recebimentos: DESC+LIMIT pra pegar os
       // 2000 mais recentes desse irmão, invertendo só na saída.
-      return (rows as ItemExtratoIrmao[]).reverse();
+      return itens.reverse();
     });
   });
 
