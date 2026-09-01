@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { listarItensContabeisPeriodo } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
+import { BarraFiltros, CampoFiltroCompacto, SeparadorFiltro } from "@/components/app/BarraFiltros";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { brl, toISODate } from "@/lib/format";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
@@ -75,6 +75,8 @@ const COLUNAS: ColunaRelatorio[] = [
 function Balancete() {
   const [de, setDe] = useState(primeiroDiaDoAno());
   const [ate, setAte] = useState(toISODate(new Date()));
+  const deDefaultRef = useRef(de);
+  const ateDefaultRef = useRef(ate);
   const [classesSelecionadas, setClassesSelecionadas] = useState<Set<string>>(
     () => new Set(ORDEM_CLASSE),
   );
@@ -122,6 +124,19 @@ function Balancete() {
       else novo.add(classe);
       return novo;
     });
+  };
+
+  const temFiltroAtivo =
+    de !== deDefaultRef.current ||
+    ate !== ateDefaultRef.current ||
+    classesSelecionadas.size !== ORDEM_CLASSE.length ||
+    buscaConta.trim() !== "";
+
+  const limparFiltros = () => {
+    setDe(deDefaultRef.current);
+    setAte(ateDefaultRef.current);
+    setClassesSelecionadas(new Set(ORDEM_CLASSE));
+    setBuscaConta("");
   };
 
   const buscaNormalizada = buscaConta.trim().toLowerCase();
@@ -173,32 +188,26 @@ function Balancete() {
         }
       />
 
-      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4 items-end">
-        <div>
-          <Label htmlFor="balancete-de">De</Label>
-          <Input id="balancete-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
-        </div>
-        <div>
-          <Label htmlFor="balancete-ate">Até</Label>
+      <BarraFiltros temFiltroAtivo={temFiltroAtivo} onLimpar={limparFiltros}>
+        <CampoFiltroCompacto label="De" htmlFor="balancete-de">
+          <Input
+            id="balancete-de"
+            type="date"
+            className="h-8 w-[150px]"
+            value={de}
+            onChange={(e) => setDe(e.target.value)}
+          />
+        </CampoFiltroCompacto>
+        <CampoFiltroCompacto label="Até" htmlFor="balancete-ate">
           <Input
             id="balancete-ate"
             type="date"
+            className="h-8 w-[150px]"
             value={ate}
             onChange={(e) => setAte(e.target.value)}
           />
-        </div>
-        <div className="md:col-span-2">
-          <Label htmlFor="balancete-busca">Buscar conta</Label>
-          <Input
-            id="balancete-busca"
-            placeholder="Código ou nome…"
-            value={buscaConta}
-            onChange={(e) => setBuscaConta(e.target.value)}
-          />
-        </div>
-      </Card>
-
-      <Card className="mb-4 p-4 flex flex-wrap items-center gap-2">
+        </CampoFiltroCompacto>
+        <SeparadorFiltro />
         {ORDEM_CLASSE.map((classe) => (
           <Button
             key={classe}
@@ -210,18 +219,29 @@ function Balancete() {
             {CLASSE_LABEL[classe]}
           </Button>
         ))}
-        <span className="ml-auto">
-          {fechado ? (
-            <Badge className="gap-1">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Balancete fechado — débitos = créditos
-            </Badge>
-          ) : (
-            <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="h-3.5 w-3.5" /> Diferença de {brl(diferenca)} — verifique a
-              Auditoria Contábil
-            </Badge>
-          )}
-        </span>
+        <SeparadorFiltro />
+        <CampoFiltroCompacto label="Buscar conta" htmlFor="balancete-busca">
+          <Input
+            id="balancete-busca"
+            placeholder="Código ou nome…"
+            className="h-8 w-[180px]"
+            value={buscaConta}
+            onChange={(e) => setBuscaConta(e.target.value)}
+          />
+        </CampoFiltroCompacto>
+      </BarraFiltros>
+
+      <Card className="mb-4 p-3 flex justify-end">
+        {fechado ? (
+          <Badge className="gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Balancete fechado — débitos = créditos
+          </Badge>
+        ) : (
+          <Badge variant="destructive" className="gap-1">
+            <AlertTriangle className="h-3.5 w-3.5" /> Diferença de {brl(diferenca)} — verifique a
+            Auditoria Contábil
+          </Badge>
+        )}
       </Card>
 
       {ORDEM_CLASSE.filter((classe) => classesSelecionadas.has(classe)).map((classe) => {

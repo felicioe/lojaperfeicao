@@ -11,6 +11,7 @@ import {
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
+import { BarraFiltros, CampoFiltroCompacto, SeparadorFiltro } from "@/components/app/BarraFiltros";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
@@ -139,6 +140,8 @@ function Razao() {
   const [contaId, setContaId] = useState(busca.contaId ?? "");
   const [de, setDe] = useState(busca.de ?? primeiroDiaDoAno());
   const [ate, setAte] = useState(busca.ate ?? toISODate(new Date()));
+  const deDefaultRef = useRef(de);
+  const ateDefaultRef = useRef(ate);
   const [classesSelecionadas, setClassesSelecionadas] = useState<Set<string>>(
     () => new Set(ORDEM_CLASSE),
   );
@@ -195,6 +198,19 @@ function Razao() {
       else novo.add(classe);
       return novo;
     });
+  };
+
+  const temFiltroAtivoGrupo =
+    de !== deDefaultRef.current ||
+    ate !== ateDefaultRef.current ||
+    classesSelecionadas.size !== ORDEM_CLASSE.length ||
+    buscaConta.trim() !== "";
+
+  const limparFiltrosGrupo = () => {
+    setDe(deDefaultRef.current);
+    setAte(ateDefaultRef.current);
+    setClassesSelecionadas(new Set(ORDEM_CLASSE));
+    setBuscaConta("");
   };
 
   const linhasExportacao = useMemo(() => {
@@ -320,37 +336,26 @@ function Razao() {
         </>
       ) : (
         <>
-          <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
-            <div>
-              <Label htmlFor="razao-grupo-de">De</Label>
+          <BarraFiltros temFiltroAtivo={temFiltroAtivoGrupo} onLimpar={limparFiltrosGrupo}>
+            <CampoFiltroCompacto label="De" htmlFor="razao-grupo-de">
               <Input
                 id="razao-grupo-de"
                 type="date"
+                className="h-8 w-[150px]"
                 value={de}
                 onChange={(e) => setDe(e.target.value)}
               />
-            </div>
-            <div>
-              <Label htmlFor="razao-grupo-ate">Até</Label>
+            </CampoFiltroCompacto>
+            <CampoFiltroCompacto label="Até" htmlFor="razao-grupo-ate">
               <Input
                 id="razao-grupo-ate"
                 type="date"
+                className="h-8 w-[150px]"
                 value={ate}
                 onChange={(e) => setAte(e.target.value)}
               />
-            </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="razao-grupo-busca">Buscar conta</Label>
-              <Input
-                id="razao-grupo-busca"
-                placeholder="Código ou nome…"
-                value={buscaConta}
-                onChange={(e) => setBuscaConta(e.target.value)}
-              />
-            </div>
-          </Card>
-
-          <Card className="mb-4 p-4 flex flex-wrap items-center gap-2">
+            </CampoFiltroCompacto>
+            <SeparadorFiltro />
             {ORDEM_CLASSE.map((classe) => (
               <Button
                 key={classe}
@@ -362,7 +367,17 @@ function Razao() {
                 {CLASSE_LABEL[classe]}
               </Button>
             ))}
-          </Card>
+            <SeparadorFiltro />
+            <CampoFiltroCompacto label="Buscar conta" htmlFor="razao-grupo-busca">
+              <Input
+                id="razao-grupo-busca"
+                placeholder="Código ou nome…"
+                className="h-8 w-[180px]"
+                value={buscaConta}
+                onChange={(e) => setBuscaConta(e.target.value)}
+              />
+            </CampoFiltroCompacto>
+          </BarraFiltros>
 
           {contasFiltradas.length === 0 && (
             <Card className="p-6 text-center text-muted-foreground">

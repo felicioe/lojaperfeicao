@@ -5,9 +5,9 @@ import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
+import { BarraFiltros, CampoFiltroCompacto, SeparadorFiltro } from "@/components/app/BarraFiltros";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
@@ -51,8 +51,23 @@ const COLUNAS: ColunaRelatorio[] = [
 function Diario() {
   const [de, setDe] = useState(primeiroDiaDoMes());
   const [ate, setAte] = useState(toISODate(new Date()));
+  const deDefaultRef = useRef(de);
+  const ateDefaultRef = useRef(ate);
   const [irmaoId, setIrmaoId] = useState("todos");
   const [contaId, setContaId] = useState("todas");
+
+  const temFiltroAtivo =
+    de !== deDefaultRef.current ||
+    ate !== ateDefaultRef.current ||
+    irmaoId !== "todos" ||
+    contaId !== "todas";
+
+  const limparFiltros = () => {
+    setDe(deDefaultRef.current);
+    setAte(ateDefaultRef.current);
+    setIrmaoId("todos");
+    setContaId("todas");
+  };
 
   const { data: irmaos = [] } = useQuery({
     queryKey: ["irmaos_nomes"],
@@ -112,19 +127,10 @@ function Diario() {
         }
       />
 
-      <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
-        <div>
-          <Label htmlFor="diario-de">De</Label>
-          <Input id="diario-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
-        </div>
-        <div>
-          <Label htmlFor="diario-ate">Até</Label>
-          <Input id="diario-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
-        </div>
-        <div>
-          <Label htmlFor="diario-irmao">Irmão</Label>
+      <BarraFiltros temFiltroAtivo={temFiltroAtivo} onLimpar={limparFiltros}>
+        <CampoFiltroCompacto label="Irmão" htmlFor="diario-irmao">
           <Select value={irmaoId} onValueChange={setIrmaoId}>
-            <SelectTrigger id="diario-irmao">
+            <SelectTrigger id="diario-irmao" className="h-8 w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -136,11 +142,10 @@ function Diario() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div>
-          <Label htmlFor="diario-conta">Conta contábil</Label>
+        </CampoFiltroCompacto>
+        <CampoFiltroCompacto label="Conta" htmlFor="diario-conta">
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger id="diario-conta">
+            <SelectTrigger id="diario-conta" className="h-8 w-[200px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -152,8 +157,27 @@ function Diario() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-      </Card>
+        </CampoFiltroCompacto>
+        <SeparadorFiltro />
+        <CampoFiltroCompacto label="De" htmlFor="diario-de">
+          <Input
+            id="diario-de"
+            type="date"
+            className="h-8 w-[150px]"
+            value={de}
+            onChange={(e) => setDe(e.target.value)}
+          />
+        </CampoFiltroCompacto>
+        <CampoFiltroCompacto label="Até" htmlFor="diario-ate">
+          <Input
+            id="diario-ate"
+            type="date"
+            className="h-8 w-[150px]"
+            value={ate}
+            onChange={(e) => setAte(e.target.value)}
+          />
+        </CampoFiltroCompacto>
+      </BarraFiltros>
 
       <Card className="mb-4 p-4 flex flex-col justify-end">
         <div className="text-sm text-muted-foreground">Total de débitos no período</div>
