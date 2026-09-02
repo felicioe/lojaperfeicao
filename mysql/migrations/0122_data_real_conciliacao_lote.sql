@@ -147,8 +147,10 @@ BEGIN
   UPDATE ofx_lancamentos SET conciliado = TRUE, conciliacao_id = p_conciliacao_id
   WHERE JSON_CONTAINS(p_ofx_ids, JSON_QUOTE(id)) AND loja_id = @current_loja_id;
 
-  SET v_receber_id = conta_parametro_opcional('contas_a_receber');
-  SET v_pagar_id = conta_parametro_opcional('fornecedores');
+  SELECT id INTO v_receber_id FROM plano_contas
+   WHERE codigo = '1.1.02' AND loja_id = @current_loja_id;
+  SELECT id INTO v_pagar_id FROM plano_contas
+   WHERE codigo = '2.1.01' AND loja_id = @current_loja_id;
 
   -- Data real de cada fatura da alocação: soma acumulada das linhas de OFX
   -- do lote (ordenadas por data) casada com a soma acumulada das faturas
