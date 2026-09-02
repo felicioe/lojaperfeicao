@@ -140,7 +140,11 @@ function ConferenciaContabilFinanceira() {
         />
       </BarraFiltros>
       <p className="text-xs text-muted-foreground mb-4 -mt-2">
-        Sem período selecionado, considera todo o histórico de cada conta.
+        Sem período selecionado, considera todo o histórico de cada conta. O movimento financeiro
+        usa sempre a data real do crédito/débito bancário; o contábil usa a data da baixa. Um lote
+        que quita várias faturas atrasadas de uma vez com Pix de meses diferentes pode mostrar
+        diferença nesses meses de propósito — é o dinheiro chegando num mês e virando receita
+        reconhecida em outro, não um erro de dado.
       </p>
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
