@@ -217,7 +217,7 @@ export const listarItensRazaoVariasContas = createServerFn({ method: "GET" })
           saldoAnterior: saldoAnteriorPorConta.get(c.id) ?? 0,
           itens: itensPorConta.get(c.id) ?? [],
         }))
-        .filter((c) => c.saldoAnterior !== 0 || c.itens.length > 0)
+        .filter((c) => c.itens.length > 0)
         .sort((a, b) => a.codigo.localeCompare(b.codigo));
     });
   });

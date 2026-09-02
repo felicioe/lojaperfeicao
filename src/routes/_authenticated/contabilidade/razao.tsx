@@ -381,7 +381,7 @@ function Razao() {
 
           {contasFiltradas.length === 0 && (
             <Card className="p-6 text-center text-muted-foreground">
-              Nenhuma conta com saldo anterior ou movimento no período, com os filtros atuais.
+              Nenhuma conta com movimento no período, com os filtros atuais.
             </Card>
           )}
 
