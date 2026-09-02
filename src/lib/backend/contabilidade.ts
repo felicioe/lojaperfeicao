@@ -217,7 +217,7 @@ export const listarItensRazaoVariasContas = createServerFn({ method: "GET" })
           saldoAnterior: saldoAnteriorPorConta.get(c.id) ?? 0,
           itens: itensPorConta.get(c.id) ?? [],
         }))
-        .filter((c) => c.saldoAnterior !== 0 || c.itens.length > 0)
+        .filter((c) => c.itens.length > 0)
         .sort((a, b) => a.codigo.localeCompare(b.codigo));
     });
   });
@@ -464,20 +464,39 @@ export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" })
 // o evento financeiro não aparece e a diferença fica evidente pra sempre —
 // é o mesmo tipo de furo desta investigação, agora visível na tela).
 //
+// A data de cada evento é sempre a data real do crédito/débito bancário —
+// nunca a data em que a conciliação foi processada no sistema (achado do
+// usuário: um lote pode juntar Pix de meses diferentes — ex. 4 depósitos de
+// fevereiro/maio/julho/agosto quitando 8 faturas atrasadas de uma vez — e
+// datar tudo pelo dia do processamento escondia em que mês o dinheiro
+// realmente entrou). Por isso o ramo de conciliação em lote lê direto de
+// `ofx_lancamentos` (data e valor reais de cada linha do extrato, que já
+// vem com sinal do próprio arquivo OFX), em vez de somar por fatura via
+// `conciliacao_lancamentos.valor_aplicado` datado pela conciliação: não
+// existe conflito de granularidade porque aqui não importa qual fatura
+// cada linha pagou (isso é ambíguo quando a quantidade de linhas de OFX
+// não bate com a quantidade de faturas — mesmo caso de
+// `parearLotePorOrdem` em relatorios.ts), só quanto e quando o dinheiro
+// realmente entrou.
+//
 // "Movimento contábil" é a soma de débito−crédito, por mês, dos itens
-// lançados na conta do plano de contas vinculada (contas_financeiras.plano_conta_id).
+// lançados na conta do plano de contas vinculada (contas_financeiras.plano_conta_id) —
+// esse lado continua datado pela baixa (a data em que a fatura foi
+// reconhecida como paga), porque não há como decompor com certeza a data
+// real de cada fatura individual num lote com contagens desiguais. A
+// diferença entre os dois lados nesses meses é esperada e intencional: é
+// exatamente o "dinheiro chegou num mês, virou receita reconhecida em
+// outro" que esta tela existe para expor.
 const EVENTOS_FINANCEIROS_SQL = `
     SELECT r.conta_financeira_id, r.loja_id, r.data, r.valor_total AS valor_sinal
     FROM recibos r
 
     UNION ALL
 
-    SELECT c2.conta_financeira_id, c2.loja_id, c2.data_conciliacao AS data,
-           CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END AS valor_sinal
-    FROM conciliacoes c2
-    JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c2.id AND cl.loja_id = c2.loja_id
-    JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = c2.loja_id
-    WHERE c2.status = 'ativa'
+    SELECT o.conta_financeira_id, o.loja_id, o.data, o.valor AS valor_sinal
+    FROM ofx_lancamentos o
+    JOIN conciliacoes co ON co.id = o.conciliacao_id AND co.loja_id = o.loja_id
+    WHERE co.status = 'ativa'
 
     UNION ALL
 
