@@ -444,3 +444,152 @@ export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" })
       return rows as AuditoriaDesbalanceado[];
     });
   });
+
+// ---------- Conferência Contábil x Financeira (issue #416) ----------
+// Nasceu do incidente de agosto/2026: um script de backfill inseriu direto
+// em lancamentos_contabeis/itens (sem passar pela procedure), duplicando
+// dezenas de lançamentos sem que nenhuma tela detectasse. O saldo contábil
+// só foi descoberto errado comparando, mês a mês, o extrato bancário real
+// contra a soma dos lançamentos contábeis — esta tela automatiza exatamente
+// essa comparação, pra não depender de novo de uma conferência manual.
+//
+// "Movimento financeiro" (o que de fato entrou/saiu da conta, pelo regime
+// de caixa) é a mesma soma de eventos que sustenta v_saldo_contas/saldo_atual
+// (migração 0096): recibo, conciliação em lote, linha de OFX conciliada
+// direto (sem lote) e lançamento avulso pago sem nenhum desses vínculos —
+// cada evento contado uma única vez, na fonte mais específica disponível.
+// O saldo de abertura entra como mais um evento, na mesma data do
+// lançamento contábil 'saldo_abertura' daquela conta (união simétrica: se
+// uma conta tem saldo_inicial mas ninguém lançou a abertura contábil dela,
+// o evento financeiro não aparece e a diferença fica evidente pra sempre —
+// é o mesmo tipo de furo desta investigação, agora visível na tela).
+//
+// "Movimento contábil" é a soma de débito−crédito, por mês, dos itens
+// lançados na conta do plano de contas vinculada (contas_financeiras.plano_conta_id).
+const EVENTOS_FINANCEIROS_SQL = `
+    SELECT r.conta_financeira_id, r.loja_id, r.data, r.valor_total AS valor_sinal
+    FROM recibos r
+
+    UNION ALL
+
+    SELECT c2.conta_financeira_id, c2.loja_id, c2.data_conciliacao AS data,
+           CASE WHEN l.tipo = 'entrada' THEN cl.valor_aplicado ELSE -cl.valor_aplicado END AS valor_sinal
+    FROM conciliacoes c2
+    JOIN conciliacao_lancamentos cl ON cl.conciliacao_id = c2.id AND cl.loja_id = c2.loja_id
+    JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = c2.loja_id
+    WHERE c2.status = 'ativa'
+
+    UNION ALL
+
+    SELECT o.conta_financeira_id, o.loja_id, o.data,
+           CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
+    FROM ofx_lancamentos o
+    JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
+    WHERE o.conciliado = TRUE AND o.conciliacao_id IS NULL
+
+    UNION ALL
+
+    SELECT l.conta_id AS conta_financeira_id, l.loja_id, COALESCE(l.data_pagamento, l.data) AS data,
+           CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
+    FROM lancamentos l
+    WHERE l.pago = TRUE AND l.conta_id IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
+      AND NOT EXISTS (
+        SELECT 1 FROM conciliacao_lancamentos cl
+        JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa'
+        WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM ofx_lancamentos o
+         WHERE o.lancamento_id = l.id AND o.loja_id = l.loja_id AND o.conciliacao_id IS NULL
+      )
+
+    UNION ALL
+
+    SELECT l.conta_destino_id AS conta_financeira_id, l.loja_id, COALESCE(l.data_pagamento, l.data) AS data,
+           l.valor AS valor_sinal
+    FROM lancamentos l
+    WHERE l.pago = TRUE AND l.tipo = 'transferencia' AND l.conta_destino_id IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
+      AND NOT EXISTS (
+        SELECT 1 FROM conciliacao_lancamentos cl
+        JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa'
+        WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM ofx_lancamentos o
+         WHERE o.lancamento_id = l.id AND o.loja_id = l.loja_id AND o.conciliacao_id IS NULL
+      )
+
+    UNION ALL
+
+    SELECT cf.id AS conta_financeira_id, cf.loja_id, lc.data, cf.saldo_inicial AS valor_sinal
+    FROM contas_financeiras cf
+    JOIN lancamentos_contabeis lc
+      ON lc.origem_tipo = 'saldo_abertura' AND lc.origem_id = cf.id AND lc.loja_id = cf.loja_id
+    WHERE cf.saldo_inicial <> 0
+`;
+
+export type ConferenciaContaMes = {
+  conta_financeira_id: string;
+  conta_financeira_nome: string;
+  mes: string;
+  movimento_financeiro: number;
+  movimento_contabil: number;
+};
+
+export const listarConferenciaContabilFinanceira = createServerFn({ method: "GET" })
+  .validator((d: unknown) =>
+    z.object({ de: z.string().nullable(), ate: z.string().nullable() }).parse(d),
+  )
+  .handler(async ({ data }): Promise<ConferenciaContaMes[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const condicoesMes: string[] = [];
+      const valoresMes: unknown[] = [];
+      if (data.de) {
+        condicoesMes.push("m.mes >= ?");
+        valoresMes.push(data.de);
+      }
+      if (data.ate) {
+        condicoesMes.push("m.mes <= ?");
+        valoresMes.push(data.ate);
+      }
+      const filtroMes = condicoesMes.length > 0 ? `AND ${condicoesMes.join(" AND ")}` : "";
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `WITH eventos AS (${EVENTOS_FINANCEIROS_SQL}),
+              fin AS (
+                SELECT conta_financeira_id, loja_id, DATE_FORMAT(data, '%Y-%m-01') AS mes,
+                       SUM(valor_sinal) AS total
+                FROM eventos
+                GROUP BY conta_financeira_id, loja_id, mes
+              ),
+              cont AS (
+                SELECT cf.id AS conta_financeira_id, cf.loja_id, DATE_FORMAT(lc.data, '%Y-%m-01') AS mes,
+                       SUM(CASE WHEN i.tipo = 'debito' THEN i.valor ELSE -i.valor END) AS total
+                FROM contas_financeiras cf
+                JOIN lancamentos_contabeis_itens i ON i.conta_id = cf.plano_conta_id AND i.loja_id = cf.loja_id
+                JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
+                WHERE cf.plano_conta_id IS NOT NULL
+                GROUP BY cf.id, cf.loja_id, mes
+              ),
+              meses AS (
+                SELECT conta_financeira_id, loja_id, mes FROM fin
+                UNION
+                SELECT conta_financeira_id, loja_id, mes FROM cont
+              )
+         SELECT cf.id AS conta_financeira_id, cf.nome AS conta_financeira_nome, m.mes,
+                COALESCE(fin.total, 0) AS movimento_financeiro,
+                COALESCE(cont.total, 0) AS movimento_contabil
+           FROM meses m
+           JOIN contas_financeiras cf ON cf.id = m.conta_financeira_id AND cf.loja_id = m.loja_id
+           LEFT JOIN fin ON fin.conta_financeira_id = m.conta_financeira_id
+                         AND fin.loja_id = m.loja_id AND fin.mes = m.mes
+           LEFT JOIN cont ON cont.conta_financeira_id = m.conta_financeira_id
+                          AND cont.loja_id = m.loja_id AND cont.mes = m.mes
+          WHERE cf.loja_id = @current_loja_id AND cf.ativo = TRUE ${filtroMes}
+          ORDER BY cf.nome, m.mes`,
+        valoresMes,
+      );
+      return rows as ConferenciaContaMes[];
+    });
+  });

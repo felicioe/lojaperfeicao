@@ -50,6 +50,7 @@ import { Route as AuthenticatedContaSegurancaRouteImport } from './routes/_authe
 import { Route as AuthenticatedContabilidadeIndexRouteImport } from './routes/_authenticated/contabilidade/index'
 import { Route as AuthenticatedContabilidadeAuditoriaRouteImport } from './routes/_authenticated/contabilidade/auditoria'
 import { Route as AuthenticatedContabilidadeBalanceteRouteImport } from './routes/_authenticated/contabilidade/balancete'
+import { Route as AuthenticatedContabilidadeConferenciaRouteImport } from './routes/_authenticated/contabilidade/conferencia'
 import { Route as AuthenticatedContabilidadeDiarioRouteImport } from './routes/_authenticated/contabilidade/diario'
 import { Route as AuthenticatedContabilidadeDreRouteImport } from './routes/_authenticated/contabilidade/dre'
 import { Route as AuthenticatedContabilidadeDreOrcadoRouteImport } from './routes/_authenticated/contabilidade/dre-orcado'
@@ -344,6 +345,12 @@ const AuthenticatedContabilidadeBalanceteRoute =
   AuthenticatedContabilidadeBalanceteRouteImport.update({
     id: '/contabilidade/balancete',
     path: '/contabilidade/balancete',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContabilidadeConferenciaRoute =
+  AuthenticatedContabilidadeConferenciaRouteImport.update({
+    id: '/contabilidade/conferencia',
+    path: '/contabilidade/conferencia',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedContabilidadeDiarioRoute =
@@ -765,6 +772,7 @@ export interface FileRoutesByFullPath {
   '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
+  '/contabilidade/conferencia': typeof AuthenticatedContabilidadeConferenciaRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
   '/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
@@ -870,6 +878,7 @@ export interface FileRoutesByTo {
   '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
+  '/contabilidade/conferencia': typeof AuthenticatedContabilidadeConferenciaRoute
   '/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
   '/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
@@ -979,6 +988,7 @@ export interface FileRoutesById {
   '/_authenticated/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
   '/_authenticated/contabilidade/auditoria': typeof AuthenticatedContabilidadeAuditoriaRoute
   '/_authenticated/contabilidade/balancete': typeof AuthenticatedContabilidadeBalanceteRoute
+  '/_authenticated/contabilidade/conferencia': typeof AuthenticatedContabilidadeConferenciaRoute
   '/_authenticated/contabilidade/diario': typeof AuthenticatedContabilidadeDiarioRoute
   '/_authenticated/contabilidade/dre': typeof AuthenticatedContabilidadeDreRoute
   '/_authenticated/contabilidade/dre-orcado': typeof AuthenticatedContabilidadeDreOrcadoRoute
@@ -1088,6 +1098,7 @@ export interface FileRouteTypes {
     | '/conta/seguranca'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
+    | '/contabilidade/conferencia'
     | '/contabilidade/diario'
     | '/contabilidade/dre'
     | '/contabilidade/dre-orcado'
@@ -1193,6 +1204,7 @@ export interface FileRouteTypes {
     | '/conta/seguranca'
     | '/contabilidade/auditoria'
     | '/contabilidade/balancete'
+    | '/contabilidade/conferencia'
     | '/contabilidade/diario'
     | '/contabilidade/dre'
     | '/contabilidade/dre-orcado'
@@ -1301,6 +1313,7 @@ export interface FileRouteTypes {
     | '/_authenticated/conta/seguranca'
     | '/_authenticated/contabilidade/auditoria'
     | '/_authenticated/contabilidade/balancete'
+    | '/_authenticated/contabilidade/conferencia'
     | '/_authenticated/contabilidade/diario'
     | '/_authenticated/contabilidade/dre'
     | '/_authenticated/contabilidade/dre-orcado'
@@ -1681,6 +1694,13 @@ declare module '@tanstack/react-router' {
       path: '/contabilidade/balancete'
       fullPath: '/contabilidade/balancete'
       preLoaderRoute: typeof AuthenticatedContabilidadeBalanceteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contabilidade/conferencia': {
+      id: '/_authenticated/contabilidade/conferencia'
+      path: '/contabilidade/conferencia'
+      fullPath: '/contabilidade/conferencia'
+      preLoaderRoute: typeof AuthenticatedContabilidadeConferenciaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/contabilidade/diario': {
@@ -2221,6 +2241,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContaSegurancaRoute: typeof AuthenticatedContaSegurancaRoute
   AuthenticatedContabilidadeAuditoriaRoute: typeof AuthenticatedContabilidadeAuditoriaRoute
   AuthenticatedContabilidadeBalanceteRoute: typeof AuthenticatedContabilidadeBalanceteRoute
+  AuthenticatedContabilidadeConferenciaRoute: typeof AuthenticatedContabilidadeConferenciaRoute
   AuthenticatedContabilidadeDiarioRoute: typeof AuthenticatedContabilidadeDiarioRoute
   AuthenticatedContabilidadeDreRoute: typeof AuthenticatedContabilidadeDreRoute
   AuthenticatedContabilidadeDreOrcadoRoute: typeof AuthenticatedContabilidadeDreOrcadoRoute
@@ -2308,6 +2329,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedContabilidadeAuditoriaRoute,
   AuthenticatedContabilidadeBalanceteRoute:
     AuthenticatedContabilidadeBalanceteRoute,
+  AuthenticatedContabilidadeConferenciaRoute:
+    AuthenticatedContabilidadeConferenciaRoute,
   AuthenticatedContabilidadeDiarioRoute: AuthenticatedContabilidadeDiarioRoute,
   AuthenticatedContabilidadeDreRoute: AuthenticatedContabilidadeDreRoute,
   AuthenticatedContabilidadeDreOrcadoRoute:

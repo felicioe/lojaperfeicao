@@ -53,6 +53,7 @@ import {
   CalendarCheck2,
   PartyPopper,
   GraduationCap,
+  GitCompareArrows,
   CalendarPlus,
   CalendarRange,
   FileUp,
@@ -323,6 +324,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     "/contabilidade/dre-orcado",
     "/contabilidade/balancete",
     "/contabilidade/fluxo-caixa",
+    "/contabilidade/conferencia",
   ];
   const exibirCabecalhoRelatorio =
     loc.pathname.startsWith("/relatorios/") ||
@@ -643,6 +645,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/contabilidade/auditoria",
           label: "Auditoria Contábil",
           icon: ShieldCheck,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/contabilidade/conferencia",
+          label: "Conferência Contábil x Financeira",
+          icon: GitCompareArrows,
           show: can.canManageFinancas,
         },
         {
