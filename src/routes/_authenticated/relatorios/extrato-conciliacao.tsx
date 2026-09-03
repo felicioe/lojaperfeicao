@@ -24,6 +24,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -213,19 +214,6 @@ function ExtratoConciliacao() {
 
       {contaId && (
         <>
-          <div className="grid gap-4 md:grid-cols-2 mb-4">
-            <Card className="p-4">
-              <div className="text-sm text-muted-foreground">Conciliado</div>
-              <div className="text-2xl font-semibold">{brl(totalConciliado)}</div>
-              <div className="text-xs text-muted-foreground">{qtdConciliado} linha(s)</div>
-            </Card>
-            <Card className="p-4">
-              <div className="text-sm text-muted-foreground">Pendente</div>
-              <div className="text-2xl font-semibold">{brl(totalPendente)}</div>
-              <div className="text-xs text-muted-foreground">{qtdPendente} linha(s)</div>
-            </Card>
-          </div>
-
           <Card>
             <div className="overflow-x-auto">
               <Table>
@@ -259,7 +247,9 @@ function ExtratoConciliacao() {
                     <TableRow key={i.id}>
                       <TableCell>{fmtDate(i.data)}</TableCell>
                       <TableCell>{i.descricao ?? "—"}</TableCell>
-                      <TableCell className="text-right font-medium">{brl(i.valor)}</TableCell>
+                      <TableCell numeric className="font-medium">
+                        {brl(i.valor)}
+                      </TableCell>
                       <TableCell>
                         {i.anulacao_ofx ? (
                           <Badge variant="secondary">Lançamento indevido</Badge>
@@ -331,6 +321,24 @@ function ExtratoConciliacao() {
                     </TableRow>
                   ))}
                 </TableBody>
+                {itens.length > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={2}>Conciliado ({qtdConciliado} linha(s))</TableCell>
+                      <TableCell numeric className="font-semibold">
+                        {brl(totalConciliado)}
+                      </TableCell>
+                      <TableCell colSpan={3} />
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={2}>Pendente ({qtdPendente} linha(s))</TableCell>
+                      <TableCell numeric className="font-semibold">
+                        {brl(totalPendente)}
+                      </TableCell>
+                      <TableCell colSpan={3} />
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </div>
             <TabelaPaginacao
