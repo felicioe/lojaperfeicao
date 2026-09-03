@@ -23,6 +23,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -268,27 +269,6 @@ function ExtratoBancario() {
 
       {contaId && (
         <>
-          {saldoFinal !== null && saldoInicial !== null && (
-            <div className="mb-4 grid gap-3 grid-cols-2 md:grid-cols-4">
-              <Card className="p-4">
-                <div className="text-sm text-muted-foreground">Saldo inicial</div>
-                <div className="text-xl font-semibold">{brl(saldoInicial)}</div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-sm text-muted-foreground">Entradas</div>
-                <div className="text-xl font-semibold text-emerald-600">{brl(totalEntradas)}</div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-sm text-muted-foreground">Saídas</div>
-                <div className="text-xl font-semibold text-destructive">{brl(totalSaidas)}</div>
-              </Card>
-              <Card className="p-4">
-                <div className="text-sm text-muted-foreground">Saldo final</div>
-                <div className="text-xl font-semibold">{brl(saldoFinal)}</div>
-              </Card>
-            </div>
-          )}
-
           <Card>
             <div className="overflow-x-auto">
               <Table>
@@ -347,14 +327,40 @@ function ExtratoBancario() {
                         <Badge variant="outline">{TIPO_LABEL[i.tipo]}</Badge>
                       </TableCell>
                       <TableCell
-                        className={`text-right font-medium ${i.valor_sinal < 0 ? "text-destructive" : ""}`}
+                        numeric
+                        className={`font-medium ${i.valor_sinal < 0 ? "text-destructive" : ""}`}
                       >
                         {brl(i.valor_sinal)}
                       </TableCell>
-                      <TableCell className="text-right">{brl(i.saldo_corrente)}</TableCell>
+                      <TableCell numeric>{brl(i.saldo_corrente)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
+                {saldoFinal !== null && saldoInicial !== null && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={5}>Saldo inicial do recorte</TableCell>
+                      <TableCell colSpan={2} numeric>
+                        {brl(saldoInicial)}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={5}>Entradas / Saídas</TableCell>
+                      <TableCell numeric className="text-emerald-600">
+                        {brl(totalEntradas)}
+                      </TableCell>
+                      <TableCell numeric className="text-destructive">
+                        {brl(totalSaidas)}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={5}>Saldo final</TableCell>
+                      <TableCell colSpan={2} numeric className="font-semibold">
+                        {brl(saldoFinal)}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </div>
             <TabelaPaginacao
