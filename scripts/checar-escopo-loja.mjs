@@ -146,6 +146,57 @@ const EXCECOES = [
       "enviarEmailDeTeste: busca o e-mail do próprio usuário da sessão (comPapel) pra mandar o teste — nunca de outro.",
   },
   {
+    arquivo: "src/lib/backend/relatorio-exportacao.ts",
+    contem: "SELECT COALESCE(NULLIF(nome_completo, ''), email) AS nome FROM usuarios WHERE id = ?",
+    motivo:
+      "Rodapé do relatório: o id é usuarioIdAtual, fornecido por comPapel a partir da sessão autenticada; " +
+      "não é um usuário escolhido no request.",
+  },
+  // ---- Painel e gestão da plataforma: comSuperAdmin é deliberadamente
+  // cross-Loja. Estas consultas medem ou administram o SaaS inteiro; aplicar
+  // @current_loja_id produziria métricas falsas e impediria gerir
+  // super-admins pertencentes a outra Loja.
+  {
+    arquivo: "src/lib/backend/saas-lojas.ts",
+    contem: "SELECT COUNT(*) AS usuarios_ativos FROM usuarios WHERE ativo = TRUE",
+    motivo:
+      "Resumo global da plataforma, protegido por comSuperAdmin; a contagem deve abranger todas as Lojas.",
+  },
+  {
+    arquivo: "src/lib/backend/saas-lojas.ts",
+    contem: "SELECT DATE_FORMAT(criado_em, '%Y-%m') AS mes, COUNT(*) AS total FROM usuarios",
+    motivo:
+      "Série histórica global da plataforma, protegida por comSuperAdmin; não é uma métrica de Loja.",
+  },
+  {
+    arquivo: "src/lib/backend/saas-super-admins.ts",
+    contem: "SELECT senha_hash FROM usuarios WHERE id = ?",
+    motivo: "Reautenticação do próprio super-admin da sessão antes de uma ação crítica.",
+  },
+  {
+    arquivo: "src/lib/backend/saas-super-admins.ts",
+    contem: "SELECT 1 AS ok FROM usuarios_papeis WHERE usuario_id = ? AND papel = 'super_admin'",
+    motivo:
+      "Consulta global do papel de plataforma para o alvo escolhido por um super-admin reautenticado.",
+  },
+  {
+    arquivo: "src/lib/backend/saas-super-admins.ts",
+    contem: "SELECT COUNT(*) AS total FROM usuarios_papeis WHERE papel = 'super_admin'",
+    motivo: "Trava global que impede a plataforma de ficar sem nenhum super-admin.",
+  },
+  {
+    arquivo: "src/lib/backend/saas-super-admins.ts",
+    contem: "SELECT email FROM usuarios WHERE id = ?",
+    motivo:
+      "Identifica o alvo global para auditoria de revogação executada por super-admin reautenticado.",
+  },
+  {
+    arquivo: "src/lib/backend/saas-super-admins.ts",
+    contem: "DELETE FROM usuarios_papeis WHERE usuario_id = ? AND papel = 'super_admin'",
+    motivo:
+      "Revogação global do papel de plataforma após senha, 2FA e trava de último super-admin.",
+  },
+  {
     arquivo: "src/lib/google-oauth-callback.ts",
     contem: "UPDATE usuarios SET google_id = ? WHERE id = ?",
     motivo:
