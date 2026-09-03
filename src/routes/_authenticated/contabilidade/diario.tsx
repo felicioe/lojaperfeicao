@@ -19,6 +19,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -99,6 +100,14 @@ function Diario() {
       .reduce((s, i) => s + Number(i.valor), 0);
 
   const totalGeral = lancamentos.reduce((s, l) => s + valorDoLancamento(l), 0);
+  const totalCredito = lancamentos.reduce(
+    (s, l) =>
+      s +
+      (l.lancamentos_contabeis_itens ?? [])
+        .filter((i) => i.tipo === "credito")
+        .reduce((s2, i) => s2 + Number(i.valor), 0),
+    0,
+  );
 
   const linhasExportacao = lancamentos.flatMap((l) =>
     (l.lancamentos_contabeis_itens ?? []).map((it) => ({
@@ -179,11 +188,6 @@ function Diario() {
         </CampoFiltroCompacto>
       </BarraFiltros>
 
-      <Card className="mb-4 p-4 flex flex-col justify-end">
-        <div className="text-sm text-muted-foreground">Total de débitos no período</div>
-        <div className="text-xl font-semibold">{brl(totalGeral)}</div>
-      </Card>
-
       <Card>
         <Table>
           <TableHeader>
@@ -192,8 +196,8 @@ function Diario() {
               <TableHead>Histórico</TableHead>
               <TableHead>Conta</TableHead>
               <TableHead>Irmão</TableHead>
-              <TableHead className="text-right">Débito</TableHead>
-              <TableHead className="text-right">Crédito</TableHead>
+              <TableHead numeric>Débito</TableHead>
+              <TableHead numeric>Crédito</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -233,18 +237,21 @@ function Diario() {
                       {indice === 0 && (
                         <TableCell rowSpan={itens.length}>{l.irmao_nome ?? "—"}</TableCell>
                       )}
-                      <TableCell className="text-right">
-                        {it.tipo === "debito" ? brl(it.valor) : ""}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {it.tipo === "credito" ? brl(it.valor) : ""}
-                      </TableCell>
+                      <TableCell numeric>{it.tipo === "debito" ? brl(it.valor) : ""}</TableCell>
+                      <TableCell numeric>{it.tipo === "credito" ? brl(it.valor) : ""}</TableCell>
                     </TableRow>
                   ))}
                 </Fragment>
               );
             })}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={4}>Total do período</TableCell>
+              <TableCell numeric>{brl(totalGeral)}</TableCell>
+              <TableCell numeric>{brl(totalCredito)}</TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
         <TabelaPaginacao
           pagina={pagina}
