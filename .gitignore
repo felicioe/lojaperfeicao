@@ -36,6 +36,10 @@ public/uploads/
 # nunca versionados, são dados de runtime.
 /backups/
 
+# Rascunho local de depuração/recuperação (builds, zips de backup, logs,
+# repros) — nunca faz parte do código, nunca deve ser versionado.
+/tmp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
