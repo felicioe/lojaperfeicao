@@ -10,6 +10,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -144,14 +145,16 @@ function Dre() {
               >
                 <TableCell className="font-mono w-24">{l.codigo}</TableCell>
                 <TableCell className="underline decoration-dotted">{l.nome}</TableCell>
-                <TableCell className="text-right">{brl(l.valor)}</TableCell>
+                <TableCell numeric>{brl(l.valor)}</TableCell>
               </TableRow>
             ))}
-            <TableRow className="font-semibold bg-muted/30">
-              <TableCell colSpan={2}>Total de Receitas</TableCell>
-              <TableCell className="text-right">{brl(totalReceitas)}</TableCell>
-            </TableRow>
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={2}>Total de Receitas</TableCell>
+              <TableCell numeric>{brl(totalReceitas)}</TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </Card>
 
@@ -174,24 +177,33 @@ function Dre() {
               >
                 <TableCell className="font-mono w-24">{l.codigo}</TableCell>
                 <TableCell className="underline decoration-dotted">{l.nome}</TableCell>
-                <TableCell className="text-right">{brl(l.valor)}</TableCell>
+                <TableCell numeric>{brl(l.valor)}</TableCell>
               </TableRow>
             ))}
-            <TableRow className="font-semibold bg-muted/30">
-              <TableCell colSpan={2}>Total de Despesas</TableCell>
-              <TableCell className="text-right">{brl(totalDespesas)}</TableCell>
-            </TableRow>
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={2}>Total de Despesas</TableCell>
+              <TableCell numeric>{brl(totalDespesas)}</TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </Card>
 
-      <Card className="p-4 flex items-center justify-between">
-        <div className="text-lg font-semibold">Resultado do período</div>
-        <div
-          className={`text-2xl font-bold ${resultado >= 0 ? "text-emerald-600" : "text-destructive"}`}
-        >
-          {brl(resultado)}
-        </div>
+      <Card>
+        <Table>
+          <TableFooter>
+            <TableRow>
+              <TableCell className="text-lg font-semibold">Resultado do período</TableCell>
+              <TableCell
+                numeric
+                className={`text-2xl font-bold ${resultado >= 0 ? "text-emerald-600" : "text-destructive"}`}
+              >
+                {brl(resultado)}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
       </Card>
     </>
   );

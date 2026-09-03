@@ -20,6 +20,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -208,26 +209,34 @@ function DreOrcado() {
                     <TableCell className="font-mono text-xs">
                       {l.codigo} {l.nome}
                     </TableCell>
-                    <TableCell className="text-right">{brl(l.orcado)}</TableCell>
-                    <TableCell className="text-right">{brl(l.realizado)}</TableCell>
+                    <TableCell numeric>{brl(l.orcado)}</TableCell>
+                    <TableCell numeric>{brl(l.realizado)}</TableCell>
                     <TableCell
-                      className={`text-right ${l.realizado >= l.orcado ? "text-emerald-600" : "text-destructive"}`}
+                      numeric
+                      className={l.realizado >= l.orcado ? "text-emerald-600" : "text-destructive"}
                     >
                       {brl(l.realizado - l.orcado)}
                     </TableCell>
                   </TableRow>
                 ))}
-                <TableRow className="font-semibold bg-muted/30">
+              </TableBody>
+              <TableFooter>
+                <TableRow>
                   <TableCell>Total de Receitas</TableCell>
-                  <TableCell className="text-right">{brl(totalReceitaOrcado)}</TableCell>
-                  <TableCell className="text-right">{brl(totalReceitaReal)}</TableCell>
+                  <TableCell numeric>{brl(totalReceitaOrcado)}</TableCell>
+                  <TableCell numeric>{brl(totalReceitaReal)}</TableCell>
                   <TableCell
-                    className={`text-right ${totalReceitaReal >= totalReceitaOrcado ? "text-emerald-600" : "text-destructive"}`}
+                    numeric
+                    className={
+                      totalReceitaReal >= totalReceitaOrcado
+                        ? "text-emerald-600"
+                        : "text-destructive"
+                    }
                   >
                     {brl(totalReceitaReal - totalReceitaOrcado)}
                   </TableCell>
                 </TableRow>
-              </TableBody>
+              </TableFooter>
             </Table>
           </Card>
 
@@ -263,46 +272,60 @@ function DreOrcado() {
                     <TableCell className="font-mono text-xs">
                       {l.codigo} {l.nome}
                     </TableCell>
-                    <TableCell className="text-right">{brl(l.orcado)}</TableCell>
-                    <TableCell className="text-right">{brl(l.realizado)}</TableCell>
+                    <TableCell numeric>{brl(l.orcado)}</TableCell>
+                    <TableCell numeric>{brl(l.realizado)}</TableCell>
                     <TableCell
-                      className={`text-right ${l.realizado <= l.orcado ? "text-emerald-600" : "text-destructive"}`}
+                      numeric
+                      className={l.realizado <= l.orcado ? "text-emerald-600" : "text-destructive"}
                     >
                       {brl(l.realizado - l.orcado)}
                     </TableCell>
                   </TableRow>
                 ))}
-                <TableRow className="font-semibold bg-muted/30">
+              </TableBody>
+              <TableFooter>
+                <TableRow>
                   <TableCell>Total de Despesas</TableCell>
-                  <TableCell className="text-right">{brl(totalDespesaOrcado)}</TableCell>
-                  <TableCell className="text-right">{brl(totalDespesaReal)}</TableCell>
+                  <TableCell numeric>{brl(totalDespesaOrcado)}</TableCell>
+                  <TableCell numeric>{brl(totalDespesaReal)}</TableCell>
                   <TableCell
-                    className={`text-right ${totalDespesaReal <= totalDespesaOrcado ? "text-emerald-600" : "text-destructive"}`}
+                    numeric
+                    className={
+                      totalDespesaReal <= totalDespesaOrcado
+                        ? "text-emerald-600"
+                        : "text-destructive"
+                    }
                   >
                     {brl(totalDespesaReal - totalDespesaOrcado)}
                   </TableCell>
                 </TableRow>
-              </TableBody>
+              </TableFooter>
             </Table>
           </Card>
 
-          <Card className="p-4 grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-sm text-muted-foreground">Resultado orçado</div>
-              <div
-                className={`text-2xl font-bold ${resultadoOrcado >= 0 ? "text-emerald-600" : "text-destructive"}`}
-              >
-                {brl(resultadoOrcado)}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Resultado realizado</div>
-              <div
-                className={`text-2xl font-bold ${resultadoReal >= 0 ? "text-emerald-600" : "text-destructive"}`}
-              >
-                {brl(resultadoReal)}
-              </div>
-            </div>
+          <Card>
+            <Table>
+              <TableFooter>
+                <TableRow>
+                  <TableCell>Resultado orçado</TableCell>
+                  <TableCell
+                    numeric
+                    className={`text-lg font-bold ${resultadoOrcado >= 0 ? "text-emerald-600" : "text-destructive"}`}
+                  >
+                    {brl(resultadoOrcado)}
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Resultado realizado</TableCell>
+                  <TableCell
+                    numeric
+                    className={`text-lg font-bold ${resultadoReal >= 0 ? "text-emerald-600" : "text-destructive"}`}
+                  >
+                    {brl(resultadoReal)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
           </Card>
         </>
       )}
