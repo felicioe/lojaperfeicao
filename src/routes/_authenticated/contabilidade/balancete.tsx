@@ -12,6 +12,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -155,8 +156,10 @@ function Balancete() {
 
   const saldoAtual = (l: LinhaBalancete) => l.saldoAnterior + l.debito - l.credito;
 
+  const totalSaldoAnterior = linhas.reduce((s, l) => s + l.saldoAnterior, 0);
   const totalDebito = linhas.reduce((s, l) => s + l.debito, 0);
   const totalCredito = linhas.reduce((s, l) => s + l.credito, 0);
+  const totalSaldoAtual = linhas.reduce((s, l) => s + saldoAtual(l), 0);
   const diferenca = totalDebito - totalCredito;
   const fechado = Math.abs(diferenca) < 0.01;
 
@@ -259,10 +262,10 @@ function Balancete() {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Conta</TableHead>
-                  <TableHead className="text-right">Saldo anterior</TableHead>
-                  <TableHead className="text-right">Débito</TableHead>
-                  <TableHead className="text-right">Crédito</TableHead>
-                  <TableHead className="text-right">Saldo atual</TableHead>
+                  <TableHead numeric>Saldo anterior</TableHead>
+                  <TableHead numeric>Débito</TableHead>
+                  <TableHead numeric>Crédito</TableHead>
+                  <TableHead numeric>Saldo atual</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -270,30 +273,52 @@ function Balancete() {
                   <TableRow key={l.id}>
                     <TableCell className="font-mono">{l.codigo}</TableCell>
                     <TableCell>{l.nome}</TableCell>
-                    <TableCell className="text-right">{brl(l.saldoAnterior)}</TableCell>
-                    <TableCell className="text-right">{brl(l.debito)}</TableCell>
-                    <TableCell className="text-right">{brl(l.credito)}</TableCell>
-                    <TableCell className="text-right font-medium">{brl(saldoAtual(l))}</TableCell>
+                    <TableCell numeric>{brl(l.saldoAnterior)}</TableCell>
+                    <TableCell numeric>{brl(l.debito)}</TableCell>
+                    <TableCell numeric>{brl(l.credito)}</TableCell>
+                    <TableCell numeric className="font-medium">
+                      {brl(saldoAtual(l))}
+                    </TableCell>
                   </TableRow>
                 ))}
-                <TableRow className="font-semibold bg-muted/30">
-                  <TableCell colSpan={2}>Subtotal {CLASSE_LABEL[classe]}</TableCell>
-                  <TableCell className="text-right">{brl(subAnterior)}</TableCell>
-                  <TableCell className="text-right">{brl(subDebito)}</TableCell>
-                  <TableCell className="text-right">{brl(subCredito)}</TableCell>
-                  <TableCell className="text-right">{brl(subAtual)}</TableCell>
-                </TableRow>
               </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={2}>Subtotal {CLASSE_LABEL[classe]}</TableCell>
+                  <TableCell numeric>{brl(subAnterior)}</TableCell>
+                  <TableCell numeric>{brl(subDebito)}</TableCell>
+                  <TableCell numeric>{brl(subCredito)}</TableCell>
+                  <TableCell numeric>{brl(subAtual)}</TableCell>
+                </TableRow>
+              </TableFooter>
             </Table>
           </Card>
         );
       })}
 
-      <Card className="p-4 flex justify-between font-semibold text-lg">
-        <span>Totais gerais</span>
-        <span>
-          {brl(totalDebito)} / {brl(totalCredito)}
-        </span>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Totais gerais</TableHead>
+              <TableHead numeric>Saldo anterior</TableHead>
+              <TableHead numeric>Débito</TableHead>
+              <TableHead numeric>Crédito</TableHead>
+              <TableHead numeric>Saldo atual</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableFooter>
+            <TableRow>
+              <TableCell>Todas as contas filtradas</TableCell>
+              <TableCell numeric>{brl(totalSaldoAnterior)}</TableCell>
+              <TableCell numeric>{brl(totalDebito)}</TableCell>
+              <TableCell numeric>{brl(totalCredito)}</TableCell>
+              <TableCell numeric className="text-lg">
+                {brl(totalSaldoAtual)}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
       </Card>
     </>
   );
