@@ -21,6 +21,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -240,27 +241,19 @@ function Recebimentos() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 mb-4">
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Total recebido</div>
-          <div className="text-2xl font-semibold">{brl(totalGeral)}</div>
-          <div className="text-xs text-muted-foreground">{itens.length} lançamento(s)</div>
-        </Card>
-        <Card className="p-4">
+      {porFormaPagamento.size > 0 && (
+        <Card className="mb-4 p-4">
           <div className="text-sm text-muted-foreground mb-1">Por forma de pagamento</div>
           <div className="space-y-0.5 text-sm">
             {Array.from(porFormaPagamento.entries()).map(([forma, valor]) => (
               <div key={forma} className="flex justify-between">
                 <span className="text-muted-foreground">{forma}</span>
-                <span className="font-medium">{brl(valor)}</span>
+                <span className="font-medium tabular-nums">{brl(valor)}</span>
               </div>
             ))}
-            {porFormaPagamento.size === 0 && (
-              <div className="text-muted-foreground">Nenhum recebimento no filtro.</div>
-            )}
           </div>
         </Card>
-      </div>
+      )}
 
       <Card>
         <div className="overflow-x-auto">
@@ -317,10 +310,24 @@ function Recebimentos() {
                     {i.forma_pagamento ?? "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{i.conta_nome ?? "—"}</TableCell>
-                  <TableCell className="text-right font-medium">{brl(i.valor)}</TableCell>
+                  <TableCell numeric className="font-medium">
+                    {brl(i.valor)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
+            {itens.length > 0 && (
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    Total recebido ({itens.length} lançamento{itens.length > 1 ? "s" : ""})
+                  </TableCell>
+                  <TableCell numeric className="font-semibold">
+                    {brl(totalGeral)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            )}
           </Table>
         </div>
         <TabelaPaginacao
