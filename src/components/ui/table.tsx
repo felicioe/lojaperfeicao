@@ -59,12 +59,13 @@ TableRow.displayName = "TableRow";
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
-  React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+  React.ThHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean }
+>(({ className, numeric, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
       "h-11 whitespace-nowrap px-2 text-left align-middle text-[11px] font-semibold uppercase tracking-wider text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sm:px-4",
+      numeric && "text-right",
       className,
     )}
     {...props}
@@ -72,14 +73,19 @@ const TableHead = React.forwardRef<
 ));
 TableHead.displayName = "TableHead";
 
+// `numeric` é o padrão pra qualquer coluna de valor monetário nos
+// relatórios (débito, crédito, saldo etc.): alinha à direita e usa dígitos
+// de largura fixa (tabular-nums), pra vírgula decimal ficar alinhada entre
+// as linhas — ver issue #422.
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
-  React.TdHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
+  React.TdHTMLAttributes<HTMLTableCellElement> & { numeric?: boolean }
+>(({ className, numeric, ...props }, ref) => (
   <td
     ref={ref}
     className={cn(
       "px-2 py-3 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] sm:px-4",
+      numeric && "text-right tabular-nums",
       className,
     )}
     {...props}
