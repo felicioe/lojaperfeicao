@@ -27,6 +27,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -85,7 +86,32 @@ function linhaComSaldo(itens: ItemRazao[], saldoInicial: number) {
   });
 }
 
-function TabelaItensRazao({ linhas }: { linhas: (ItemRazao & { saldo: number })[] }) {
+function TabelaItensRazao({
+  linhas,
+  saldoAnterior,
+  totalDebito: totalDebitoProp,
+  totalCredito: totalCreditoProp,
+  saldoFinal: saldoFinalProp,
+}: {
+  linhas: (ItemRazao & { saldo: number })[];
+  saldoAnterior: number;
+  // Quando a tabela mostra uma página de um conjunto maior (modo "conta
+  // individual", que é paginado), os totais precisam vir do período
+  // inteiro, não só da página visível — por isso são opcionais e, se não
+  // vierem, caem no cálculo padrão a partir de `linhas` (caso do modo
+  // "grupo", onde `linhas` já é o conjunto completo da conta).
+  totalDebito?: number;
+  totalCredito?: number;
+  saldoFinal?: number;
+}) {
+  const totalDebito =
+    totalDebitoProp ?? linhas.reduce((s, l) => s + (l.tipo === "debito" ? Number(l.valor) : 0), 0);
+  const totalCredito =
+    totalCreditoProp ??
+    linhas.reduce((s, l) => s + (l.tipo === "credito" ? Number(l.valor) : 0), 0);
+  const saldoFinal =
+    saldoFinalProp ?? (linhas.length > 0 ? linhas[linhas.length - 1].saldo : saldoAnterior);
+
   return (
     <Table>
       <TableHeader>
@@ -94,12 +120,16 @@ function TabelaItensRazao({ linhas }: { linhas: (ItemRazao & { saldo: number })[
           <TableHead>Descrição</TableHead>
           <TableHead>Irmão / contraparte</TableHead>
           <TableHead>Conta de contrapartida</TableHead>
-          <TableHead className="text-right">Débito</TableHead>
-          <TableHead className="text-right">Crédito</TableHead>
-          <TableHead className="text-right">Saldo</TableHead>
+          <TableHead numeric>Débito</TableHead>
+          <TableHead numeric>Crédito</TableHead>
+          <TableHead numeric>Saldo</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
+        <TableRow className="bg-muted/20 italic text-muted-foreground">
+          <TableCell colSpan={6}>Saldo anterior</TableCell>
+          <TableCell numeric>{brl(saldoAnterior)}</TableCell>
+        </TableRow>
         {linhas.length === 0 && (
           <TableRow>
             <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
@@ -124,12 +154,24 @@ function TabelaItensRazao({ linhas }: { linhas: (ItemRazao & { saldo: number })[
               )}
             </TableCell>
             <TableCell className="text-muted-foreground">{l.contrapartida ?? "—"}</TableCell>
-            <TableCell className="text-right">{l.tipo === "debito" ? brl(l.valor) : ""}</TableCell>
-            <TableCell className="text-right">{l.tipo === "credito" ? brl(l.valor) : ""}</TableCell>
-            <TableCell className="text-right font-medium">{brl(l.saldo)}</TableCell>
+            <TableCell numeric>{l.tipo === "debito" ? brl(l.valor) : ""}</TableCell>
+            <TableCell numeric>{l.tipo === "credito" ? brl(l.valor) : ""}</TableCell>
+            <TableCell numeric className="font-medium">
+              {brl(l.saldo)}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
+      <TableFooter>
+        <TableRow>
+          <TableCell colSpan={4}>Total do período / Saldo final</TableCell>
+          <TableCell numeric>{brl(totalDebito)}</TableCell>
+          <TableCell numeric>{brl(totalCredito)}</TableCell>
+          <TableCell numeric className="font-semibold">
+            {brl(saldoFinal)}
+          </TableCell>
+        </TableRow>
+      </TableFooter>
     </Table>
   );
 }
@@ -306,23 +348,18 @@ function Razao() {
 
           {contaId && (
             <>
-              <div className="grid gap-4 md:grid-cols-3 mb-4">
-                <Card className="p-4">
-                  <div className="text-sm text-muted-foreground">Saldo anterior</div>
-                  <div className="text-xl font-semibold">{brl(saldoAnterior)}</div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-sm text-muted-foreground">Débitos do período</div>
-                  <div className="text-xl font-semibold">{brl(totalDebitoIndividual)}</div>
-                </Card>
-                <Card className="p-4">
-                  <div className="text-sm text-muted-foreground">Créditos do período</div>
-                  <div className="text-xl font-semibold">{brl(totalCreditoIndividual)}</div>
-                </Card>
-              </div>
-
               <Card>
-                <TabelaItensRazao linhas={itensPagina} />
+                <TabelaItensRazao
+                  linhas={itensPagina}
+                  saldoAnterior={saldoAnterior}
+                  totalDebito={totalDebitoIndividual}
+                  totalCredito={totalCreditoIndividual}
+                  saldoFinal={
+                    linhasIndividual.length > 0
+                      ? linhasIndividual[linhasIndividual.length - 1].saldo
+                      : saldoAnterior
+                  }
+                />
                 <TabelaPaginacao
                   pagina={pagina}
                   totalPaginas={totalPaginas}
@@ -387,29 +424,14 @@ function Razao() {
 
           {contasFiltradas.map((c) => {
             const linhasConta = linhaComSaldo(c.itens, c.saldoAnterior);
-            const debitoConta = c.itens
-              .filter((i) => i.tipo === "debito")
-              .reduce((s, i) => s + Number(i.valor), 0);
-            const creditoConta = c.itens
-              .filter((i) => i.tipo === "credito")
-              .reduce((s, i) => s + Number(i.valor), 0);
             return (
               <Card key={c.contaId} className="mb-4">
-                <div className="p-3 border-b flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <span className="font-mono text-sm text-muted-foreground mr-2">{c.codigo}</span>
-                    <span className="font-medium">{c.nome}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      ({CLASSE_LABEL[c.tipo]})
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Saldo anterior: <span className="font-medium">{brl(c.saldoAnterior)}</span> ·
-                    Débito: <span className="font-medium">{brl(debitoConta)}</span> · Crédito:{" "}
-                    <span className="font-medium">{brl(creditoConta)}</span>
-                  </div>
+                <div className="p-3 border-b flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm text-muted-foreground">{c.codigo}</span>
+                  <span className="font-medium">{c.nome}</span>
+                  <span className="text-xs text-muted-foreground">({CLASSE_LABEL[c.tipo]})</span>
                 </div>
-                <TabelaItensRazao linhas={linhasConta} />
+                <TabelaItensRazao linhas={linhasConta} saldoAnterior={c.saldoAnterior} />
               </Card>
             );
           })}
