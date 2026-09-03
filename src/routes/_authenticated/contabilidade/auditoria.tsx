@@ -18,6 +18,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -121,7 +122,14 @@ function AuditoriaContabil() {
 
   const totalDebito = saldosFiltrados.reduce((s, c) => s + Number(c.total_debito), 0);
   const totalCredito = saldosFiltrados.reduce((s, c) => s + Number(c.total_credito), 0);
+  const totalSaldoDevedor = saldosFiltrados.reduce((s, c) => s + Number(c.saldo_devedor), 0);
   const consistente = !loadingDesbalanceados && desbalanceados.length === 0;
+  const totalDebitoDesbalanceados = desbalanceados.reduce((s, d) => s + Number(d.total_debito), 0);
+  const totalCreditoDesbalanceados = desbalanceados.reduce(
+    (s, d) => s + Number(d.total_credito),
+    0,
+  );
+  const totalDiferencaDesbalanceados = desbalanceados.reduce((s, d) => s + Number(d.diferenca), 0);
 
   const linhasDesbalanceadosExportacao = desbalanceados.map((d) => ({
     data: fmtDate(d.data),
@@ -197,37 +205,23 @@ function AuditoriaContabil() {
         Sem período selecionado, considera todo o histórico — como sempre foi.
       </p>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total debitado</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">{brl(totalDebito)}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total creditado</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">{brl(totalCredito)}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Consistência</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-2 text-2xl font-semibold">
-            {consistente ? (
-              <>
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" /> OK
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-5 w-5 text-destructive" /> {desbalanceados.length}{" "}
-                lançamento(s)
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm text-muted-foreground">Consistência</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center gap-2 text-2xl font-semibold">
+          {consistente ? (
+            <>
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" /> OK
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="h-5 w-5 text-destructive" /> {desbalanceados.length}{" "}
+              lançamento(s)
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {!consistente && (
         <Card className="mb-6 border-destructive">
@@ -277,14 +271,24 @@ function AuditoriaContabil() {
                     <TableCell>{fmtDate(d.data)}</TableCell>
                     <TableCell>{d.descricao}</TableCell>
                     <TableCell className="text-muted-foreground">{d.origem_tipo ?? "—"}</TableCell>
-                    <TableCell className="text-right">{brl(d.total_debito)}</TableCell>
-                    <TableCell className="text-right">{brl(d.total_credito)}</TableCell>
-                    <TableCell className="text-right text-destructive font-medium">
+                    <TableCell numeric>{brl(d.total_debito)}</TableCell>
+                    <TableCell numeric>{brl(d.total_credito)}</TableCell>
+                    <TableCell numeric className="text-destructive font-medium">
                       {brl(d.diferenca)}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={3}>Total</TableCell>
+                  <TableCell numeric>{brl(totalDebitoDesbalanceados)}</TableCell>
+                  <TableCell numeric>{brl(totalCreditoDesbalanceados)}</TableCell>
+                  <TableCell numeric className="text-destructive font-semibold">
+                    {brl(totalDiferencaDesbalanceados)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
             </Table>
           </CardContent>
         </Card>
@@ -331,12 +335,24 @@ function AuditoriaContabil() {
                   <TableCell>
                     <Badge variant="outline">{TIPO_LABEL[c.tipo] ?? c.tipo}</Badge>
                   </TableCell>
-                  <TableCell className="text-right">{brl(c.total_debito)}</TableCell>
-                  <TableCell className="text-right">{brl(c.total_credito)}</TableCell>
-                  <TableCell className="text-right">{brl(c.saldo_devedor)}</TableCell>
+                  <TableCell numeric>{brl(c.total_debito)}</TableCell>
+                  <TableCell numeric>{brl(c.total_credito)}</TableCell>
+                  <TableCell numeric>{brl(c.saldo_devedor)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
+            {saldosFiltrados.length > 0 && (
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={3}>Total ({saldosFiltrados.length} conta(s))</TableCell>
+                  <TableCell numeric>{brl(totalDebito)}</TableCell>
+                  <TableCell numeric>{brl(totalCredito)}</TableCell>
+                  <TableCell numeric className="font-semibold">
+                    {brl(totalSaldoDevedor)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            )}
           </Table>
           <TabelaPaginacao
             pagina={pagina}
