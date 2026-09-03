@@ -17,6 +17,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -235,7 +236,7 @@ function Tronco() {
               <TableRow key={m.id}>
                 <TableCell>{fmtDate(m.data)}</TableCell>
                 <TableCell>{m.descricao}</TableCell>
-                <TableCell className="text-right font-medium">
+                <TableCell numeric className="font-medium">
                   <span className={m.tipo === "saida" ? "text-destructive" : "text-emerald-600"}>
                     {m.tipo === "saida" ? "−" : "+"} {brl(m.valor)}
                   </span>
@@ -243,6 +244,18 @@ function Tronco() {
               </TableRow>
             ))}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={2}>Saldo inicial</TableCell>
+              <TableCell numeric>{brl(resumo.saldoInicial)}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell colSpan={2}>Saldo atual do Tronco</TableCell>
+              <TableCell numeric className="font-semibold">
+                {brl(resumo.saldoAtual)}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
         <div className="print:hidden">
           <TabelaPaginacao
@@ -262,7 +275,7 @@ function Tronco() {
               <TableHead>Data</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
+              <TableHead numeric>Valor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -271,12 +284,24 @@ function Tronco() {
                 <TableCell>{fmtDate(movimento.data)}</TableCell>
                 <TableCell>{movimento.descricao}</TableCell>
                 <TableCell>{movimento.tipo === "saida" ? "Saída" : "Entrada PIX"}</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell numeric>
                   {movimento.tipo === "saida" ? "−" : "+"} {brl(movimento.valor)}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={3}>Saldo inicial</TableCell>
+              <TableCell numeric>{brl(resumo.saldoInicial)}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell colSpan={3}>Saldo atual do Tronco</TableCell>
+              <TableCell numeric className="font-semibold">
+                {brl(resumo.saldoAtual)}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </div>
     </>
