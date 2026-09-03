@@ -10,6 +10,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -47,6 +48,8 @@ type LinhaConta = {
     diferencaAcumulada: number;
   }[];
   diferencaFinal: number;
+  totalFinanceiro: number;
+  totalContabil: number;
 };
 
 function ConferenciaContabilFinanceira() {
@@ -75,6 +78,8 @@ function ConferenciaContabilFinanceira() {
           contaNome: l.conta_financeira_nome,
           meses: [],
           diferencaFinal: 0,
+          totalFinanceiro: 0,
+          totalContabil: 0,
         };
         porConta.set(l.conta_financeira_id, conta);
       }
@@ -84,6 +89,8 @@ function ConferenciaContabilFinanceira() {
       const diferencaAcumulada = conta.diferencaFinal + diferenca;
       conta.meses.push({ mes: l.mes, financeiro, contabil, diferenca, diferencaAcumulada });
       conta.diferencaFinal = diferencaAcumulada;
+      conta.totalFinanceiro += financeiro;
+      conta.totalContabil += contabil;
     }
     return [...porConta.values()];
   }, [linhas]);
@@ -184,27 +191,18 @@ function ConferenciaContabilFinanceira() {
           const divergente = Math.abs(conta.diferencaFinal) > TOLERANCIA;
           return (
             <Card key={conta.contaId} className={divergente ? "border-destructive" : undefined}>
-              <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardHeader>
                 <CardTitle className="text-base">{conta.contaNome}</CardTitle>
-                <span
-                  className={
-                    divergente
-                      ? "text-sm font-medium text-destructive"
-                      : "text-sm text-muted-foreground"
-                  }
-                >
-                  Diferença acumulada: {brl(conta.diferencaFinal)}
-                </span>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mês</TableHead>
-                      <TableHead className="text-right">Movimento financeiro</TableHead>
-                      <TableHead className="text-right">Movimento contábil</TableHead>
-                      <TableHead className="text-right">Diferença no mês</TableHead>
-                      <TableHead className="text-right">Diferença acumulada</TableHead>
+                      <TableHead numeric>Movimento financeiro</TableHead>
+                      <TableHead numeric>Movimento contábil</TableHead>
+                      <TableHead numeric>Diferença no mês</TableHead>
+                      <TableHead numeric>Diferença acumulada</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -213,22 +211,24 @@ function ConferenciaContabilFinanceira() {
                       return (
                         <TableRow key={m.mes}>
                           <TableCell className="capitalize">{fmtMesAno(m.mes)}</TableCell>
-                          <TableCell className="text-right">{brl(m.financeiro)}</TableCell>
-                          <TableCell className="text-right">{brl(m.contabil)}</TableCell>
+                          <TableCell numeric>{brl(m.financeiro)}</TableCell>
+                          <TableCell numeric>{brl(m.contabil)}</TableCell>
                           <TableCell
+                            numeric
                             className={
                               mesDivergente
-                                ? "text-right font-medium text-destructive"
-                                : "text-right text-muted-foreground"
+                                ? "font-medium text-destructive"
+                                : "text-muted-foreground"
                             }
                           >
                             {brl(m.diferenca)}
                           </TableCell>
                           <TableCell
+                            numeric
                             className={
                               Math.abs(m.diferencaAcumulada) > TOLERANCIA
-                                ? "text-right font-medium text-destructive"
-                                : "text-right text-muted-foreground"
+                                ? "font-medium text-destructive"
+                                : "text-muted-foreground"
                             }
                           >
                             {brl(m.diferencaAcumulada)}
@@ -237,6 +237,25 @@ function ConferenciaContabilFinanceira() {
                       );
                     })}
                   </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell>Total / Diferença final</TableCell>
+                      <TableCell numeric>{brl(conta.totalFinanceiro)}</TableCell>
+                      <TableCell numeric>{brl(conta.totalContabil)}</TableCell>
+                      <TableCell
+                        numeric
+                        className={divergente ? "font-semibold text-destructive" : "font-semibold"}
+                      >
+                        {brl(conta.diferencaFinal)}
+                      </TableCell>
+                      <TableCell
+                        numeric
+                        className={divergente ? "font-semibold text-destructive" : "font-semibold"}
+                      >
+                        {brl(conta.diferencaFinal)}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </CardContent>
             </Card>
