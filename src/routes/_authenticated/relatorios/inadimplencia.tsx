@@ -30,6 +30,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -217,6 +218,9 @@ function InadimplenciaDetalhada() {
     window.open(pdfUrl, "_blank", "noopener,noreferrer");
   };
 
+  const totalOriginal = itens.reduce((s, i) => s + Number(i.valor_original), 0);
+  const totalMulta = itens.reduce((s, i) => s + Number(i.valor_multa), 0);
+  const totalJuros = itens.reduce((s, i) => s + Number(i.valor_juros), 0);
   const totalAtualizado = itens.reduce((s, i) => s + Number(i.valor_total), 0);
 
   const linhasExportacao = itensOrdenadosManual.map((i) => ({
@@ -293,7 +297,7 @@ function InadimplenciaDetalhada() {
       <div className="mb-4 grid gap-4 md:grid-cols-2">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total em atraso (atualizado)</div>
-          <div className="text-2xl font-semibold">{brl(totalAtualizado)}</div>
+          <div className="text-2xl font-semibold tabular-nums">{brl(totalAtualizado)}</div>
           <div className="text-xs text-muted-foreground">{itens.length} fatura(s)</div>
         </Card>
         <Card className="flex flex-col justify-center gap-2 p-4">
@@ -388,20 +392,36 @@ function InadimplenciaDetalhada() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{i.descricao}</TableCell>
                   <TableCell>{fmtDate(i.data_vencimento)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell numeric>
                     <Badge variant="destructive">{i.dias_atraso}</Badge>
                   </TableCell>
-                  <TableCell className="text-right">{brl(i.valor_original)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell numeric>{brl(i.valor_original)}</TableCell>
+                  <TableCell numeric className="text-muted-foreground">
                     {brl(i.valor_multa)}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell numeric className="text-muted-foreground">
                     {brl(i.valor_juros)}
                   </TableCell>
-                  <TableCell className="text-right font-medium">{brl(i.valor_total)}</TableCell>
+                  <TableCell numeric className="font-medium">
+                    {brl(i.valor_total)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
+            {itens.length > 0 && (
+              <TableFooter>
+                <TableRow>
+                  <TableCell colSpan={4}>Total ({itens.length} fatura(s))</TableCell>
+                  <TableCell numeric />
+                  <TableCell numeric>{brl(totalOriginal)}</TableCell>
+                  <TableCell numeric>{brl(totalMulta)}</TableCell>
+                  <TableCell numeric>{brl(totalJuros)}</TableCell>
+                  <TableCell numeric className="font-semibold">
+                    {brl(totalAtualizado)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            )}
           </Table>
         </div>
         <TabelaPaginacao
