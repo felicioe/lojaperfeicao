@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { obterLancamento } from "@/lib/backend/tesouraria-lancamentos";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
 import { FaturaCard } from "@/components/app/FaturaCard";
+import { BotaoImprimir } from "@/components/app/BotaoImprimir";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useIsDesktop } from "@/lib/use-media-query";
-import { ArrowLeft, FileWarning, Printer } from "lucide-react";
+import { ArrowLeft, FileWarning } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/faturas/$id")({
   head: () => ({ meta: [{ title: "Fatura — Gestão Maçônica" }] }),
@@ -66,9 +67,7 @@ function PainelFaturaDetalhe() {
             <ArrowLeft className="mr-1.5 h-4 w-4" /> Voltar
           </Link>
         </Button>
-        <Button onClick={() => window.print()}>
-          <Printer className="mr-1.5 h-4 w-4" /> Imprimir / salvar PDF
-        </Button>
+        <BotaoImprimir />
       </div>
       <FaturaCard fatura={fatura} />
     </div>

@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { obterLancamento } from "@/lib/backend/tesouraria-lancamentos";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
 import { FaturaCard } from "@/components/app/FaturaCard";
+import { BotaoImprimir } from "@/components/app/BotaoImprimir";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileWarning, Printer } from "lucide-react";
+import { FileWarning } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/faturas/$id")({
   head: () => ({ meta: [{ title: "Fatura — Gestão Maçônica" }] }),
@@ -59,9 +60,7 @@ function FaturaDetalhe() {
     <div className="space-y-4">
       <PageHeader title="Fatura" />
       <div className="print:hidden">
-        <Button onClick={() => window.print()}>
-          <Printer className="mr-1.5 h-4 w-4" /> Imprimir / salvar PDF
-        </Button>
+        <BotaoImprimir />
       </div>
       <FaturaCard fatura={fatura} />
     </div>
