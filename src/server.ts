@@ -12,6 +12,46 @@ type ServerEntry = {
 
 const serverEntry = defaultServerEntry as ServerEntry;
 
+function withSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  // Sem includeSubDomains: este mesmo app serve tanto o subdomínio do sistema
+  // quanto o domínio institucional puro (ver SiteInstitucionalLayout.tsx), e a
+  // Hostinger pode ter outros subdomínios (webmail, cpanel etc.) fora do
+  // controle deste código — HSTS com includeSubDomains forçaria HTTPS neles
+  // também, por até um ano, sem forma fácil de desfazer pra quem já visitou.
+  headers.set("strict-transport-security", "max-age=31536000");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-frame-options", "DENY");
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  headers.set(
+    "content-security-policy",
+    [
+      "default-src 'self'",
+      // 'unsafe-inline' em script-src: TanStack Start injeta o script de
+      // hidratação/streaming SSR inline no HTML (sem nonce disponível hoje);
+      // ainda assim bloqueia carregar scripts de domínios externos via src=.
+      "script-src 'self' 'unsafe-inline'",
+      // 'unsafe-inline' em style-src: chart.tsx injeta um <style> inline com
+      // as cores do tema de cada gráfico (Recharts).
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob:",
+      "frame-src 'self' blob:",
+      "connect-src 'self' https://viacep.com.br",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "upgrade-insecure-requests",
+    ].join("; "),
+  );
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
@@ -396,43 +436,45 @@ export default createServerEntry({
   async fetch(request: Request, opts?: unknown) {
     try {
       const cronResponse = await tratarCronNotificacoes(request);
-      if (cronResponse) return cronResponse;
+      if (cronResponse) return withSecurityHeaders(cronResponse);
 
       const backupResponse = await tratarCronBackup(request);
-      if (backupResponse) return backupResponse;
+      if (backupResponse) return withSecurityHeaders(backupResponse);
 
       const lembretesResponse = await tratarCronLembretesEmail(request);
-      if (lembretesResponse) return lembretesResponse;
+      if (lembretesResponse) return withSecurityHeaders(lembretesResponse);
 
       const filaEmailResponse = await tratarCronFilaEmails(request);
-      if (filaEmailResponse) return filaEmailResponse;
+      if (filaEmailResponse) return withSecurityHeaders(filaEmailResponse);
 
       const agendaResponse = await tratarAgendaPublica(request);
-      if (agendaResponse) return agendaResponse;
+      if (agendaResponse) return withSecurityHeaders(agendaResponse);
 
       const noticiasResponse = await tratarNoticiasPublicas(request);
-      if (noticiasResponse) return noticiasResponse;
+      if (noticiasResponse) return withSecurityHeaders(noticiasResponse);
 
       const paginasSiteResponse = await tratarPaginasSitePublicas(request);
-      if (paginasSiteResponse) return paginasSiteResponse;
+      if (paginasSiteResponse) return withSecurityHeaders(paginasSiteResponse);
 
       const menuSiteResponse = await tratarMenuSitePublico(request);
-      if (menuSiteResponse) return menuSiteResponse;
+      if (menuSiteResponse) return withSecurityHeaders(menuSiteResponse);
 
       const healthResponse = await tratarHealthcheck(request);
-      if (healthResponse) return healthResponse;
+      if (healthResponse) return withSecurityHeaders(healthResponse);
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
-      if (googleResponse) return googleResponse;
+      if (googleResponse) return withSecurityHeaders(googleResponse);
 
       const response = await serverEntry.fetch(request, opts);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return withSecurityHeaders(
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
     }
   },
 });
