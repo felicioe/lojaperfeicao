@@ -40,6 +40,7 @@ import { gerarArquivoRelatorio, enviarRelatorioPorEmail } from "@/lib/backend/re
 import type {
   ColunaRelatorio,
   FormatoRelatorio,
+  GrupoRelatorio,
   LinhaRelatorio,
   TotalRelatorio,
 } from "@/lib/relatorio-export";
@@ -75,6 +76,9 @@ export function ExportarRelatorio({
   permitirImpressao = false,
   permitirWhatsapp = false,
   resumoCompartilhamento,
+  grupos,
+  resultado,
+  subtitulo,
 }: {
   titulo: string;
   colunas: ColunaRelatorio[];
@@ -83,6 +87,12 @@ export function ExportarRelatorio({
   permitirImpressao?: boolean;
   permitirWhatsapp?: boolean;
   resumoCompartilhamento?: string;
+  // Modo agrupado (issue #450 — DRE): PDF/XLSX saem com seções e subtotal
+  // em vez de tabela plana. `colunas`/`linhas` continuam obrigatórios —
+  // servem pro CSV/TXT e pro envio por e-mail, que não têm modo agrupado.
+  grupos?: GrupoRelatorio[];
+  resultado?: TotalRelatorio | null;
+  subtitulo?: string | null;
 }) {
   const { user } = useSession();
   const [exportando, setExportando] = useState<FormatoRelatorio | null>(null);
@@ -94,10 +104,10 @@ export function ExportarRelatorio({
   const exportar = async (formato: FormatoRelatorio) => {
     setExportando(formato);
     try {
-      const resultado = await gerarArquivoRelatorio({
-        data: { formato, titulo, colunas, linhas, totais },
+      const arquivo = await gerarArquivoRelatorio({
+        data: { formato, titulo, colunas, linhas, totais, grupos, resultado, subtitulo },
       });
-      baixarBlob(base64ParaBlob(resultado.base64, resultado.mimeType), resultado.nomeArquivo);
+      baixarBlob(base64ParaBlob(arquivo.base64, arquivo.mimeType), arquivo.nomeArquivo);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao exportar relatório.");
     } finally {
@@ -118,10 +128,20 @@ export function ExportarRelatorio({
     if (lista.length === 0) return toast.error("Informe ao menos um e-mail de destino.");
     setEnviando(true);
     try {
-      const resultado = await enviarRelatorioPorEmail({
-        data: { formato: formatoEmail, titulo, colunas, linhas, totais, destinatarios: lista },
+      const envio = await enviarRelatorioPorEmail({
+        data: {
+          formato: formatoEmail,
+          titulo,
+          colunas,
+          linhas,
+          totais,
+          grupos,
+          resultado,
+          subtitulo,
+          destinatarios: lista,
+        },
       });
-      const falhas = resultado.filter((r) => !r.sucesso);
+      const falhas = envio.filter((r) => !r.sucesso);
       if (falhas.length === 0) {
         toast.success("Relatório enviado por e-mail.");
         setOpenEmail(false);

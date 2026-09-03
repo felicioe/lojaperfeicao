@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { listarItensContabeisPeriodo } from "@/lib/backend/contabilidade";
 import { PageHeader } from "@/components/app/AppShell";
-import { Button } from "@/components/ui/button";
+import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,8 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useState } from "react";
-import { Download } from "lucide-react";
-import { brl, toISODate } from "@/lib/format";
+import { brl, fmtDate, toISODate } from "@/lib/format";
+import type { ColunaRelatorio } from "@/lib/relatorio-export";
 
 export const Route = createFileRoute("/_authenticated/contabilidade/dre")({
   head: () => ({ meta: [{ title: "DRE — Gestão Maçônica" }] }),
@@ -84,24 +84,35 @@ function Dre() {
   const totalDespesas = despesas.reduce((s, l) => s + l.valor, 0);
   const resultado = totalReceitas - totalDespesas;
 
-  const exportarCSV = () => {
-    const linhasCsv: string[][] = [["Grupo", "Código", "Conta", "Valor"]];
-    for (const l of receitas) linhasCsv.push(["Receita", l.codigo, l.nome, String(l.valor)]);
-    linhasCsv.push(["Total Receitas", "", "", String(totalReceitas)]);
-    for (const l of despesas) linhasCsv.push(["Despesa", l.codigo, l.nome, String(l.valor)]);
-    linhasCsv.push(["Total Despesas", "", "", String(totalDespesas)]);
-    linhasCsv.push(["Resultado do período", "", "", String(resultado)]);
-    const csv = linhasCsv
-      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `dre_${de}_a_${ate}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Colunas/linhas planas — usadas pelo CSV/TXT e pelo envio por e-mail
+  // (que não têm modo agrupado). O PDF/XLSX usam `grupos`/`resultado`
+  // abaixo, com seções e subtotal (issue #450).
+  const colunasExportacao: ColunaRelatorio[] = [
+    { chave: "grupo", titulo: "Grupo" },
+    { chave: "codigo", titulo: "Código" },
+    { chave: "conta", titulo: "Conta" },
+    { chave: "valor", titulo: "Valor", formato: "moeda" },
+  ];
+  const linhasExportacao = [
+    ...receitas.map((l) => ({ grupo: "Receita", codigo: l.codigo, conta: l.nome, valor: l.valor })),
+    { grupo: "Total Receitas", codigo: "", conta: "", valor: totalReceitas },
+    ...despesas.map((l) => ({ grupo: "Despesa", codigo: l.codigo, conta: l.nome, valor: l.valor })),
+    { grupo: "Total Despesas", codigo: "", conta: "", valor: totalDespesas },
+    { grupo: "Resultado do período", codigo: "", conta: "", valor: resultado },
+  ];
+  const gruposExportacao = [
+    {
+      titulo: "Receitas",
+      itens: receitas.map((l) => ({ codigo: l.codigo, nome: l.nome, valor: l.valor })),
+      subtotal: { rotulo: "Total de Receitas", valor: totalReceitas },
+    },
+    {
+      titulo: "Despesas",
+      itens: despesas.map((l) => ({ codigo: l.codigo, nome: l.nome, valor: l.valor })),
+      subtotal: { rotulo: "Total de Despesas", valor: totalDespesas },
+    },
+  ];
+  const subtituloExportacao = `Período: ${fmtDate(de)} a ${fmtDate(ate)}`;
 
   return (
     <>
@@ -109,9 +120,14 @@ function Dre() {
         title="Demonstrativo de Resultado (DRE)"
         description="Receitas e despesas reconhecidas pelo regime de caixa, na data do efetivo recebimento ou pagamento."
         actions={
-          <Button variant="outline" onClick={exportarCSV} disabled={linhas.length === 0}>
-            <Download className="h-4 w-4 mr-1" /> Exportar CSV
-          </Button>
+          <ExportarRelatorio
+            titulo="Demonstrativo de Resultado (DRE)"
+            colunas={colunasExportacao}
+            linhas={linhasExportacao}
+            grupos={gruposExportacao}
+            resultado={{ rotulo: "Resultado do período", valor: resultado }}
+            subtitulo={subtituloExportacao}
+          />
         }
       />
 
