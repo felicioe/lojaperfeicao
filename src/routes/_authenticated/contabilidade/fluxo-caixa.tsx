@@ -25,6 +25,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -154,33 +155,22 @@ function FluxoRealizado() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-4">
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Saldo anterior ao período</div>
-          <div className="text-xl font-semibold">{brl(saldoAnterior)}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Entradas no período</div>
-          <div className="text-xl font-semibold text-emerald-600">{brl(totalEntradas)}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Saídas no período</div>
-          <div className="text-xl font-semibold text-destructive">{brl(totalSaidas)}</div>
-        </Card>
-      </div>
-
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Mês</TableHead>
-              <TableHead className="text-right">Entradas</TableHead>
-              <TableHead className="text-right">Saídas</TableHead>
-              <TableHead className="text-right">Saldo do mês</TableHead>
-              <TableHead className="text-right">Saldo acumulado</TableHead>
+              <TableHead numeric>Entradas</TableHead>
+              <TableHead numeric>Saídas</TableHead>
+              <TableHead numeric>Saldo do mês</TableHead>
+              <TableHead numeric>Saldo acumulado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
+            <TableRow className="bg-muted/20 italic text-muted-foreground">
+              <TableCell colSpan={4}>Saldo anterior ao período</TableCell>
+              <TableCell numeric>{brl(saldoAnterior)}</TableCell>
+            </TableRow>
             {linhas.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
@@ -193,23 +183,29 @@ function FluxoRealizado() {
               return (
                 <TableRow key={l.mes}>
                   <TableCell>{l.mes}</TableCell>
-                  <TableCell className="text-right">{brl(l.entradas)}</TableCell>
-                  <TableCell className="text-right">{brl(l.saidas)}</TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell numeric>{brl(l.entradas)}</TableCell>
+                  <TableCell numeric>{brl(l.saidas)}</TableCell>
+                  <TableCell numeric className="font-medium">
                     {brl(l.entradas - l.saidas)}
                   </TableCell>
-                  <TableCell className="text-right font-medium">{brl(acumulado)}</TableCell>
+                  <TableCell numeric className="font-medium">
+                    {brl(acumulado)}
+                  </TableCell>
                 </TableRow>
               );
             })}
-            <TableRow className="font-semibold bg-muted/30">
-              <TableCell>Total do período</TableCell>
-              <TableCell className="text-right">{brl(totalEntradas)}</TableCell>
-              <TableCell className="text-right">{brl(totalSaidas)}</TableCell>
-              <TableCell className="text-right">{brl(totalEntradas - totalSaidas)}</TableCell>
-              <TableCell className="text-right">{brl(saldoFinal)}</TableCell>
-            </TableRow>
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell>Total do período / Saldo final</TableCell>
+              <TableCell numeric>{brl(totalEntradas)}</TableCell>
+              <TableCell numeric>{brl(totalSaidas)}</TableCell>
+              <TableCell numeric>{brl(totalEntradas - totalSaidas)}</TableCell>
+              <TableCell numeric className="font-semibold">
+                {brl(saldoFinal)}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </Card>
     </>
@@ -287,41 +283,22 @@ function FluxoProjetado() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-4 mb-4">
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Saldo atual</div>
-          <div className="text-xl font-semibold">{brl(saldoAtual)}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Entradas previstas</div>
-          <div className="text-xl font-semibold text-emerald-600">{brl(totalEntradas)}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Saídas previstas</div>
-          <div className="text-xl font-semibold text-destructive">{brl(totalSaidas)}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Saldo projetado</div>
-          <div
-            className={`text-xl font-semibold ${saldoProjetado >= 0 ? "text-emerald-600" : "text-destructive"}`}
-          >
-            {brl(saldoProjetado)}
-          </div>
-        </Card>
-      </div>
-
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Data</TableHead>
-              <TableHead className="text-right">Entradas</TableHead>
-              <TableHead className="text-right">Saídas</TableHead>
-              <TableHead className="text-right">Saldo do dia</TableHead>
-              <TableHead className="text-right">Saldo acumulado</TableHead>
+              <TableHead numeric>Entradas</TableHead>
+              <TableHead numeric>Saídas</TableHead>
+              <TableHead numeric>Saldo do dia</TableHead>
+              <TableHead numeric>Saldo acumulado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
+            <TableRow className="bg-muted/20 italic text-muted-foreground">
+              <TableCell colSpan={4}>Saldo atual</TableCell>
+              <TableCell numeric>{brl(saldoAtual)}</TableCell>
+            </TableRow>
             {porDia.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
@@ -334,16 +311,32 @@ function FluxoProjetado() {
               return (
                 <TableRow key={d.data}>
                   <TableCell>{fmtDate(d.data)}</TableCell>
-                  <TableCell className="text-right">{brl(d.entradas)}</TableCell>
-                  <TableCell className="text-right">{brl(d.saidas)}</TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell numeric>{brl(d.entradas)}</TableCell>
+                  <TableCell numeric>{brl(d.saidas)}</TableCell>
+                  <TableCell numeric className="font-medium">
                     {brl(d.entradas - d.saidas)}
                   </TableCell>
-                  <TableCell className="text-right font-medium">{brl(acumulado)}</TableCell>
+                  <TableCell numeric className="font-medium">
+                    {brl(acumulado)}
+                  </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell>Total previsto / Saldo projetado</TableCell>
+              <TableCell numeric>{brl(totalEntradas)}</TableCell>
+              <TableCell numeric>{brl(totalSaidas)}</TableCell>
+              <TableCell numeric>{brl(totalEntradas - totalSaidas)}</TableCell>
+              <TableCell
+                numeric
+                className={`font-semibold ${saldoProjetado >= 0 ? "text-emerald-600" : "text-destructive"}`}
+              >
+                {brl(saldoProjetado)}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </Card>
 
@@ -384,7 +377,7 @@ function FluxoProjetado() {
                       {p.tipo === "entrada" ? "Entrada" : "Saída"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{brl(p.valor)}</TableCell>
+                  <TableCell numeric>{brl(p.valor)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
