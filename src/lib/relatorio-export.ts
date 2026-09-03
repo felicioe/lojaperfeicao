@@ -19,6 +19,22 @@ export type FormatoRelatorio = "xlsx" | "pdf" | "csv" | "txt";
 export type LogoRelatorio = { nome: string; logoUrl: string };
 export type TotalRelatorio = { rotulo: string; valor: number };
 
+// Relatório "agrupado" (issue #450 — DRE em PDF/XLSX profissional): em vez de
+// uma tabela plana com um total no topo, o documento tem seções (Receitas,
+// Despesas...) cada uma com seus itens e um subtotal, terminando num
+// resultado final em destaque. Hoje só o PDF e o XLSX sabem desenhar isso —
+// CSV/TXT continuam usando `colunas`/`linhas` (formato de texto puro, sem
+// necessidade de seção visual). Quando `grupos` vem preenchido, ele manda
+// no PDF/XLSX; `colunas`/`linhas` continuam obrigatórios pro CSV/TXT e para
+// não quebrar a validação do formulário existente.
+export type ItemGrupoRelatorio = { codigo?: string; nome: string; valor: number };
+export type GrupoRelatorio = {
+  titulo: string;
+  itens: ItemGrupoRelatorio[];
+  subtotal: TotalRelatorio;
+};
+export type OrientacaoRelatorio = "paisagem" | "retrato";
+
 // Nenhum relatório exportado deve ser só uma tabela genérica (pedido do
 // usuário) — todo PDF/XLSX ganha um resumo de totais (quando o chamador
 // informa) e um rodapé com data de geração + quem gerou. CSV/TXT ficam de
@@ -119,6 +135,114 @@ export async function gerarXlsxBuffer(
   const linhaRodape = planilha.addRow({
     [colunas[0].chave]: `Gerado em ${dataGeracaoRodape}${geradoPor ? ` por ${geradoPor}` : ""}`,
   });
+  linhaRodape.font = { italic: true, size: 9, color: { argb: "FF8B95A5" } };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+// Variante "agrupada" (issue #450) — cada grupo (Receitas, Despesas...) vira
+// uma seção com cabeçalho em negrito, seus itens, e uma linha de subtotal
+// com borda superior. Termina com o resultado final também em negrito, com
+// preenchimento. Mesma disciplina de logo/rodapé do gerarXlsxBuffer normal.
+export async function gerarXlsxBufferAgrupado(
+  titulo: string,
+  subtitulo: string | null,
+  grupos: GrupoRelatorio[],
+  resultado: TotalRelatorio | null,
+  logos: LogoRelatorio[] = [],
+  geradoPor: string | null = null,
+): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const planilha = workbook.addWorksheet(titulo.slice(0, 31) || "Relatório");
+  planilha.columns = [
+    { key: "codigo", width: 12 },
+    { key: "nome", width: 42 },
+    { key: "valor", width: 16, style: { numFmt: "#,##0.00" } },
+  ];
+
+  let linhaAtual = 1;
+  if (logos.length > 0) {
+    planilha.getRow(1).height = 50;
+    let colOffset = 0;
+    for (const logo of logos) {
+      const extensao = extensaoImagemDe(logo.logoUrl);
+      if (!extensao) continue;
+      try {
+        const imageId = workbook.addImage({ base64: logo.logoUrl, extension: extensao });
+        planilha.addImage(imageId, {
+          tl: { col: colOffset, row: 0 },
+          ext: { width: 48, height: 48 },
+        });
+      } catch {
+        // Logo que o ExcelJS não consegue embutir — não impede o resto.
+      }
+      colOffset += 1;
+    }
+    linhaAtual = 2;
+  }
+
+  const linhaTitulo = planilha.getRow(linhaAtual);
+  linhaTitulo.getCell(1).value = titulo;
+  linhaTitulo.font = { bold: true, size: 13 };
+  linhaAtual += 1;
+  if (subtitulo) {
+    const linhaSub = planilha.getRow(linhaAtual);
+    linhaSub.getCell(1).value = subtitulo;
+    linhaSub.font = { italic: true, size: 9, color: { argb: "FF5B6472" } };
+    linhaAtual += 1;
+  }
+  linhaAtual += 1;
+
+  for (const grupo of grupos) {
+    const linhaSecao = planilha.getRow(linhaAtual);
+    linhaSecao.getCell(1).value = grupo.titulo.toUpperCase();
+    linhaSecao.font = { bold: true, color: { argb: "FF213A5F" } };
+    linhaSecao.getCell(1).border = { bottom: { style: "thin", color: { argb: "FF213A5F" } } };
+    linhaSecao.getCell(3).border = { bottom: { style: "thin", color: { argb: "FF213A5F" } } };
+    linhaAtual += 1;
+
+    for (const item of grupo.itens) {
+      planilha.getRow(linhaAtual).getCell(1).value = item.codigo ?? "";
+      planilha.getRow(linhaAtual).getCell(2).value = item.nome;
+      const celValor = planilha.getRow(linhaAtual).getCell(3);
+      celValor.value = item.valor;
+      celValor.numFmt = "#,##0.00";
+      linhaAtual += 1;
+    }
+
+    const linhaSubtotal = planilha.getRow(linhaAtual);
+    linhaSubtotal.getCell(2).value = grupo.subtotal.rotulo;
+    const celSubtotal = linhaSubtotal.getCell(3);
+    celSubtotal.value = grupo.subtotal.valor;
+    celSubtotal.numFmt = "#,##0.00";
+    linhaSubtotal.font = { bold: true };
+    linhaSubtotal.eachCell((cel) => {
+      cel.border = { top: { style: "thin", color: { argb: "FFA9812F" } } };
+    });
+    linhaAtual += 2;
+  }
+
+  if (resultado) {
+    const linhaResultado = planilha.getRow(linhaAtual);
+    linhaResultado.getCell(2).value = resultado.rotulo;
+    const celResultado = linhaResultado.getCell(3);
+    celResultado.value = resultado.valor;
+    celResultado.numFmt = "#,##0.00";
+    linhaResultado.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    linhaResultado.eachCell((cel) => {
+      cel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF16283F" } };
+    });
+    linhaAtual += 2;
+  }
+
+  const dataGeracaoRodape = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date());
+  const linhaRodape = planilha.getRow(linhaAtual);
+  linhaRodape.getCell(1).value =
+    `Gerado em ${dataGeracaoRodape}${geradoPor ? ` por ${geradoPor}` : ""}`;
   linhaRodape.font = { italic: true, size: 9, color: { argb: "FF8B95A5" } };
 
   const buffer = await workbook.xlsx.writeBuffer();
@@ -248,6 +372,188 @@ export async function gerarPdfBuffer(
   return pdf.finalizar();
 }
 
+// Larguras Helvetica (regular e bold têm os mesmos valores pro conjunto de
+// caracteres que aparece num valor formatado em moeda: dígitos, vírgula,
+// ponto e sinal de menos) — tabela AFM padrão, em milésimos do corpo da
+// fonte. Serve só pra alinhar o valor à direita da coluna; rótulos/títulos
+// continuam alinhados à esquerda (mesma convenção do resto do gerador, que
+// nunca teve alinhamento à direita porque nenhum relatório até aqui
+// precisou — issue #450 é o primeiro caso).
+const LARGURA_HELVETICA_NUMERICA: Record<string, number> = {
+  ".": 278,
+  ",": 278,
+  "-": 333,
+  " ": 278,
+};
+function larguraTextoNumerico(texto: string, tamanho: number): number {
+  let total = 0;
+  for (const ch of texto) total += ((LARGURA_HELVETICA_NUMERICA[ch] ?? 556) / 1000) * tamanho;
+  return total;
+}
+
+// Variante "agrupada" (issue #450) — mesmo motor de baixo nível
+// (PdfSimplesPaisagem), mas em retrato e com um desenho de página bem
+// diferente: timbre (logo + nome da entidade) no topo, cada grupo como uma
+// seção com régua e subtotal, e o resultado final numa faixa de destaque.
+export async function gerarPdfBufferAgrupado(
+  titulo: string,
+  subtitulo: string | null,
+  grupos: GrupoRelatorio[],
+  resultado: TotalRelatorio | null,
+  logos: LogoRelatorio[] = [],
+  geradoPor: string | null = null,
+): Promise<Buffer> {
+  const pdf = new PdfSimplesPaisagem("retrato");
+  const logosPreparados = logos
+    .map((logo) => pdf.prepararImagem(logo.logoUrl))
+    .filter((r): r is { indice: number; largura: number; altura: number } => r !== null);
+
+  const dataGeracao = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date());
+
+  const NAVY = "#213a5f";
+  const NAVY_DEEP = "#16283f";
+  const GOLD = "#a9812f";
+  const INK = "#1c2430";
+  const MUTED = "#5b6472";
+  const GOLD_CLARO = "#f4e3b8";
+  const NEGATIVO = "#f0b8b3";
+
+  const xEsq = pdf.margem;
+  const xDir = pdf.larguraPagina - pdf.margem;
+  const larguraUtil = xDir - xEsq;
+  const xNome = xEsq + 44;
+
+  const escreverValor = (
+    texto: string,
+    yTopo: number,
+    opcoes: { fonte?: FontePdf; tamanho?: number; cor?: string } = {},
+  ) => {
+    const tamanho = opcoes.tamanho ?? 8;
+    const largura = larguraTextoNumerico(texto, tamanho);
+    pdf.escreverTexto(texto, xDir - largura, yTopo, opcoes);
+  };
+
+  let cursorY = pdf.margem;
+
+  const desenharLetterhead = () => {
+    const ALTURA_LOGO = 30;
+    if (logosPreparados.length > 0) {
+      let xLogo = xEsq;
+      for (const logo of logosPreparados) {
+        const larguraLogo = (logo.largura / logo.altura) * ALTURA_LOGO;
+        pdf.desenharImagem(logo.indice, xLogo, cursorY, larguraLogo, ALTURA_LOGO);
+        xLogo += larguraLogo + 8;
+      }
+      if (logos[0]?.nome) {
+        pdf.escreverTexto(logos[0].nome, xLogo, cursorY + 10, {
+          fonte: "bold",
+          tamanho: 10.5,
+          cor: NAVY_DEEP,
+        });
+      }
+      cursorY += ALTURA_LOGO + 10;
+    } else if (logos[0]?.nome) {
+      pdf.escreverTexto(logos[0].nome, xEsq, cursorY + 8, {
+        fonte: "bold",
+        tamanho: 10.5,
+        cor: NAVY_DEEP,
+      });
+      cursorY += 22;
+    }
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1.6, NAVY);
+    cursorY += 18;
+
+    pdf.escreverTexto(titulo, xEsq, cursorY, { fonte: "bold", tamanho: 15, cor: INK });
+    cursorY += 18;
+    if (subtitulo) {
+      pdf.escreverTexto(subtitulo, xEsq, cursorY, { tamanho: 8.5, cor: MUTED });
+      cursorY += 16;
+    }
+    cursorY += 4;
+  };
+
+  const desenharCabecalhoContinuacao = () => {
+    pdf.escreverTexto(titulo, xEsq, cursorY, { fonte: "bold", tamanho: 11, cor: INK });
+    pdf.escreverTexto("(continuação)", xEsq + 160, cursorY + 1, { tamanho: 8, cor: MUTED });
+    cursorY += 22;
+  };
+
+  const garantirEspaco = (alturaNecessaria: number, primeiraPagina: boolean) => {
+    if (cursorY + alturaNecessaria <= pdf.alturaPagina - 40) return;
+    pdf.novaPagina();
+    cursorY = pdf.margem;
+    desenharCabecalhoContinuacao();
+    void primeiraPagina;
+  };
+
+  desenharLetterhead();
+
+  grupos.forEach((grupo) => {
+    garantirEspaco(34, false);
+    pdf.escreverTexto(grupo.titulo.toUpperCase(), xEsq, cursorY, {
+      fonte: "bold",
+      tamanho: 8.6,
+      cor: NAVY,
+    });
+    cursorY += 11;
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, NAVY);
+    cursorY += 8;
+
+    grupo.itens.forEach((item) => {
+      garantirEspaco(15, false);
+      if (item.codigo) {
+        pdf.escreverTexto(item.codigo, xEsq, cursorY, { tamanho: 7.6, cor: MUTED });
+      }
+      pdf.escreverTexto(truncarTexto(item.nome, 58), xNome, cursorY, { tamanho: 8, cor: INK });
+      escreverValor(formatarMoedaSemSimbolo(item.valor), cursorY, { tamanho: 8, cor: INK });
+      cursorY += 14;
+    });
+
+    garantirEspaco(20, false);
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, GOLD);
+    cursorY += 6;
+    pdf.escreverTexto(grupo.subtotal.rotulo, xNome, cursorY, {
+      fonte: "bold",
+      tamanho: 8.4,
+      cor: NAVY_DEEP,
+    });
+    escreverValor(formatarMoedaSemSimbolo(grupo.subtotal.valor), cursorY, {
+      fonte: "bold",
+      tamanho: 8.4,
+      cor: NAVY_DEEP,
+    });
+    cursorY += 22;
+  });
+
+  if (resultado) {
+    garantirEspaco(30, false);
+    const ALTURA_FAIXA = 26;
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, ALTURA_FAIXA, NAVY_DEEP);
+    pdf.escreverTexto(resultado.rotulo.toUpperCase(), xEsq + 10, cursorY + 9, {
+      fonte: "bold",
+      tamanho: 8.4,
+      cor: "#cfd9e6",
+    });
+    escreverValor(formatarMoedaRelatorio(resultado.valor), cursorY + 6, {
+      fonte: "bold",
+      tamanho: 12.5,
+      cor: resultado.valor >= 0 ? GOLD_CLARO : NEGATIVO,
+    });
+  }
+
+  pdf.escreverTextoEmTodasPaginas(
+    `Gerado em ${dataGeracao}${geradoPor ? ` por ${geradoPor}` : ""}`,
+    36,
+    pdf.alturaPagina - 26,
+    { tamanho: 7, cor: "#8b95a5" },
+  );
+
+  return pdf.finalizar();
+}
+
 function formatarValor(v: string | number | null, formato?: "moeda"): string {
   if (v === null || v === undefined) return "";
   if (formato === "moeda" && typeof v === "number") return formatarMoedaSemSimbolo(v);
@@ -282,9 +588,17 @@ type ImagemPreparada = {
 };
 
 class PdfSimplesPaisagem {
-  readonly larguraPagina = 841.89;
-  readonly alturaPagina = 595.28;
+  readonly larguraPagina: number;
+  readonly alturaPagina: number;
   readonly margem = 36;
+
+  // Retrato (issue #450 — DRE) usa o mesmo A4 girado 90°: era só paisagem
+  // até aqui porque todo relatório existente é uma tabela larga (Razão,
+  // Extrato...); um demonstrativo de 3 colunas fica melhor em pé.
+  constructor(orientacao: OrientacaoRelatorio = "paisagem") {
+    this.larguraPagina = orientacao === "retrato" ? 595.28 : 841.89;
+    this.alturaPagina = orientacao === "retrato" ? 841.89 : 595.28;
+  }
   private paginas: string[] = [""];
   private imagens: ImagemPreparada[] = [];
 
@@ -648,12 +962,30 @@ export async function gerarArquivo(
   logos: LogoRelatorio[] = [],
   totais: TotalRelatorio[] = [],
   geradoPor: string | null = null,
+  // Modo agrupado (issue #450 — DRE): quando `grupos` vem preenchido, PDF e
+  // XLSX usam o desenho com seções/subtotal/resultado em vez da tabela
+  // plana. CSV/TXT continuam vindo de `colunas`/`linhas` (formato de texto
+  // puro já cobre bem uma lista flat, e evita duplicar a lógica de
+  // achatamento — quem chama já manda `linhas` equivalente pros dois).
+  grupos: GrupoRelatorio[] = [],
+  resultado: TotalRelatorio | null = null,
+  subtitulo: string | null = null,
 ): Promise<Buffer> {
   // CSV/TXT ficam sem logo/totais/rodapé de propósito — são formato de
   // texto puro pra importar em outro sistema, não pra leitura humana
   // (mesma decisão já tomada pro logo na issue #376).
-  if (formato === "xlsx") return gerarXlsxBuffer(titulo, colunas, linhas, logos, totais, geradoPor);
-  if (formato === "pdf") return gerarPdfBuffer(titulo, colunas, linhas, logos, totais, geradoPor);
+  if (formato === "xlsx") {
+    if (grupos.length > 0) {
+      return gerarXlsxBufferAgrupado(titulo, subtitulo, grupos, resultado, logos, geradoPor);
+    }
+    return gerarXlsxBuffer(titulo, colunas, linhas, logos, totais, geradoPor);
+  }
+  if (formato === "pdf") {
+    if (grupos.length > 0) {
+      return gerarPdfBufferAgrupado(titulo, subtitulo, grupos, resultado, logos, geradoPor);
+    }
+    return gerarPdfBuffer(titulo, colunas, linhas, logos, totais, geradoPor);
+  }
   if (formato === "csv") return Buffer.from(gerarCsv(colunas, linhas), "utf-8");
   return Buffer.from(gerarTxt(colunas, linhas), "utf-8");
 }

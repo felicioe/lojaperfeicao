@@ -18,6 +18,17 @@ const colunaSchema = z.object({
 });
 const linhaSchema = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
 const totalSchema = z.object({ rotulo: z.string(), valor: z.number() });
+// Modo agrupado (issue #450 — DRE em PDF/XLSX com seções e subtotal).
+const itemGrupoSchema = z.object({
+  codigo: z.string().optional(),
+  nome: z.string(),
+  valor: z.number(),
+});
+const grupoSchema = z.object({
+  titulo: z.string(),
+  itens: z.array(itemGrupoSchema),
+  subtotal: totalSchema,
+});
 
 const baseSchema = z.object({
   formato: z.enum(["xlsx", "pdf", "csv", "txt"]),
@@ -25,6 +36,9 @@ const baseSchema = z.object({
   colunas: z.array(colunaSchema).min(1),
   linhas: z.array(linhaSchema),
   totais: z.array(totalSchema).max(20).optional(),
+  grupos: z.array(grupoSchema).max(10).optional(),
+  resultado: totalSchema.nullable().optional(),
+  subtitulo: z.string().max(200).nullable().optional(),
 });
 
 // Nome de quem gerou, pro rodapé (issue #377) — nome completo se tiver
@@ -57,6 +71,9 @@ export const gerarArquivoRelatorio = createServerFn({ method: "POST" })
         logos,
         data.totais ?? [],
         geradoPor,
+        data.grupos ?? [],
+        data.resultado ?? null,
+        data.subtitulo ?? null,
       );
       return {
         base64: buffer.toString("base64"),
@@ -92,6 +109,9 @@ export const enviarRelatorioPorEmail = createServerFn({ method: "POST" })
           logos,
           data.totais ?? [],
           geradoPor,
+          data.grupos ?? [],
+          data.resultado ?? null,
+          data.subtitulo ?? null,
         );
         return enviarArquivoPorEmail({
           lojaId,
