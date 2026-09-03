@@ -24,6 +24,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -179,6 +180,7 @@ function ExtratoIrmao() {
       : ordHistorico.itensOrdenados;
 
   const pagHistorico = usePaginacao(historicoOrdenado);
+  const totalHistorico = historico.reduce((s, i) => s + valorExibido(i), 0);
 
   return (
     <>
@@ -256,16 +258,16 @@ function ExtratoIrmao() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
             <Card className="p-4">
               <div className="text-sm text-muted-foreground">Total pago à Loja</div>
-              <div className="text-2xl font-semibold">{brl(totalPago)}</div>
+              <div className="text-2xl font-semibold tabular-nums">{brl(totalPago)}</div>
             </Card>
             <Card className="p-4">
               <div className="text-sm text-muted-foreground">Em aberto — Loja</div>
-              <div className="text-2xl font-semibold">{brl(totalAberto)}</div>
+              <div className="text-2xl font-semibold tabular-nums">{brl(totalAberto)}</div>
             </Card>
             <Card className={`p-4 ${totalAtrasado > 0 ? "border-destructive" : ""}`}>
               <div className="text-sm text-muted-foreground">Total atrasado</div>
               <div
-                className={`text-2xl font-semibold ${totalAtrasado > 0 ? "text-destructive" : ""}`}
+                className={`text-2xl font-semibold tabular-nums ${totalAtrasado > 0 ? "text-destructive" : ""}`}
               >
                 {brl(totalAtrasado)}
               </div>
@@ -277,7 +279,7 @@ function ExtratoIrmao() {
             </Card>
             <Card className="p-4">
               <div className="text-sm text-muted-foreground">Visão global — total devido</div>
-              <div className="text-2xl font-semibold">{brl(totalGeralDevido)}</div>
+              <div className="text-2xl font-semibold tabular-nums">{brl(totalGeralDevido)}</div>
               <div className="text-xs text-muted-foreground">
                 Loja {brl(totalAberto)} + SGCAB {brl(totalSgcabAberto)}
               </div>
@@ -330,7 +332,7 @@ function ExtratoIrmao() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell numeric className="font-medium">
                           {brl(Number(i.valor) - Number(i.valor_pago))}
                           {Number(i.valor_pago) > 0 && (
                             <div className="text-xs font-normal text-muted-foreground">
@@ -347,25 +349,30 @@ function ExtratoIrmao() {
                     );
                   })}
                 </TableBody>
+                {abertoOrdenado.length > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={2}>Total em aberto</TableCell>
+                      <TableCell numeric className="font-semibold">
+                        {brl(totalAberto)}
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </div>
           </Card>
 
-          <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground">
-                Taxas SGCAB ({taxasSgcab.length})
-              </h3>
-              <p className="mt-1 flex max-w-3xl items-start gap-2 text-xs text-muted-foreground">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Taxas devidas ao SGCAB deverão ser emitidas diretamente no site do SGCAB ou via DDA
-                do Irmão.
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-muted-foreground">Total devido ao SGCAB</div>
-              <div className="font-semibold tabular-nums">{brl(totalSgcabAberto)}</div>
-            </div>
+          <div className="mb-2">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              Taxas SGCAB ({taxasSgcab.length})
+            </h3>
+            <p className="mt-1 flex max-w-3xl items-start gap-2 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              Taxas devidas ao SGCAB deverão ser emitidas diretamente no site do SGCAB ou via DDA do
+              Irmão.
+            </p>
           </div>
           <Card className="mb-6">
             <div className="overflow-x-auto">
@@ -374,7 +381,7 @@ function ExtratoIrmao() {
                   <TableRow>
                     <TableHead>Vencimento</TableHead>
                     <TableHead>Descrição / composição</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead numeric>Valor</TableHead>
                     <TableHead>Situação</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -397,7 +404,7 @@ function ExtratoIrmao() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
+                      <TableCell numeric className="font-medium">
                         {brl(i.total)}
                       </TableCell>
                       <TableCell>
@@ -412,6 +419,17 @@ function ExtratoIrmao() {
                     </TableRow>
                   ))}
                 </TableBody>
+                {taxasSgcab.length > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={2}>Total devido ao SGCAB</TableCell>
+                      <TableCell numeric className="font-semibold">
+                        {brl(totalSgcabAberto)}
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </div>
           </Card>
@@ -459,7 +477,7 @@ function ExtratoIrmao() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell numeric className="font-medium">
                           {brl(valorExibido(i))}
                           {status === "Parcial" && (
                             <div className="text-xs font-normal text-muted-foreground">
@@ -474,6 +492,17 @@ function ExtratoIrmao() {
                     );
                   })}
                 </TableBody>
+                {historico.length > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={2}>Total pago no período</TableCell>
+                      <TableCell numeric className="font-semibold">
+                        {brl(totalHistorico)}
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </div>
             <TabelaPaginacao
