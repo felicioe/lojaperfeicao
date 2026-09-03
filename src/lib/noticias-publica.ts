@@ -13,6 +13,12 @@ export type NoticiaPublica = {
 
 export type NoticiaPublicaResumo = Omit<NoticiaPublica, "conteudo">;
 
+// Filtro de títulos placeholder aplicado no próprio SQL (WHERE), não depois de
+// carregar as linhas: aplicar em JS depois do LIMIT 100 fazia notícias-teste
+// ocuparem vaga no topo do corte e sumirem notícias reais mais antigas da
+// listagem (achado do review automático).
+const CONDICAO_TITULO_APTO = `LOWER(TRIM(titulo)) NOT IN ('teste', 'test')`;
+
 /** Versão leve de carregarNoticiasPublicas(), sem `conteudo` — usada pela
  * listagem pública /noticias (issue #382), que só mostra título/resumo/data;
  * carregar o corpo inteiro (MEDIUMTEXT) de até 100 notícias só pra listá-las
@@ -24,7 +30,7 @@ export async function listarNoticiasPublicasResumo(): Promise<NoticiaPublicaResu
     const [rows] = await conn.query<RowDataPacket[]>(
       `SELECT id, titulo, resumo, publicado_em
        FROM noticias
-       WHERE loja_id = @current_loja_id AND status = 'publicado'
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND ${CONDICAO_TITULO_APTO}
        ORDER BY publicado_em DESC
        LIMIT 100`,
     );
@@ -42,7 +48,7 @@ export async function carregarNoticiasPublicas(): Promise<NoticiaPublica[]> {
     const [rows] = await conn.query<RowDataPacket[]>(
       `SELECT id, titulo, resumo, conteudo, publicado_em
        FROM noticias
-       WHERE loja_id = @current_loja_id AND status = 'publicado'
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND ${CONDICAO_TITULO_APTO}
        ORDER BY publicado_em DESC
        LIMIT 100`,
     );
@@ -62,7 +68,7 @@ export async function carregarNoticiaPublicaPorId(id: string): Promise<NoticiaPu
   return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [[row]] = await conn.query<RowDataPacket[]>(
       `SELECT id, titulo, resumo, conteudo, publicado_em FROM noticias
-       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ?`,
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ? AND ${CONDICAO_TITULO_APTO}`,
       [id],
     );
     if (!row) return null;
