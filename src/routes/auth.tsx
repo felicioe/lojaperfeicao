@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Fingerprint, ShieldCheck } from "lucide-react";
+import { InstallPwaCard } from "@/components/app/InstallPwaCard";
 
 const ERRO_GOOGLE_LABEL: Record<string, string> = {
   cancelado: "Login com Google cancelado.",
@@ -193,224 +194,228 @@ function AuthPage() {
 
   return (
     <main className="flex min-h-screen min-h-dvh items-start justify-center overflow-y-auto bg-muted/40 p-4">
-      <Card className="my-auto w-full max-w-md">
-        <CardHeader className="text-center">
-          <img
-            src="/brand/sglfm-mark.svg"
-            alt=""
-            className="mx-auto mb-2 h-24 w-20 object-contain"
-          />
-          <h1 className="font-serif text-2xl font-semibold leading-snug tracking-wide">
-            Sistema de Gestão de Loja Filosófica Maçônica
-          </h1>
-          <CardDescription>SGLFM</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {aguardando2FA ? (
-            <form
-              method="post"
-              onSubmit={handleConfirmar2FA}
-              className="space-y-3"
-              aria-busy={loading}
-            >
-              <div
-                id="codigo-2fa-ajuda"
-                className="flex items-center gap-2 text-sm text-muted-foreground"
-              >
-                <ShieldCheck className="h-4 w-4" /> Digite o código do seu app autenticador.
-              </div>
-              <div>
-                <Label htmlFor="codigo-2fa">Código</Label>
-                <Input
-                  className={AUTH_CONTROL_CLASS}
-                  id="codigo-2fa"
-                  name="codigo"
-                  autoFocus
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  aria-describedby={
-                    authError ? "codigo-2fa-ajuda codigo-2fa-erro" : "codigo-2fa-ajuda"
-                  }
-                  aria-invalid={!!authError}
-                  placeholder="000000 ou código de backup"
-                  value={codigo2FA}
-                  onChange={(e) => setCodigo2FA(e.target.value)}
-                  required
-                />
-              </div>
-              {authError && (
-                <p id="codigo-2fa-erro" role="alert" className="text-sm text-destructive">
-                  {authError}
-                </p>
-              )}
-              <Button type="submit" className="min-h-11 w-full sm:min-h-10" disabled={authBusy}>
-                {loading ? "Confirmando…" : "Confirmar"}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-11 w-full sm:min-h-10"
-                disabled={loading}
-                onClick={() => {
-                  setAguardando2FA(false);
-                  setCodigo2FA("");
-                  setAuthError(null);
-                }}
-              >
-                Voltar
-              </Button>
-            </form>
-          ) : firstUser ? (
-            <Tabs defaultValue="signup">
-              <TabsList className="grid min-h-11 h-auto w-full grid-cols-2">
-                <TabsTrigger value="signup" className="min-h-10">
-                  Criar 1º admin
-                </TabsTrigger>
-                <TabsTrigger value="login" className="min-h-10">
-                  Entrar
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="signup" className="pt-4">
-                <form
-                  method="post"
-                  onSubmit={handleSignUp}
-                  className="space-y-3"
-                  aria-busy={loading}
-                >
-                  <div>
-                    <Label htmlFor="cadastro-nome">Nome completo</Label>
-                    <Input
-                      className={AUTH_CONTROL_CLASS}
-                      id="cadastro-nome"
-                      name="name"
-                      autoComplete="name"
-                      aria-describedby={authError ? "cadastro-erro" : undefined}
-                      aria-invalid={!!authError}
-                      value={nome}
-                      onChange={(e) => setNome(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cadastro-email">E-mail</Label>
-                    <Input
-                      className={AUTH_CONTROL_CLASS}
-                      id="cadastro-email"
-                      name="email"
-                      type="email"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      autoCorrect="off"
-                      aria-describedby={authError ? "cadastro-erro" : undefined}
-                      aria-invalid={!!authError}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cadastro-senha">Senha</Label>
-                    <Input
-                      className={AUTH_CONTROL_CLASS}
-                      id="cadastro-senha"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      aria-describedby={authError ? "cadastro-erro" : undefined}
-                      aria-invalid={!!authError}
-                      minLength={6}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <Checkbox
-                      id="aceite-lgpd"
-                      checked={aceiteLgpd}
-                      onCheckedChange={(v) => setAceiteLgpd(v === true)}
-                      className="mt-0.5"
-                    />
-                    <span>
-                      <Label
-                        htmlFor="aceite-lgpd"
-                        className="text-xs font-normal text-muted-foreground"
-                      >
-                        Li e aceito a
-                      </Label>{" "}
-                      <Link
-                        to="/privacidade"
-                        target="_blank"
-                        className="underline underline-offset-2"
-                      >
-                        Política de Privacidade
-                      </Link>
-                      .
-                    </span>
-                  </div>
-                  {authError && (
-                    <p id="cadastro-erro" role="alert" className="text-sm text-destructive">
-                      {authError}
-                    </p>
-                  )}
-                  <Button
-                    type="submit"
-                    className="min-h-11 w-full sm:min-h-10"
-                    disabled={authBusy || !aceiteLgpd}
-                  >
-                    {loading ? "Criando…" : "Criar conta de administrador"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Como não há usuários, esta primeira conta receberá permissões de administrador.
-                  </p>
-                </form>
-              </TabsContent>
-              <TabsContent value="login" className="pt-4">
-                <LoginForm
-                  {...{
-                    email,
-                    setEmail,
-                    password,
-                    setPassword,
-                    loading,
-                    authBusy,
-                    authError,
-                    handleLogin,
-                    webauthnDisponivel,
-                    passkeyLoading,
-                    handlePasskeyLogin,
-                    googleLoading,
-                    handleGoogleLogin,
-                  }}
-                />
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <LoginForm
-              {...{
-                email,
-                setEmail,
-                password,
-                setPassword,
-                loading,
-                authBusy,
-                authError,
-                handleLogin,
-                webauthnDisponivel,
-                passkeyLoading,
-                handlePasskeyLogin,
-                googleLoading,
-                handleGoogleLogin,
-              }}
+      <div className="my-auto flex w-full max-w-md flex-col gap-3">
+        <Card className="w-full">
+          <CardHeader className="text-center">
+            <img
+              src="/brand/sglfm-mark.svg"
+              alt=""
+              className="mx-auto mb-2 h-24 w-20 object-contain"
             />
-          )}
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-            Acesso restrito aos irmãos da Loja. Seus dados são protegidos e não são compartilhados
-            com terceiros.
-          </p>
-        </CardContent>
-      </Card>
+            <h1 className="font-serif text-2xl font-semibold leading-snug tracking-wide">
+              Sistema de Gestão de Loja Filosófica Maçônica
+            </h1>
+            <CardDescription>SGLFM</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {aguardando2FA ? (
+              <form
+                method="post"
+                onSubmit={handleConfirmar2FA}
+                className="space-y-3"
+                aria-busy={loading}
+              >
+                <div
+                  id="codigo-2fa-ajuda"
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                >
+                  <ShieldCheck className="h-4 w-4" /> Digite o código do seu app autenticador.
+                </div>
+                <div>
+                  <Label htmlFor="codigo-2fa">Código</Label>
+                  <Input
+                    className={AUTH_CONTROL_CLASS}
+                    id="codigo-2fa"
+                    name="codigo"
+                    autoFocus
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    aria-describedby={
+                      authError ? "codigo-2fa-ajuda codigo-2fa-erro" : "codigo-2fa-ajuda"
+                    }
+                    aria-invalid={!!authError}
+                    placeholder="000000 ou código de backup"
+                    value={codigo2FA}
+                    onChange={(e) => setCodigo2FA(e.target.value)}
+                    required
+                  />
+                </div>
+                {authError && (
+                  <p id="codigo-2fa-erro" role="alert" className="text-sm text-destructive">
+                    {authError}
+                  </p>
+                )}
+                <Button type="submit" className="min-h-11 w-full sm:min-h-10" disabled={authBusy}>
+                  {loading ? "Confirmando…" : "Confirmar"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-11 w-full sm:min-h-10"
+                  disabled={loading}
+                  onClick={() => {
+                    setAguardando2FA(false);
+                    setCodigo2FA("");
+                    setAuthError(null);
+                  }}
+                >
+                  Voltar
+                </Button>
+              </form>
+            ) : firstUser ? (
+              <Tabs defaultValue="signup">
+                <TabsList className="grid min-h-11 h-auto w-full grid-cols-2">
+                  <TabsTrigger value="signup" className="min-h-10">
+                    Criar 1º admin
+                  </TabsTrigger>
+                  <TabsTrigger value="login" className="min-h-10">
+                    Entrar
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="signup" className="pt-4">
+                  <form
+                    method="post"
+                    onSubmit={handleSignUp}
+                    className="space-y-3"
+                    aria-busy={loading}
+                  >
+                    <div>
+                      <Label htmlFor="cadastro-nome">Nome completo</Label>
+                      <Input
+                        className={AUTH_CONTROL_CLASS}
+                        id="cadastro-nome"
+                        name="name"
+                        autoComplete="name"
+                        aria-describedby={authError ? "cadastro-erro" : undefined}
+                        aria-invalid={!!authError}
+                        value={nome}
+                        onChange={(e) => setNome(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cadastro-email">E-mail</Label>
+                      <Input
+                        className={AUTH_CONTROL_CLASS}
+                        id="cadastro-email"
+                        name="email"
+                        type="email"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        autoCorrect="off"
+                        aria-describedby={authError ? "cadastro-erro" : undefined}
+                        aria-invalid={!!authError}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cadastro-senha">Senha</Label>
+                      <Input
+                        className={AUTH_CONTROL_CLASS}
+                        id="cadastro-senha"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        aria-describedby={authError ? "cadastro-erro" : undefined}
+                        aria-invalid={!!authError}
+                        minLength={6}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <Checkbox
+                        id="aceite-lgpd"
+                        checked={aceiteLgpd}
+                        onCheckedChange={(v) => setAceiteLgpd(v === true)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        <Label
+                          htmlFor="aceite-lgpd"
+                          className="text-xs font-normal text-muted-foreground"
+                        >
+                          Li e aceito a
+                        </Label>{" "}
+                        <Link
+                          to="/privacidade"
+                          target="_blank"
+                          className="underline underline-offset-2"
+                        >
+                          Política de Privacidade
+                        </Link>
+                        .
+                      </span>
+                    </div>
+                    {authError && (
+                      <p id="cadastro-erro" role="alert" className="text-sm text-destructive">
+                        {authError}
+                      </p>
+                    )}
+                    <Button
+                      type="submit"
+                      className="min-h-11 w-full sm:min-h-10"
+                      disabled={authBusy || !aceiteLgpd}
+                    >
+                      {loading ? "Criando…" : "Criar conta de administrador"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Como não há usuários, esta primeira conta receberá permissões de
+                      administrador.
+                    </p>
+                  </form>
+                </TabsContent>
+                <TabsContent value="login" className="pt-4">
+                  <LoginForm
+                    {...{
+                      email,
+                      setEmail,
+                      password,
+                      setPassword,
+                      loading,
+                      authBusy,
+                      authError,
+                      handleLogin,
+                      webauthnDisponivel,
+                      passkeyLoading,
+                      handlePasskeyLogin,
+                      googleLoading,
+                      handleGoogleLogin,
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <LoginForm
+                {...{
+                  email,
+                  setEmail,
+                  password,
+                  setPassword,
+                  loading,
+                  authBusy,
+                  authError,
+                  handleLogin,
+                  webauthnDisponivel,
+                  passkeyLoading,
+                  handlePasskeyLogin,
+                  googleLoading,
+                  handleGoogleLogin,
+                }}
+              />
+            )}
+            <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+              Acesso restrito aos irmãos da Loja. Seus dados são protegidos e não são compartilhados
+              com terceiros.
+            </p>
+          </CardContent>
+        </Card>
+        <InstallPwaCard />
+      </div>
     </main>
   );
 }
@@ -500,7 +505,7 @@ function LoginForm({
           <Label htmlFor="login-senha">Senha</Label>
           <Link
             to="/recuperar-senha"
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            className="inline-flex min-h-11 items-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
             Esqueci minha senha
           </Link>

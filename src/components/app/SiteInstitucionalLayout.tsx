@@ -46,11 +46,11 @@ function ItemDeMenu({ item }: { item: ItemMenuPublico }) {
   // (o link mais importante daqui, leva pro sistema/login) é o caso mais
   // grave disso. Navegar na mesma aba funciona em qualquer modo.
   const conteudo = ehLinkExterno(item) ? (
-    <a href={href} className="hover:text-primary">
+    <a href={href} className="inline-flex min-h-11 items-center hover:text-primary">
       {item.label}
     </a>
   ) : (
-    <Link to={href} className="hover:text-primary">
+    <Link to={href} className="inline-flex min-h-11 items-center hover:text-primary">
       {item.label}
     </Link>
   );
@@ -93,7 +93,10 @@ export function SiteInstitucionalLayout({
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b bg-primary text-primary-foreground">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
-          <Link to="/" className="text-lg font-semibold tracking-tight">
+          <Link
+            to="/"
+            className="inline-flex min-h-11 items-center text-lg font-semibold tracking-tight"
+          >
             Associação Adonhiramita
           </Link>
           <nav className="hidden sm:block">
@@ -102,7 +105,10 @@ export function SiteInstitucionalLayout({
                 <ItemDeMenu key={item.label + item.destino} item={item} />
               ))}
               <li>
-                <a href={LINK_ACESSO_RESTRITO} className="hover:text-primary">
+                <a
+                  href={LINK_ACESSO_RESTRITO}
+                  className="inline-flex min-h-11 items-center hover:text-primary"
+                >
                   Acesso restrito
                 </a>
               </li>
@@ -111,7 +117,7 @@ export function SiteInstitucionalLayout({
           <Button
             variant="ghost"
             size="sm"
-            className="text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground sm:hidden"
+            className="min-h-11 min-w-11 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground sm:hidden"
             onClick={() => setMenuAberto((v) => !v)}
             aria-label="Abrir menu"
           >
@@ -124,9 +130,15 @@ export function SiteInstitucionalLayout({
               {menu.map((item) => (
                 <li key={item.label + item.destino}>
                   {ehLinkExterno(item) ? (
-                    <a href={destinoParaHref(item)}>{item.label}</a>
+                    <a className="flex min-h-11 items-center" href={destinoParaHref(item)}>
+                      {item.label}
+                    </a>
                   ) : (
-                    <Link to={destinoParaHref(item)} onClick={() => setMenuAberto(false)}>
+                    <Link
+                      className="flex min-h-11 items-center"
+                      to={destinoParaHref(item)}
+                      onClick={() => setMenuAberto(false)}
+                    >
                       {item.label}
                     </Link>
                   )}
@@ -135,9 +147,15 @@ export function SiteInstitucionalLayout({
                       {item.filhos.map((filho) => (
                         <li key={filho.label + filho.destino}>
                           {ehLinkExterno(filho) ? (
-                            <a href={destinoParaHref(filho)}>{filho.label}</a>
+                            <a className="flex min-h-11 items-center" href={destinoParaHref(filho)}>
+                              {filho.label}
+                            </a>
                           ) : (
-                            <Link to={destinoParaHref(filho)} onClick={() => setMenuAberto(false)}>
+                            <Link
+                              className="flex min-h-11 items-center"
+                              to={destinoParaHref(filho)}
+                              onClick={() => setMenuAberto(false)}
+                            >
                               {filho.label}
                             </Link>
                           )}
@@ -148,7 +166,11 @@ export function SiteInstitucionalLayout({
                 </li>
               ))}
               <li>
-                <a href={LINK_ACESSO_RESTRITO} onClick={() => setMenuAberto(false)}>
+                <a
+                  className="flex min-h-11 items-center"
+                  href={LINK_ACESSO_RESTRITO}
+                  onClick={() => setMenuAberto(false)}
+                >
                   Acesso restrito
                 </a>
               </li>
