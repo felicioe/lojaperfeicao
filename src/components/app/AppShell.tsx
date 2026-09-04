@@ -38,7 +38,6 @@ import {
   Mail,
   BookMarked,
   LifeBuoy,
-  FolderKanban,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
@@ -70,7 +69,6 @@ import {
   Layers,
   Rocket,
   Newspaper,
-  Globe2,
   ClipboardCheck,
   UserCog,
 } from "lucide-react";
@@ -367,9 +365,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const groupsAdmin: NavGroup[] = [
     {
-      id: "cadastros",
-      label: "Cadastros",
-      icon: FolderKanban,
+      id: "membros",
+      label: "Membros",
+      icon: Users,
       items: [
         { to: "/irmaos", label: "Irmãos", icon: Users, show: true },
         { to: "/orgs", label: "Corpos Maçônicos", icon: Building2, show: true },
@@ -381,46 +379,50 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Hourglass,
           show: can.canManageIrmaos,
         },
-        {
-          to: "/terceiros",
-          label: "Fornecedores/Clientes",
-          icon: Truck,
-          show: can.canManageFinancas,
-        },
       ],
     },
     {
-      id: "atividades",
-      label: "Atividades",
+      id: "agenda-ensino",
+      label: "Agenda & Ensino",
       icon: CalendarRange,
       items: [
         { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
         { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
-        { to: "/comunicacoes", label: "Comunicações", icon: Megaphone, show: true },
-        { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
-        { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
-        { to: "/documentos", label: "Legislação", icon: Scale, show: true },
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
       ],
     },
-    // Menu próprio pro site institucional (issues #366/#367/#380, ampliado
-    // pela #391 com Editor CMS/Aprovador CMS). Agenda Pública e Menu do Site
+    // Comunicação interna (comunicados, biblioteca de peças, enquetes,
+    // legislação) e o site institucional público (issues #366/#367/#380,
+    // ampliado pela #391 com Editor CMS/Aprovador CMS) viraram um grupo só:
+    // as duas coisas são "o que a Loja publica e pra quem" — só muda a
+    // audiência (irmãos vs. público). Agenda Pública e Menu do Site
     // continuam exclusivos de super_admin — comPapelPortalPublico, sem
     // mudança — por não terem um "grão" que faça sentido pra um colunista
     // (decisão registrada na #391). Notícias e Páginas agora também abrem
     // pra editor_cms/aprovador_cms, com o que cada um pode fazer decidido
     // dentro da própria tela (comPapelEditorialCms).
     {
-      id: "site-institucional",
-      label: "Site Institucional",
-      icon: Globe2,
+      id: "comunicacao-site",
+      label: "Comunicação & Site",
+      icon: Megaphone,
       items: [
+        {
+          to: "/comunicacoes",
+          label: "Comunicações",
+          icon: Megaphone,
+          show: true,
+          section: "Comunicação Interna",
+        },
+        { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library, show: true },
+        { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
+        { to: "/documentos", label: "Legislação", icon: Scale, show: true },
         {
           to: "/noticias-site",
           label: "Notícias do Site",
           icon: Newspaper,
           show: can.canAcessarCms,
+          section: "Site Público",
         },
         {
           to: "/agenda-publica",
@@ -482,6 +484,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/tesouraria/tabela-valores",
           label: "Tabela de Valores da Loja",
           icon: TrendingUp,
+          show: can.canManageFinancas,
+        },
+        {
+          to: "/terceiros",
+          label: "Fornecedores/Clientes",
+          icon: Truck,
           show: can.canManageFinancas,
         },
         {
@@ -669,16 +677,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       ],
     },
     {
-      id: "suporte",
-      label: "Suporte",
-      icon: LifeBuoy,
-      items: [{ to: "/painel/chamados", label: "Chamados de Suporte", icon: LifeBuoy, show: true }],
-    },
-    {
       id: "administracao",
       label: "Administração",
       icon: ShieldCheck,
       items: [
+        { to: "/painel/chamados", label: "Chamados de Suporte", icon: LifeBuoy, show: true },
         { to: "/usuarios", label: "Usuários", icon: UsersRound, show: can.isAdmin },
         {
           to: "/administracao/auditoria",
