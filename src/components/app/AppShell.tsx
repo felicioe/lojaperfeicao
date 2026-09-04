@@ -71,6 +71,9 @@ import {
   Newspaper,
   ClipboardCheck,
   UserCog,
+  Coins,
+  ListChecks,
+  FileWarning,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -83,7 +86,17 @@ import { NotificationBell } from "@/components/app/NotificationBell";
 import { PainelShell } from "@/components/app/PainelShell";
 import { PlataformaShell } from "@/components/app/PlataformaShell";
 
-type NavItem = { to: string; label: string; icon: LucideIcon; show: boolean; section?: string };
+type NavItem = {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  show: boolean;
+  section?: string;
+  // Ação destrutiva/irreversível: ganha tratamento visual próprio no NavTree
+  // pra não ficar com o mesmo peso de um item de navegação comum (achado do
+  // critique automático — ex: Resetar Financeiro ao lado de Recibos).
+  destructive?: boolean;
+};
 type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
 
 function Brand() {
@@ -227,7 +240,15 @@ function NavTree({
               key={g.id}
               open={isOpen}
               onOpenChange={(v) =>
-                setOpen((prev) => (v ? [...prev, g.id] : prev.filter((x) => x !== g.id)))
+                setOpen((prev) => {
+                  if (!v) return prev.filter((x) => x !== g.id);
+                  // Accordion exclusivo no menu admin (achado do critique: sem
+                  // isso dava pra abrir Tesouraria+Contabilidade+Comunicação &
+                  // Site ao mesmo tempo, ~50 links visíveis de uma vez). O
+                  // menu "Meu Painel" (asButtons) só tem 1 grupo, então manter
+                  // o comportamento aditivo ali é inofensivo.
+                  return asButtons ? [...prev, g.id] : [g.id];
+                })
               }
             >
               <CollapsibleTrigger
@@ -281,19 +302,28 @@ function NavTree({
                             "flex w-full items-center justify-start gap-2.5",
                             asButtons && "h-auto",
                             itemPad,
-                            active
+                            i.destructive
                               ? cn(
-                                  "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
-                                  asButtons && "border-sidebar-accent hover:bg-sidebar-accent",
+                                  "text-destructive hover:bg-destructive/10 hover:text-destructive",
+                                  active && "bg-destructive/10 font-medium",
+                                  asButtons && "border-destructive/40 hover:border-destructive/60",
                                 )
-                              : cn(
-                                  "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                                  asButtons && "border-sidebar-border",
-                                ),
+                              : active
+                                ? cn(
+                                    "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+                                    asButtons && "border-sidebar-accent hover:bg-sidebar-accent",
+                                  )
+                                : cn(
+                                    "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                                    asButtons && "border-sidebar-border",
+                                  ),
                           )}
                         >
                           <i.icon
-                            className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")}
+                            className={cn(
+                              "h-3.5 w-3.5 shrink-0",
+                              i.destructive ? "text-destructive" : active && "text-sidebar-primary",
+                            )}
                           />
                           <span className="truncate">{i.label}</span>
                         </Link>
@@ -390,6 +420,25 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/eventos", label: "Eventos", icon: PartyPopper, show: true },
         { to: "/ensino/planos", label: "Planos de Ensino", icon: GraduationCap, show: true },
         { to: "/relatorios/frequencia", label: "Frequência", icon: FileBarChart, show: true },
+        {
+          to: "/ensino/importar-calendario",
+          label: "Importar Calendário",
+          icon: CalendarPlus,
+          show: can.canManageIrmaos,
+          section: "Importadores",
+        },
+        {
+          to: "/ensino/importar-pdf-sessoes",
+          label: "Cronograma (PDF)",
+          icon: FileUp,
+          show: can.canManageIrmaos,
+        },
+        {
+          to: "/ensino/importar-planos-ensino",
+          label: "Planos de Ensino (PDF)",
+          icon: FileUp,
+          show: can.canManageIrmaos,
+        },
       ],
     },
     // Comunicação interna (comunicados, biblioteca de peças, enquetes,
@@ -545,14 +594,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         {
           to: "/relatorios/recebimentos",
           label: "Recebimentos no Mês",
-          icon: Wallet,
+          icon: Coins,
           show: can.canManageFinancas,
           section: "Relatórios",
         },
         {
           to: "/relatorios/extrato-conciliacao",
           label: "Extrato da Conciliação",
-          icon: ArrowLeftRight,
+          icon: ListChecks,
           show: can.canManageFinancas,
         },
         {
@@ -576,7 +625,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {
           to: "/relatorios/inadimplencia",
           label: "Inadimplência Detalhada",
-          icon: AlertTriangle,
+          icon: FileWarning,
           show: can.canManageFinancas,
         },
         {
@@ -591,6 +640,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           label: "Resetar Financeiro",
           icon: Trash2,
           show: can.isAdmin,
+          destructive: true,
         },
       ],
     },
@@ -719,27 +769,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Mail,
           show: can.isAdmin,
         },
-        {
-          to: "/ensino/importar-calendario",
-          label: "Importar Calendário",
-          icon: CalendarPlus,
-          show: can.canManageIrmaos,
-          section: "Importadores",
-        },
-        {
-          to: "/ensino/importar-pdf-sessoes",
-          label: "Cronograma (PDF)",
-          icon: FileUp,
-          show: can.canManageIrmaos,
-          section: "Importadores",
-        },
-        {
-          to: "/ensino/importar-planos-ensino",
-          label: "Planos de Ensino (PDF)",
-          icon: FileUp,
-          show: can.canManageIrmaos,
-          section: "Importadores",
-        },
       ],
     },
   ];
@@ -759,12 +788,18 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const activeGroupId = visibleGroups.find((g) => g.items.some((i) => isActive(i.to)))?.id ?? null;
 
-  const [open, setOpen] = useState<string[]>(activeGroupId ? [activeGroupId] : []);
+  // Menu "Meu Painel" (papel único "irmao") tem um grupo só — não faz sentido
+  // ele nascer fechado esperando uma rota ativa dentro dele pra se abrir
+  // (achado do critique automático: irmão pousa em /painel, activeGroupId
+  // fica null, e a única seção do menu aparece fechada no primeiro acesso).
+  const [open, setOpen] = useState<string[]>(() =>
+    can.isMemberOnly ? visibleGroups.map((g) => g.id) : activeGroupId ? [activeGroupId] : [],
+  );
 
   useEffect(() => {
-    if (activeGroupId) {
-      setOpen((prev) => (prev.includes(activeGroupId) ? prev : [...prev, activeGroupId]));
-    }
+    // Exclusivo: navegar pra dentro de um grupo fecha os demais (menu
+    // "Meu Painel" só tem 1 grupo, então isto não muda nada pra ele).
+    if (activeGroupId) setOpen([activeGroupId]);
   }, [activeGroupId]);
 
   // fecha o drawer sempre que a rota muda
@@ -838,7 +873,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
                 onClick={() => setCollapsed((v) => !v)}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
               >
                 {collapsed ? (
                   <ChevronsRight className="h-4 w-4" />
@@ -1007,7 +1042,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mb-2 h-9 w-full text-foreground"
+                  className="mb-2 h-11 w-full text-foreground sm:h-11"
                   asChild
                 >
                   <Link to="/admin-saas">
@@ -1019,7 +1054,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-9 text-foreground"
+                  className="h-11 text-foreground sm:h-11"
                   onClick={toggleDark}
                 >
                   {dark ? (
@@ -1032,7 +1067,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-9 text-foreground"
+                  className="h-11 text-foreground sm:h-11"
                   onClick={signOut}
                 >
                   <LogOut className="mr-1.5 h-3.5 w-3.5" /> Sair
