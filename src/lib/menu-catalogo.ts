@@ -111,6 +111,20 @@ export const CATALOGO_MENU: ItemDeMenuCatalogo[] = [
   { to: "/painel/comunicacoes", label: "Comunicações (irmão)", grupo: "Meu Painel" },
 ];
 
+// CATALOGO_MENU agrupado por `grupo`, preservando a ordem de primeira
+// aparição (Membros, Agenda & Ensino, ...) — usado tanto pela tela de
+// super-admin (admin-saas/lojas.tsx, issue #456) quanto pela preferência
+// pessoal do usuário (conta/menu.tsx, issue #457).
+function agruparPorGrupo(): [string, ItemDeMenuCatalogo[]][] {
+  const grupos = new Map<string, ItemDeMenuCatalogo[]>();
+  for (const item of CATALOGO_MENU) {
+    if (!grupos.has(item.grupo)) grupos.set(item.grupo, []);
+    grupos.get(item.grupo)!.push(item);
+  }
+  return [...grupos.entries()];
+}
+export const CATALOGO_MENU_AGRUPADO = agruparPorGrupo();
+
 const ROTAS_CATALOGADAS = new Set(CATALOGO_MENU.map((i) => i.to));
 
 /** Filtra uma lista de rotas ocultas mantendo só as que existem no catálogo
