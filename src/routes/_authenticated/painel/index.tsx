@@ -26,9 +26,10 @@ export const Route = createFileRoute("/_authenticated/painel/")({
 // em vez de uma lista própria — antes desta issue a home ignorava totalmente
 // a configuração do admin (#464) e as preferências pessoais/da loja, então um
 // item que o admin travava pra um papel continuava aparecendo aqui do mesmo
-// jeito. "Frequentes" é a mesma fatia que vira aba fixa; "Mais" é o resto —
-// dois grupos rotulados em vez de uma grade só, pra não violar o próprio
-// princípio de produto de simplicidade > densidade com 11-12 tiles soltos.
+// jeito. "Frequentes" é a mesma fatia que vira aba fixa; "Mais" é o resto do
+// conteúdo configurável; "Conta" é só a utilidade de segurança (sempre 1
+// item, igual à gaveta) — 3 grupos rotulados, não uma grade só de 11-12
+// tiles soltos, mantendo o mesmo chunking que motivou a divisão original.
 const MAX_TILES_FREQUENTES = 4;
 
 function PainelInicio() {
@@ -261,14 +262,24 @@ function PainelInicio() {
 // de produto de simplicidade > densidade, e o mesmo chunking já existe em
 // AppShell.tsx pra grupos densos do menu desktop — replicado aqui).
 function GradeTiles({ titulo, itens }: { titulo: string; itens: ItemMobileIrmao[] }) {
+  // Achado da 3ª rodada da auditoria de UX (issue #467): grid-cols-4 fixo com
+  // menos de 4 itens (ex.: "Conta", sempre 1 item) deixava colunas vazias sob
+  // o rótulo do grupo — parecia carregamento quebrado, não espaço proposital.
+  // Com poucos itens, usa flex (largura de tile igual à de uma coluna do
+  // grid, sem reservar as colunas que não têm conteúdo).
+  const emGrade = itens.length > 3;
   return (
     <div>
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {titulo}
       </p>
-      <div className="grid grid-cols-4 gap-3">
+      <div className={emGrade ? "grid grid-cols-4 gap-3" : "flex gap-3"}>
         {itens.map((t) => (
-          <Link key={t.to} to={t.to} className="flex flex-col items-center gap-1.5 text-center">
+          <Link
+            key={t.to}
+            to={t.to}
+            className={`flex flex-col items-center gap-1.5 text-center ${emGrade ? "" : "w-1/4"}`}
+          >
             <div
               className={`flex aspect-square w-full items-center justify-center rounded-2xl ${t.tint}`}
             >
