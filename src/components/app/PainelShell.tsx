@@ -27,6 +27,7 @@ import {
   Scale,
   Globe,
   LifeBuoy,
+  type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
 
@@ -45,13 +46,48 @@ const TITULOS: Record<string, string> = {
   "/conta/seguranca": "Segurança da conta",
 };
 
-const ABAS = [
-  { to: "/painel", label: "Início", icon: Home },
+// Itens configuráveis do Meu Painel (issue #464) — "Início" fica de fora de
+// propósito: é sempre a 1a aba fixa, não faz sentido o admin tirar o pouso
+// da navegação. Segurança da conta / Política de Privacidade / Modo escuro
+// também ficam de fora: são utilidades de conta, não conteúdo, continuam
+// fixas no fim do menu-gaveta (ver JSX abaixo).
+type ItemMobileIrmao = { to: string; label: string; icon: LucideIcon };
+const CANDIDATOS_MOBILE_IRMAO: ItemMobileIrmao[] = [
   { to: "/painel/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2 },
   { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays },
   { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone },
-] as const;
+  { to: "/painel/eventos", label: "Eventos", icon: PartyPopper },
+  { to: "/painel/dados", label: "Meus Dados", icon: ShieldCheck },
+  { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library },
+  { to: "/calendario", label: "Calendário", icon: Calendar },
+  { to: "/enquetes", label: "Enquetes", icon: Vote },
+  { to: "/documentos", label: "Legislação", icon: Scale },
+  { to: "/painel/chamados", label: "Chamados de Suporte", icon: LifeBuoy },
+];
+const MAX_ABAS_EXTRAS = 4; // + "Início" fixo = 5 abas no total.
+
+// Resolve quais itens ficam ativos e em que ordem, camada por camada — mesma
+// composição de AppShell.tsx: oculto-por-loja (#456) + oculto-pessoal (#457)
+// primeiro, depois a trava por papel (#464), que também decide a ordem
+// quando configurada (admin define a prioridade; sem configuração, mantém a
+// ordem padrão de CANDIDATOS_MOBILE_IRMAO).
+function resolverItensMobileIrmao(user: {
+  menuItensOcultos: string[];
+  menuItensOcultosPessoal: string[];
+  menuMobilePapel: string[] | null;
+}): ItemMobileIrmao[] {
+  const ocultos = new Set([...user.menuItensOcultos, ...user.menuItensOcultosPessoal]);
+  let itens = CANDIDATOS_MOBILE_IRMAO.filter((i) => !ocultos.has(i.to));
+  if (user.menuMobilePapel !== null) {
+    const permitidos = new Set(user.menuMobilePapel);
+    const ordem = new Map(user.menuMobilePapel.map((to, indice) => [to, indice]));
+    itens = itens
+      .filter((i) => permitidos.has(i.to))
+      .sort((a, b) => ordem.get(a.to)! - ordem.get(b.to)!);
+  }
+  return itens;
+}
 
 function iniciais(nome: string | null | undefined) {
   if (!nome) return "?";
@@ -75,6 +111,17 @@ export function PainelShell({ children }: { children: ReactNode }) {
   const titulo =
     TITULOS[loc.pathname] ??
     (loc.pathname.startsWith("/painel/faturas/") ? "Fatura" : "Meu Painel");
+
+  const itensResolvidos = resolverItensMobileIrmao({
+    menuItensOcultos: user?.menuItensOcultos ?? [],
+    menuItensOcultosPessoal: user?.menuItensOcultosPessoal ?? [],
+    menuMobilePapel: user?.menuMobilePapel ?? null,
+  });
+  const abas = [
+    { to: "/painel", label: "Início", icon: Home },
+    ...itensResolvidos.slice(0, MAX_ABAS_EXTRAS),
+  ];
+  const itensGaveta = itensResolvidos.slice(MAX_ABAS_EXTRAS);
 
   const sair = async () => {
     await logout();
@@ -116,7 +163,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
           className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md border-t bg-primary pb-[env(safe-area-inset-bottom)] text-primary-foreground"
         >
           <div className="flex">
-            {ABAS.map((aba) => {
+            {abas.map((aba) => {
               const ativo = loc.pathname === aba.to;
               const isComunicacoes = aba.to === "/painel/comunicacoes";
               return (
@@ -170,41 +217,13 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   </Link>
                 </Button>
               )}
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/painel/eventos" onClick={() => setMenuOpen(false)}>
-                  <PartyPopper className="mr-1.5 h-4 w-4" /> Eventos
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/painel/dados" onClick={() => setMenuOpen(false)}>
-                  <ShieldCheck className="mr-1.5 h-4 w-4" /> Meus dados e privacidade
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/biblioteca" onClick={() => setMenuOpen(false)}>
-                  <Library className="mr-1.5 h-4 w-4" /> Biblioteca de Peças
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/calendario" onClick={() => setMenuOpen(false)}>
-                  <Calendar className="mr-1.5 h-4 w-4" /> Calendário
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/enquetes" onClick={() => setMenuOpen(false)}>
-                  <Vote className="mr-1.5 h-4 w-4" /> Enquetes
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/documentos" onClick={() => setMenuOpen(false)}>
-                  <Scale className="mr-1.5 h-4 w-4" /> Legislação
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/painel/chamados" onClick={() => setMenuOpen(false)}>
-                  <LifeBuoy className="mr-1.5 h-4 w-4" /> Chamados de Suporte
-                </Link>
-              </Button>
+              {itensGaveta.map((item) => (
+                <Button key={item.to} variant="outline" className="w-full justify-start" asChild>
+                  <Link to={item.to} onClick={() => setMenuOpen(false)}>
+                    <item.icon className="mr-1.5 h-4 w-4" /> {item.label}
+                  </Link>
+                </Button>
+              ))}
               <Button variant="outline" className="w-full justify-start" asChild>
                 <Link to="/conta/seguranca" onClick={() => setMenuOpen(false)}>
                   <Fingerprint className="mr-1.5 h-4 w-4" /> Segurança da conta

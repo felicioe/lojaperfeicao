@@ -38,6 +38,7 @@ import { Route as AuthenticatedAdministracaoDadosEntidadeRouteImport } from './r
 import { Route as AuthenticatedAdministracaoEmailRouteImport } from './routes/_authenticated/administracao/email'
 import { Route as AuthenticatedAdministracaoExportarDadosRouteImport } from './routes/_authenticated/administracao/exportar-dados'
 import { Route as AuthenticatedAdministracaoFechamentoPeriodoRouteImport } from './routes/_authenticated/administracao/fechamento-periodo'
+import { Route as AuthenticatedAdministracaoMenuMobileRouteImport } from './routes/_authenticated/administracao/menu-mobile'
 import { Route as AuthenticatedAdministracaoResetarFinanceiroRouteImport } from './routes/_authenticated/administracao/resetar-financeiro'
 import { Route as AuthenticatedAgendaPublicaIndexRouteImport } from './routes/_authenticated/agenda-publica/index'
 import { Route as AuthenticatedBibliotecaIndexRouteImport } from './routes/_authenticated/biblioteca/index'
@@ -274,6 +275,12 @@ const AuthenticatedAdministracaoFechamentoPeriodoRoute =
   AuthenticatedAdministracaoFechamentoPeriodoRouteImport.update({
     id: '/administracao/fechamento-periodo',
     path: '/administracao/fechamento-periodo',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAdministracaoMenuMobileRoute =
+  AuthenticatedAdministracaoMenuMobileRouteImport.update({
+    id: '/administracao/menu-mobile',
+    path: '/administracao/menu-mobile',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAdministracaoResetarFinanceiroRoute =
@@ -774,6 +781,7 @@ export interface FileRoutesByFullPath {
   '/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
+  '/administracao/menu-mobile': typeof AuthenticatedAdministracaoMenuMobileRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/conta/menu': typeof AuthenticatedContaMenuRoute
   '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
@@ -881,6 +889,7 @@ export interface FileRoutesByTo {
   '/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
+  '/administracao/menu-mobile': typeof AuthenticatedAdministracaoMenuMobileRoute
   '/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/conta/menu': typeof AuthenticatedContaMenuRoute
   '/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
@@ -992,6 +1001,7 @@ export interface FileRoutesById {
   '/_authenticated/administracao/email': typeof AuthenticatedAdministracaoEmailRoute
   '/_authenticated/administracao/exportar-dados': typeof AuthenticatedAdministracaoExportarDadosRoute
   '/_authenticated/administracao/fechamento-periodo': typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
+  '/_authenticated/administracao/menu-mobile': typeof AuthenticatedAdministracaoMenuMobileRoute
   '/_authenticated/administracao/resetar-financeiro': typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   '/_authenticated/conta/menu': typeof AuthenticatedContaMenuRoute
   '/_authenticated/conta/seguranca': typeof AuthenticatedContaSegurancaRoute
@@ -1103,6 +1113,7 @@ export interface FileRouteTypes {
     | '/administracao/email'
     | '/administracao/exportar-dados'
     | '/administracao/fechamento-periodo'
+    | '/administracao/menu-mobile'
     | '/administracao/resetar-financeiro'
     | '/conta/menu'
     | '/conta/seguranca'
@@ -1210,6 +1221,7 @@ export interface FileRouteTypes {
     | '/administracao/email'
     | '/administracao/exportar-dados'
     | '/administracao/fechamento-periodo'
+    | '/administracao/menu-mobile'
     | '/administracao/resetar-financeiro'
     | '/conta/menu'
     | '/conta/seguranca'
@@ -1320,6 +1332,7 @@ export interface FileRouteTypes {
     | '/_authenticated/administracao/email'
     | '/_authenticated/administracao/exportar-dados'
     | '/_authenticated/administracao/fechamento-periodo'
+    | '/_authenticated/administracao/menu-mobile'
     | '/_authenticated/administracao/resetar-financeiro'
     | '/_authenticated/conta/menu'
     | '/_authenticated/conta/seguranca'
@@ -1622,6 +1635,13 @@ declare module '@tanstack/react-router' {
       path: '/administracao/fechamento-periodo'
       fullPath: '/administracao/fechamento-periodo'
       preLoaderRoute: typeof AuthenticatedAdministracaoFechamentoPeriodoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/administracao/menu-mobile': {
+      id: '/_authenticated/administracao/menu-mobile'
+      path: '/administracao/menu-mobile'
+      fullPath: '/administracao/menu-mobile'
+      preLoaderRoute: typeof AuthenticatedAdministracaoMenuMobileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/administracao/resetar-financeiro': {
@@ -2256,6 +2276,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdministracaoEmailRoute: typeof AuthenticatedAdministracaoEmailRoute
   AuthenticatedAdministracaoExportarDadosRoute: typeof AuthenticatedAdministracaoExportarDadosRoute
   AuthenticatedAdministracaoFechamentoPeriodoRoute: typeof AuthenticatedAdministracaoFechamentoPeriodoRoute
+  AuthenticatedAdministracaoMenuMobileRoute: typeof AuthenticatedAdministracaoMenuMobileRoute
   AuthenticatedAdministracaoResetarFinanceiroRoute: typeof AuthenticatedAdministracaoResetarFinanceiroRoute
   AuthenticatedContaMenuRoute: typeof AuthenticatedContaMenuRoute
   AuthenticatedContaSegurancaRoute: typeof AuthenticatedContaSegurancaRoute
@@ -2342,6 +2363,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedAdministracaoExportarDadosRoute,
   AuthenticatedAdministracaoFechamentoPeriodoRoute:
     AuthenticatedAdministracaoFechamentoPeriodoRoute,
+  AuthenticatedAdministracaoMenuMobileRoute:
+    AuthenticatedAdministracaoMenuMobileRoute,
   AuthenticatedAdministracaoResetarFinanceiroRoute:
     AuthenticatedAdministracaoResetarFinanceiroRoute,
   AuthenticatedContaMenuRoute: AuthenticatedContaMenuRoute,

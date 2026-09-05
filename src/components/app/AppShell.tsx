@@ -79,6 +79,7 @@ import {
   Search,
   SlidersHorizontal,
   Star,
+  Smartphone,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -896,6 +897,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           icon: Mail,
           show: can.isAdmin,
         },
+        {
+          to: "/administracao/menu-mobile",
+          label: "Menu Mobile por Papel",
+          icon: Smartphone,
+          show: can.isAdmin,
+        },
       ],
     },
   ];
@@ -918,8 +925,30 @@ export function AppShell({ children }: { children: ReactNode }) {
     ...(user?.menuItensOcultosPessoal ?? []),
   ]);
 
+  // Menu mobile por papel (issue #464): admin da Loja restringe e ordena os
+  // itens ativos na gaveta mobile de admin/tesoureiro/secretario — só entra
+  // em jogo fora do desktop (a sidebar fixa nunca é afetada) e só quando o
+  // papel do usuário tem uma lista configurada (null = sem restrição, ver
+  // obterMenuMobilePapelAplicavel em menu-mobile-papel.ts). Aplicado como
+  // mais uma camada em cima de menuOcultos: trava — a preferência pessoal
+  // acima só filtra o que sobrou, nunca traz de volta o que o admin tirou
+  // do papel pro mobile.
+  const listaMobilePapel = !isDesktop ? (user?.menuMobilePapel ?? null) : null;
+  const menuMobilePapelSet = listaMobilePapel ? new Set(listaMobilePapel) : null;
+  const ordemMobilePapel = listaMobilePapel
+    ? new Map(listaMobilePapel.map((to, indice) => [to, indice]))
+    : null;
+
   const visibleGroups = groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.show && !menuOcultos.has(i.to)) }))
+    .map((g) => {
+      let items = g.items.filter((i) => i.show && !menuOcultos.has(i.to));
+      if (menuMobilePapelSet && ordemMobilePapel) {
+        items = items
+          .filter((i) => menuMobilePapelSet.has(i.to))
+          .sort((a, b) => ordemMobilePapel.get(a.to)! - ordemMobilePapel.get(b.to)!);
+      }
+      return { ...g, items };
+    })
     .filter((g) => g.items.length > 0);
 
   // Grupo sintético "Favoritos" (issue #453): fixa até 8 itens no topo da
