@@ -28,18 +28,80 @@ export const Route = createFileRoute("/_authenticated/painel/")({
   component: PainelInicio,
 });
 
+// Cor por categoria (issue do usuário — ícones monocromáticos pequenos
+// demais pro público 60+ do Meu Painel): reconhecer um ícone pela forma E
+// pela cor é mais rápido que só pela forma pra quem processa a tela num
+// relance, mesma técnica usada em apps bancários voltados a esse público.
+// Exceção deliberada ao padrão "ícone de navegação monocromático" (iOS HIG/
+// Material) — aqui o público e o contexto (grade de atalhos, não uma barra
+// de abas densa) justificam a cor.
 const TILES = [
-  { to: "/painel/dados", label: "Meus Dados", icon: UserRound },
-  { to: "/painel/financeiro", label: "Financeiro", icon: Wallet },
-  { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2 },
-  { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays },
-  { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone },
-  { to: "/painel/eventos", label: "Eventos", icon: PartyPopper },
-  { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library },
-  { to: "/calendario", label: "Calendário", icon: Calendar },
-  { to: "/enquetes", label: "Enquetes", icon: Vote },
-  { to: "/documentos", label: "Legislação", icon: Scale },
-  { to: "/conta/seguranca", label: "Segurança", icon: Fingerprint },
+  {
+    to: "/painel/dados",
+    label: "Meus Dados",
+    icon: UserRound,
+    tint: "bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300",
+  },
+  {
+    to: "/painel/financeiro",
+    label: "Financeiro",
+    icon: Wallet,
+    tint: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300",
+  },
+  {
+    to: "/painel/frequencia",
+    label: "Frequência",
+    icon: CalendarCheck2,
+    tint: "bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300",
+  },
+  {
+    to: "/painel/sessoes",
+    label: "Sessões",
+    icon: CalendarDays,
+    tint: "bg-indigo-100 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300",
+  },
+  {
+    to: "/painel/comunicacoes",
+    label: "Comunicações",
+    icon: Megaphone,
+    tint: "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300",
+  },
+  {
+    to: "/painel/eventos",
+    label: "Eventos",
+    icon: PartyPopper,
+    tint: "bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-950/40 dark:text-fuchsia-300",
+  },
+  {
+    to: "/biblioteca",
+    label: "Biblioteca de Peças",
+    icon: Library,
+    tint: "bg-teal-100 text-teal-600 dark:bg-teal-950/40 dark:text-teal-300",
+  },
+  {
+    to: "/calendario",
+    label: "Calendário",
+    icon: Calendar,
+    tint: "bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300",
+  },
+  {
+    to: "/enquetes",
+    label: "Enquetes",
+    icon: Vote,
+    tint: "bg-violet-100 text-violet-600 dark:bg-violet-950/40 dark:text-violet-300",
+  },
+  {
+    to: "/documentos",
+    label: "Legislação",
+    icon: Scale,
+    tint: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+  },
+  {
+    to: "/conta/seguranca",
+    label: "Segurança",
+    icon: Fingerprint,
+    tint: "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-300",
+  },
 ] as const;
 
 function PainelInicio() {
@@ -92,7 +154,7 @@ function PainelInicio() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-16 rounded-2xl" />
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           {TILES.map((t) => (
             <div key={t.to} className="flex flex-col items-center gap-1.5">
               <Skeleton className="aspect-square w-full rounded-2xl" />
@@ -251,13 +313,15 @@ function PainelInicio() {
         </Link>
       )}
 
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {TILES.map((t) => (
           <Link key={t.to} to={t.to} className="flex flex-col items-center gap-1.5 text-center">
-            <div className="flex aspect-square w-full items-center justify-center rounded-2xl border bg-muted/60">
-              <t.icon className="h-6 w-6 text-foreground" />
+            <div
+              className={`flex aspect-square w-full items-center justify-center rounded-2xl ${t.tint}`}
+            >
+              <t.icon className="h-8 w-8" />
             </div>
-            <span className="text-[11px] leading-tight text-foreground">{t.label}</span>
+            <span className="text-xs leading-tight text-foreground">{t.label}</span>
           </Link>
         ))}
       </div>
