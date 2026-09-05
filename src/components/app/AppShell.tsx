@@ -19,7 +19,7 @@ import {
   Building2,
   Award,
   Truck,
-  ReceiptText,
+  Banknote,
   RefreshCw,
   FileStack,
   Receipt,
@@ -74,6 +74,8 @@ import {
   Coins,
   ListChecks,
   FileWarning,
+  FileClock,
+  Search,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,6 +84,14 @@ import { ROLE_LABEL } from "@/lib/format";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { useTheme } from "@/lib/use-theme";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import { PainelShell } from "@/components/app/PainelShell";
 import { PlataformaShell } from "@/components/app/PlataformaShell";
@@ -98,6 +108,27 @@ type NavItem = {
   destructive?: boolean;
 };
 type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
+
+type SectionChunk = { key: string; label: string | null; items: NavItem[] };
+
+// Agrupa os itens de um grupo por `section` consecutiva, carregando adiante
+// o rótulo do último item que declarou `section` explicitamente (mesmo
+// contrato implícito que o `mostraSecao` original usava item a item — ver
+// achado do critique automático sobre grupos densos como Tesouraria).
+function chunkBySection(items: NavItem[]): SectionChunk[] {
+  const chunks: SectionChunk[] = [];
+  for (const item of items) {
+    const last = chunks[chunks.length - 1];
+    if (item.section && last?.label !== item.section) {
+      chunks.push({ key: `${chunks.length}-${item.section}`, label: item.section, items: [item] });
+    } else if (last) {
+      last.items.push(item);
+    } else {
+      chunks.push({ key: "sem-secao", label: null, items: [item] });
+    }
+  }
+  return chunks;
+}
 
 function Brand() {
   return (
@@ -156,6 +187,8 @@ function NavTree({
   isActive,
   open,
   setOpen,
+  openSections,
+  setOpenSections,
   onNavigate,
   size = "desktop",
   collapsed = false,
@@ -167,6 +200,12 @@ function NavTree({
   isActive: (to: string) => boolean;
   open: string[];
   setOpen: (fn: (prev: string[]) => string[]) => void;
+  // Segundo nível de disclosure dentro de um grupo denso (ex.: Tesouraria,
+  // 22 itens): cada `section` vira um sub-accordion independente, recolhido
+  // por padrão exceto a seção da rota ativa (achado do critique automático
+  // sobre chunking ≤4/carga cognitiva em grupos grandes).
+  openSections: string[];
+  setOpenSections: (fn: (prev: string[]) => string[]) => void;
   onNavigate?: () => void;
   size?: "desktop" | "mobile";
   collapsed?: boolean;
@@ -256,7 +295,7 @@ function NavTree({
                   asButtons
                     ? buttonVariants({ variant: "outline", size: "sm" })
                     : "rounded-md transition-colors",
-                  "flex w-full items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-wider hover:bg-sidebar-accent/40",
+                  "flex w-full items-center gap-2 border border-transparent px-3 text-[11px] font-semibold uppercase tracking-wider hover:border-sidebar-border hover:bg-sidebar-accent/40",
                   asButtons && "h-auto border-sidebar-border",
                   size === "mobile" ? "py-2.5" : "py-2",
                   hasActive
@@ -282,39 +321,35 @@ function NavTree({
                     asButtons ? "mt-1 space-y-1" : "border-l border-sidebar-border",
                   )}
                 >
-                  {g.items.map((i, idx) => {
-                    const active = isActive(i.to);
-                    const mostraSecao = i.section && i.section !== g.items[idx - 1]?.section;
-                    return (
-                      <Fragment key={i.to}>
-                        {mostraSecao && (
-                          <div className="px-2.5 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/65 first:pt-0">
-                            {i.section}
-                          </div>
-                        )}
+                  {(() => {
+                    const renderItem = (i: NavItem) => {
+                      const active = isActive(i.to);
+                      return (
                         <Link
+                          key={i.to}
                           to={i.to}
                           onClick={onNavigate}
                           className={cn(
                             asButtons
                               ? buttonVariants({ variant: "outline", size: "sm" })
                               : "rounded-md transition-colors",
-                            "flex w-full items-center justify-start gap-2.5",
+                            "flex w-full items-center justify-start gap-2.5 border border-transparent",
                             asButtons && "h-auto",
                             itemPad,
                             i.destructive
                               ? cn(
-                                  "text-destructive hover:bg-destructive/10 hover:text-destructive",
-                                  active && "bg-destructive/10 font-medium",
-                                  asButtons && "border-destructive/40 hover:border-destructive/60",
+                                  "text-sidebar-destructive hover:border-sidebar-destructive/40 hover:bg-sidebar-destructive/10 hover:text-sidebar-destructive",
+                                  active &&
+                                    "border-sidebar-destructive/40 bg-sidebar-destructive/10 font-medium",
+                                  asButtons && "hover:border-sidebar-destructive/60",
                                 )
                               : active
                                 ? cn(
-                                    "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
-                                    asButtons && "border-sidebar-accent hover:bg-sidebar-accent",
+                                    "border-sidebar-accent bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+                                    asButtons && "hover:bg-sidebar-accent",
                                   )
                                 : cn(
-                                    "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                                    "text-sidebar-foreground/75 hover:border-sidebar-border hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                                     asButtons && "border-sidebar-border",
                                   ),
                           )}
@@ -322,14 +357,59 @@ function NavTree({
                           <i.icon
                             className={cn(
                               "h-3.5 w-3.5 shrink-0",
-                              i.destructive ? "text-destructive" : active && "text-sidebar-primary",
+                              i.destructive
+                                ? "text-sidebar-destructive"
+                                : active && "text-sidebar-primary",
                             )}
                           />
                           <span className="truncate">{i.label}</span>
                         </Link>
-                      </Fragment>
-                    );
-                  })}
+                      );
+                    };
+
+                    return chunkBySection(g.items).map((chunk) => {
+                      if (!chunk.label) {
+                        return <Fragment key={chunk.key}>{chunk.items.map(renderItem)}</Fragment>;
+                      }
+                      // Sub-accordion por seção: recolhido por padrão, exceto a
+                      // seção que contém a rota ativa (evita despejar os ~22
+                      // itens de um grupo denso como Tesouraria de uma vez).
+                      const sectionKey = `${g.id}::${chunk.label}`;
+                      const sectionOpen = openSections.includes(sectionKey);
+                      const sectionActive = chunk.items.some((i) => isActive(i.to));
+                      return (
+                        <Collapsible
+                          key={chunk.key}
+                          open={sectionOpen}
+                          onOpenChange={(v) =>
+                            setOpenSections((prev) =>
+                              v ? [...prev, sectionKey] : prev.filter((x) => x !== sectionKey),
+                            )
+                          }
+                        >
+                          <CollapsibleTrigger
+                            className={cn(
+                              "flex w-full items-center gap-1.5 px-2.5 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider first:pt-0 hover:text-sidebar-foreground",
+                              sectionActive
+                                ? "text-sidebar-foreground"
+                                : "text-sidebar-foreground/65",
+                            )}
+                          >
+                            <ChevronDown
+                              className={cn(
+                                "h-3 w-3 shrink-0 transition-transform duration-200",
+                                sectionOpen && "rotate-180",
+                              )}
+                            />
+                            <span className="flex-1 truncate text-left">{chunk.label}</span>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                            <div className="space-y-0.5">{chunk.items.map(renderItem)}</div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      );
+                    });
+                  })()}
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -582,7 +662,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {
           to: "/tesouraria/contas-pagar",
           label: "Contas a Pagar",
-          icon: ReceiptText,
+          icon: Banknote,
           show: can.canManageFinancas,
         },
         {
@@ -607,7 +687,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {
           to: "/relatorios/extrato-bancario",
           label: "Extrato Bancário",
-          icon: Landmark,
+          icon: FileClock,
           show: can.canManageFinancas,
         },
         {
@@ -802,6 +882,54 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (activeGroupId) setOpen([activeGroupId]);
   }, [activeGroupId]);
 
+  // Segundo nível de disclosure (achado do critique automático: grupos como
+  // Tesouraria/22 itens violam chunking ≤4 mesmo com sub-rótulos de seção).
+  // Cada `section` dentro de um grupo vira um sub-accordion independente,
+  // recolhido por padrão exceto o que contém a rota ativa.
+  const activeSectionKey = (() => {
+    for (const g of visibleGroups) {
+      for (const chunk of chunkBySection(g.items)) {
+        if (chunk.label && chunk.items.some((i) => isActive(i.to)))
+          return `${g.id}::${chunk.label}`;
+      }
+    }
+    return null;
+  })();
+
+  const [openSections, setOpenSections] = useState<string[]>(() =>
+    activeSectionKey ? [activeSectionKey] : [],
+  );
+
+  useEffect(() => {
+    if (activeSectionKey) {
+      setOpenSections((prev) =>
+        prev.includes(activeSectionKey) ? prev : [...prev, activeSectionKey],
+      );
+    }
+  }, [activeSectionKey]);
+
+  // Paleta de comando (Cmd/Ctrl+K): busca sobre todos os itens visíveis do
+  // menu, sem precisar navegar accordion por accordion (achado do critique
+  // automático: sem busca/atalho, o usuário avançado reabre e rola grupos
+  // densos como Tesouraria toda vez que muda de tela).
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const goTo = (to: string) => {
+    setPaletteOpen(false);
+    nav({ to });
+  };
+
   // fecha o drawer sempre que a rota muda
   useEffect(() => {
     setMobileOpen(false);
@@ -869,6 +997,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
             <div className="flex shrink-0 items-center gap-1">
               {!can.isMemberOnly && <NotificationBell collapsed={collapsed} />}
+              {!collapsed && (
+                <button
+                  type="button"
+                  aria-label="Buscar no menu (Ctrl+K)"
+                  onClick={() => setPaletteOpen(true)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="button"
                 aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
@@ -891,6 +1029,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               isActive={isActive}
               open={open}
               setOpen={setOpen}
+              openSections={openSections}
+              setOpenSections={setOpenSections}
               collapsed={collapsed}
               onExpandGroup={expandGroup}
               asButtons={can.isMemberOnly}
@@ -1017,6 +1157,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 isActive={isActive}
                 open={open}
                 setOpen={setOpen}
+                openSections={openSections}
+                setOpenSections={setOpenSections}
                 onNavigate={() => setMobileOpen(false)}
                 size="mobile"
                 asButtons={can.isMemberOnly}
@@ -1076,6 +1218,33 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </SheetContent>
         </Sheet>
+
+        <CommandDialog open={paletteOpen} onOpenChange={setPaletteOpen}>
+          <CommandInput placeholder="Buscar no menu..." />
+          <CommandList>
+            <CommandEmpty>Nada encontrado.</CommandEmpty>
+            <CommandGroup heading={dashboard.label}>
+              <CommandItem value={dashboard.label} onSelect={() => goTo(dashboard.to)}>
+                <dashboard.icon className="h-4 w-4" />
+                {dashboard.label}
+              </CommandItem>
+            </CommandGroup>
+            {visibleGroups.map((g) => (
+              <CommandGroup key={g.id} heading={g.label}>
+                {g.items.map((i) => (
+                  <CommandItem
+                    key={i.to}
+                    value={`${g.label} ${i.label}`}
+                    onSelect={() => goTo(i.to)}
+                  >
+                    <i.icon className={cn("h-4 w-4", i.destructive && "text-destructive")} />
+                    <span className={cn(i.destructive && "text-destructive")}>{i.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </CommandDialog>
 
         <main className="min-w-0 flex-1">
           <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
