@@ -77,6 +77,7 @@ import {
   FileClock,
   Search,
   SlidersHorizontal,
+  Star,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -109,6 +110,12 @@ type NavItem = {
   destructive?: boolean;
 };
 type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
+
+// Id do grupo sintético "Favoritos" (issue #453) — precisa ser a mesma
+// string em AppShell (monta o grupo) e NavTree (trata a exclusividade do
+// accordion), por isso vive no escopo do módulo em vez de dentro de um dos
+// dois.
+const FAVORITOS_GROUP_ID = "favoritos-menu";
 
 type SectionChunk = { key: string; label: string | null; items: NavItem[] };
 
@@ -286,8 +293,11 @@ function NavTree({
                   // isso dava pra abrir Tesouraria+Contabilidade+Comunicação &
                   // Site ao mesmo tempo, ~50 links visíveis de uma vez). O
                   // menu "Meu Painel" (asButtons) só tem 1 grupo, então manter
-                  // o comportamento aditivo ali é inofensivo.
-                  return asButtons ? [...prev, g.id] : [g.id];
+                  // o comportamento aditivo ali é inofensivo. Favoritos (issue
+                  // #453) fica de fora da exclusividade nos dois sentidos —
+                  // é pequeno (≤8 itens), não reintroduz o problema original.
+                  if (asButtons || g.id === FAVORITOS_GROUP_ID) return [...prev, g.id];
+                  return prev.includes(FAVORITOS_GROUP_ID) ? [FAVORITOS_GROUP_ID, g.id] : [g.id];
                 })
               }
             >
@@ -876,20 +886,49 @@ export function AppShell({ children }: { children: ReactNode }) {
     .map((g) => ({ ...g, items: g.items.filter((i) => i.show && !menuOcultos.has(i.to)) }))
     .filter((g) => g.items.length > 0);
 
+  // Grupo sintético "Favoritos" (issue #453): fixa até 8 itens no topo da
+  // sidebar, montado a partir do que já sobrou visível (respeitando papel,
+  // ocultos-pela-loja e ocultos-pessoais). Só existe pro NavTree — a paleta
+  // de comando (Ctrl+K) e activeGroupId continuam usando `visibleGroups` sem
+  // o grupo sintético, pra não duplicar chave/resultado de busca.
+  const itensFavoritos = visibleGroups
+    .flatMap((g) => g.items)
+    .filter((i) => (user?.menuFavoritos ?? []).includes(i.to));
+  const navGroups: NavGroup[] =
+    itensFavoritos.length > 0
+      ? [
+          { id: FAVORITOS_GROUP_ID, label: "Favoritos", icon: Star, items: itensFavoritos },
+          ...visibleGroups,
+        ]
+      : visibleGroups;
+
   const activeGroupId = visibleGroups.find((g) => g.items.some((i) => isActive(i.to)))?.id ?? null;
 
   // Menu "Meu Painel" (papel único "irmao") tem um grupo só — não faz sentido
   // ele nascer fechado esperando uma rota ativa dentro dele pra se abrir
   // (achado do critique automático: irmão pousa em /painel, activeGroupId
   // fica null, e a única seção do menu aparece fechada no primeiro acesso).
-  const [open, setOpen] = useState<string[]>(() =>
-    can.isMemberOnly ? visibleGroups.map((g) => g.id) : activeGroupId ? [activeGroupId] : [],
-  );
+  // Favoritos, quando existe, também nasce aberto — é pequeno (≤8 itens) e é
+  // exatamente o atalho que deveria estar visível sem esforço nenhum.
+  const [open, setOpen] = useState<string[]>(() => {
+    const base = can.isMemberOnly
+      ? visibleGroups.map((g) => g.id)
+      : activeGroupId
+        ? [activeGroupId]
+        : [];
+    return itensFavoritos.length > 0 ? [...base, FAVORITOS_GROUP_ID] : base;
+  });
 
   useEffect(() => {
-    // Exclusivo: navegar pra dentro de um grupo fecha os demais (menu
-    // "Meu Painel" só tem 1 grupo, então isto não muda nada pra ele).
-    if (activeGroupId) setOpen([activeGroupId]);
+    // Exclusivo: navegar pra dentro de um grupo fecha os demais, mas
+    // preserva Favoritos aberto (é pequeno, não reintroduz o problema
+    // original de ~50 links visíveis ao mesmo tempo). Menu "Meu Painel" só
+    // tem 1 grupo real, então isto não muda nada pra ele.
+    if (activeGroupId) {
+      setOpen((prev) =>
+        prev.includes(FAVORITOS_GROUP_ID) ? [FAVORITOS_GROUP_ID, activeGroupId] : [activeGroupId],
+      );
+    }
   }, [activeGroupId]);
 
   // Segundo nível de disclosure (achado do critique automático: grupos como
@@ -1035,7 +1074,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <nav className={cn("flex-1 overflow-y-auto", collapsed ? "px-2 py-3" : "space-y-1 p-3")}>
             <NavTree
               dashboard={dashboard}
-              groups={visibleGroups}
+              groups={navGroups}
               isActive={isActive}
               open={open}
               setOpen={setOpen}
@@ -1174,7 +1213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <nav className="flex-1 space-y-1 overflow-y-auto p-3">
               <NavTree
                 dashboard={dashboard}
-                groups={visibleGroups}
+                groups={navGroups}
                 isActive={isActive}
                 open={open}
                 setOpen={setOpen}
