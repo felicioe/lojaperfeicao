@@ -9,6 +9,7 @@ import {
   type PapelMenuMobile,
 } from "@/lib/backend/menu-mobile-papel";
 import { CATALOGO_MENU_AGRUPADO } from "@/lib/menu-catalogo";
+import { ITENS_MOBILE_IRMAO } from "@/lib/menu-mobile-irmao";
 import { ROLE_LABEL } from "@/lib/format";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,17 @@ function MenuMobilePorPapelPage() {
   };
 
   const salvar = async () => {
+    // Achado da auditoria de UX (issue #467, P2): salvar lista vazia zera a
+    // navegação mobile inteira daquele papel pra todo mundo, sem volta fácil
+    // — trava (não é só uma sugestão) antes de confirmar explicitamente.
+    if (
+      itens.length === 0 &&
+      !window.confirm(
+        `Isso deixa o papel ${ROLE_LABEL[papel]} sem NENHUM item ativo no menu mobile (só "Início" continua). Tem certeza?`,
+      )
+    ) {
+      return;
+    }
     setSalvando(true);
     try {
       await salvarMenuMobilePorPapel({ data: { papel, itens } });
@@ -81,8 +93,28 @@ function MenuMobilePorPapelPage() {
     }
   };
 
+  // Achado da auditoria de UX (issue #467, P1): pro papel "irmão" só os
+  // itens de ITENS_MOBILE_IRMAO têm QUALQUER efeito (é exatamente o filtro
+  // que PainelShell.tsx/menu-mobile-irmao.ts aplicam pra montar a navegação
+  // dele) — mostrar o catálogo inteiro do sistema (63 rotas, Tesouraria e
+  // Contabilidade incluídas) pra marcar algo que quase sempre seria um no-op
+  // silencioso. Pros papéis administrativos, o catálogo inteiro continua
+  // fazendo sentido (a gaveta mobile do AppShell pode mostrar qualquer um
+  // deles, dependendo do que o papel já vê no desktop).
+  const gruposExibidos: (typeof CATALOGO_MENU_AGRUPADO)[number][] =
+    papel === "irmao"
+      ? [
+          [
+            "Meu Painel",
+            ITENS_MOBILE_IRMAO.map(({ to, label }) => ({ to, label, grupo: "Meu Painel" })),
+          ],
+        ]
+      : CATALOGO_MENU_AGRUPADO;
+
   // Rótulo de cada item, pra exibir a lista de prioridade sem precisar
-  // varrer CATALOGO_MENU_AGRUPADO toda hora.
+  // varrer o catálogo toda hora. Usa sempre o catálogo completo (não
+  // gruposExibidos) — um item salvo antes de trocar de papel/filtro ainda
+  // precisa exibir o próprio rótulo corretamente.
   const rotuloPorRota = new Map(
     CATALOGO_MENU_AGRUPADO.flatMap(([, itensGrupo]) => itensGrupo).map((i) => [i.to, i.label]),
   );
@@ -135,23 +167,23 @@ function MenuMobilePorPapelPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 shrink-0"
+                        className="h-11 w-11 shrink-0"
                         disabled={indice === 0}
                         onClick={() => mover(indice, -1)}
                         aria-label={`Mover ${rotuloPorRota.get(to) ?? to} pra cima`}
                       >
-                        <ArrowUp className="h-3.5 w-3.5" />
+                        <ArrowUp className="h-4 w-4" />
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 shrink-0"
+                        className="h-11 w-11 shrink-0"
                         disabled={indice === itens.length - 1}
                         onClick={() => mover(indice, 1)}
                         aria-label={`Mover ${rotuloPorRota.get(to) ?? to} pra baixo`}
                       >
-                        <ArrowDown className="h-3.5 w-3.5" />
+                        <ArrowDown className="h-4 w-4" />
                       </Button>
                     </li>
                   ))}
@@ -171,6 +203,8 @@ function MenuMobilePorPapelPage() {
             <CardTitle className="text-base">Itens disponíveis</CardTitle>
             <CardDescription>
               Marque os itens que devem ficar ativos em mobile pra {ROLE_LABEL[papel]}.
+              {papel === "irmao" &&
+                " Mostrando só os itens do Meu Painel — o resto do sistema não aparece na navegação mobile do irmão de qualquer forma."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -180,7 +214,7 @@ function MenuMobilePorPapelPage() {
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {CATALOGO_MENU_AGRUPADO.map(([grupo, itensGrupo]) => (
+                {gruposExibidos.map(([grupo, itensGrupo]) => (
                   <div key={grupo} className="space-y-1.5">
                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {grupo}

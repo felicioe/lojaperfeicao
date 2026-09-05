@@ -1,34 +1,16 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { logout } from "@/lib/backend/auth";
 import { contarComunicadosNaoLidos } from "@/lib/backend/comunicacoes";
 import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
+import { resolverItensMobileIrmao, ITEM_SEGURANCA_IRMAO } from "@/lib/menu-mobile-irmao";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  Home,
-  Wallet,
-  CalendarCheck2,
-  CalendarDays,
-  Menu,
-  LogOut,
-  ShieldCheck,
-  Moon,
-  Sun,
-  PartyPopper,
-  Megaphone,
-  Fingerprint,
-  Library,
-  Calendar,
-  Vote,
-  Scale,
-  Globe,
-  LifeBuoy,
-  type LucideIcon,
-} from "lucide-react";
+import { Home, Menu, LogOut, Moon, Sun, Globe } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
 
 const TITULOS: Record<string, string> = {
@@ -46,48 +28,15 @@ const TITULOS: Record<string, string> = {
   "/conta/seguranca": "Segurança da conta",
 };
 
-// Itens configuráveis do Meu Painel (issue #464) — "Início" fica de fora de
-// propósito: é sempre a 1a aba fixa, não faz sentido o admin tirar o pouso
-// da navegação. Segurança da conta / Política de Privacidade / Modo escuro
-// também ficam de fora: são utilidades de conta, não conteúdo, continuam
-// fixas no fim do menu-gaveta (ver JSX abaixo).
-type ItemMobileIrmao = { to: string; label: string; icon: LucideIcon };
-const CANDIDATOS_MOBILE_IRMAO: ItemMobileIrmao[] = [
-  { to: "/painel/financeiro", label: "Financeiro", icon: Wallet },
-  { to: "/painel/frequencia", label: "Frequência", icon: CalendarCheck2 },
-  { to: "/painel/sessoes", label: "Sessões", icon: CalendarDays },
-  { to: "/painel/comunicacoes", label: "Comunicações", icon: Megaphone },
-  { to: "/painel/eventos", label: "Eventos", icon: PartyPopper },
-  { to: "/painel/dados", label: "Meus Dados", icon: ShieldCheck },
-  { to: "/biblioteca", label: "Biblioteca de Peças", icon: Library },
-  { to: "/calendario", label: "Calendário", icon: Calendar },
-  { to: "/enquetes", label: "Enquetes", icon: Vote },
-  { to: "/documentos", label: "Legislação", icon: Scale },
-  { to: "/painel/chamados", label: "Chamados de Suporte", icon: LifeBuoy },
-];
 const MAX_ABAS_EXTRAS = 4; // + "Início" fixo = 5 abas no total.
 
-// Resolve quais itens ficam ativos e em que ordem, camada por camada — mesma
-// composição de AppShell.tsx: oculto-por-loja (#456) + oculto-pessoal (#457)
-// primeiro, depois a trava por papel (#464), que também decide a ordem
-// quando configurada (admin define a prioridade; sem configuração, mantém a
-// ordem padrão de CANDIDATOS_MOBILE_IRMAO).
-function resolverItensMobileIrmao(user: {
-  menuItensOcultos: string[];
-  menuItensOcultosPessoal: string[];
-  menuMobilePapel: string[] | null;
-}): ItemMobileIrmao[] {
-  const ocultos = new Set([...user.menuItensOcultos, ...user.menuItensOcultosPessoal]);
-  let itens = CANDIDATOS_MOBILE_IRMAO.filter((i) => !ocultos.has(i.to));
-  if (user.menuMobilePapel !== null) {
-    const permitidos = new Set(user.menuMobilePapel);
-    const ordem = new Map(user.menuMobilePapel.map((to, indice) => [to, indice]));
-    itens = itens
-      .filter((i) => permitidos.has(i.to))
-      .sort((a, b) => ordem.get(a.to)! - ordem.get(b.to)!);
-  }
-  return itens;
-}
+// Achado da auditoria de UX (issue #467, P0): quando a ordem configurada
+// muda e um item conhecido sai da barra de abas, quem tinha o hábito motor
+// de tocar naquela posição acha que o app quebrou. Aviso único (localStorage,
+// não repete depois que a pessoa já viu) — não é uma solução genérica pra
+// toda mudança futura de config, é o mínimo pra esta mudança específica não
+// pegar ninguém de surpresa.
+const CHAVE_AVISO_FREQUENCIA = "sglfm-aviso-frequencia-fora-da-aba-v1";
 
 function iniciais(nome: string | null | undefined) {
   if (!nome) return "?";
@@ -118,10 +67,26 @@ export function PainelShell({ children }: { children: ReactNode }) {
     menuMobilePapel: user?.menuMobilePapel ?? null,
   });
   const abas = [
-    { to: "/painel", label: "Início", icon: Home },
+    { to: "/painel", label: "Início", icon: Home, tint: "", onPrimary: "" },
     ...itensResolvidos.slice(0, MAX_ABAS_EXTRAS),
   ];
   const itensGaveta = itensResolvidos.slice(MAX_ABAS_EXTRAS);
+
+  useEffect(() => {
+    if (!user || typeof window === "undefined") return;
+    if (localStorage.getItem(CHAVE_AVISO_FREQUENCIA)) return;
+    localStorage.setItem(CHAVE_AVISO_FREQUENCIA, "1");
+    const frequenciaSaiuDaAba =
+      itensGaveta.some((i) => i.to === "/painel/frequencia") ||
+      (user.menuMobilePapel !== null && !user.menuMobilePapel.includes("/painel/frequencia"));
+    if (frequenciaSaiuDaAba) {
+      toast.info(
+        "Frequência não está mais entre as abas de baixo — toque no ☰ no topo pra encontrá-la.",
+        { duration: 9000 },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const sair = async () => {
     await logout();
@@ -178,7 +143,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   )}
                 >
                   <div className="relative">
-                    <aba.icon className="h-6 w-6" />
+                    <aba.icon className={cn("h-6 w-6", aba.onPrimary)} />
                     {isComunicacoes && naoLidos > 0 && (
                       <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[10px] font-bold leading-none text-white">
                         {naoLidos > 9 ? "9+" : naoLidos}
@@ -220,13 +185,29 @@ export function PainelShell({ children }: { children: ReactNode }) {
               {itensGaveta.map((item) => (
                 <Button key={item.to} variant="outline" className="w-full justify-start" asChild>
                   <Link to={item.to} onClick={() => setMenuOpen(false)}>
-                    <item.icon className="mr-1.5 h-4 w-4" /> {item.label}
+                    <span
+                      className={cn(
+                        "mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+                        item.tint,
+                      )}
+                    >
+                      <item.icon className="h-3.5 w-3.5" />
+                    </span>
+                    {item.label}
                   </Link>
                 </Button>
               ))}
               <Button variant="outline" className="w-full justify-start" asChild>
                 <Link to="/conta/seguranca" onClick={() => setMenuOpen(false)}>
-                  <Fingerprint className="mr-1.5 h-4 w-4" /> Segurança da conta
+                  <span
+                    className={cn(
+                      "mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+                      ITEM_SEGURANCA_IRMAO.tint,
+                    )}
+                  >
+                    <ITEM_SEGURANCA_IRMAO.icon className="h-3.5 w-3.5" />
+                  </span>
+                  Segurança da conta
                 </Link>
               </Button>
               <Button variant="outline" className="w-full justify-start" asChild>
