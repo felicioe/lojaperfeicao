@@ -100,6 +100,7 @@ export const CATALOGO_MENU: ItemDeMenuCatalogo[] = [
   },
   { to: "/administracao/dados-entidade", label: "Dados da Entidade", grupo: "Administração" },
   { to: "/administracao/email", label: "E-mail", grupo: "Administração" },
+  { to: "/administracao/menu-mobile", label: "Menu Mobile por Papel", grupo: "Administração" },
 
   // Meu Painel (menu do irmão comum) — itens que não aparecem em nenhum
   // grupo administrativo acima.

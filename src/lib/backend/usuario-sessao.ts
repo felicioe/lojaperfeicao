@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2";
 import { withUserConnection } from "./db";
+import { obterMenuMobilePapelAplicavel } from "./menu-mobile-papel";
 
 // `super_admin` é o administrador da PLATAFORMA (issue #339), não da loja:
 // cadastra e suspende lojas, e não enxerga o dado interno de nenhuma. Os
@@ -29,6 +30,11 @@ export type UsuarioSessao = {
   // Rotas do menu fixadas como favoritas pelo próprio usuário (issue #453) —
   // AppShell.tsx monta um grupo "Favoritos" no topo da sidebar com elas.
   menuFavoritos: string[];
+  // Lista ORDENADA de itens ativos na navegação mobile pro papel do usuário
+  // (issue #464) — null = papel nunca configurado pelo admin, sem restrição
+  // nenhuma; array (mesmo vazio) = trava: só isso aparece em mobile, nem a
+  // preferência pessoal (acima) traz de volta o que ficou fora.
+  menuMobilePapel: string[] | null;
 };
 
 // Módulo separado (não é um createServerFn) só pra evitar que arquivos
@@ -70,6 +76,8 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
       "SELECT papel FROM usuarios_papeis WHERE usuario_id = ? AND loja_id = @current_loja_id",
       [usuarioId],
     );
+    const papeisDoUsuario = papeis.map((p) => p.papel as string);
+    const menuMobilePapel = await obterMenuMobilePapelAplicavel(conn, papeisDoUsuario);
 
     return {
       id: usuario.id,
@@ -89,6 +97,7 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
       menuFavoritos: Array.isArray(usuario.menu_favoritos_json)
         ? usuario.menu_favoritos_json
         : JSON.parse(usuario.menu_favoritos_json ?? "[]"),
+      menuMobilePapel,
     };
   });
 }
