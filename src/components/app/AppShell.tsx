@@ -862,8 +862,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       to !== "/painel" &&
       loc.pathname.startsWith(to + "/"));
 
+  // Itens ocultados pelo super-admin da plataforma pra todos os usuários
+  // desta loja (issue #456) — filtro aplicado antes do filtro por papel,
+  // então nenhuma permissão consegue "desocultar" o que a plataforma tirou.
+  const menuOcultos = new Set(user?.menuItensOcultos ?? []);
+
   const visibleGroups = groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => i.show) }))
+    .map((g) => ({ ...g, items: g.items.filter((i) => i.show && !menuOcultos.has(i.to)) }))
     .filter((g) => g.items.length > 0);
 
   const activeGroupId = visibleGroups.find((g) => g.items.some((i) => isActive(i.to)))?.id ?? null;
