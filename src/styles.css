@@ -234,14 +234,22 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
   }
 
+  /* Rede de segurança contra rolagem horizontal da página inteira — sem
+     isto, um único elemento um pouco mais largo que a viewport (badge com
+     whitespace-nowrap, ícone com largura fixa, título longo) em QUALQUER
+     tela empurra a página toda pros lados, exigindo arrastar a tela pra ver
+     o resto (relatado no celular, em todas as telas — PainelShell.tsx já
+     tinha essa proteção só no <main>, não no <header>/<nav> ao redor). */
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
 
   ::selection {
