@@ -4,9 +4,9 @@ import { z } from "zod";
 import { listarLancamentosParaImpressao } from "@/lib/backend/tesouraria-lancamentos";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
 import { FaturaAgrupadaCard } from "@/components/app/FaturaAgrupadaCard";
+import { BotaoImprimir } from "@/components/app/BotaoImprimir";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FileWarning, Printer } from "lucide-react";
+import { FileWarning } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/tesouraria/faturas/imprimir")({
   head: () => ({ meta: [{ title: "Faturas agrupadas — Gestão Maçônica" }] }),
@@ -39,9 +39,7 @@ function FaturasImprimirAgrupado() {
     <div className="space-y-4">
       <PageHeader title="Faturas agrupadas" />
       <div className="print:hidden">
-        <Button onClick={() => window.print()}>
-          <Printer className="mr-1.5 h-4 w-4" /> Imprimir / salvar PDF
-        </Button>
+        <BotaoImprimir />
       </div>
       <FaturaAgrupadaCard faturas={faturas} />
     </div>

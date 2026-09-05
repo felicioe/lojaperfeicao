@@ -4,10 +4,10 @@ import { useMeuIrmao } from "@/lib/use-meu-irmao";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { obterStatusQuitacao } from "@/lib/backend/irmaos";
 import { EmptyState, PageHeader } from "@/components/app/AppShell";
+import { BotaoImprimir } from "@/components/app/BotaoImprimir";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { fmtDate, GRAU_LABEL } from "@/lib/format";
-import { AlertTriangle, Printer, ScrollText, UserRound } from "lucide-react";
+import { AlertTriangle, ScrollText, UserRound } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/quitacao")({
   head: () => ({ meta: [{ title: "Certificado de Quitação — Gestão Maçônica" }] }),
@@ -60,9 +60,7 @@ function PainelQuitacao() {
     <div className="space-y-4">
       {isDesktop && <PageHeader title="Certificado de Quitação" />}
       <div className="print:hidden">
-        <Button onClick={() => window.print()}>
-          <Printer className="mr-1.5 h-4 w-4" /> Imprimir
-        </Button>
+        <BotaoImprimir label="Imprimir" />
       </div>
       <Card className="print:border-none print:shadow-none">
         <CardContent className="space-y-6 p-8 text-center">
