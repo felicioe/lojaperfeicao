@@ -39,6 +39,7 @@ import {
   BookMarked,
   LifeBuoy,
   ChevronDown,
+  ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   Menu,
@@ -94,6 +95,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { encontrarItemDoCatalogo } from "@/lib/menu-catalogo";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import { PainelShell } from "@/components/app/PainelShell";
 import { PlataformaShell } from "@/components/app/PlataformaShell";
@@ -254,6 +256,7 @@ function NavTree({
       <Link
         to={dashboard.to}
         onClick={onNavigate}
+        aria-current={isActive(dashboard.to) ? "page" : undefined}
         className={cn(
           asButtons
             ? buttonVariants({ variant: "outline", size: "sm" })
@@ -340,6 +343,7 @@ function NavTree({
                           key={i.to}
                           to={i.to}
                           onClick={onNavigate}
+                          aria-current={active ? "page" : undefined}
                           className={cn(
                             asButtons
                               ? buttonVariants({ variant: "outline", size: "sm" })
@@ -1326,9 +1330,28 @@ export function PageHeader({
   description?: string;
   actions?: ReactNode;
 }) {
+  // Breadcrumb de contexto (issue #452): deriva o grupo do menu a partir da
+  // rota atual, sem precisar que cada uma das dezenas de telas que usam
+  // PageHeader passe isso explicitamente. Sidebar fecha no mobile ao
+  // navegar e não é sempre visível no desktop — sem isto, quem chega por
+  // link direto (notificação, favorito do navegador) perde a referência de
+  // "em que parte do sistema estou".
+  const loc = useLocation();
+  const itemDoMenu = encontrarItemDoCatalogo(loc.pathname);
+
   return (
     <div className="mb-6 flex flex-col gap-3 border-b pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:pb-5">
       <div className="min-w-0">
+        {itemDoMenu && (
+          <nav
+            aria-label="Você está em"
+            className="mb-1 flex items-center gap-1 text-xs text-muted-foreground"
+          >
+            <span>{itemDoMenu.grupo}</span>
+            <ChevronRight className="h-3 w-3 shrink-0" />
+            <span className="truncate text-foreground/70">{title}</span>
+          </nav>
+        )}
         <h1 className="font-display text-[1.35rem] font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">
           {title}
         </h1>

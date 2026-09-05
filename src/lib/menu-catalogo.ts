@@ -133,3 +133,19 @@ const ROTAS_CATALOGADAS = new Set(CATALOGO_MENU.map((i) => i.to));
 export function filtrarRotasValidas(rotas: string[]): string[] {
   return [...new Set(rotas)].filter((r) => ROTAS_CATALOGADAS.has(r));
 }
+
+// Ordenado do `to` mais longo pro mais curto, pra achar o prefixo mais
+// específico primeiro (issue #452: breadcrumb de contexto no PageHeader).
+// Sem isso, "/tesouraria" casaria antes de "/tesouraria/recibos" numa rota
+// tipo "/tesouraria/recibos/imprimir".
+const CATALOGO_POR_PREFIXO = [...CATALOGO_MENU].sort((a, b) => b.to.length - a.to.length);
+
+/** Acha o item do catálogo que melhor corresponde a uma rota atual — exato
+ * primeiro, depois o prefixo mais específico (`pathname` começa com
+ * `to + "/"`). Devolve null pra rotas que não são item de menu (ex.: uma
+ * tela de edição tipo `/irmaos/$id`). */
+export function encontrarItemDoCatalogo(pathname: string): ItemDeMenuCatalogo | null {
+  const exato = CATALOGO_MENU.find((i) => i.to === pathname);
+  if (exato) return exato;
+  return CATALOGO_POR_PREFIXO.find((i) => pathname.startsWith(i.to + "/")) ?? null;
+}
