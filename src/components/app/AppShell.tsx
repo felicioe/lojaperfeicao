@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { logout } from "@/lib/backend/auth";
 import { CabecalhoInstitucional } from "./CabecalhoInstitucional";
 import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
@@ -96,6 +96,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { encontrarItemDoCatalogo } from "@/lib/menu-catalogo";
+import { obterContagensMenu } from "@/lib/backend/menu-pendencias";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import { PainelShell } from "@/components/app/PainelShell";
 import { PlataformaShell } from "@/components/app/PlataformaShell";
@@ -110,6 +111,10 @@ type NavItem = {
   // pra não ficar com o mesmo peso de um item de navegação comum (achado do
   // critique automático — ex: Resetar Financeiro ao lado de Recibos).
   destructive?: boolean;
+  // Contagem de pendências (issue #455: Chamados de Suporte com resposta
+  // não lida, Aprovações do Site aguardando decisão) — badge só aparece
+  // quando > 0.
+  badge?: number;
 };
 type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
 
@@ -378,6 +383,11 @@ function NavTree({
                             )}
                           />
                           <span className="truncate">{i.label}</span>
+                          {!!i.badge && (
+                            <span className="ml-auto shrink-0 rounded-full bg-sidebar-primary px-1.5 text-[10px] font-semibold leading-[18px] text-sidebar-primary-foreground">
+                              {i.badge}
+                            </span>
+                          )}
                         </Link>
                       );
                     };
@@ -440,6 +450,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const can = useCan();
   const nav = useNavigate();
   const loc = useLocation();
+
+  // Contagens de pendências pro badge do menu (issue #455) — mesmo
+  // intervalo de polling do NotificationBell, sem competir com ele por
+  // fonte de dados (chamados/CMS não fazem parte de gerarNotificacoes()).
+  const { data: contagensMenu } = useQuery({
+    queryKey: ["contagens-menu"],
+    queryFn: () => obterContagensMenu(),
+    refetchInterval: 5 * 60 * 1000,
+  });
   const rotasRelatorioContabil = [
     "/contabilidade/razao",
     "/contabilidade/diario",
@@ -483,7 +502,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         { to: "/calendario", label: "Calendário", icon: Calendar, show: true },
         { to: "/enquetes", label: "Enquetes", icon: Vote, show: true },
         { to: "/documentos", label: "Legislação", icon: Scale, show: true },
-        { to: "/painel/chamados", label: "Chamados de Suporte", icon: LifeBuoy, show: true },
+        {
+          to: "/painel/chamados",
+          label: "Chamados de Suporte",
+          icon: LifeBuoy,
+          show: true,
+          badge: contagensMenu?.chamadosComRespostaPendente,
+        },
       ],
     },
   ];
@@ -591,6 +616,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           label: "Aprovações do Site",
           icon: ClipboardCheck,
           show: can.isSuperAdmin || can.isAprovadorCms,
+          badge: contagensMenu?.aprovacoesPendentes,
         },
         {
           to: "/cms-editores",
@@ -826,7 +852,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       label: "Administração",
       icon: ShieldCheck,
       items: [
-        { to: "/painel/chamados", label: "Chamados de Suporte", icon: LifeBuoy, show: true },
+        {
+          to: "/painel/chamados",
+          label: "Chamados de Suporte",
+          icon: LifeBuoy,
+          show: true,
+          badge: contagensMenu?.chamadosComRespostaPendente,
+        },
         { to: "/usuarios", label: "Usuários", icon: UsersRound, show: can.isAdmin },
         {
           to: "/administracao/auditoria",
