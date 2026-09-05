@@ -26,6 +26,9 @@ export type UsuarioSessao = {
   // Rotas do menu ocultadas pelo próprio usuário, só pra ele (issue #457) —
   // AppShell.tsx une este conjunto ao de menuItensOcultos.
   menuItensOcultosPessoal: string[];
+  // Rotas do menu fixadas como favoritas pelo próprio usuário (issue #453) —
+  // AppShell.tsx monta um grupo "Favoritos" no topo da sidebar com elas.
+  menuFavoritos: string[];
 };
 
 // Módulo separado (não é um createServerFn) só pra evitar que arquivos
@@ -40,10 +43,11 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
     const [usuarios] = await conn.query<RowDataPacket[]>(
       `SELECT u.id, u.email, u.nome_completo, u.consentimento_lgpd_em, u.ativo,
               u.deve_trocar_senha, l.ativa AS loja_ativa, l.menu_itens_ocultos_json,
-              p.itens_json AS menu_itens_ocultos_pessoal_json
+              p.ocultos_json AS menu_itens_ocultos_pessoal_json,
+              p.favoritos_json AS menu_favoritos_json
          FROM usuarios u
          LEFT JOIN lojas l ON l.id = u.loja_id
-         LEFT JOIN usuario_menu_ocultos p ON p.usuario_id = u.id
+         LEFT JOIN preferencias_menu_usuario p ON p.usuario_id = u.id
         WHERE u.id = ?`,
       [usuarioId],
     );
@@ -82,6 +86,9 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
       menuItensOcultosPessoal: Array.isArray(usuario.menu_itens_ocultos_pessoal_json)
         ? usuario.menu_itens_ocultos_pessoal_json
         : JSON.parse(usuario.menu_itens_ocultos_pessoal_json ?? "[]"),
+      menuFavoritos: Array.isArray(usuario.menu_favoritos_json)
+        ? usuario.menu_favoritos_json
+        : JSON.parse(usuario.menu_favoritos_json ?? "[]"),
     };
   });
 }
