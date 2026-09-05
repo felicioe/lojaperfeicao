@@ -16,6 +16,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -45,6 +55,7 @@ function MenuMobilePorPapelPage() {
   const [papel, setPapel] = useState<PapelMenuMobile>("irmao");
   const [itens, setItens] = useState<string[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const [confirmarVazioAberto, setConfirmarVazioAberto] = useState(false);
 
   // Troca de papel (ou primeira carga) recarrega o estado local a partir do
   // que já está salvo pra aquele papel — mesmo raciocínio do useEffect de
@@ -69,18 +80,7 @@ function MenuMobilePorPapelPage() {
     });
   };
 
-  const salvar = async () => {
-    // Achado da auditoria de UX (issue #467, P2): salvar lista vazia zera a
-    // navegação mobile inteira daquele papel pra todo mundo, sem volta fácil
-    // — trava (não é só uma sugestão) antes de confirmar explicitamente.
-    if (
-      itens.length === 0 &&
-      !window.confirm(
-        `Isso deixa o papel ${ROLE_LABEL[papel]} sem NENHUM item ativo no menu mobile (só "Início" continua). Tem certeza?`,
-      )
-    ) {
-      return;
-    }
+  const executarSalvar = async () => {
     setSalvando(true);
     try {
       await salvarMenuMobilePorPapel({ data: { papel, itens } });
@@ -91,6 +91,17 @@ function MenuMobilePorPapelPage() {
     } finally {
       setSalvando(false);
     }
+  };
+
+  // Achado da auditoria de UX (issue #467, P2): salvar lista vazia zera a
+  // navegação mobile inteira daquele papel pra todo mundo, sem volta fácil
+  // — trava (não é só uma sugestão) antes de confirmar explicitamente.
+  const salvar = () => {
+    if (itens.length === 0) {
+      setConfirmarVazioAberto(true);
+      return;
+    }
+    executarSalvar();
   };
 
   // Achado da auditoria de UX (issue #467, P1): pro papel "irmão" só os
@@ -167,7 +178,7 @@ function MenuMobilePorPapelPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-11 w-11 shrink-0"
+                        className="h-11 w-11 shrink-0 sm:h-11 sm:w-11"
                         disabled={indice === 0}
                         onClick={() => mover(indice, -1)}
                         aria-label={`Mover ${rotuloPorRota.get(to) ?? to} pra cima`}
@@ -178,7 +189,7 @@ function MenuMobilePorPapelPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-11 w-11 shrink-0"
+                        className="h-11 w-11 shrink-0 sm:h-11 sm:w-11"
                         disabled={indice === itens.length - 1}
                         onClick={() => mover(indice, 1)}
                         aria-label={`Mover ${rotuloPorRota.get(to) ?? to} pra baixo`}
@@ -197,6 +208,29 @@ function MenuMobilePorPapelPage() {
             </Button>
           </CardContent>
         </Card>
+
+        <AlertDialog open={confirmarVazioAberto} onOpenChange={setConfirmarVazioAberto}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sem nenhum item ativo pra {ROLE_LABEL[papel]}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Isso deixa o papel {ROLE_LABEL[papel]} sem NENHUM item ativo no menu mobile (só
+                "Início" continua). Tem certeza?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setConfirmarVazioAberto(false);
+                  executarSalvar();
+                }}
+              >
+                Salvar mesmo assim
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Card>
           <CardHeader>

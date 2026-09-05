@@ -43,7 +43,7 @@ function PainelInicio() {
     menuMobilePapel: user?.menuMobilePapel ?? null,
   });
   const tilesFrequentes = itensResolvidos.slice(0, MAX_TILES_FREQUENTES);
-  const tilesMais = [...itensResolvidos.slice(MAX_TILES_FREQUENTES), ITEM_SEGURANCA_IRMAO];
+  const tilesMais = itensResolvidos.slice(MAX_TILES_FREQUENTES);
 
   const lancamentos = useQuery({
     queryKey: ["painel", "lancamentos", irmaoId],
@@ -249,8 +249,9 @@ function PainelInicio() {
         </Link>
       )}
 
-      <GradeTiles titulo="Frequentes" itens={tilesFrequentes} />
+      {tilesFrequentes.length > 0 && <GradeTiles titulo="Frequentes" itens={tilesFrequentes} />}
       {tilesMais.length > 0 && <GradeTiles titulo="Mais" itens={tilesMais} />}
+      <GradeTiles titulo="Conta" itens={[ITEM_SEGURANCA_IRMAO]} />
     </div>
   );
 }

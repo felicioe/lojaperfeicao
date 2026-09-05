@@ -76,13 +76,19 @@ export function PainelShell({ children }: { children: ReactNode }) {
     if (!user || typeof window === "undefined") return;
     if (localStorage.getItem(CHAVE_AVISO_FREQUENCIA)) return;
     localStorage.setItem(CHAVE_AVISO_FREQUENCIA, "1");
-    const frequenciaSaiuDaAba =
-      itensGaveta.some((i) => i.to === "/painel/frequencia") ||
-      (user.menuMobilePapel !== null && !user.menuMobilePapel.includes("/painel/frequencia"));
-    if (frequenciaSaiuDaAba) {
+    const frequenciaNaGaveta = itensGaveta.some((i) => i.to === "/painel/frequencia");
+    const frequenciaAusente = !itensResolvidos.some((i) => i.to === "/painel/frequencia");
+    if (frequenciaNaGaveta) {
       toast.info(
         "Frequência não está mais entre as abas de baixo — toque no ☰ no topo pra encontrá-la.",
         { duration: 9000 },
+      );
+    } else if (frequenciaAusente) {
+      toast.info(
+        "Frequência não está mais disponível no seu perfil. Fale com a secretaria da loja se precisar dela.",
+        {
+          duration: 9000,
+        },
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
