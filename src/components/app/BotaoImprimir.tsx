@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { Printer } from "lucide-react";
@@ -12,8 +13,29 @@ import { toast } from "sonner";
 // navegador comum, desktop ou mobile); a dica abaixo só aparece em telas
 // mobile e usa o share nativo (com "abrir no navegador"/"copiar link" como
 // opções do próprio sistema) em vez de tentar adivinhar o navegador.
+
+// PWA instalado (modo standalone, sem barra de navegador) é um caso à parte
+// de WebView: no iOS, window.print() simplesmente não existe nesse modo —
+// não é "não funciona direito", é ausente mesmo, sem diálogo de impressão
+// nenhum pra abrir. Detecta-se só depois de montar (nunca no SSR, que não
+// tem window nem navigator.standalone) pra não repetir o mesmo erro de
+// hidratação corrigido em use-media-query.ts.
+function useIsStandalone(): boolean {
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    const iosStandalone =
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const displayModeStandalone = window.matchMedia("(display-mode: standalone)").matches;
+    setIsStandalone(iosStandalone || displayModeStandalone);
+  }, []);
+
+  return isStandalone;
+}
+
 export function BotaoImprimir({ label = "Imprimir / salvar PDF" }: { label?: string }) {
   const isDesktop = useIsDesktop();
+  const isStandalone = useIsStandalone();
 
   const compartilharLink = async () => {
     const url = window.location.href;
@@ -28,6 +50,18 @@ export function BotaoImprimir({ label = "Imprimir / salvar PDF" }: { label?: str
       // Usuário cancelou o compartilhamento — nada a fazer.
     }
   };
+
+  // No PWA instalado, window.print() não é uma opção confiável (ausente no
+  // iOS standalone) — o botão principal já sai direto pro fluxo de abrir no
+  // navegador, em vez de chamar print() e depender do usuário notar um link
+  // secundário depois que "nada aconteceu".
+  if (isStandalone) {
+    return (
+      <Button onClick={compartilharLink}>
+        <Printer className="mr-1.5 h-4 w-4" /> Abrir no navegador para imprimir/salvar PDF
+      </Button>
+    );
+  }
 
   return (
     <div className="flex flex-col items-end gap-1">
