@@ -6,9 +6,12 @@ import {
   listarLojas,
   salvarLoja,
   definirLojaAtiva,
+  salvarMenuOcultoLoja,
   listarAuditoriaPlataforma,
   type LojaResumo,
 } from "@/lib/backend/saas-lojas";
+import { CATALOGO_MENU } from "@/lib/menu-catalogo";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   convidarAdminLoja,
   reenviarConviteLoja,
@@ -56,6 +59,7 @@ import {
   Copy,
   Loader2,
   Mail,
+  Menu,
   Pencil,
   Plus,
   Power,
@@ -80,7 +84,22 @@ const ACAO_LABEL: Record<string, string> = {
   reenviar_convite_loja: "Convite reenviado",
   revogar_convite_loja: "Convite cancelado",
   aceitar_convite_loja: "Convite aceito",
+  editar_menu_oculto_loja: "Itens do menu ajustados",
 };
+
+// Agrupa CATALOGO_MENU por `grupo`, preservando a ordem em que os grupos
+// aparecem no menu real (Membros, Agenda & Ensino, ...) — Object.groupBy
+// preservaria a mesma ordem de primeira aparição, mas roda em runtime mais
+// novo do que o suportado aqui.
+function agruparCatalogoMenu() {
+  const grupos = new Map<string, typeof CATALOGO_MENU>();
+  for (const item of CATALOGO_MENU) {
+    if (!grupos.has(item.grupo)) grupos.set(item.grupo, []);
+    grupos.get(item.grupo)!.push(item);
+  }
+  return [...grupos.entries()];
+}
+const CATALOGO_AGRUPADO = agruparCatalogoMenu();
 
 const CONVITE_LABEL: Record<SituacaoConvite, string> = {
   pendente: "Convite pendente",
@@ -106,6 +125,9 @@ function LojasPlataforma() {
   // (o banco guarda só o hash).
   const [resultado, setResultado] = useState<(ResultadoConvite & { loja: string }) | null>(null);
   const [revogando, setRevogando] = useState<LojaResumo | null>(null);
+  const [editandoMenu, setEditandoMenu] = useState<LojaResumo | null>(null);
+  const [ocultosSelecionados, setOcultosSelecionados] = useState<Set<string>>(new Set());
+  const [salvandoMenu, setSalvandoMenu] = useState(false);
 
   const { data: lojas = [], isLoading } = useQuery({
     queryKey: ["saas-lojas"],
@@ -223,6 +245,37 @@ function LojasPlataforma() {
       // Área de transferência bloqueada (http sem localhost, permissão negada):
       // o link continua visível e selecionável na tela.
       toast.error("Não foi possível copiar — selecione o link e copie à mão.");
+    }
+  };
+
+  const abrirMenu = (l: LojaResumo) => {
+    setOcultosSelecionados(new Set(l.menu_itens_ocultos));
+    setEditandoMenu(l);
+  };
+
+  const alternarOculto = (to: string) => {
+    setOcultosSelecionados((prev) => {
+      const proximo = new Set(prev);
+      if (proximo.has(to)) proximo.delete(to);
+      else proximo.add(to);
+      return proximo;
+    });
+  };
+
+  const salvarMenu = async () => {
+    if (!editandoMenu) return;
+    setSalvandoMenu(true);
+    try {
+      await salvarMenuOcultoLoja({
+        data: { id: editandoMenu.id, itens: [...ocultosSelecionados] },
+      });
+      toast.success("Itens do menu atualizados.");
+      setEditandoMenu(null);
+      await atualizar();
+    } catch (err) {
+      toast.error(mensagemDeErro(err, "Erro ao salvar os itens ocultos."));
+    } finally {
+      setSalvandoMenu(false);
     }
   };
 
@@ -376,6 +429,15 @@ function LojasPlataforma() {
                       <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)}>
                         <Pencil className="h-4 w-4" />
                         <span className="sr-only">Editar {l.nome}</span>
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => abrirMenu(l)}>
+                        <Menu className="h-4 w-4" />
+                        {l.menu_itens_ocultos.length > 0 && (
+                          <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                            {l.menu_itens_ocultos.length}
+                          </Badge>
+                        )}
+                        <span className="sr-only">Itens do menu de {l.nome}</span>
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => setConfirmar(l)}>
                         {l.ativa ? (
@@ -564,6 +626,48 @@ function LojasPlataforma() {
           </div>
           <DialogFooter>
             <Button onClick={() => setResultado(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editandoMenu} onOpenChange={(o) => !o && setEditandoMenu(null)}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Itens do menu de {editandoMenu?.nome}</DialogTitle>
+            <DialogDescription>
+              Itens marcados ficam ocultos no painel para todos os usuários desta Loja, independente
+              do papel de cada um. Não afeta as demais Lojas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {CATALOGO_AGRUPADO.map(([grupo, itens]) => (
+              <div key={grupo} className="space-y-1.5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {grupo}
+                </div>
+                {itens.map((item) => (
+                  <label
+                    key={item.to}
+                    className="flex items-center gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-muted/50"
+                  >
+                    <Checkbox
+                      checked={ocultosSelecionados.has(item.to)}
+                      onCheckedChange={() => alternarOculto(item.to)}
+                    />
+                    {item.label}
+                  </label>
+                ))}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditandoMenu(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarMenu} disabled={salvandoMenu}>
+              {salvandoMenu && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Salvar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

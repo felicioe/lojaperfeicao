@@ -19,6 +19,10 @@ export type UsuarioSessao = {
   // primeiro acesso") — barrado em /trocar-senha até definir uma nova,
   // mesmo padrão de gate do consentimentoLgpdEm acima.
   deveTrocarSenha: boolean;
+  // Rotas do menu ocultadas pelo super-admin da plataforma pra todos os
+  // usuários desta loja (issue #456) — AppShell.tsx filtra por isto antes
+  // de qualquer filtro por papel.
+  menuItensOcultos: string[];
 };
 
 // Módulo separado (não é um createServerFn) só pra evitar que arquivos
@@ -32,7 +36,7 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
   return withUserConnection(usuarioId, async (conn) => {
     const [usuarios] = await conn.query<RowDataPacket[]>(
       `SELECT u.id, u.email, u.nome_completo, u.consentimento_lgpd_em, u.ativo,
-              u.deve_trocar_senha, l.ativa AS loja_ativa
+              u.deve_trocar_senha, l.ativa AS loja_ativa, l.menu_itens_ocultos_json
          FROM usuarios u
          LEFT JOIN lojas l ON l.id = u.loja_id
         WHERE u.id = ?`,
@@ -67,6 +71,9 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
         ? new Date(usuario.consentimento_lgpd_em).toISOString()
         : null,
       deveTrocarSenha: !!usuario.deve_trocar_senha,
+      menuItensOcultos: Array.isArray(usuario.menu_itens_ocultos_json)
+        ? usuario.menu_itens_ocultos_json
+        : JSON.parse(usuario.menu_itens_ocultos_json ?? "[]"),
     };
   });
 }

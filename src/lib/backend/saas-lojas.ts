@@ -4,6 +4,7 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { comSuperAdmin } from "./authz";
 import { registrarAuditoriaPlataforma } from "./auditoria";
 import { SQL_SITUACAO_CONVITE, type ConviteResumo, type SituacaoConvite } from "./saas-convites";
+import { filtrarRotasValidas } from "../menu-catalogo";
 
 // Administração do SaaS em si (issue #339): o cadastro das lojas-cliente.
 //
@@ -29,6 +30,8 @@ export type LojaResumo = {
    * a Loja nunca recebeu um. É o que diz, na lista, se a Loja está esperando
    * alguém aceitar, se o link venceu ou se já tem dono. */
   convite: ConviteResumo | null;
+  /** Rotas do menu ocultadas pra todos os usuários desta Loja (issue #456). */
+  menu_itens_ocultos: string[];
 };
 
 export const listarLojas = createServerFn({ method: "GET" }).handler(
@@ -36,6 +39,7 @@ export const listarLojas = createServerFn({ method: "GET" }).handler(
     comSuperAdmin(async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT l.id, l.slug, l.nome, l.razao_social, l.cnpj, l.ativa, l.criada_em,
+                l.menu_itens_ocultos_json,
                 COALESCE(n.usuarios_ativos, 0) AS usuarios_ativos,
                 COALESCE(n.administradores, 0) AS administradores,
                 acesso.ultimo_acesso,
@@ -85,6 +89,9 @@ export const listarLojas = createServerFn({ method: "GET" }).handler(
         cnpj: r.cnpj as string | null,
         ativa: !!r.ativa,
         criada_em: new Date(r.criada_em).toISOString(),
+        menu_itens_ocultos: Array.isArray(r.menu_itens_ocultos_json)
+          ? r.menu_itens_ocultos_json
+          : JSON.parse(r.menu_itens_ocultos_json ?? "[]"),
         usuarios_ativos: Number(r.usuarios_ativos),
         administradores: Number(r.administradores),
         ultimo_acesso: r.ultimo_acesso ? new Date(r.ultimo_acesso).toISOString() : null,
@@ -258,6 +265,45 @@ export const definirLojaAtiva = createServerFn({ method: "POST" })
         data.id,
         { nome: loja.nome, ativa: !!loja.ativa },
         { nome: loja.nome, ativa: data.ativa },
+      );
+    }),
+  );
+
+const menuOcultoSchema = z.object({ id: z.string().uuid(), itens: z.array(z.string()) });
+
+// Issue #456: quais rotas do menu lateral do painel ficam ocultas pra todos
+// os usuários desta Loja. `filtrarRotasValidas` trava contra salvar rota que
+// não existe no catálogo (digitada errado no cliente, ou item removido do
+// catálogo desde então) — a validação de verdade é essa, não decorativa.
+export const salvarMenuOcultoLoja = createServerFn({ method: "POST" })
+  .validator((d: unknown) => menuOcultoSchema.parse(d))
+  .handler(async ({ data }): Promise<void> =>
+    comSuperAdmin(async (conn, usuarioId) => {
+      const [[loja]] = await conn.query<RowDataPacket[]>(
+        "SELECT nome, menu_itens_ocultos_json FROM lojas WHERE id = ?",
+        [data.id],
+      );
+      if (!loja) throw new Error("Loja não encontrada.");
+
+      const antes = Array.isArray(loja.menu_itens_ocultos_json)
+        ? loja.menu_itens_ocultos_json
+        : JSON.parse(loja.menu_itens_ocultos_json ?? "[]");
+      const itens = filtrarRotasValidas(data.itens);
+
+      await conn.query("UPDATE lojas SET menu_itens_ocultos_json = ? WHERE id = ?", [
+        JSON.stringify(itens),
+        data.id,
+      ]);
+      await registrarAuditoriaPlataforma(
+        conn,
+        usuarioId,
+        "editar_menu_oculto_loja",
+        data.id,
+        {
+          nome: loja.nome,
+          itens: antes,
+        },
+        { nome: loja.nome, itens },
       );
     }),
   );
