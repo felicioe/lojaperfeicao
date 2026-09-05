@@ -23,6 +23,9 @@ export type UsuarioSessao = {
   // usuários desta loja (issue #456) — AppShell.tsx filtra por isto antes
   // de qualquer filtro por papel.
   menuItensOcultos: string[];
+  // Rotas do menu ocultadas pelo próprio usuário, só pra ele (issue #457) —
+  // AppShell.tsx une este conjunto ao de menuItensOcultos.
+  menuItensOcultosPessoal: string[];
 };
 
 // Módulo separado (não é um createServerFn) só pra evitar que arquivos
@@ -36,9 +39,11 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
   return withUserConnection(usuarioId, async (conn) => {
     const [usuarios] = await conn.query<RowDataPacket[]>(
       `SELECT u.id, u.email, u.nome_completo, u.consentimento_lgpd_em, u.ativo,
-              u.deve_trocar_senha, l.ativa AS loja_ativa, l.menu_itens_ocultos_json
+              u.deve_trocar_senha, l.ativa AS loja_ativa, l.menu_itens_ocultos_json,
+              p.itens_json AS menu_itens_ocultos_pessoal_json
          FROM usuarios u
          LEFT JOIN lojas l ON l.id = u.loja_id
+         LEFT JOIN usuario_menu_ocultos p ON p.usuario_id = u.id
         WHERE u.id = ?`,
       [usuarioId],
     );
@@ -74,6 +79,9 @@ export async function carregarUsuarioComPapeis(usuarioId: string): Promise<Usuar
       menuItensOcultos: Array.isArray(usuario.menu_itens_ocultos_json)
         ? usuario.menu_itens_ocultos_json
         : JSON.parse(usuario.menu_itens_ocultos_json ?? "[]"),
+      menuItensOcultosPessoal: Array.isArray(usuario.menu_itens_ocultos_pessoal_json)
+        ? usuario.menu_itens_ocultos_pessoal_json
+        : JSON.parse(usuario.menu_itens_ocultos_pessoal_json ?? "[]"),
     };
   });
 }

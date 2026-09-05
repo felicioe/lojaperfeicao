@@ -76,6 +76,7 @@ import {
   FileWarning,
   FileClock,
   Search,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -863,9 +864,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       loc.pathname.startsWith(to + "/"));
 
   // Itens ocultados pelo super-admin da plataforma pra todos os usuários
-  // desta loja (issue #456) — filtro aplicado antes do filtro por papel,
+  // desta loja (issue #456) mais os que o próprio usuário ocultou só pra si
+  // (issue #457) — a união dos dois, aplicada antes do filtro por papel,
   // então nenhuma permissão consegue "desocultar" o que a plataforma tirou.
-  const menuOcultos = new Set(user?.menuItensOcultos ?? []);
+  const menuOcultos = new Set([
+    ...(user?.menuItensOcultos ?? []),
+    ...(user?.menuItensOcultosPessoal ?? []),
+  ]);
 
   const visibleGroups = groups
     .map((g) => ({ ...g, items: g.items.filter((i) => i.show && !menuOcultos.has(i.to)) }))
@@ -1068,6 +1073,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   to="/conta/seguranca"
                 />
                 <SidebarIcon
+                  icon={SlidersHorizontal}
+                  label="Preferências do Menu"
+                  active={false}
+                  to="/conta/menu"
+                />
+                <SidebarIcon
                   icon={dark ? Sun : Moon}
                   label={dark ? "Modo claro" : "Modo escuro"}
                   active={false}
@@ -1092,6 +1103,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 >
                   <Link to="/conta/seguranca">
                     <Fingerprint className="mr-1 h-3 w-3" /> Segurança
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" className="mt-2 w-full text-foreground" asChild>
+                  <Link to="/conta/menu">
+                    <SlidersHorizontal className="mr-1 h-3 w-3" /> Preferências do Menu
                   </Link>
                 </Button>
                 <Button

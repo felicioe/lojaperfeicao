@@ -10,7 +10,7 @@ import {
   listarAuditoriaPlataforma,
   type LojaResumo,
 } from "@/lib/backend/saas-lojas";
-import { CATALOGO_MENU } from "@/lib/menu-catalogo";
+import { CATALOGO_MENU_AGRUPADO } from "@/lib/menu-catalogo";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   convidarAdminLoja,
@@ -86,20 +86,6 @@ const ACAO_LABEL: Record<string, string> = {
   aceitar_convite_loja: "Convite aceito",
   editar_menu_oculto_loja: "Itens do menu ajustados",
 };
-
-// Agrupa CATALOGO_MENU por `grupo`, preservando a ordem em que os grupos
-// aparecem no menu real (Membros, Agenda & Ensino, ...) — Object.groupBy
-// preservaria a mesma ordem de primeira aparição, mas roda em runtime mais
-// novo do que o suportado aqui.
-function agruparCatalogoMenu() {
-  const grupos = new Map<string, typeof CATALOGO_MENU>();
-  for (const item of CATALOGO_MENU) {
-    if (!grupos.has(item.grupo)) grupos.set(item.grupo, []);
-    grupos.get(item.grupo)!.push(item);
-  }
-  return [...grupos.entries()];
-}
-const CATALOGO_AGRUPADO = agruparCatalogoMenu();
 
 const CONVITE_LABEL: Record<SituacaoConvite, string> = {
   pendente: "Convite pendente",
@@ -640,7 +626,7 @@ function LojasPlataforma() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
-            {CATALOGO_AGRUPADO.map(([grupo, itens]) => (
+            {CATALOGO_MENU_AGRUPADO.map(([grupo, itens]) => (
               <div key={grupo} className="space-y-1.5">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {grupo}
