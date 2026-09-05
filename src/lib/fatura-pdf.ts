@@ -46,6 +46,17 @@ function quebrarLinhas(texto: string, caracteresPorLinha: number): string[] {
   return linhas;
 }
 
+// Favorecido/Pagador ficam lado a lado na mesma linha (ver bloco abaixo) —
+// sem truncar, o nome completo da Loja (geralmente a razão social, bem
+// longa) invade visualmente a coluna do pagador. Mesma lógica de
+// truncarTexto de relatorio-export.ts (não exportada de lá), adaptada pra
+// um limite fixo de caracteres em vez de largura de coluna calculada.
+function truncarTexto(texto: string, maxCaracteres: number): string {
+  if (texto.length <= maxCaracteres) return texto;
+  if (maxCaracteres <= 1) return texto.slice(0, maxCaracteres);
+  return `${texto.slice(0, maxCaracteres - 1)}…`;
+}
+
 export async function gerarFaturaPdfBuffer(
   fatura: LancamentoDetalhe,
   loja: LojaParaPdf,
@@ -122,12 +133,22 @@ export async function gerarFaturaPdfBuffer(
     cor: MUTED,
   });
   cursorY += 12;
-  pdf.escreverTexto(nomeLoja, xEsq, cursorY, { fonte: "bold", tamanho: 9, cor: INK });
-  pdf.escreverTexto(fatura.irmao_nome ?? "—", xEsq + larguraColuna2, cursorY, {
+  // Nome institucional costuma ser a razão social por extenso (bem longa,
+  // em caixa alta) — sem truncar aqui, invade visualmente a coluna do
+  // pagador ao lado (já aconteceu no teste com "ASSOCIACAO CAPITULAR
+  // ADONHIRAMITA AO VALE DE ITAJAI").
+  const CARACTERES_COLUNA_2 = 40;
+  pdf.escreverTexto(truncarTexto(nomeLoja, CARACTERES_COLUNA_2), xEsq, cursorY, {
     fonte: "bold",
     tamanho: 9,
     cor: INK,
   });
+  pdf.escreverTexto(
+    truncarTexto(fatura.irmao_nome ?? "—", CARACTERES_COLUNA_2),
+    xEsq + larguraColuna2,
+    cursorY,
+    { fonte: "bold", tamanho: 9, cor: INK },
+  );
   cursorY += 12;
   if (loja.cnpj) {
     pdf.escreverTexto(`CNPJ ${loja.cnpj}`, xEsq, cursorY, { tamanho: 7.5, cor: MUTED });
@@ -143,7 +164,11 @@ export async function gerarFaturaPdfBuffer(
   // Referente a.
   pdf.escreverTexto("REFERENTE A", xEsq, cursorY, { fonte: "bold", tamanho: 7, cor: MUTED });
   cursorY += 12;
-  pdf.escreverTexto(fatura.descricao, xEsq, cursorY, { fonte: "bold", tamanho: 9, cor: INK });
+  pdf.escreverTexto(truncarTexto(fatura.descricao, 85), xEsq, cursorY, {
+    fonte: "bold",
+    tamanho: 9,
+    cor: INK,
+  });
   cursorY += 12;
   if (fatura.competencia_mes) {
     pdf.escreverTexto(
