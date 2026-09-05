@@ -154,7 +154,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
           </Link>
         </header>
 
-        <main className="flex-1 overflow-x-hidden px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4">
+        <main className="flex-1 overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4">
           {children}
         </main>
 
@@ -171,14 +171,14 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   key={aba.to}
                   to={aba.to}
                   className={cn(
-                    "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] transition-all",
+                    "flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-all",
                     ativo
                       ? "opacity-100 bg-white/10"
                       : "opacity-60 hover:opacity-85 hover:bg-white/5",
                   )}
                 >
                   <div className="relative">
-                    <aba.icon className="h-5 w-5" />
+                    <aba.icon className="h-6 w-6" />
                     {isComunicacoes && naoLidos > 0 && (
                       <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[10px] font-bold leading-none text-white">
                         {naoLidos > 9 ? "9+" : naoLidos}
