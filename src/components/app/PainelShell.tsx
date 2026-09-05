@@ -102,7 +102,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
             type="button"
             aria-label="Abrir menu"
             onClick={() => setMenuOpen(true)}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full text-primary transition-colors hover:bg-muted"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-muted"
           >
             <Menu className="h-6 w-6" />
             {naoLidos > 0 && (
@@ -110,7 +110,11 @@ export function PainelShell({ children }: { children: ReactNode }) {
             )}
           </button>
           <h1 className="text-lg font-bold text-primary">{titulo}</h1>
-          <Link to="/painel/dados">
+          <Link
+            to="/painel/dados"
+            className="flex h-11 w-11 items-center justify-center"
+            aria-label="Meus dados"
+          >
             <Avatar className="h-9 w-9 border">
               <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
                 {iniciais(user?.nomeCompleto)}
@@ -169,60 +173,101 @@ export function PainelShell({ children }: { children: ReactNode }) {
               </div>
               <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
             </div>
-            <nav aria-label="Menu do usuário" className="flex-1 space-y-1 overflow-y-auto p-3">
-              <Button variant="outline" className="min-h-11 w-full justify-start" asChild>
-                <Link to="/painel" onClick={() => setMenuOpen(false)}>
-                  <Home className="mr-1.5 h-4 w-4" /> Início
-                </Link>
-              </Button>
-              {can.isSuperAdmin && (
-                <Button variant="outline" className="w-full justify-start" asChild>
-                  <Link to="/admin-saas" onClick={() => setMenuOpen(false)}>
-                    <Globe className="mr-1.5 h-4 w-4" /> Plataforma
+            <nav aria-label="Menu do usuário" className="flex-1 space-y-4 overflow-y-auto p-3">
+              <div className="space-y-1">
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  asChild
+                >
+                  <Link to="/painel" onClick={() => setMenuOpen(false)}>
+                    <Home className="mr-1.5 h-5 w-5" /> Início
                   </Link>
                 </Button>
+                {can.isSuperAdmin && (
+                  <Button
+                    variant="outline"
+                    className="min-h-11 w-full justify-start text-base"
+                    asChild
+                  >
+                    <Link to="/admin-saas" onClick={() => setMenuOpen(false)}>
+                      <Globe className="mr-1.5 h-5 w-5" /> Plataforma
+                    </Link>
+                  </Button>
+                )}
+              </div>
+
+              {itensGaveta.length > 0 && (
+                <div className="space-y-1">
+                  <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Mais opções
+                  </p>
+                  {itensGaveta.map((item) => (
+                    <Button
+                      key={item.to}
+                      variant="outline"
+                      className="min-h-11 w-full justify-start text-base"
+                      asChild
+                    >
+                      <Link to={item.to} onClick={() => setMenuOpen(false)}>
+                        <span
+                          className={cn(
+                            "mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                            item.tint,
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                        </span>
+                        {item.label}
+                      </Link>
+                    </Button>
+                  ))}
+                </div>
               )}
-              {itensGaveta.map((item) => (
-                <Button key={item.to} variant="outline" className="w-full justify-start" asChild>
-                  <Link to={item.to} onClick={() => setMenuOpen(false)}>
+
+              <div className="space-y-1">
+                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Conta
+                </p>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  asChild
+                >
+                  <Link to="/conta/seguranca" onClick={() => setMenuOpen(false)}>
                     <span
                       className={cn(
-                        "mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-                        item.tint,
+                        "mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                        ITEM_SEGURANCA_IRMAO.tint,
                       )}
                     >
-                      <item.icon className="h-3.5 w-3.5" />
+                      <ITEM_SEGURANCA_IRMAO.icon className="h-4 w-4" />
                     </span>
-                    {item.label}
+                    Segurança da conta
                   </Link>
                 </Button>
-              ))}
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <Link to="/conta/seguranca" onClick={() => setMenuOpen(false)}>
-                  <span
-                    className={cn(
-                      "mr-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-                      ITEM_SEGURANCA_IRMAO.tint,
-                    )}
-                  >
-                    <ITEM_SEGURANCA_IRMAO.icon className="h-3.5 w-3.5" />
-                  </span>
-                  Segurança da conta
-                </Link>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <a href="/privacidade" target="_blank" rel="noreferrer">
-                  Política de Privacidade
-                </a>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" onClick={toggleDark}>
-                {dark ? <Sun className="mr-1.5 h-4 w-4" /> : <Moon className="mr-1.5 h-4 w-4" />}
-                {dark ? "Modo claro" : "Modo escuro"}
-              </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  asChild
+                >
+                  <a href="/privacidade" target="_blank" rel="noreferrer">
+                    Política de Privacidade
+                  </a>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  onClick={toggleDark}
+                >
+                  {dark ? <Sun className="mr-1.5 h-5 w-5" /> : <Moon className="mr-1.5 h-5 w-5" />}
+                  {dark ? "Modo claro" : "Modo escuro"}
+                </Button>
+              </div>
             </nav>
             <div className="border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <Button variant="outline" className="min-h-11 w-full" onClick={sair}>
-                <LogOut className="mr-1.5 h-4 w-4" /> Sair
+              <Button variant="outline" className="min-h-11 w-full text-base" onClick={sair}>
+                <LogOut className="mr-1.5 h-5 w-5" /> Sair
               </Button>
             </div>
           </SheetContent>
