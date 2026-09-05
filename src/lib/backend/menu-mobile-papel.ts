@@ -53,7 +53,7 @@ export const salvarMenuMobilePorPapel = createServerFn({ method: "POST" })
       const itensValidos = filtrarRotasValidas(data.itens);
       await conn.query(
         `INSERT INTO menu_mobile_papel (loja_id, papel, itens_json)
-         VALUES (?, ?, CAST(? AS JSON))
+         VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE itens_json = VALUES(itens_json)`,
         [lojaId, data.papel, JSON.stringify(itensValidos)],
       );
