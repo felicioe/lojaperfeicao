@@ -46,26 +46,18 @@ export const salvarMenuMobilePorPapel = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }): Promise<void> => {
-    console.error("[DIAG menu-mobile-papel] handler chamado", data);
-    try {
-      await comPapel(["admin"], async (conn, _usuarioId, lojaId) => {
-        // Preserva a ORDEM que o admin definiu (é o que decide o que vira
-        // aba fixa no PainelShell) — filtrarRotasValidas só descarta
-        // duplicata e rota que não existe mais no catálogo, sem reordenar.
-        const itensValidos = filtrarRotasValidas(data.itens);
-        console.error("[DIAG menu-mobile-papel] vai gravar", { lojaId, itensValidos });
-        const [resultado] = await conn.query(
-          `INSERT INTO menu_mobile_papel (loja_id, papel, itens_json)
-           VALUES (?, ?, ?)
-           ON DUPLICATE KEY UPDATE itens_json = VALUES(itens_json)`,
-          [lojaId, data.papel, JSON.stringify(itensValidos)],
-        );
-        console.error("[DIAG menu-mobile-papel] resultado do INSERT", resultado);
-      });
-    } catch (err) {
-      console.error("[DIAG menu-mobile-papel] ERRO", err);
-      throw err;
-    }
+    return comPapel(["admin"], async (conn, _usuarioId, lojaId) => {
+      // Preserva a ORDEM que o admin definiu (é o que decide o que vira aba
+      // fixa no PainelShell) — filtrarRotasValidas só descarta duplicata e
+      // rota que não existe mais no catálogo, sem reordenar.
+      const itensValidos = filtrarRotasValidas(data.itens);
+      await conn.query(
+        `INSERT INTO menu_mobile_papel (loja_id, papel, itens_json)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE itens_json = VALUES(itens_json)`,
+        [lojaId, data.papel, JSON.stringify(itensValidos)],
+      );
+    });
   });
 
 // Reaproveitado por usuario-sessao.ts (fora de createServerFn, mesmo padrão
