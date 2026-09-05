@@ -131,3 +131,30 @@ Cuidados para continuar:
   usuário, pode publicar direto em `main`, mas registrar o motivo.
 - Antes de declarar produção saudável, sempre testar HTTP real no domínio, não
   apenas build local.
+
+### Migrações 0123–0125 pendentes aplicadas em 2026-09-05
+
+- Sintoma: `sistema.associacaoadonhiramita.org/` respondia 200 e `/api/health`
+  ficava OK (por isso o handoff de 2026-08-30/31 deu como "recuperado"), mas
+  depois do login o app quebrava com tela em branco. Console mostrava
+  `Error: Table 'u630316951_ado.preferencias_menu_usuario' doesn't exist`.
+- Causa: as migrações `0123_menu_itens_ocultos_loja.sql`,
+  `0124_usuario_menu_ocultos.sql` e `0125_favoritos_menu_usuario.sql`
+  (features de menu dos commits #456–#460) nunca tinham sido aplicadas no
+  banco de produção `u630316951_ado`, embora o código publicado já esperasse
+  a coluna `lojas.menu_itens_ocultos_json` e a tabela
+  `preferencias_menu_usuario`. Mesma classe de incidente já documentada em
+  `src/lib/backend/db.ts` (`BancoDesatualizadoError`) sobre a migração 0092.
+- Não existe tabela de controle de migração aplicada nem migração automática
+  no deploy da Hostinger — é sempre processo manual via phpMyAdmin
+  (`hosting_getPhpMyAdminLinkV1` do MCP da Hostinger, banco
+  `u630316951_ado`, host `srv1898.hstgr.io`).
+- Correção: as 3 migrações foram aplicadas diretamente em produção via
+  phpMyAdmin. Validado ao vivo: login funcionando, `/dashboard`,
+  `/conta/menu` (favoritar item, salvar, recarregar, ver grupo "Favoritos" no
+  menu, remover o favorito de teste) sem erros de console.
+- Lição para o futuro: depois de qualquer deploy que inclua migração nova em
+  `mysql/migrations/`, checar se ela foi aplicada em produção antes de dar o
+  deploy por concluído — `npm run build` + HTTP 200 na home não garantem
+  schema em dia, porque o erro só aparece depois do login em rotas que usam
+  a tabela/coluna nova.

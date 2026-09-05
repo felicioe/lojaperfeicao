@@ -51,3 +51,10 @@ public/uploads/
 *.sln
 *.sw?
 isolamento-app.log
+
+# Config local de ferramentas de agente de IA (Claude Code, Codex) — skills,
+# settings.local.json, hooks. É configuração pessoal da máquina de quem
+# desenvolve, não faz parte do código do projeto.
+.agents/
+.claude/
+.codex/
