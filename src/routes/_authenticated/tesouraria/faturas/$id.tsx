@@ -60,7 +60,7 @@ function FaturaDetalhe() {
     <div className="space-y-4">
       <PageHeader title="Fatura" />
       <div className="print:hidden">
-        <BotaoImprimir />
+        <BotaoImprimir faturaId={fatura.id} />
       </div>
       <FaturaCard fatura={fatura} />
     </div>

@@ -67,7 +67,7 @@ function PainelFaturaDetalhe() {
             <ArrowLeft className="mr-1.5 h-4 w-4" /> Voltar
           </Link>
         </Button>
-        <BotaoImprimir />
+        <BotaoImprimir faturaId={fatura.id} />
       </div>
       <FaturaCard fatura={fatura} />
     </div>

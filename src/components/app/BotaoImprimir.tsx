@@ -1,18 +1,25 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useIsDesktop } from "@/lib/use-media-query";
-import { Printer } from "lucide-react";
+import { baixarFaturaPdf } from "@/lib/backend/tesouraria-lancamentos";
+import { Download, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 
-// window.print() não funciona em vários navegadores embutidos de celular
-// (o WebView que o WhatsApp/Instagram abrem ao tocar num link compartilhado,
-// por exemplo — e faturas são compartilhadas por WhatsApp na tela de
-// Faturas). Não dá pra detectar isso de antemão nem forçar o print a
-// funcionar lá dentro; a saída real é abrir o link no navegador de verdade.
-// O botão principal continua chamando print() (funciona normalmente em
-// navegador comum, desktop ou mobile); a dica abaixo só aparece em telas
-// mobile e usa o share nativo (com "abrir no navegador"/"copiar link" como
-// opções do próprio sistema) em vez de tentar adivinhar o navegador.
+function base64ParaBlob(base64: string, mimeType: string): Blob {
+  const binario = atob(base64);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return new Blob([bytes], { type: mimeType });
+}
+
+function baixarBlob(blob: Blob, nomeArquivo: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeArquivo;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // PWA instalado (modo standalone, sem barra de navegador) é um caso à parte
 // de WebView: no iOS, window.print() simplesmente não existe nesse modo —
@@ -33,7 +40,46 @@ function useIsStandalone(): boolean {
   return isStandalone;
 }
 
-export function BotaoImprimir({ label = "Imprimir / salvar PDF" }: { label?: string }) {
+// Uma fatura tem PDF de verdade gerado no servidor (fatura-pdf.ts) — baixa
+// com um toque, mesmo comportamento em qualquer navegador, celular ou PWA
+// instalado, sem menu de compartilhar nem depender do diálogo de impressão
+// do sistema. Certificado de quitação e impressão de faturas em lote (as
+// outras duas telas que usam este componente) ainda não têm PDF próprio —
+// continuam no window.print() de antes enquanto isso não existir.
+function BotaoBaixarFaturaPdf({ faturaId }: { faturaId: string }) {
+  const [baixando, setBaixando] = useState(false);
+
+  const baixar = async () => {
+    setBaixando(true);
+    try {
+      const arquivo = await baixarFaturaPdf({ data: { id: faturaId } });
+      baixarBlob(base64ParaBlob(arquivo.base64, "application/pdf"), arquivo.nomeArquivo);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar o PDF da fatura.");
+    } finally {
+      setBaixando(false);
+    }
+  };
+
+  return (
+    <Button onClick={baixar} disabled={baixando}>
+      {baixando ? (
+        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+      ) : (
+        <Download className="mr-1.5 h-4 w-4" />
+      )}
+      Baixar PDF da fatura
+    </Button>
+  );
+}
+
+export function BotaoImprimir({
+  label = "Imprimir / salvar PDF",
+  faturaId,
+}: {
+  label?: string;
+  faturaId?: string;
+}) {
   const isDesktop = useIsDesktop();
   const isStandalone = useIsStandalone();
 
@@ -50,6 +96,8 @@ export function BotaoImprimir({ label = "Imprimir / salvar PDF" }: { label?: str
       // Usuário cancelou o compartilhamento — nada a fazer.
     }
   };
+
+  if (faturaId) return <BotaoBaixarFaturaPdf faturaId={faturaId} />;
 
   // No PWA instalado, window.print() não é uma opção confiável (ausente no
   // iOS standalone) — o botão principal já sai direto pro fluxo de abrir no

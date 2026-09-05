@@ -587,7 +587,12 @@ type ImagemPreparada = {
   alfaComprimido: Buffer | null;
 };
 
-class PdfSimplesPaisagem {
+// Exportada pra ser reaproveitada fora deste arquivo (fatura-pdf.ts) — o
+// PDF da fatura tem um layout bem diferente de tabela/seções (cards, QR
+// code), então usa os primitivos de desenho direto em vez das funções de
+// alto nível gerarPdfBuffer/gerarPdfBufferAgrupado, que são específicas de
+// relatório tabular.
+export class PdfSimplesPaisagem {
   readonly larguraPagina: number;
   readonly alturaPagina: number;
   readonly margem = 36;

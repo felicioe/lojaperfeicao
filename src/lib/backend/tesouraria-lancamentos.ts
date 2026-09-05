@@ -170,52 +170,98 @@ export type LancamentoDetalhe = {
 // QR code na impressão. Acesso "privilegiado ou próprio" (mesmo padrão de
 // podeVerIrmao em irmaos.ts) — o próprio irmão pode abrir/imprimir a
 // fatura dele no Meu Painel, não só admin/tesoureiro/secretario.
+// Extraído do handler de obterLancamento pra ser reaproveitado por
+// baixarFaturaPdf (issue do usuário — PWA instalado precisa de um PDF de
+// verdade, não só window.print()) sem duplicar a query nem a regra de
+// autorização "privilegiado ou próprio".
+async function buscarLancamentoParaImpressao(
+  conn: PoolConnection,
+  usuarioId: string,
+  id: string,
+): Promise<LancamentoDetalhe | null> {
+  const [[estruturaPix]] = await conn.query<RowDataPacket[]>(
+    `SELECT COUNT(*) AS total FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contas_financeiras_pix'
+       AND COLUMN_NAME IN ('pix_copia_cola', 'qr_code_url')`,
+  );
+  const camposPixAvancados =
+    Number(estruturaPix.total) === 2
+      ? "pix.pix_copia_cola, pix.qr_code_url AS pix_qr_code_url,"
+      : "NULL AS pix_copia_cola, NULL AS pix_qr_code_url,";
+  // Faturas antigas podem não ter pix_chave_id. Nesse caso, usa a chave
+  // principal de uma conta ativa para que o modelo atualizado também
+  // apresente QR Code, chave e Copia e Cola no histórico já emitido.
+  const [[pixPadrao]] = await conn.query<RowDataPacket[]>(
+    `SELECT pix.id
+     FROM contas_financeiras_pix pix
+     JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id AND cf.loja_id = pix.loja_id
+     WHERE pix.loja_id = @current_loja_id AND cf.ativo = TRUE
+     ORDER BY pix.principal DESC, pix.criado_em
+     LIMIT 1`,
+  );
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago,
+            l.competencia_mes, l.is_mensalidade, 'pix' AS forma_cobranca,
+            i.nome_civil AS irmao_nome, i.cim AS irmao_cim, i.usuario_id AS irmao_usuario_id,
+            o.nome AS org_nome, o.logo_url AS org_logo_url,
+            pix.chave AS pix_chave, ${camposPixAvancados}
+            pix.nome_beneficiario AS pix_nome_beneficiario,
+            pix.cidade AS pix_cidade
+     FROM lancamentos l
+     LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+     LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.loja_id = l.loja_id AND io.principal = TRUE
+     LEFT JOIN orgs o ON o.id = io.org_id AND o.loja_id = l.loja_id
+     LEFT JOIN contas_financeiras_pix pix
+            ON pix.id = COALESCE(l.pix_chave_id, ?) AND pix.loja_id = l.loja_id
+     WHERE l.loja_id = @current_loja_id AND l.id = ?`,
+    [pixPadrao?.id ?? null, id],
+  );
+  if (!row) return null;
+  if (!(await ehPrivilegiadoLancamentos(conn)) && row.irmao_usuario_id !== usuarioId) {
+    throw new SemPermissaoError();
+  }
+  return row as LancamentoDetalhe;
+}
+
 export const obterLancamento = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<LancamentoDetalhe | null> => {
+    return comSessao(async (conn, usuarioId) =>
+      buscarLancamentoParaImpressao(conn, usuarioId, data.id),
+    );
+  });
+
+// PDF de verdade da fatura (não a página HTML) — pro botão "Baixar PDF da
+// fatura" funcionar igual em qualquer contexto (navegador comum, mobile,
+// PWA instalado). window.print() não é confiável nesses casos: no PWA
+// instalado em modo standalone, o iOS nem tem diálogo de impressão pra
+// abrir. Mesma autorização de obterLancamento (privilegiado ou próprio) —
+// o próprio irmão pode baixar o PDF da fatura dele no Meu Painel.
+export const baixarFaturaPdf = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<{ base64: string; nomeArquivo: string }> => {
     return comSessao(async (conn, usuarioId) => {
-      const [[estruturaPix]] = await conn.query<RowDataPacket[]>(
-        `SELECT COUNT(*) AS total FROM information_schema.COLUMNS
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contas_financeiras_pix'
-           AND COLUMN_NAME IN ('pix_copia_cola', 'qr_code_url')`,
+      const fatura = await buscarLancamentoParaImpressao(conn, usuarioId, data.id);
+      if (!fatura) throw new Error("Fatura não encontrada.");
+      const [[loja]] = await conn.query<RowDataPacket[]>(
+        `SELECT nome, razao_social, cnpj FROM lojas WHERE id = @current_loja_id`,
       );
-      const camposPixAvancados =
-        Number(estruturaPix.total) === 2
-          ? "pix.pix_copia_cola, pix.qr_code_url AS pix_qr_code_url,"
-          : "NULL AS pix_copia_cola, NULL AS pix_qr_code_url,";
-      // Faturas antigas podem não ter pix_chave_id. Nesse caso, usa a chave
-      // principal de uma conta ativa para que o modelo atualizado também
-      // apresente QR Code, chave e Copia e Cola no histórico já emitido.
-      const [[pixPadrao]] = await conn.query<RowDataPacket[]>(
-        `SELECT pix.id
-         FROM contas_financeiras_pix pix
-         JOIN contas_financeiras cf ON cf.id = pix.conta_financeira_id AND cf.loja_id = pix.loja_id
-         WHERE pix.loja_id = @current_loja_id AND cf.ativo = TRUE
-         ORDER BY pix.principal DESC, pix.criado_em
-         LIMIT 1`,
+      const { obterLogosInstitucionais } = await import("./orgs");
+      const logos = await obterLogosInstitucionais(conn);
+      const { gerarFaturaPdfBuffer } = await import("../fatura-pdf");
+      const buffer = await gerarFaturaPdfBuffer(
+        fatura,
+        {
+          nome: loja.nome as string,
+          razaoSocial: loja.razao_social as string | null,
+          cnpj: loja.cnpj as string | null,
+        },
+        logos,
       );
-      const [[row]] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.pago,
-                l.competencia_mes, l.is_mensalidade, 'pix' AS forma_cobranca,
-                i.nome_civil AS irmao_nome, i.cim AS irmao_cim, i.usuario_id AS irmao_usuario_id,
-                o.nome AS org_nome, o.logo_url AS org_logo_url,
-                pix.chave AS pix_chave, ${camposPixAvancados}
-                pix.nome_beneficiario AS pix_nome_beneficiario,
-                pix.cidade AS pix_cidade
-         FROM lancamentos l
-         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
-         LEFT JOIN irmao_orgs io ON io.irmao_id = i.id AND io.loja_id = l.loja_id AND io.principal = TRUE
-         LEFT JOIN orgs o ON o.id = io.org_id AND o.loja_id = l.loja_id
-         LEFT JOIN contas_financeiras_pix pix
-                ON pix.id = COALESCE(l.pix_chave_id, ?) AND pix.loja_id = l.loja_id
-         WHERE l.loja_id = @current_loja_id AND l.id = ?`,
-        [pixPadrao?.id ?? null, data.id],
-      );
-      if (!row) return null;
-      if (!(await ehPrivilegiadoLancamentos(conn)) && row.irmao_usuario_id !== usuarioId) {
-        throw new SemPermissaoError();
-      }
-      return row as LancamentoDetalhe;
+      return {
+        base64: buffer.toString("base64"),
+        nomeArquivo: `fatura-${fatura.competencia_mes ?? fatura.id.slice(0, 8)}.pdf`,
+      };
     });
   });
 
