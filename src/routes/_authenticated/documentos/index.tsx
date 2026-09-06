@@ -124,7 +124,15 @@ function extrairAno(documento: Documento) {
   const anoDaPasta = documento.categoria.match(/^legislacao:(\d{4})$/)?.[1];
   if (anoDaPasta) return anoDaPasta;
   const texto = `${documento.titulo} ${documento.arquivo_nome_original ?? ""}`;
-  const anos = texto.match(/\b(?:19|20)\d{2}\b/g);
+  // (?<!\d)/(?!\d), não \b: a maioria dos títulos deste repositório segue o
+  // padrão "Prancha Nº002_2024" / "ATO Nº071_2025" — com \b, "_" conta como
+  // caractere de palavra e a fronteira nunca existe entre "_" e o ano,
+  // então praticamente nenhum desses títulos batia (achado ao investigar
+  // por que 240 de 244 documentos apareciam em "Sem ano identificado"
+  // apesar do ano estar visivelmente no título). Lookbehind/lookahead de
+  // dígito, não de "\w", captura certo com "_"/"-"/espaço dos dois lados e
+  // ainda rejeita números mais longos que só por acaso contêm um ano.
+  const anos = texto.match(/(?<!\d)(?:19|20)\d{2}(?!\d)/g);
   return anos?.at(-1) ?? SEM_ANO;
 }
 
