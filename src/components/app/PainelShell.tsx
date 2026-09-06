@@ -5,7 +5,11 @@ import { toast } from "sonner";
 import { logout } from "@/lib/backend/auth";
 import { contarComunicadosNaoLidos } from "@/lib/backend/comunicacoes";
 import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
-import { resolverItensMobileIrmao, ITEM_SEGURANCA_IRMAO } from "@/lib/menu-mobile-irmao";
+import {
+  resolverItensMobileIrmao,
+  ITEM_SEGURANCA_IRMAO,
+  MAX_ITENS_FIXOS_IRMAO,
+} from "@/lib/menu-mobile-irmao";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -27,8 +31,6 @@ const TITULOS: Record<string, string> = {
   "/documentos": "Legislação",
   "/conta/seguranca": "Segurança da conta",
 };
-
-const MAX_ABAS_EXTRAS = 4; // + "Início" fixo = 5 abas no total.
 
 // Achado da auditoria de UX (issue #467, P0): quando a ordem configurada
 // muda e um item conhecido sai da barra de abas, quem tinha o hábito motor
@@ -68,9 +70,9 @@ export function PainelShell({ children }: { children: ReactNode }) {
   });
   const abas = [
     { to: "/painel", label: "Início", icon: Home, tint: "", onPrimary: "" },
-    ...itensResolvidos.slice(0, MAX_ABAS_EXTRAS),
+    ...itensResolvidos.slice(0, MAX_ITENS_FIXOS_IRMAO),
   ];
-  const itensGaveta = itensResolvidos.slice(MAX_ABAS_EXTRAS);
+  const itensGaveta = itensResolvidos.slice(MAX_ITENS_FIXOS_IRMAO);
 
   useEffect(() => {
     if (!user || typeof window === "undefined") return;
@@ -145,6 +147,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
                 <Link
                   key={aba.to}
                   to={aba.to}
+                  aria-current={ativo ? "page" : undefined}
                   className={cn(
                     "flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-[opacity,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-foreground",
                     ativo

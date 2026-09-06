@@ -128,6 +128,14 @@ export const ITEM_SEGURANCA_IRMAO: ItemMobileIrmao = {
   onPrimary: "text-red-300 dark:text-red-900",
 };
 
+// Quantos itens de ITENS_MOBILE_IRMAO viram aba fixa (o resto cai na
+// gaveta/grupo "Mais") — mesmo número usado pela barra de abas
+// (PainelShell.tsx) e pela grade "Frequentes" da home (painel/index.tsx).
+// Antes de #467 cada arquivo definia essa constante separadamente; o
+// objetivo desta fonte única (menu-mobile-irmao.ts) é evitar exatamente
+// esse tipo de valor duplicado.
+export const MAX_ITENS_FIXOS_IRMAO = 4;
+
 export type PreferenciasMenuIrmao = {
   menuItensOcultos: string[];
   menuItensOcultosPessoal: string[];

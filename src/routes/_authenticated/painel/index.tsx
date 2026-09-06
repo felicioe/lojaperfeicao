@@ -6,6 +6,7 @@ import { useIsDesktop } from "@/lib/use-media-query";
 import {
   resolverItensMobileIrmao,
   ITEM_SEGURANCA_IRMAO,
+  MAX_ITENS_FIXOS_IRMAO,
   type ItemMobileIrmao,
 } from "@/lib/menu-mobile-irmao";
 import { listarLancamentosIrmao, listarFrequenciaIrmao } from "@/lib/backend/irmaos";
@@ -30,7 +31,6 @@ export const Route = createFileRoute("/_authenticated/painel/")({
 // conteúdo configurável; "Conta" é só a utilidade de segurança (sempre 1
 // item, igual à gaveta) — 3 grupos rotulados, não uma grade só de 11-12
 // tiles soltos, mantendo o mesmo chunking que motivou a divisão original.
-const MAX_TILES_FREQUENTES = 4;
 
 function PainelInicio() {
   const isDesktop = useIsDesktop();
@@ -43,8 +43,8 @@ function PainelInicio() {
     menuItensOcultosPessoal: user?.menuItensOcultosPessoal ?? [],
     menuMobilePapel: user?.menuMobilePapel ?? null,
   });
-  const tilesFrequentes = itensResolvidos.slice(0, MAX_TILES_FREQUENTES);
-  const tilesMais = itensResolvidos.slice(MAX_TILES_FREQUENTES);
+  const tilesFrequentes = itensResolvidos.slice(0, MAX_ITENS_FIXOS_IRMAO);
+  const tilesMais = itensResolvidos.slice(MAX_ITENS_FIXOS_IRMAO);
 
   const lancamentos = useQuery({
     queryKey: ["painel", "lancamentos", irmaoId],
