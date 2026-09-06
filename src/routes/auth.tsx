@@ -205,12 +205,12 @@ function AuthPage() {
             <img
               src="/brand/sglfm-mark.svg"
               alt=""
-              className="mx-auto mb-2 h-24 w-20 animate-in fade-in zoom-in-95 object-contain duration-700"
+              className="mx-auto mb-2 h-24 w-20 animate-in fade-in zoom-in-95 object-contain duration-1000"
             />
-            <h1 className="animate-in fade-in slide-in-from-bottom-2 font-serif text-2xl font-semibold leading-snug tracking-wide delay-150 duration-700 fill-mode-both">
+            <h1 className="animate-in fade-in slide-in-from-bottom-2 font-serif text-2xl font-semibold leading-snug tracking-wide delay-500 duration-1000 fill-mode-both">
               Sistema de Gestão de Loja Filosófica Maçônica
             </h1>
-            <CardDescription className="animate-in fade-in delay-300 duration-700 fill-mode-both">
+            <CardDescription className="animate-in fade-in delay-1000 duration-1000 fill-mode-both">
               SGLFM
             </CardDescription>
           </CardHeader>
