@@ -174,7 +174,7 @@ function SidebarIcon({
   to?: string;
 }) {
   const className = cn(
-    "flex h-10 w-10 items-center justify-center rounded-md transition-colors",
+    "flex h-11 w-11 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
     active
       ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
       : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -266,7 +266,7 @@ function NavTree({
         className={cn(
           asButtons
             ? buttonVariants({ variant: "outline", size: "sm" })
-            : "rounded-md transition-colors",
+            : "rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
           "flex w-full items-center justify-start gap-2.5 px-3 text-sm",
           asButtons && "h-auto",
           size === "mobile" ? "py-2.5" : "py-2",
@@ -314,7 +314,7 @@ function NavTree({
                 className={cn(
                   asButtons
                     ? buttonVariants({ variant: "outline", size: "sm" })
-                    : "rounded-md transition-colors",
+                    : "rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
                   "flex w-full items-center gap-2 border border-transparent px-3 text-[11px] font-semibold uppercase tracking-wider hover:border-sidebar-border hover:bg-sidebar-accent/40",
                   asButtons && "h-auto border-sidebar-border",
                   size === "mobile" ? "py-2.5" : "py-2",
@@ -353,7 +353,7 @@ function NavTree({
                           className={cn(
                             asButtons
                               ? buttonVariants({ variant: "outline", size: "sm" })
-                              : "rounded-md transition-colors",
+                              : "rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
                             "flex w-full items-center justify-start gap-2.5 border border-transparent",
                             asButtons && "h-auto",
                             itemPad,
@@ -415,7 +415,7 @@ function NavTree({
                         >
                           <CollapsibleTrigger
                             className={cn(
-                              "flex w-full items-center gap-1.5 px-2.5 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider first:pt-0 hover:text-sidebar-foreground",
+                              "flex w-full items-center gap-1.5 px-2.5 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider first:pt-0 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
                               sectionActive
                                 ? "text-sidebar-foreground"
                                 : "text-sidebar-foreground/65",
@@ -1116,7 +1116,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   type="button"
                   aria-label="Buscar no menu (Ctrl+K)"
                   onClick={() => setPaletteOpen(true)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring"
                 >
                   <Search className="h-4 w-4" />
                 </button>
@@ -1125,7 +1125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
                 onClick={() => setCollapsed((v) => !v)}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring"
               >
                 {collapsed ? (
                   <ChevronsRight className="h-4 w-4" />
@@ -1136,7 +1136,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <nav className={cn("flex-1 overflow-y-auto", collapsed ? "px-2 py-3" : "space-y-1 p-3")}>
+          <nav
+            aria-label="Navegação principal"
+            className={cn("flex-1 overflow-y-auto", collapsed ? "px-2 py-3" : "space-y-1 p-3")}
+          >
             <NavTree
               dashboard={dashboard}
               groups={navGroups}
@@ -1251,7 +1254,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             type="button"
             aria-label="Abrir menu"
             onClick={() => setMobileOpen(true)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-sidebar-accent/60"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-sidebar-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -1275,7 +1278,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="border-b border-sidebar-border p-4 pr-12">
               <Brand />
             </div>
-            <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+            <nav aria-label="Navegação principal" className="flex-1 space-y-1 overflow-y-auto p-3">
               <NavTree
                 dashboard={dashboard}
                 groups={navGroups}
