@@ -115,10 +115,13 @@ CMS:
 
 Pendências conhecidas que não foram a causa do 504:
 
-- `npm run checar:escopo-loja` ainda lista 8 pendências históricas:
-  - `src/lib/backend/saas-super-admins.ts` — 5;
-  - `src/lib/backend/saas-lojas.ts` — 2;
-  - `src/lib/backend/relatorio-exportacao.ts` — 1.
+- ~~`npm run checar:escopo-loja` ainda lista 8 pendências históricas~~ — resolvido no
+  commit `a4756b6` (2026-09-03, "documentar exceções de escopo multi-loja como
+  revisadas"): as 8 ocorrências em `saas-super-admins.ts` (5), `saas-lojas.ts` (2) e
+  `relatorio-exportacao.ts` (1) foram revisadas e documentadas como exceções legítimas
+  (consultas sobre o próprio super-admin/comparação entre lojas, não dado de uma loja
+  específica) no próprio `scripts/checar-escopo-loja.mjs`. Confirmado em 2026-09-06: o
+  script reporta 0 pendentes.
 - `npm run checar:defaults-loja-id` não roda neste Windows local sem o binário
   `mariadb` disponível (`spawnSync mariadb ENOENT`).
 
