@@ -193,7 +193,8 @@ async function gravarNaFila(
       | "cobranca_manual"
       | "relatorio_manual"
       | "lembrete_vencida"
-      | "convite_admin";
+      | "convite_admin"
+      | "interstico_completo";
     destinatarios: string[];
     assunto: string;
     html: string;
@@ -313,6 +314,59 @@ export async function enviarEmailFaturaEmitida(
       filaId,
       [fatura.email],
       `Fatura emitida — ${fatura.descricao}`,
+      html,
+      texto,
+      undefined,
+      lojaId,
+    );
+  });
+}
+
+// ---------- Interstício completo (issue #106, disparado pelo cron de push) ----------
+// Complementa o push de admin/secretaria (issue #84): o próprio irmão nunca
+// era avisado, porque a inscrição de push é restrita a esses papéis. Chamado
+// por push-dispatch.ts dentro do mesmo bloco "recém-inserido" do dedup de
+// notificacoes_enviadas — não precisa de dedup próprio aqui, herda o "só uma
+// vez" de quem chama.
+
+export async function enviarEmailIntersticioCompleto(
+  irmaoId: string,
+  lojaId: string,
+): Promise<void> {
+  await withLojaConnection(lojaId, async (conn) => {
+    const [[irmao]] = await conn.query<RowDataPacket[]>(
+      `SELECT i.nome_civil, i.email, og.nome AS nome_grau, io.grau_atual
+       FROM irmaos i
+       JOIN irmao_orgs io ON io.irmao_id = i.id AND io.principal = TRUE AND io.loja_id = i.loja_id
+       JOIN orgs_graus og ON og.org_id = io.org_id AND og.grau = io.grau_atual AND og.loja_id = i.loja_id
+       WHERE i.id = ? AND i.loja_id = ?`,
+      [irmaoId, lojaId],
+    );
+    if (!irmao || !irmao.email) return;
+
+    const assunto = `Interstício completo — ${irmao.nome_grau}`;
+    const html = `
+      <p>Olá, ${irmao.nome_civil}!</p>
+      <p>Você completou o interstício mínimo do grau <strong>${irmao.grau_atual} (${irmao.nome_grau})</strong> — já pode ser elevado ao próximo grau.</p>
+      <p>Fale com a secretaria da loja para os próximos passos.</p>
+    `;
+    const texto = `Olá, ${irmao.nome_civil}! Você completou o interstício mínimo do grau ${irmao.grau_atual} (${irmao.nome_grau}) — já pode ser elevado. Fale com a secretaria da loja para os próximos passos.`;
+
+    const filaId = await gravarNaFila(conn, {
+      chave: `interstico_completo:${irmaoId}:${irmao.grau_atual}`,
+      tipo: "interstico_completo",
+      destinatarios: [irmao.email],
+      assunto,
+      html,
+      texto,
+      lojaId,
+    });
+
+    await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      [irmao.email],
+      assunto,
       html,
       texto,
       undefined,

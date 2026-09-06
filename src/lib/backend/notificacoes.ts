@@ -28,6 +28,10 @@ export type NotificacaoItem = {
   // pecas-arquitetura.ts), então mandar pro tesoureiro também era notificação
   // fantasma — o clique caía numa tela onde a peça não aparece.
   papeis?: string[];
+  // Preenchido só em "interstico_completo" (issue #106) — o disparador de
+  // push (push-dispatch.ts) usa pra mandar também um e-mail direto pro
+  // irmão, além do push pra admin/secretaria.
+  irmaoId?: string;
 };
 
 export async function gerarNotificacoes(conn: PoolConnection): Promise<NotificacaoItem[]> {
@@ -115,6 +119,7 @@ export async function gerarNotificacoes(conn: PoolConnection): Promise<Notificac
       chave: `interstico_completo:${irmao.id}:${irmao.grau_atual}`,
       titulo: "Interstício completo",
       mensagem: `${irmao.nome_civil} completou o interstício mínimo do grau ${irmao.grau_atual} (${irmao.nome_grau}) — já pode ser elevado.`,
+      irmaoId: irmao.id,
     });
   }
 

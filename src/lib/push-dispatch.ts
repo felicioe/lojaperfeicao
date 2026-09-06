@@ -3,6 +3,7 @@ import type { RowDataPacket } from "mysql2";
 import { listarLojasAtivas, withLojaConnection } from "./backend/db";
 import { gerarNotificacoes, PAPEIS_NOTIFICACOES } from "./backend/notificacoes";
 import { contarEnviosHoje, LIMITE_DIARIO_PUSH_POR_LOJA } from "./rate-limit";
+import { enviarEmailIntersticioCompleto } from "./email-dispatch";
 
 // Disparo real de Web Push (issue #27) — chamado pelo endpoint HTTP em
 // src/server.ts, que um cron job da Hostinger aciona periodicamente (ver
@@ -80,6 +81,22 @@ export async function executarDisparoNotificacoes(): Promise<ResultadoDisparo> {
             [item.chave],
           );
           if (insercao.affectedRows === 0) continue; // já disparada antes — dedup
+
+          // Interstício completo (issue #106): além do push pra
+          // admin/secretaria abaixo, avisa o próprio irmão por e-mail — ele
+          // não tem papel elegível pra inscrição de push. Um erro aqui (SMTP
+          // fora do ar, por exemplo) não pode derrubar o push desta Loja nem
+          // das próximas no laço de fora.
+          if (item.tipo === "interstico_completo" && item.irmaoId) {
+            try {
+              await enviarEmailIntersticioCompleto(item.irmaoId, loja.id);
+            } catch (err) {
+              console.error(
+                `[cron:notificacoes] loja ${loja.slug}: falha ao enviar e-mail de interstício pro irmão ${item.irmaoId}:`,
+                err,
+              );
+            }
+          }
 
           const papeisAlvo = item.papeis ?? PAPEIS_NOTIFICACOES;
           const condicoes = papeisAlvo.map(() => "up.papel = ?").join(" OR ");
