@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Home, Menu, LogOut, Moon, Sun, Globe } from "lucide-react";
+import { Home, Menu, LogOut, Moon, Sun, Globe, HelpCircle } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
 
 const TITULOS: Record<string, string> = {
@@ -30,6 +30,7 @@ const TITULOS: Record<string, string> = {
   "/enquetes": "Enquetes",
   "/documentos": "Legislação",
   "/conta/seguranca": "Segurança da conta",
+  "/painel/ajuda": "Ajuda",
 };
 
 // Achado da auditoria de UX (issue #467, P0): quando a ordem configurada
@@ -253,6 +254,18 @@ export function PainelShell({ children }: { children: ReactNode }) {
                       <ITEM_SEGURANCA_IRMAO.icon className="h-4 w-4" />
                     </span>
                     Segurança da conta
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  asChild
+                >
+                  <Link to="/painel/ajuda" onClick={() => setMenuOpen(false)}>
+                    <span className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+                      <HelpCircle className="h-4 w-4" />
+                    </span>
+                    Ajuda
                   </Link>
                 </Button>
                 <Button

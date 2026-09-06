@@ -81,6 +81,7 @@ import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedOrgsPotenciasRouteImport } from './routes/_authenticated/orgs/potencias'
 import { Route as AuthenticatedPaginasSiteIndexRouteImport } from './routes/_authenticated/paginas-site/index'
 import { Route as AuthenticatedPainelIndexRouteImport } from './routes/_authenticated/painel/index'
+import { Route as AuthenticatedPainelAjudaRouteImport } from './routes/_authenticated/painel/ajuda'
 import { Route as AuthenticatedPainelComunicacoesRouteImport } from './routes/_authenticated/painel/comunicacoes'
 import { Route as AuthenticatedPainelDadosRouteImport } from './routes/_authenticated/painel/dados'
 import { Route as AuthenticatedPainelEventosRouteImport } from './routes/_authenticated/painel/eventos'
@@ -531,6 +532,12 @@ const AuthenticatedPainelIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedPainelRouteRoute,
   } as any)
+const AuthenticatedPainelAjudaRoute =
+  AuthenticatedPainelAjudaRouteImport.update({
+    id: '/ajuda',
+    path: '/ajuda',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
 const AuthenticatedPainelComunicacoesRoute =
   AuthenticatedPainelComunicacoesRouteImport.update({
     id: '/comunicacoes',
@@ -805,6 +812,7 @@ export interface FileRoutesByFullPath {
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/painel/ajuda': typeof AuthenticatedPainelAjudaRoute
   '/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/painel/eventos': typeof AuthenticatedPainelEventosRoute
@@ -913,6 +921,7 @@ export interface FileRoutesByTo {
   '/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/painel/ajuda': typeof AuthenticatedPainelAjudaRoute
   '/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/painel/eventos': typeof AuthenticatedPainelEventosRoute
@@ -1025,6 +1034,7 @@ export interface FileRoutesById {
   '/_authenticated/irmaos/$id': typeof AuthenticatedIrmaosIdRoute
   '/_authenticated/irmaos/novo': typeof AuthenticatedIrmaosNovoRoute
   '/_authenticated/orgs/potencias': typeof AuthenticatedOrgsPotenciasRoute
+  '/_authenticated/painel/ajuda': typeof AuthenticatedPainelAjudaRoute
   '/_authenticated/painel/comunicacoes': typeof AuthenticatedPainelComunicacoesRoute
   '/_authenticated/painel/dados': typeof AuthenticatedPainelDadosRoute
   '/_authenticated/painel/eventos': typeof AuthenticatedPainelEventosRoute
@@ -1137,6 +1147,7 @@ export interface FileRouteTypes {
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/orgs/potencias'
+    | '/painel/ajuda'
     | '/painel/comunicacoes'
     | '/painel/dados'
     | '/painel/eventos'
@@ -1245,6 +1256,7 @@ export interface FileRouteTypes {
     | '/irmaos/$id'
     | '/irmaos/novo'
     | '/orgs/potencias'
+    | '/painel/ajuda'
     | '/painel/comunicacoes'
     | '/painel/dados'
     | '/painel/eventos'
@@ -1356,6 +1368,7 @@ export interface FileRouteTypes {
     | '/_authenticated/irmaos/$id'
     | '/_authenticated/irmaos/novo'
     | '/_authenticated/orgs/potencias'
+    | '/_authenticated/painel/ajuda'
     | '/_authenticated/painel/comunicacoes'
     | '/_authenticated/painel/dados'
     | '/_authenticated/painel/eventos'
@@ -1938,6 +1951,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPainelIndexRouteImport
       parentRoute: typeof AuthenticatedPainelRouteRoute
     }
+    '/_authenticated/painel/ajuda': {
+      id: '/_authenticated/painel/ajuda'
+      path: '/ajuda'
+      fullPath: '/painel/ajuda'
+      preLoaderRoute: typeof AuthenticatedPainelAjudaRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
     '/_authenticated/painel/comunicacoes': {
       id: '/_authenticated/painel/comunicacoes'
       path: '/comunicacoes'
@@ -2231,6 +2251,7 @@ const AuthenticatedAdminSaasRouteRouteWithChildren =
   )
 
 interface AuthenticatedPainelRouteRouteChildren {
+  AuthenticatedPainelAjudaRoute: typeof AuthenticatedPainelAjudaRoute
   AuthenticatedPainelComunicacoesRoute: typeof AuthenticatedPainelComunicacoesRoute
   AuthenticatedPainelDadosRoute: typeof AuthenticatedPainelDadosRoute
   AuthenticatedPainelEventosRoute: typeof AuthenticatedPainelEventosRoute
@@ -2246,6 +2267,7 @@ interface AuthenticatedPainelRouteRouteChildren {
 
 const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildren =
   {
+    AuthenticatedPainelAjudaRoute: AuthenticatedPainelAjudaRoute,
     AuthenticatedPainelComunicacoesRoute: AuthenticatedPainelComunicacoesRoute,
     AuthenticatedPainelDadosRoute: AuthenticatedPainelDadosRoute,
     AuthenticatedPainelEventosRoute: AuthenticatedPainelEventosRoute,

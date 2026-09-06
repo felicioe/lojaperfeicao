@@ -80,6 +80,7 @@ import {
   SlidersHorizontal,
   Star,
   Smartphone,
+  HelpCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -1179,6 +1180,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   active={false}
                   to="/conta/seguranca"
                 />
+                {can.isMemberOnly && (
+                  <SidebarIcon icon={HelpCircle} label="Ajuda" active={false} to="/painel/ajuda" />
+                )}
                 <SidebarIcon
                   icon={SlidersHorizontal}
                   label="Preferências do Menu"
@@ -1212,6 +1216,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <Fingerprint className="mr-1 h-3 w-3" /> Segurança
                   </Link>
                 </Button>
+                {can.isMemberOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full text-foreground"
+                    asChild
+                  >
+                    <Link to="/painel/ajuda">
+                      <HelpCircle className="mr-1 h-3 w-3" /> Ajuda
+                    </Link>
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" className="mt-2 w-full text-foreground" asChild>
                   <Link to="/conta/menu">
                     <SlidersHorizontal className="mr-1 h-3 w-3" /> Preferências do Menu
