@@ -1,17 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listarComunicados,
   salvarComunicado,
   excluirComunicado,
+  marcarComunicadoLido,
   type Comunicado,
 } from "@/lib/backend/comunicacoes";
 import { listarOrgs } from "@/lib/backend/orgs";
 import { PageHeader } from "@/components/app/AppShell";
+import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
+import { usePaginacao } from "@/lib/use-paginacao";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -71,6 +75,30 @@ function ComunicacoesPage() {
     queryFn: () => listarComunicados(),
   });
   const { data: orgs = [] } = useQuery({ queryKey: ["orgs_all"], queryFn: () => listarOrgs() });
+
+  // Marca como lido automaticamente (mesmo padrão de painel/comunicacoes.tsx)
+  // — esta rota é a mesma tela compartilhada por quem publica (admin/
+  // secretario) e por irmãos que acessam via desktop; sem isto, o badge de
+  // pendências do menu nunca zerava pra quem lia por aqui.
+  const marcados = useRef(new Set<string>());
+  useEffect(() => {
+    const naoLidos = comunicados.filter((c) => !c.lido && !marcados.current.has(c.id));
+    if (naoLidos.length === 0) return;
+    Promise.all(
+      naoLidos.map((c) => {
+        marcados.current.add(c.id);
+        return marcarComunicadoLido({ data: { comunicadoId: c.id } });
+      }),
+    ).then(() => {
+      qc.invalidateQueries({ queryKey: ["comunicados_all"] });
+      qc.invalidateQueries({ queryKey: ["painel", "comunicadosNaoLidos"] });
+    });
+  }, [comunicados, qc]);
+
+  // Paginação client-side (mesmo padrão de contas-pagar.tsx etc.) — o mural
+  // cresce sem limite ao longo dos anos e antes era renderizado inteiro de
+  // uma vez.
+  const comunicadosPag = usePaginacao(comunicados);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["comunicados_all"] });
 
@@ -222,12 +250,19 @@ function ComunicacoesPage() {
             Nenhum comunicado publicado.
           </Card>
         )}
-        {comunicados.map((c) => (
+        {comunicadosPag.itensPagina.map((c) => (
           <Card key={c.id}>
             <CardContent className="py-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium">{c.titulo}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{c.titulo}</p>
+                    {!c.lido && (
+                      <Badge variant="secondary" className="shrink-0">
+                        Novo
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {fmtDate(c.criado_em)} · {PUBLICO_LABEL[c.publico]}
                     {c.publico === "org" && c.org_nome ? ` — ${c.org_nome}` : ""}
@@ -235,12 +270,21 @@ function ComunicacoesPage() {
                 </div>
                 {can.canManageIrmaos && (
                   <div className="flex shrink-0 gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => editar(c)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Editar comunicado "${c.titulo}"`}
+                      onClick={() => editar(c)}
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Excluir comunicado "${c.titulo}"`}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
@@ -263,10 +307,19 @@ function ComunicacoesPage() {
                   </div>
                 )}
               </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{c.corpo}</p>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                {c.corpo}
+              </p>
             </CardContent>
           </Card>
         ))}
+        <TabelaPaginacao
+          pagina={comunicadosPag.pagina}
+          totalPaginas={comunicadosPag.totalPaginas}
+          totalItens={comunicadosPag.totalItens}
+          tamanhoPagina={comunicadosPag.tamanhoPagina}
+          setPagina={comunicadosPag.setPagina}
+        />
       </div>
     </>
   );
