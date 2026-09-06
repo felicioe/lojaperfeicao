@@ -45,6 +45,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Pencil, Plus, Trash2 } from "lucide-react";
@@ -64,6 +74,23 @@ function ContasPagar() {
   const qc = useQueryClient();
   const podeEditar = can.canManageFinancas;
   const [openNova, setOpenNova] = useState(false);
+  const [contaParaExcluir, setContaParaExcluir] = useState<ContaPagar | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+
+  const confirmarExclusao = async () => {
+    if (!contaParaExcluir) return;
+    setExcluindo(true);
+    try {
+      await excluirContaPagar({ data: { id: contaParaExcluir.id } });
+      toast.success("Conta a pagar excluída.");
+      invalidate();
+      setContaParaExcluir(null);
+    } catch (erro) {
+      toast.error(erro instanceof Error ? erro.message : "Não foi possível excluir.");
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   const { data: abertas = [], isLoading } = useQuery({
     queryKey: ["contas_pagar_abertas"],
@@ -278,25 +305,7 @@ function ContasPagar() {
                                 size="sm"
                                 variant="ghost"
                                 className="px-2 text-destructive hover:text-destructive sm:px-3"
-                                onClick={async () => {
-                                  if (
-                                    !window.confirm(
-                                      `Excluir a conta “${l.descricao}”? Esta ação não pode ser desfeita.`,
-                                    )
-                                  )
-                                    return;
-                                  try {
-                                    await excluirContaPagar({ data: { id: l.id } });
-                                    toast.success("Conta a pagar excluída.");
-                                    invalidate();
-                                  } catch (erro) {
-                                    toast.error(
-                                      erro instanceof Error
-                                        ? erro.message
-                                        : "Não foi possível excluir.",
-                                    );
-                                  }
-                                }}
+                                onClick={() => setContaParaExcluir(l)}
                               >
                                 <Trash2 className="h-4 w-4 sm:mr-1" />
                                 <span className="hidden sm:inline">Excluir</span>
@@ -406,6 +415,26 @@ function ContasPagar() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog
+        open={contaParaExcluir !== null}
+        onOpenChange={(aberto) => !aberto && setContaParaExcluir(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir conta a pagar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Excluir a conta “{contaParaExcluir?.descricao}”? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluindo}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarExclusao} disabled={excluindo}>
+              {excluindo ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
