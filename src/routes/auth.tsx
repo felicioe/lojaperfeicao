@@ -197,15 +197,22 @@ function AuthPage() {
       <div className="my-auto flex w-full max-w-md flex-col gap-3">
         <Card className="w-full">
           <CardHeader className="text-center">
+            {/* Entrada sutil só do brasão/título (pedido do usuário, em vez de
+                um vídeo antes do acesso) — puramente decorativa, não atrasa
+                nem bloqueia o formulário, que já fica interativo desde o
+                primeiro quadro. animate-in/fade-in/zoom-in (tw-animate-css)
+                já respeitam prefers-reduced-motion globalmente (styles.css). */}
             <img
               src="/brand/sglfm-mark.svg"
               alt=""
-              className="mx-auto mb-2 h-24 w-20 object-contain"
+              className="mx-auto mb-2 h-24 w-20 animate-in fade-in zoom-in-95 object-contain duration-700"
             />
-            <h1 className="font-serif text-2xl font-semibold leading-snug tracking-wide">
+            <h1 className="animate-in fade-in slide-in-from-bottom-2 font-serif text-2xl font-semibold leading-snug tracking-wide delay-150 duration-700 fill-mode-both">
               Sistema de Gestão de Loja Filosófica Maçônica
             </h1>
-            <CardDescription>SGLFM</CardDescription>
+            <CardDescription className="animate-in fade-in delay-300 duration-700 fill-mode-both">
+              SGLFM
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {aguardando2FA ? (
