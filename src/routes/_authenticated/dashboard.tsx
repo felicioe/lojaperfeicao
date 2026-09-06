@@ -52,6 +52,14 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+// Achado da auditoria técnica: sem staleTime, o QueryClient global (sem
+// defaultOptions, ver router.tsx) refaz as 12 consultas desta tela a cada
+// foco de janela — duas delas (contasPagar, projecao) disparam no servidor
+// uma procedure de escrita (garantir_previsoes_recorrentes). 60s é curto o
+// bastante pra não esconder mudança real, e evita refazer tudo (inclusive
+// as escritas) toda vez que o admin volta o foco pra aba.
+const STALE_TIME_DASHBOARD = 60_000;
+
 function dataIsoLocal(data: Date) {
   const ano = data.getFullYear();
   const mes = String(data.getMonth() + 1).padStart(2, "0");
@@ -84,40 +92,68 @@ function Dashboard() {
   const contasPagar = useQuery({
     queryKey: ["dash", "contasPagar", hoje, em30DiasIso],
     queryFn: () => listarContasAPagarProximas({ data: { de: hoje, ate: em30DiasIso } }),
+    staleTime: STALE_TIME_DASHBOARD,
   });
-  const saldos = useQuery({ queryKey: ["dash", "saldos"], queryFn: () => listarSaldoContas() });
+  const saldos = useQuery({
+    queryKey: ["dash", "saldos"],
+    queryFn: () => listarSaldoContas(),
+    staleTime: STALE_TIME_DASHBOARD,
+  });
   const projecao = useQuery({
     queryKey: ["dash", "projecao", hoje, em30DiasIso],
     queryFn: () => obterProjecaoFluxo({ data: { de: hoje, ate: em30DiasIso } }),
+    staleTime: STALE_TIME_DASHBOARD,
   });
   const membrosAtivos = useQuery({
     queryKey: ["dash", "membrosAtivos"],
     queryFn: () => contarMembrosAtivos(),
+    staleTime: STALE_TIME_DASHBOARD,
   });
   const sessoesMes = useQuery({
     queryKey: ["dash", "sessoesMes"],
     queryFn: () => contarSessoesMes(),
+    staleTime: STALE_TIME_DASHBOARD,
   });
   const aniversariantes = useQuery({
     queryKey: ["dash", "aniversariantes"],
     queryFn: () => listarAniversariantesMes(),
+    staleTime: STALE_TIME_DASHBOARD,
   });
   const contasReceber = useQuery({
     queryKey: ["dash", "contasReceber"],
     queryFn: () => obterResumoContasReceber(),
+    staleTime: STALE_TIME_DASHBOARD,
   });
   const mediaDespesas = useQuery({
     queryKey: ["dash", "mediaDespesasMensais"],
     queryFn: () => obterMediaDespesasMensais(),
+    staleTime: STALE_TIME_DASHBOARD,
   });
   const pendenciasPrioritarias = useQuery({
     queryKey: ["dash", "pendenciasPrioritarias"],
     queryFn: () => listarPendenciasPrioritarias(),
+    staleTime: STALE_TIME_DASHBOARD,
   });
-  const documentos = useQuery({ queryKey: ["dash", "documentos"], queryFn: listarDocumentos });
-  const enquetes = useQuery({ queryKey: ["dash", "enquetes"], queryFn: listarEnquetes });
-  const eventos = useQuery({ queryKey: ["dash", "eventos"], queryFn: listarEventos });
-  const pecas = useQuery({ queryKey: ["dash", "pecas"], queryFn: listarPecasArquitetura });
+  const documentos = useQuery({
+    queryKey: ["dash", "documentos"],
+    queryFn: listarDocumentos,
+    staleTime: STALE_TIME_DASHBOARD,
+  });
+  const enquetes = useQuery({
+    queryKey: ["dash", "enquetes"],
+    queryFn: listarEnquetes,
+    staleTime: STALE_TIME_DASHBOARD,
+  });
+  const eventos = useQuery({
+    queryKey: ["dash", "eventos"],
+    queryFn: listarEventos,
+    staleTime: STALE_TIME_DASHBOARD,
+  });
+  const pecas = useQuery({
+    queryKey: ["dash", "pecas"],
+    queryFn: listarPecasArquitetura,
+    staleTime: STALE_TIME_DASHBOARD,
+  });
 
   const totalPagar = (contasPagar.data ?? []).reduce(
     (soma, conta) => soma + Number(conta.valor),
@@ -634,6 +670,7 @@ function MetricItem({
   return to && !error ? (
     <Link
       to={to}
+      aria-label={`${label} — ver detalhes`}
       className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
       {conteudo}
@@ -715,6 +752,7 @@ function AgingCard({ query }: { query: ConsultaFaixas }) {
   return !query.isPending && !query.isError ? (
     <Link
       to="/relatorios/inadimplencia"
+      aria-label="Ver valores vencidos por faixa de atraso"
       className="block rounded-xl transition-colors hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {conteudo}

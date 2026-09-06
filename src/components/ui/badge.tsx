@@ -11,8 +11,14 @@ const badgeVariants = cva(
         default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/90",
         secondary:
           "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive:
-          "border-transparent bg-destructive/10 text-destructive hover:bg-destructive/15",
+        // bg-destructive/3, não /10 (achado da auditoria técnica): o fundo
+        // tingido MAIS saturado piora o contraste do texto, não melhora —
+        // quanto mais perto de bg-destructive puro, mais o fundo converge
+        // pra mesma cor do texto. Calculado (OKLCH→sRGB→WCAG): /10 dava
+        // 4.14:1 no tema claro (abaixo do mínimo AA de 4.5:1 pro texto de
+        // 11px do badge); /3 dá 4.62:1, com margem, mantendo o fundo ainda
+        // visivelmente tingido.
+        destructive: "border-transparent bg-destructive/3 text-destructive hover:bg-destructive/8",
         outline: "border-border text-muted-foreground",
       },
     },
