@@ -108,7 +108,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
             type="button"
             aria-label="Abrir menu"
             onClick={() => setMenuOpen(true)}
-            className="relative flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-muted"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <Menu className="h-6 w-6" />
             {naoLidos > 0 && (
@@ -118,7 +118,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
           <h1 className="text-lg font-bold text-primary">{titulo}</h1>
           <Link
             to="/painel/dados"
-            className="flex h-11 w-11 items-center justify-center"
+            className="flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Meus dados"
           >
             <Avatar className="h-9 w-9 border">
@@ -146,7 +146,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   key={aba.to}
                   to={aba.to}
                   className={cn(
-                    "flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-all",
+                    "flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-[opacity,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-foreground",
                     ativo
                       ? "opacity-100 bg-white/10"
                       : "opacity-60 hover:opacity-85 hover:bg-white/5",
