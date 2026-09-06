@@ -6,7 +6,6 @@ import { useIsDesktop } from "@/lib/use-media-query";
 import {
   resolverItensMobileIrmao,
   ITEM_SEGURANCA_IRMAO,
-  MAX_ITENS_FIXOS_IRMAO,
   type ItemMobileIrmao,
 } from "@/lib/menu-mobile-irmao";
 import { listarLancamentosIrmao, listarFrequenciaIrmao } from "@/lib/backend/irmaos";
@@ -22,15 +21,13 @@ export const Route = createFileRoute("/_authenticated/painel/")({
   component: PainelInicio,
 });
 
-// Grade da home (issue #467, auditoria de UX): reaproveita a MESMA lista,
-// ordem e cor por categoria da barra de abas/menu-gaveta (menu-mobile-irmao.ts)
-// em vez de uma lista própria — antes desta issue a home ignorava totalmente
-// a configuração do admin (#464) e as preferências pessoais/da loja, então um
-// item que o admin travava pra um papel continuava aparecendo aqui do mesmo
-// jeito. "Frequentes" é a mesma fatia que vira aba fixa; "Mais" é o resto do
-// conteúdo configurável; "Conta" é só a utilidade de segurança (sempre 1
-// item, igual à gaveta) — 3 grupos rotulados, não uma grade só de 11-12
-// tiles soltos, mantendo o mesmo chunking que motivou a divisão original.
+// Grade da home: reaproveita a MESMA lista, ordem e cor por categoria da
+// barra de abas/menu-gaveta (menu-mobile-irmao.ts) em vez de uma lista
+// própria — a home respeita a configuração do admin (#464) e as
+// preferências pessoais/da loja, então um item que o admin travar pra um
+// papel não aparece aqui. Uma grade só, sem rótulos de grupo (pedido do
+// usuário) — Segurança entra primeiro, fixa, por ser a única utilidade de
+// conta (o resto é conteúdo configurável pelo admin).
 
 function PainelInicio() {
   const isDesktop = useIsDesktop();
@@ -43,8 +40,7 @@ function PainelInicio() {
     menuItensOcultosPessoal: user?.menuItensOcultosPessoal ?? [],
     menuMobilePapel: user?.menuMobilePapel ?? null,
   });
-  const tilesFrequentes = itensResolvidos.slice(0, MAX_ITENS_FIXOS_IRMAO);
-  const tilesMais = itensResolvidos.slice(MAX_ITENS_FIXOS_IRMAO);
+  const tilesHome = [ITEM_SEGURANCA_IRMAO, ...itensResolvidos];
 
   const lancamentos = useQuery({
     queryKey: ["painel", "lancamentos", irmaoId],
@@ -92,7 +88,7 @@ function PainelInicio() {
       <div className="space-y-4">
         <Skeleton className="h-16 rounded-2xl" />
         <div className="grid grid-cols-4 gap-3">
-          {itensResolvidos.map((t) => (
+          {[ITEM_SEGURANCA_IRMAO, ...itensResolvidos].map((t) => (
             <div key={t.to} className="flex flex-col items-center gap-1.5">
               <Skeleton className="aspect-square w-full rounded-2xl" />
               <Skeleton className="h-3 w-10" />
@@ -250,45 +246,34 @@ function PainelInicio() {
         </Link>
       )}
 
-      {tilesFrequentes.length > 0 && <GradeTiles titulo="Frequentes" itens={tilesFrequentes} />}
-      {tilesMais.length > 0 && <GradeTiles titulo="Mais" itens={tilesMais} />}
-      <GradeTiles titulo="Conta" itens={[ITEM_SEGURANCA_IRMAO]} />
+      <GradeTiles itens={tilesHome} />
     </div>
   );
 }
 
-// Dois grupos rotulados ("Frequentes" / "Mais") em vez de uma grade única
-// de 11-12 itens (achado da auditoria de UX #467: viola o próprio princípio
-// de produto de simplicidade > densidade, e o mesmo chunking já existe em
-// AppShell.tsx pra grupos densos do menu desktop — replicado aqui).
-function GradeTiles({ titulo, itens }: { titulo: string; itens: ItemMobileIrmao[] }) {
-  // Achado da 3ª rodada da auditoria de UX (issue #467): grid-cols-4 fixo com
-  // menos de 4 itens (ex.: "Conta", sempre 1 item) deixava colunas vazias sob
-  // o rótulo do grupo — parecia carregamento quebrado, não espaço proposital.
-  // Com poucos itens, usa flex (largura de tile igual à de uma coluna do
-  // grid, sem reservar as colunas que não têm conteúdo).
+// Grade única, sem rótulos de grupo (pedido do usuário — antes dividida em
+// "Frequentes"/"Mais"/"Conta"). Com poucos itens (ex.: admin configurou só
+// 1-2 pro papel), usa flex com tile de largura equivalente à de uma coluna
+// do grid, em vez de grid-cols-4 fixo — que deixaria colunas vazias
+// parecendo carregamento quebrado.
+function GradeTiles({ itens }: { itens: ItemMobileIrmao[] }) {
   const emGrade = itens.length > 3;
   return (
-    <div>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {titulo}
-      </p>
-      <div className={emGrade ? "grid grid-cols-4 gap-3" : "flex gap-3"}>
-        {itens.map((t) => (
-          <Link
-            key={t.to}
-            to={t.to}
-            className={`flex flex-col items-center gap-1.5 text-center ${emGrade ? "" : "w-1/4"}`}
+    <div className={emGrade ? "grid grid-cols-4 gap-3" : "flex gap-3"}>
+      {itens.map((t) => (
+        <Link
+          key={t.to}
+          to={t.to}
+          className={`flex flex-col items-center gap-1.5 text-center ${emGrade ? "" : "w-1/4"}`}
+        >
+          <div
+            className={`flex aspect-square w-full items-center justify-center rounded-2xl ${t.tint}`}
           >
-            <div
-              className={`flex aspect-square w-full items-center justify-center rounded-2xl ${t.tint}`}
-            >
-              <t.icon className="h-8 w-8" />
-            </div>
-            <span className="text-xs leading-tight text-foreground">{t.label}</span>
-          </Link>
-        ))}
-      </div>
+            <t.icon className="h-10 w-10" />
+          </div>
+          <span className="text-xs leading-tight text-foreground">{t.label}</span>
+        </Link>
+      ))}
     </div>
   );
 }
