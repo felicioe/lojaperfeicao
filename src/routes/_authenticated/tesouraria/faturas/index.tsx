@@ -162,6 +162,7 @@ function Faturas() {
     queryFn: () => listarIrmaosNomes(),
   });
   const [irmaoFiltroId, setIrmaoFiltroId] = useState("todos");
+  const hoje = toISODate(new Date());
   const abertasFiltradas =
     irmaoFiltroId === "todos" ? abertas : abertas.filter((f) => f.irmao_id === irmaoFiltroId);
   const ord = useOrdenacao(abertasFiltradas, {
@@ -314,7 +315,10 @@ function Faturas() {
               <TableBody>
                 {abertasFiltradas.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                    <TableCell
+                      colSpan={podeEditar ? 7 : 6}
+                      className="text-center py-6 text-muted-foreground"
+                    >
                       Nenhuma fatura em aberto.
                     </TableCell>
                   </TableRow>
@@ -329,6 +333,7 @@ function Faturas() {
                           <Checkbox
                             checked={selecionadas.includes(f.id)}
                             onCheckedChange={() => toggleSelecionada(f)}
+                            aria-label={`Selecionar fatura de ${f.irmaos?.nome_civil ?? "irmão"} — ${f.descricao}`}
                           />
                         </TableCell>
                       )}
@@ -337,7 +342,16 @@ function Faturas() {
                       <TableCell className="text-muted-foreground">
                         {fmtMesAno(f.competencia_mes)}
                       </TableCell>
-                      <TableCell>{fmtDate(f.data_vencimento)}</TableCell>
+                      <TableCell>
+                        {f.data_vencimento < hoje ? (
+                          <span className="text-destructive font-medium">
+                            {fmtDate(f.data_vencimento)}
+                            <span className="ml-1.5 text-xs font-normal">vencida</span>
+                          </span>
+                        ) : (
+                          fmtDate(f.data_vencimento)
+                        )}
+                      </TableCell>
                       <TableCell className="text-right font-medium">
                         {brl(f.valor - f.valor_pago)}
                         {f.valor_pago > 0 && (
@@ -473,13 +487,21 @@ function BaixaDialog({
   const [valorRecebidoParcial, setValorRecebidoParcial] = useState(somaSaldos);
   const [alocacao, setAlocacao] = useState<Record<string, number>>({});
 
+  // Trava de segurança: a baixa integral (confirmar/baixarFaturas) manda o
+  // valor CHEIO de cada fatura pra procedure — se alguma já tiver
+  // valor_pago > 0, cobraria de novo o que já foi recebido. Só o modo
+  // "parcial" (via faturasParaAlocar/saldo acima) calcula certo nesse caso,
+  // então trava o modo em "parcial" e desliga o botão de integral em vez de
+  // deixar escolher errado.
+  const temFaturaParcial = faturas.some((f) => Number(f.valor_pago) > 0);
+
   useEffect(() => {
     // O diálogo não desmonta entre aberturas (fica dentro de <Dialog> sempre
     // renderizado) — sem isso, mudar a seleção de faturas com o diálogo
     // fechado deixava o valor recebido parcial preso na soma da primeira
     // abertura, mesmo com o teto do campo já ajustado corretamente.
     if (open) {
-      setModo("integral");
+      setModo(temFaturaParcial ? "parcial" : "integral");
       setContaFinanceiraId("");
       setFormaPagamento("");
       setDataPagamento(toISODate(new Date()));
@@ -569,6 +591,13 @@ function BaixaDialog({
     if (Number(valorExtra) > 0 && !planoContaExtraId) {
       return toast.error("Selecione a conta de receita do valor extra.");
     }
+    // Segunda camada da mesma trava: o botão já fica desabilitado, mas isto
+    // impede a chamada mesmo que o estado chegue aqui de outro jeito.
+    if (temFaturaParcial) {
+      return toast.error(
+        "Use o modo parcial — uma das faturas selecionadas já tem pagamento parcial.",
+      );
+    }
     setSalvando(true);
     try {
       await baixarFaturas({
@@ -598,12 +627,24 @@ function BaixaDialog({
       <DialogHeader>
         <DialogTitle>Baixar {faturas.length} fatura(s)</DialogTitle>
       </DialogHeader>
+      {temFaturaParcial && (
+        <p className="text-sm text-muted-foreground">
+          Uma ou mais faturas selecionadas já têm pagamento parcial registrado — só o modo parcial
+          calcula o saldo restante corretamente.
+        </p>
+      )}
       <div className="flex gap-2">
         <Button
           type="button"
           size="sm"
           variant={modo === "integral" ? "default" : "outline"}
           onClick={() => setModo("integral")}
+          disabled={temFaturaParcial}
+          title={
+            temFaturaParcial
+              ? "Indisponível: uma das faturas selecionadas já tem pagamento parcial"
+              : undefined
+          }
         >
           Baixa integral
         </Button>
