@@ -100,6 +100,7 @@ function IrmaosList() {
       />
       <Card className="p-4 mb-4">
         <Input
+          aria-label="Buscar por nome, nome simbólico ou CIM"
           placeholder="Buscar por nome, nome simbólico ou CIM…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -125,7 +126,9 @@ function IrmaosList() {
               <TableHeadOrdenavel campo="situacao" ord={ord}>
                 Situação
               </TableHeadOrdenavel>
-              <TableHead></TableHead>
+              <TableHead>
+                <span className="sr-only">Ações</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -162,9 +165,11 @@ function IrmaosList() {
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">{i.nome_simbolico ?? "—"}</TableCell>
                 <TableCell className="hidden sm:table-cell">{i.cim ?? "—"}</TableCell>
-                <TableCell>{GRAU_LABEL[i.grau]}</TableCell>
+                <TableCell>{GRAU_LABEL[i.grau] ?? i.grau}</TableCell>
                 <TableCell>
-                  <Badge variant={situacaoVariant(i.situacao)}>{SITUACAO_LABEL[i.situacao]}</Badge>
+                  <Badge variant={situacaoVariant(i.situacao)}>
+                    {SITUACAO_LABEL[i.situacao] ?? i.situacao}
+                  </Badge>
                 </TableCell>
                 <TableCell className="pl-0 text-right">
                   <Link to="/irmaos/$id" params={{ id: i.id }}>

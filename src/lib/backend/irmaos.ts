@@ -122,19 +122,30 @@ export type Irmao = {
   atualizado_em: string;
 };
 
+// Achado da auditoria técnica: a tela de listagem (irmaos/index.tsx) só
+// exibe estes 6 campos, e relatorioFrequencia (relatorios.ts) só usa
+// id/nome_civil/nome_simbolico — não há motivo pra trazer as ~40 colunas
+// de Irmao (CPF, RG, endereço, observações...) a cada carregamento da
+// tela mais usada do sistema. Detalhe completo continua em obterIrmao.
+export type IrmaoResumo = Pick<
+  Irmao,
+  "id" | "nome_civil" | "nome_simbolico" | "cim" | "grau" | "situacao"
+>;
+
 export const listarIrmaos = createServerFn({ method: "GET" }).handler(
-  async (): Promise<Irmao[]> => {
+  async (): Promise<IrmaoResumo[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
+      const colunas = "id, nome_civil, nome_simbolico, cim, grau, situacao";
       const [rows] = privilegiado
         ? await conn.query<RowDataPacket[]>(
-            "SELECT * FROM irmaos WHERE loja_id = @current_loja_id ORDER BY nome_civil LIMIT 5000",
+            `SELECT ${colunas} FROM irmaos WHERE loja_id = @current_loja_id ORDER BY nome_civil LIMIT 5000`,
           )
         : await conn.query<RowDataPacket[]>(
-            "SELECT * FROM irmaos WHERE loja_id = @current_loja_id AND usuario_id = ? ORDER BY nome_civil LIMIT 5000",
+            `SELECT ${colunas} FROM irmaos WHERE loja_id = @current_loja_id AND usuario_id = ? ORDER BY nome_civil LIMIT 5000`,
             [usuarioId],
           );
-      return rows as Irmao[];
+      return rows as IrmaoResumo[];
     });
   },
 );
