@@ -174,7 +174,7 @@ export type LancamentoDetalhe = {
 // baixarFaturaPdf (issue do usuário — PWA instalado precisa de um PDF de
 // verdade, não só window.print()) sem duplicar a query nem a regra de
 // autorização "privilegiado ou próprio".
-async function buscarLancamentoParaImpressao(
+export async function buscarLancamentoParaImpressao(
   conn: PoolConnection,
   usuarioId: string,
   id: string,

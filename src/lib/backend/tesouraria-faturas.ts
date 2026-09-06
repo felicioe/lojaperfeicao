@@ -1,12 +1,82 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
+import type { PoolConnection } from "mysql2/promise";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
 // Toda esta área (emissão/baixa de faturas) é admin/tesoureiro apenas —
 // mesma regra de lancamentos_write.
 const PAPEIS = ["admin", "tesoureiro"];
+
+// Comprovante de pagamento por e-mail (issue #104) — mesmo PDF já gerado
+// pelo botão "Baixar PDF" da view imprimível (baixarFaturaPdf, em
+// tesouraria-lancamentos.ts), agora refletindo o pagamento recém-baixado
+// (pago = TRUE, data_pagamento preenchida). Importado dinamicamente:
+// gerarFaturaPdfBuffer (QRCode) e enviarArquivoPorEmail (nodemailer) são
+// pesados e server-only, e este arquivo é importado por rotas do cliente
+// (mesmo cuidado já adotado em baixarFaturaPdf).
+//
+// Best-effort de propósito: a baixa em si já foi commitada quando isto
+// roda — um irmão sem e-mail cadastrado, ou uma falha de SMTP numa fatura,
+// não pode desfazer o pagamento nem impedir o e-mail das demais faturas do
+// lote. Cada fatura tem seu próprio try/catch; a função inteira também é
+// protegida no ponto de chamada.
+async function enviarRecibosPorEmail(
+  conn: PoolConnection,
+  usuarioIdAtual: string,
+  lancamentoIds: string[],
+): Promise<void> {
+  const { buscarLancamentoParaImpressao } = await import("./tesouraria-lancamentos");
+  const { gerarFaturaPdfBuffer } = await import("../fatura-pdf");
+  const { enviarArquivoPorEmail } = await import("../email-dispatch");
+  const { obterLogosInstitucionais } = await import("./orgs");
+
+  const [[loja]] = await conn.query<RowDataPacket[]>(
+    "SELECT id, nome, razao_social, cnpj FROM lojas WHERE id = @current_loja_id",
+  );
+  const logos = await obterLogosInstitucionais(conn);
+
+  for (const lancamentoId of lancamentoIds) {
+    try {
+      const fatura = await buscarLancamentoParaImpressao(conn, usuarioIdAtual, lancamentoId);
+      if (!fatura) continue;
+
+      const [[irmao]] = await conn.query<RowDataPacket[]>(
+        `SELECT i.email FROM lancamentos l
+         JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         WHERE l.id = ? AND l.loja_id = @current_loja_id`,
+        [lancamentoId],
+      );
+      if (!irmao?.email) continue;
+
+      const buffer = await gerarFaturaPdfBuffer(
+        fatura,
+        {
+          nome: loja.nome as string,
+          razaoSocial: loja.razao_social as string | null,
+          cnpj: loja.cnpj as string | null,
+        },
+        logos,
+      );
+
+      await enviarArquivoPorEmail({
+        destinatarios: [irmao.email as string],
+        assunto: `Comprovante de pagamento — ${fatura.descricao}`,
+        corpoTexto: `Olá, ${fatura.irmao_nome}! Segue em anexo o comprovante de pagamento de "${fatura.descricao}".`,
+        anexoBuffer: buffer,
+        anexoNome: `recibo-${fatura.competencia_mes ?? lancamentoId.slice(0, 8)}.pdf`,
+        anexoMimeType: "application/pdf",
+        lojaId: loja.id as string,
+      });
+    } catch (err) {
+      console.error(
+        `[baixarFaturas] falha ao enviar recibo por e-mail (lançamento ${lancamentoId}):`,
+        err,
+      );
+    }
+  }
+}
 
 export type FaturaAberta = {
   id: string;
@@ -100,6 +170,11 @@ export const baixarFaturas = createServerFn({ method: "POST" })
       ]);
       const [[{ recibo_id }]] = await conn.query<RowDataPacket[]>("SELECT @recibo_id AS recibo_id");
       await registrarAuditoria(conn, usuarioIdAtual, "baixar", "recibo", recibo_id, null, data);
+      try {
+        await enviarRecibosPorEmail(conn, usuarioIdAtual, data.lancamentoIds);
+      } catch (err) {
+        console.error("[baixarFaturas] falha ao enviar recibos por e-mail:", err);
+      }
       return { reciboId: recibo_id };
     });
   });
