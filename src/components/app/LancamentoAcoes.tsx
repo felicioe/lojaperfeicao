@@ -106,7 +106,7 @@ function EditarLancamentoDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" title="Editar">
+        <Button size="sm" variant="ghost" aria-label="Editar" title="Editar">
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -213,7 +213,7 @@ export function AtribuirIrmaoDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" title="Atribuir irmão">
+        <Button size="sm" variant="ghost" aria-label="Atribuir irmão" title="Atribuir irmão">
           <UserCog className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -393,7 +393,7 @@ function BaixarLancamentoDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" title="Baixar">
+        <Button size="sm" variant="ghost" aria-label="Baixar" title="Baixar">
           <CheckCircle2 className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -597,7 +597,7 @@ export function AcoesLancamento({
   return (
     <div className="flex justify-end gap-1">
       <Link to="/tesouraria/faturas/$id" params={{ id: lancamento.id }}>
-        <Button size="sm" variant="ghost" title="Emitir/imprimir">
+        <Button size="sm" variant="ghost" aria-label="Emitir/imprimir" title="Emitir/imprimir">
           <Printer className="h-4 w-4" />
         </Button>
       </Link>
@@ -618,7 +618,7 @@ export function AcoesLancamento({
           {Number(lancamento.valor_pago ?? 0) === 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" variant="ghost" title="Cancelar">
+                <Button size="sm" variant="ghost" aria-label="Cancelar" title="Cancelar">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
@@ -655,7 +655,7 @@ export function AcoesLancamento({
       {lancamento.pago && (
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button size="sm" variant="ghost" title="Desmarcar pago">
+            <Button size="sm" variant="ghost" aria-label="Desmarcar pago" title="Desmarcar pago">
               <Undo2 className="h-4 w-4" />
             </Button>
           </AlertDialogTrigger>

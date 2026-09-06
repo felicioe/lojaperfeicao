@@ -70,6 +70,21 @@ export const Route = createFileRoute("/_authenticated/tesouraria/")({
   component: Tesouraria,
 });
 
+// Fora do componente de propósito (achado da auditoria técnica): nenhum
+// extrator fecha sobre estado/props que mudam, então um objeto literal
+// definido dentro do componente seria recriado a cada render, invalidando
+// o useMemo de useOrdenacao (que inclui "extratores" nas deps) mesmo sem
+// nada relevante ter mudado.
+const EXTRATORES_LANCAMENTOS = {
+  emissao: (l: Lancamento) => l.data,
+  vencimento: (l: Lancamento) => l.data_vencimento,
+  descricao: (l: Lancamento) => l.descricao,
+  irmao: (l: Lancamento) => l.irmao_nome,
+  tipo: (l: Lancamento) => l.tipo,
+  valor: (l: Lancamento) => Number(l.valor),
+  status: (l: Lancamento) => (l.pago ? 1 : 0),
+};
+
 function Tesouraria() {
   const qc = useQueryClient();
   const can = useCan();
@@ -97,15 +112,7 @@ function Tesouraria() {
     queryKey: ["lancamentos"],
     queryFn: () => listarLancamentos({ data: { limite: 500 } }),
   });
-  const ord = useOrdenacao(lancamentos.data ?? [], {
-    emissao: (l) => l.data,
-    vencimento: (l) => l.data_vencimento,
-    descricao: (l) => l.descricao,
-    irmao: (l) => l.irmao_nome,
-    tipo: (l) => l.tipo,
-    valor: (l) => Number(l.valor),
-    status: (l) => (l.pago ? 1 : 0),
-  });
+  const ord = useOrdenacao(lancamentos.data ?? [], EXTRATORES_LANCAMENTOS);
   const { itensPagina, pagina, totalPaginas, totalItens, tamanhoPagina, setPagina } = usePaginacao(
     ord.itensOrdenados,
   );
@@ -178,6 +185,7 @@ function Tesouraria() {
                   </Button>
                 </DialogTrigger>
                 <LancamentoDialog
+                  key={String(openLanc)}
                   contas={contas.data ?? []}
                   planos={planos.data ?? []}
                   onDone={() => {
@@ -196,14 +204,18 @@ function Tesouraria() {
           <CardTitle className="text-base">Últimos lançamentos</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Fora do sm:hidden de propósito (achado da auditoria técnica):
+              antes só existia dentro do bloco mobile, então quem usa leitor
+              de tela em viewport desktop nunca recebia o anúncio de
+              carregando/erro/concluído. */}
+          <div className="sr-only" aria-live="polite">
+            {lancamentos.isLoading
+              ? "Carregando lançamentos."
+              : lancamentos.isError
+                ? "Erro ao carregar lançamentos."
+                : `${itensPagina.length} lançamentos carregados.`}
+          </div>
           <div className="sm:hidden">
-            <div className="sr-only" aria-live="polite">
-              {lancamentos.isLoading
-                ? "Carregando lançamentos."
-                : lancamentos.isError
-                  ? "Erro ao carregar lançamentos."
-                  : `${itensPagina.length} lançamentos carregados.`}
-            </div>
             {lancamentos.isLoading && (
               <div className="space-y-4" aria-label="Carregando lançamentos">
                 {[0, 1, 2].map((i) => (
@@ -273,7 +285,7 @@ function Tesouraria() {
                     )}
                   </div>
                   {can.canManageFinancas && (
-                    <div className="-mr-2 mt-2 flex justify-end [&_button]:h-8 [&_button]:w-8 [&_button]:p-0">
+                    <div className="-mr-2 mt-2 flex justify-end">
                       <AcoesLancamento
                         lancamento={l}
                         contas={contas.data ?? []}
