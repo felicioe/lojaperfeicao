@@ -302,7 +302,7 @@ const uploadArquivoSchema = z.object({
 // PDF — evita publicar um arquivo Word "cru" sem ninguém saber que a
 // conversão nunca rodou.
 const MIME_AUTORIZADOS = ["application/pdf"];
-const TAMANHO_MAXIMO_BYTES = 15 * 1024 * 1024; // 15 MB — hospedagem compartilhada tem disco limitado.
+const TAMANHO_MAXIMO_BYTES = 60 * 1024 * 1024; // 60 MB — arquivo_url é LONGTEXT (até 4 GB, migração 0117).
 
 export const uploadArquivoPeca = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadArquivoSchema.parse(d))
@@ -316,7 +316,7 @@ export const uploadArquivoPeca = createServerFn({ method: "POST" })
       }
       const buffer = Buffer.from(match[2], "base64");
       if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {
-        throw new Error("Arquivo maior que 15 MB.");
+        throw new Error("Arquivo maior que 60 MB.");
       }
       return {
         url: data.dataUrl,

@@ -682,7 +682,7 @@ function LoteDocumentos({
     for (const [indice, file] of arquivos.entries()) {
       setProgresso(indice + 1);
       try {
-        if (file.size > 15 * 1024 * 1024) throw new Error("arquivo maior que 15 MB");
+        if (file.size > 60 * 1024 * 1024) throw new Error("arquivo maior que 60 MB");
         const upload = await uploadArquivoDocumento({
           data: { nomeArquivo: file.name, dataUrl: await arquivoParaDataUrl(file) },
         });
@@ -858,7 +858,7 @@ function NovoDocumento({ onCriado }: { onCriado: () => Promise<void> }) {
   const [ocupado, setOcupado] = useState(false);
 
   const selecionarArquivo = async (file: File) => {
-    if (file.size > 15 * 1024 * 1024) return toast.error("Arquivo maior que 15 MB.");
+    if (file.size > 60 * 1024 * 1024) return toast.error("Arquivo maior que 60 MB.");
     setOcupado(true);
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {

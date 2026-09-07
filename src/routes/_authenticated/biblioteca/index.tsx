@@ -216,8 +216,8 @@ function BibliotecaPage() {
   };
 
   const handleArquivo = async (file: File) => {
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("Arquivo maior que 15 MB.");
+    if (file.size > 60 * 1024 * 1024) {
+      toast.error("Arquivo maior que 60 MB.");
       return;
     }
     setEnviandoArquivo(true);
@@ -458,7 +458,7 @@ function BibliotecaPage() {
                     </div>
                     <div>
                       <Label htmlFor="biblioteca-arquivo-pdf-ate-15">
-                        Arquivo (PDF, até 15 MB — opcional)
+                        Arquivo (PDF, até 60 MB — opcional)
                       </Label>
                       <Input
                         id="biblioteca-arquivo-pdf-ate-15"
@@ -771,7 +771,7 @@ function LotePecas({
     for (const [indice, file] of arquivos.entries()) {
       setProgresso(indice + 1);
       try {
-        if (file.size > 15 * 1024 * 1024) throw new Error("arquivo maior que 15 MB");
+        if (file.size > 60 * 1024 * 1024) throw new Error("arquivo maior que 60 MB");
         const upload = await uploadArquivoPeca({
           data: { nomeArquivo: file.name, dataUrl: await arquivoParaDataUrl(file) },
         });
