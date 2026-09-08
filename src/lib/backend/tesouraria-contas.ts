@@ -54,20 +54,25 @@ const novaContaSchema = z.object({
   planoContaId: z.string().uuid().nullable(),
 });
 
-// Confere que o id apontado é uma conta do plano de contas desta Loja, do
-// tipo "ativo" — é o que criar_transferencia (migração 0096) exige de
-// contas_financeiras.plano_conta_id pra aceitar a conta como origem ou
-// destino de uma transferência; sem essa validação aqui, um id de outra
-// Loja ou de uma conta de despesa/receita ficaria salvo silenciosamente e
-// só quebraria na hora da transferência.
+// Confere que o id apontado é uma conta analítica (sem filhas) do plano de
+// contas desta Loja, do tipo "ativo". As duas condições são exigidas mais
+// adiante, em pontos diferentes: criar_transferencia (migração 0096) exige
+// tipo = 'ativo' pra aceitar a conta como origem/destino de uma
+// transferência, e registrar_lancamento_contabil (mesma migração) rejeita
+// qualquer lançamento em conta sintética ("não analítica"). Sem checar as
+// duas aqui, dava pra vincular uma conta sintética (ex.: "1.2.1 —
+// Investimentos", um grupo) e só descobrir o problema depois, com um erro
+// confuso na hora da transferência em vez de na hora do vínculo.
 async function validarPlanoContaAtivo(conn: PoolConnection, planoContaId: string | null) {
   if (!planoContaId) return;
   const [[plano]] = await conn.query<RowDataPacket[]>(
-    "SELECT id FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id AND tipo = 'ativo'",
+    "SELECT id FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id AND tipo = 'ativo' AND analitica = TRUE",
     [planoContaId],
   );
   if (!plano) {
-    throw new Error("Conta do plano de contas inválida — selecione uma conta do tipo Ativo.");
+    throw new Error(
+      "Conta do plano de contas inválida — selecione uma conta analítica do tipo Ativo.",
+    );
   }
 }
 
