@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { RowDataPacket } from "mysql2";
+import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 import { chavePixValida } from "@/lib/pix";
@@ -51,15 +51,72 @@ const novaContaSchema = z.object({
   tipo: z.enum(["caixa", "banco", "outro"]),
   saldo_inicial: z.number(),
   banco: z.string().nullable(),
+  planoContaId: z.string().uuid().nullable(),
 });
+
+// Confere que o id apontado é uma conta do plano de contas desta Loja, do
+// tipo "ativo" — é o que criar_transferencia (migração 0096) exige de
+// contas_financeiras.plano_conta_id pra aceitar a conta como origem ou
+// destino de uma transferência; sem essa validação aqui, um id de outra
+// Loja ou de uma conta de despesa/receita ficaria salvo silenciosamente e
+// só quebraria na hora da transferência.
+async function validarPlanoContaAtivo(conn: PoolConnection, planoContaId: string | null) {
+  if (!planoContaId) return;
+  const [[plano]] = await conn.query<RowDataPacket[]>(
+    "SELECT id FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id AND tipo = 'ativo'",
+    [planoContaId],
+  );
+  if (!plano) {
+    throw new Error("Conta do plano de contas inválida — selecione uma conta do tipo Ativo.");
+  }
+}
 
 export const criarContaFinanceira = createServerFn({ method: "POST" })
   .validator((d: unknown) => novaContaSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn) => {
+      await validarPlanoContaAtivo(conn, data.planoContaId);
       await conn.query(
-        "INSERT INTO contas_financeiras (loja_id, nome, tipo, saldo_inicial, banco) VALUES (@current_loja_id, ?, ?, ?, ?)",
-        [data.nome, data.tipo, data.saldo_inicial, data.banco],
+        "INSERT INTO contas_financeiras (loja_id, nome, tipo, saldo_inicial, banco, plano_conta_id) VALUES (@current_loja_id, ?, ?, ?, ?, ?)",
+        [data.nome, data.tipo, data.saldo_inicial, data.banco, data.planoContaId],
+      );
+    });
+  });
+
+const editarContaSchema = z.object({
+  id: z.string().uuid(),
+  nome: z.string().min(1),
+  tipo: z.enum(["caixa", "banco", "outro"]),
+  banco: z.string().nullable(),
+  planoContaId: z.string().uuid().nullable(),
+});
+
+// Só nome/tipo/banco/plano_conta_id são editáveis — saldo_inicial fica de
+// fora de propósito: mudar o saldo inicial depois que a conta já tem
+// lançamentos desalinharia o saldo atual (soma do inicial + movimentação)
+// do saldo real, sem deixar rastro no extrato.
+export const editarContaFinanceira = createServerFn({ method: "POST" })
+  .validator((d: unknown) => editarContaSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
+      if (!antes) throw new Error("Conta não encontrada nesta Loja.");
+      await validarPlanoContaAtivo(conn, data.planoContaId);
+      await conn.query(
+        "UPDATE contas_financeiras SET nome = ?, tipo = ?, banco = ?, plano_conta_id = ? WHERE id = ? AND loja_id = @current_loja_id",
+        [data.nome, data.tipo, data.banco, data.planoContaId, data.id],
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "atualizar",
+        "conta_financeira",
+        data.id,
+        antes,
+        data,
       );
     });
   });

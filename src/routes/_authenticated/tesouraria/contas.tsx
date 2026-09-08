@@ -1,21 +1,31 @@
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   listarSaldoContas,
   criarContaFinanceira,
+  editarContaFinanceira,
   listarChavesPix,
   criarChavePix,
   removerChavePix,
   uploadQrCodePix,
   type ChavePix,
+  type SaldoConta,
 } from "@/lib/backend/tesouraria-contas";
+import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -47,7 +57,7 @@ import {
 import { brl } from "@/lib/format";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, ImageIcon, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ImageIcon, Pencil, Trash2 } from "lucide-react";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 
@@ -72,11 +82,21 @@ function Contas() {
     tipo: "caixa" | "banco" | "outro";
     saldo_inicial: number;
     banco: string;
-  }>({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "" });
+    plano_conta_id: string;
+  }>({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "", plano_conta_id: "" });
+  const [editando, setEditando] = useState<SaldoConta | null>(null);
 
   const saldos = useQuery({
     queryKey: ["saldos"],
     queryFn: () => listarSaldoContas(),
+  });
+  // "ativo" porque uma conta financeira (caixa/banco/aplicação) sempre
+  // representa um bem da Loja no balanço — é o mesmo filtro que
+  // criar_transferencia exige (migração 0096) pra aceitar a conta como
+  // origem ou destino de uma transferência.
+  const planosAtivo = useQuery({
+    queryKey: ["plano-contas", "ativo"],
+    queryFn: () => listarPlanoContasPorTipo({ data: { tipo: "ativo" } }),
   });
   const ord = useOrdenacao(saldos.data ?? [], {
     nome: (c) => c.nome,
@@ -87,9 +107,11 @@ function Contas() {
 
   const criar = async () => {
     try {
-      await criarContaFinanceira({ data: { ...nova, banco: nova.banco || null } });
+      await criarContaFinanceira({
+        data: { ...nova, banco: nova.banco || null, planoContaId: nova.plano_conta_id || null },
+      });
       toast.success("Conta criada.");
-      setNova({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "" });
+      setNova({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "", plano_conta_id: "" });
       qc.invalidateQueries({ queryKey: ["saldos"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar.");
@@ -103,7 +125,7 @@ function Contas() {
         <CardHeader>
           <CardTitle className="text-base">Nova conta</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-5">
+        <CardContent className="grid gap-3 md:grid-cols-6">
           <div>
             <Label htmlFor="conta-nome">Nome</Label>
             <Input
@@ -146,6 +168,28 @@ function Contas() {
               onChange={(e) => setNova({ ...nova, saldo_inicial: Number(e.target.value) })}
             />
           </div>
+          <div>
+            <Label htmlFor="conta-plano">Conta contábil</Label>
+            <Select
+              value={nova.plano_conta_id || "nenhuma"}
+              onValueChange={(v) => setNova({ ...nova, plano_conta_id: v === "nenhuma" ? "" : v })}
+            >
+              <SelectTrigger id="conta-plano">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nenhuma">Nenhuma (definir depois)</SelectItem>
+                {(planosAtivo.data ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.codigo} — {p.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Necessária para usar a conta em transferências.
+            </p>
+          </div>
           <div className="flex items-end">
             <Button onClick={criar} disabled={!nova.nome}>
               Adicionar
@@ -154,36 +198,62 @@ function Contas() {
         </CardContent>
       </Card>
 
+      <EditarContaDialog
+        conta={editando}
+        planos={planosAtivo.data ?? []}
+        onOpenChange={(aberto) => !aberto && setEditando(null)}
+        onSalvo={() => {
+          setEditando(null);
+          qc.invalidateQueries({ queryKey: ["saldos"] });
+        }}
+      />
+
       <Card>
         <div className="sm:hidden">
           <ul className="divide-y" aria-label="Contas financeiras">
             {ord.itensOrdenados.map((c) => (
               <li key={c.id}>
-                <button
-                  type="button"
-                  className="flex w-full items-start justify-between gap-3 p-4 text-left"
-                  onClick={() => setExpandido(expandido === c.id ? null : c.id)}
-                  aria-expanded={expandido === c.id}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words text-base font-medium leading-snug">{c.nome}</p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {{ caixa: "Caixa", banco: "Banco", outro: "Outro" }[c.tipo as string] ??
-                        c.tipo}{" "}
-                      · Inicial {brl(c.saldo_inicial)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <p className="text-right text-base font-semibold tabular-nums">
-                      {brl(c.saldo_atual)}
-                    </p>
-                    {expandido === c.id ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
-                </button>
+                <div className="flex items-start gap-2 p-4">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
+                    onClick={() => setExpandido(expandido === c.id ? null : c.id)}
+                    aria-expanded={expandido === c.id}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-base font-medium leading-snug">{c.nome}</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {{ caixa: "Caixa", banco: "Banco", outro: "Outro" }[c.tipo as string] ??
+                          c.tipo}{" "}
+                        · Inicial {brl(c.saldo_inicial)}
+                      </p>
+                      {!c.plano_conta_id && (
+                        <Badge variant="outline" className="mt-1">
+                          Sem conta contábil
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <p className="text-right text-base font-semibold tabular-nums">
+                        {brl(c.saldo_atual)}
+                      </p>
+                      {expandido === c.id ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-11 w-11 shrink-0 p-0"
+                    aria-label={`Editar conta ${c.nome}`}
+                    onClick={() => setEditando(c)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
                 {expandido === c.id && (
                   <div className="border-t bg-muted/30 px-4 pb-4">
                     <ChavesPixPanel contaId={c.id} />
@@ -210,6 +280,8 @@ function Contas() {
                 <TableHeadOrdenavel campo="saldo_atual" ord={ord} className="text-right">
                   Saldo atual
                 </TableHeadOrdenavel>
+                <TableHead>Conta contábil</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -240,10 +312,28 @@ function Contas() {
                     </TableCell>
                     <TableCell className="text-right">{brl(c.saldo_inicial)}</TableCell>
                     <TableCell className="text-right font-medium">{brl(c.saldo_atual)}</TableCell>
+                    <TableCell>
+                      {c.plano_conta_id ? (
+                        ((planosAtivo.data ?? []).find((p) => p.id === c.plano_conta_id)?.nome ??
+                        "—")
+                      ) : (
+                        <Badge variant="outline">Sem conta contábil</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Editar conta ${c.nome}`}
+                        onClick={() => setEditando(c)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                   {expandido === c.id && (
                     <TableRow>
-                      <TableCell colSpan={5} className="bg-muted/30">
+                      <TableCell colSpan={7} className="bg-muted/30">
                         <ChavesPixPanel contaId={c.id} />
                       </TableCell>
                     </TableRow>
@@ -255,6 +345,127 @@ function Contas() {
         </div>
       </Card>
     </>
+  );
+}
+
+function EditarContaDialog({
+  conta,
+  planos,
+  onOpenChange,
+  onSalvo,
+}: {
+  conta: SaldoConta | null;
+  planos: { id: string; codigo: string; nome: string }[];
+  onOpenChange: (aberto: boolean) => void;
+  onSalvo: () => void;
+}) {
+  const [d, setD] = useState<{
+    nome: string;
+    tipo: "caixa" | "banco" | "outro";
+    banco: string;
+    plano_conta_id: string;
+  }>({ nome: "", tipo: "caixa", banco: "", plano_conta_id: "" });
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    if (conta) {
+      setD({
+        nome: conta.nome,
+        tipo: conta.tipo,
+        banco: conta.banco ?? "",
+        plano_conta_id: conta.plano_conta_id ?? "",
+      });
+    }
+  }, [conta]);
+
+  const salvar = async () => {
+    if (!conta) return;
+    setSalvando(true);
+    try {
+      await editarContaFinanceira({
+        data: {
+          id: conta.id,
+          nome: d.nome,
+          tipo: d.tipo,
+          banco: d.banco || null,
+          planoContaId: d.plano_conta_id || null,
+        },
+      });
+      toast.success("Conta atualizada.");
+      onSalvo();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!conta} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar conta</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div>
+            <Label htmlFor="editar-conta-nome">Nome</Label>
+            <Input
+              id="editar-conta-nome"
+              value={d.nome}
+              onChange={(e) => setD({ ...d, nome: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="editar-conta-tipo">Tipo</Label>
+            <Select value={d.tipo} onValueChange={(v) => setD({ ...d, tipo: v as typeof d.tipo })}>
+              <SelectTrigger id="editar-conta-tipo">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="caixa">Caixa</SelectItem>
+                <SelectItem value="banco">Banco</SelectItem>
+                <SelectItem value="outro">Outro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="editar-conta-banco">Banco</Label>
+            <Input
+              id="editar-conta-banco"
+              value={d.banco}
+              onChange={(e) => setD({ ...d, banco: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="editar-conta-plano">Conta contábil</Label>
+            <Select
+              value={d.plano_conta_id || "nenhuma"}
+              onValueChange={(v) => setD({ ...d, plano_conta_id: v === "nenhuma" ? "" : v })}
+            >
+              <SelectTrigger id="editar-conta-plano">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nenhuma">Nenhuma (definir depois)</SelectItem>
+                {planos.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.codigo} — {p.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Necessária para usar a conta em transferências.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => void salvar()} disabled={salvando || !d.nome}>
+            {salvando ? "Salvando…" : "Salvar alterações"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
