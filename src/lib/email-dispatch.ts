@@ -21,6 +21,17 @@ function origemPublica(): string {
   return process.env.PUBLIC_ORIGIN || "http://localhost:5173";
 }
 
+// Cópia oculta de monitoramento (pedido do usuário, início de operação do
+// sistema): toda comunicação que chega a um irmão — fatura, cobrança,
+// lembrete, comunicado, recibo/relatório enviado manualmente — também cai
+// aqui, pra confirmar que o conteúdo e a entrega estão corretos, tanto
+// quando disparado pelo tesoureiro quanto pelo próprio irmão. Fica de fora
+// de propósito qualquer e-mail com credencial/link sensível (recuperação
+// de senha, boas-vindas com senha temporária, convite de admin, chamados
+// de suporte loja→plataforma) — BCC nesses vazaria a credencial de um
+// irmão pra outra caixa, ou é redundante (chamados já vão pro super_admin).
+const EMAIL_BCC_MONITORAMENTO = "felicioe@gmail.com";
+
 export type ConfigSmtp = {
   host: string;
   porta: number;
@@ -136,6 +147,7 @@ async function tentarEnviarFilaEmail(
   texto: string,
   anexos?: { filename: string; content: Buffer; contentType: string }[],
   lojaId?: string | null,
+  bccMonitoramento?: boolean,
 ): Promise<{ sucesso: number; falhas: number; ultimoErro: string | null }> {
   const { transporter, remetente } = await transporterDaLoja(conn, lojaId ?? null);
   let sucesso = 0;
@@ -147,6 +159,7 @@ async function tentarEnviarFilaEmail(
       await transporter.sendMail({
         from: remetente,
         to: dest,
+        bcc: bccMonitoramento ? EMAIL_BCC_MONITORAMENTO : undefined,
         subject: assunto,
         html,
         text: texto,
@@ -205,6 +218,12 @@ async function gravarNaFila(
     // base64: os arquivos são pequenos o bastante (PDFs de poucos KB) pra
     // não valer a complexidade de uma tabela filha.
     anexos?: { buffer: Buffer; nome: string; mimeType: string }[];
+    // Cópia oculta de monitoramento (0133) — decidido explicitamente por
+    // quem chama, nunca inferido de `tipo` (que "comunicado" reaproveita
+    // tanto pra broadcast de irmão quanto pra recuperação de senha, um
+    // caso que NUNCA pode levar BCC). Persistido na linha pra o retry do
+    // CRON (processarFilaEmails) preservar a mesma decisão.
+    bccMonitoramento?: boolean;
     criadoPor?: string;
     // Loja a que o envio pertence. Opcional porque a maioria dos chamadores
     // ainda roda em contexto de sistema sem saber a loja (é o que a #348
@@ -232,14 +251,15 @@ async function gravarNaFila(
     // todo o resto: quem chama de dentro de uma sessão já tem; o cron chama
     // por withLojaConnection, que também seta. Sobra falhar quando ninguém
     // sabe a loja — que é justamente o que se quer que falhe.
-    `INSERT INTO filas_email (id, loja_id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexos_json, criado_por)
-     VALUES (?, COALESCE(?, @current_loja_id), ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO filas_email (id, loja_id, chave, tipo, destinatarios_json, bcc_monitoramento, assunto, corpo_html, corpo_texto, anexos_json, criado_por)
+     VALUES (?, COALESCE(?, @current_loja_id), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       params.lojaId ?? null,
       params.chave,
       params.tipo,
       JSON.stringify(params.destinatarios),
+      params.bccMonitoramento ?? false,
       params.assunto,
       params.html,
       params.texto,
@@ -317,6 +337,7 @@ export async function enviarEmailFaturaEmitida(
       html,
       texto,
       lojaId,
+      bccMonitoramento: true,
     });
 
     // Processa síncrono (feedback imediato)
@@ -329,6 +350,7 @@ export async function enviarEmailFaturaEmitida(
       texto,
       undefined,
       lojaId,
+      true,
     );
   });
 }
@@ -371,6 +393,7 @@ export async function enviarEmailIntersticioCompleto(
       html,
       texto,
       lojaId,
+      bccMonitoramento: true,
     });
 
     await tentarEnviarFilaEmail(
@@ -382,6 +405,7 @@ export async function enviarEmailIntersticioCompleto(
       texto,
       undefined,
       lojaId,
+      true,
     );
   });
 }
@@ -690,6 +714,7 @@ export async function enviarEmailComunicado(
       lojaId,
       html,
       texto,
+      bccMonitoramento: true,
     });
 
     // Processa síncrono
@@ -702,6 +727,7 @@ export async function enviarEmailComunicado(
       texto,
       undefined,
       lojaId,
+      true,
     );
 
     // Retorna resultado por destinatário
@@ -788,7 +814,7 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
   return withUserConnection(null, async (conn) => {
     // Busca filas prontas para retry (status = erro_permanente, proxima_tentativa <= NOW, tentativas < 3)
     const [filas] = await conn.query<RowDataPacket[]>(
-      `SELECT id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexos_json, tentativas, loja_id
+      `SELECT id, chave, tipo, destinatarios_json, bcc_monitoramento, assunto, corpo_html, corpo_texto, anexos_json, tentativas, loja_id
        FROM filas_email
        WHERE status = 'erro_permanente'
          AND proxima_tentativa IS NOT NULL
@@ -855,6 +881,7 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
           // A loja da própria linha da fila: o retry precisa sair pela mesma
           // caixa de onde o envio original sairia, não pela de outra loja.
           lojaId,
+          !!fila.bcc_monitoramento,
         );
 
         if (resultado.falhas === 0) {
@@ -951,6 +978,7 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
             html,
             texto,
             lojaId: fatura.loja_id as string,
+            bccMonitoramento: true,
           });
 
           // Processa síncrono
@@ -963,6 +991,7 @@ export async function executarLembretesFaturas(): Promise<ResultadoLembretes> {
             texto,
             undefined,
             fatura.loja_id as string,
+            true,
           );
           return resultado.falhas === 0;
         });
@@ -1017,6 +1046,7 @@ export async function enviarCobrancaManual(lancamentoId: string, lojaId: string)
       html,
       texto,
       lojaId,
+      bccMonitoramento: true,
     });
 
     // Processa síncrono
@@ -1029,6 +1059,7 @@ export async function enviarCobrancaManual(lancamentoId: string, lojaId: string)
       texto,
       undefined,
       lojaId,
+      true,
     );
     return resultado.falhas === 0;
   });
@@ -1073,6 +1104,7 @@ export async function enviarArquivoPorEmail(params: {
       texto: params.corpoTexto,
       anexos: params.anexos,
       lojaId: params.lojaId,
+      bccMonitoramento: true,
     });
 
     // Processa síncrono com anexos
@@ -1098,6 +1130,7 @@ export async function enviarArquivoPorEmail(params: {
         await transporter.sendMail({
           from: remetente,
           to: dest,
+          bcc: EMAIL_BCC_MONITORAMENTO,
           subject: params.assunto,
           html,
           text: params.corpoTexto,
