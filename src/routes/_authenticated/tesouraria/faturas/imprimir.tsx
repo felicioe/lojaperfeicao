@@ -39,7 +39,7 @@ function FaturasImprimirAgrupado() {
     <div className="space-y-4">
       <PageHeader title="Faturas agrupadas" />
       <div className="print:hidden">
-        <BotaoImprimir />
+        <BotaoImprimir faturaIds={idsArray} />
       </div>
       <FaturaAgrupadaCard faturas={faturas} />
     </div>

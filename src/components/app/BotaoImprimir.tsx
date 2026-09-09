@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useIsDesktop } from "@/lib/use-media-query";
-import { baixarFaturaPdf } from "@/lib/backend/tesouraria-lancamentos";
+import { baixarFaturaPdf, baixarFaturasAgrupadasPdf } from "@/lib/backend/tesouraria-lancamentos";
 import { Download, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,12 +40,12 @@ function useIsStandalone(): boolean {
   return isStandalone;
 }
 
-// Uma fatura tem PDF de verdade gerado no servidor (fatura-pdf.ts) — baixa
-// com um toque, mesmo comportamento em qualquer navegador, celular ou PWA
-// instalado, sem menu de compartilhar nem depender do diálogo de impressão
-// do sistema. Certificado de quitação e impressão de faturas em lote (as
-// outras duas telas que usam este componente) ainda não têm PDF próprio —
-// continuam no window.print() de antes enquanto isso não existir.
+// Uma fatura (avulsa ou agrupada) tem PDF de verdade gerado no servidor
+// (fatura-pdf.ts) — baixa com um toque, mesmo comportamento em qualquer
+// navegador, celular ou PWA instalado, sem menu de compartilhar nem
+// depender do diálogo de impressão do sistema. Certificado de quitação (a
+// outra tela que usa este componente) ainda não tem PDF próprio — continua
+// no window.print() de antes enquanto isso não existir.
 function BotaoBaixarFaturaPdf({ faturaId }: { faturaId: string }) {
   const [baixando, setBaixando] = useState(false);
 
@@ -73,12 +73,41 @@ function BotaoBaixarFaturaPdf({ faturaId }: { faturaId: string }) {
   );
 }
 
+function BotaoBaixarFaturasAgrupadasPdf({ faturaIds }: { faturaIds: string[] }) {
+  const [baixando, setBaixando] = useState(false);
+
+  const baixar = async () => {
+    setBaixando(true);
+    try {
+      const arquivo = await baixarFaturasAgrupadasPdf({ data: { ids: faturaIds } });
+      baixarBlob(base64ParaBlob(arquivo.base64, "application/pdf"), arquivo.nomeArquivo);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao gerar o PDF das faturas.");
+    } finally {
+      setBaixando(false);
+    }
+  };
+
+  return (
+    <Button onClick={baixar} disabled={baixando}>
+      {baixando ? (
+        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+      ) : (
+        <Download className="mr-1.5 h-4 w-4" />
+      )}
+      Baixar PDF das faturas
+    </Button>
+  );
+}
+
 export function BotaoImprimir({
   label = "Imprimir / salvar PDF",
   faturaId,
+  faturaIds,
 }: {
   label?: string;
   faturaId?: string;
+  faturaIds?: string[];
 }) {
   const isDesktop = useIsDesktop();
   const isStandalone = useIsStandalone();
@@ -98,6 +127,7 @@ export function BotaoImprimir({
   };
 
   if (faturaId) return <BotaoBaixarFaturaPdf faturaId={faturaId} />;
+  if (faturaIds) return <BotaoBaixarFaturasAgrupadasPdf faturaIds={faturaIds} />;
 
   // No PWA instalado, window.print() não é uma opção confiável (ausente no
   // iOS standalone) — o botão principal já sai direto pro fluxo de abrir no

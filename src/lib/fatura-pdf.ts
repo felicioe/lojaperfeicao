@@ -10,6 +10,14 @@ import type { LogoInstitucional } from "./backend/orgs";
 // imprimível), redesenhado com os primitivos de baixo nível de
 // PdfSimplesPaisagem — não dá pra rasterizar o HTML direto sem um browser
 // headless (não disponível neste hosting Node comum da Hostinger).
+//
+// gerarFaturasAgrupadasPdfBuffer (issue do usuário) reaproveita o mesmo
+// cabeçalho/bloco Pix desta única fatura — antes, "Faturas agrupadas"
+// (tesouraria/faturas/imprimir.tsx) só tinha window.print() da página web
+// (FaturaAgrupadaCard.tsx), com um visual bem diferente do PDF de verdade
+// que a fatura avulsa já tinha. Fatorar os blocos comuns aqui, em vez de
+// duplicar tudo de novo pro caso agrupado, evita que as duas versões
+// divirjam visualmente de novo no futuro.
 
 export type LojaParaPdf = { nome: string; razaoSocial: string | null; cnpj: string | null };
 
@@ -57,24 +65,24 @@ function truncarTexto(texto: string, maxCaracteres: number): string {
   return `${texto.slice(0, maxCaracteres - 1)}…`;
 }
 
-export async function gerarFaturaPdfBuffer(
-  fatura: LancamentoDetalhe,
+type ContextoPagina = { xEsq: number; xDir: number; larguraUtil: number; nomeLoja: string };
+
+// Cabeçalho institucional (logos + nome da Loja) + faixa de status —
+// idêntico entre fatura avulsa e agrupada, só o texto da faixa muda.
+function desenharCabecalho(
+  pdf: PdfSimplesPaisagem,
   loja: LojaParaPdf,
   logos: LogoInstitucional[],
-): Promise<Buffer> {
-  const pdf = new PdfSimplesPaisagem("retrato");
-  const logosPreparados = logos
-    .map((logo) => pdf.prepararImagem(logo.logoUrl))
-    .filter((r): r is { indice: number; largura: number; altura: number } => r !== null);
-
+  statusTexto: string,
+): ContextoPagina & { cursorY: number } {
   const xEsq = pdf.margem;
   const xDir = pdf.larguraPagina - pdf.margem;
   const larguraUtil = xDir - xEsq;
-
   let cursorY = pdf.margem;
 
-  // Cabeçalho institucional — logos das Orgs/Potências (issue #340) + nome
-  // da Loja, mesmo conteúdo do CabecalhoInstitucional.tsx.
+  const logosPreparados = logos
+    .map((logo) => pdf.prepararImagem(logo.logoUrl))
+    .filter((r): r is { indice: number; largura: number; altura: number } => r !== null);
   if (logosPreparados.length > 0) {
     const ALTURA_LOGO = 34;
     let xLogo = xEsq;
@@ -91,10 +99,6 @@ export async function gerarFaturaPdfBuffer(
   pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1.6, NAVY);
   cursorY += 22;
 
-  // Faixa de status, igual à barra colorida no topo do FaturaCard.
-  const statusTexto = fatura.pago
-    ? "Fatura quitada"
-    : "Documento gerado eletronicamente pelo sistema — pagamento exclusivo via Pix";
   pdf.desenharRetangulo(xEsq, cursorY - 14, larguraUtil, 18, NAVY);
   pdf.escreverTexto(statusTexto, xEsq + 8, cursorY - 10, {
     tamanho: 7.5,
@@ -102,6 +106,149 @@ export async function gerarFaturaPdfBuffer(
     fonte: "bold",
   });
   cursorY += 16;
+
+  return { xEsq, xDir, larguraUtil, nomeLoja, cursorY };
+}
+
+// Bloco Favorecido/Pagador lado a lado — idêntico entre os dois modelos.
+function desenharFavorecidoPagador(
+  pdf: PdfSimplesPaisagem,
+  ctx: ContextoPagina,
+  cursorYInicial: number,
+  loja: LojaParaPdf,
+  irmaoNome: string | null,
+  irmaoCim: string | null,
+): number {
+  const { xEsq, larguraUtil, nomeLoja } = ctx;
+  let cursorY = cursorYInicial;
+  const larguraColuna2 = larguraUtil / 2;
+  pdf.escreverTexto("FAVORECIDO", xEsq, cursorY, { fonte: "bold", tamanho: 7, cor: MUTED });
+  pdf.escreverTexto("PAGADOR", xEsq + larguraColuna2, cursorY, {
+    fonte: "bold",
+    tamanho: 7,
+    cor: MUTED,
+  });
+  cursorY += 12;
+  // Nome institucional costuma ser a razão social por extenso (bem longa,
+  // em caixa alta) — sem truncar aqui, invade visualmente a coluna do
+  // pagador ao lado (já aconteceu no teste com "ASSOCIACAO CAPITULAR
+  // ADONHIRAMITA AO VALE DE ITAJAI").
+  const CARACTERES_COLUNA_2 = 40;
+  pdf.escreverTexto(truncarTexto(nomeLoja, CARACTERES_COLUNA_2), xEsq, cursorY, {
+    fonte: "bold",
+    tamanho: 9,
+    cor: INK,
+  });
+  pdf.escreverTexto(
+    truncarTexto(irmaoNome ?? "—", CARACTERES_COLUNA_2),
+    xEsq + larguraColuna2,
+    cursorY,
+    { fonte: "bold", tamanho: 9, cor: INK },
+  );
+  cursorY += 12;
+  if (loja.cnpj) {
+    pdf.escreverTexto(`CNPJ ${loja.cnpj}`, xEsq, cursorY, { tamanho: 7.5, cor: MUTED });
+  }
+  if (irmaoCim) {
+    pdf.escreverTexto(`CIM ${irmaoCim}`, xEsq + larguraColuna2, cursorY, {
+      tamanho: 7.5,
+      cor: MUTED,
+    });
+  }
+  return cursorY + 22;
+}
+
+// Bloco "Pague com Pix" (texto + Copia e Cola + QR) — idêntico entre os
+// dois modelos, só o valor/txid/observação de rodapé mudam.
+async function desenharBlocoPix(
+  pdf: PdfSimplesPaisagem,
+  ctx: ContextoPagina,
+  cursorYInicial: number,
+  copiaCola: string,
+  pixChave: string | null,
+  pixNomeBeneficiario: string | null,
+  observacaoExtra?: string,
+): Promise<number> {
+  const { xEsq, xDir, larguraUtil, nomeLoja } = ctx;
+  const cursorY = cursorYInicial;
+  const ALTURA_QR = 110;
+  pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, ALTURA_QR + 20, "#f2f4f8");
+  pdf.escreverTexto("Pague com Pix", xEsq + 10, cursorY + 14, {
+    fonte: "bold",
+    tamanho: 9.5,
+    cor: INK,
+  });
+  const instrucao = observacaoExtra
+    ? `Abra o app do seu banco, escaneie o QR Code ou copie o código Pix Copia e Cola abaixo. ${observacaoExtra}`
+    : "Abra o app do seu banco, escaneie o QR Code ou copie o código Pix Copia e Cola abaixo.";
+  pdf.escreverTexto(instrucao, xEsq + 10, cursorY + 28, { tamanho: 7.3, cor: MUTED });
+  let yTextoPix = cursorY + 42;
+  if (pixChave) {
+    pdf.escreverTexto(`Chave PIX: ${pixChave}`, xEsq + 10, yTextoPix, {
+      tamanho: 7.5,
+      cor: INK,
+    });
+    yTextoPix += 12;
+  }
+  pdf.escreverTexto(`Favorecido: ${pixNomeBeneficiario || nomeLoja}`, xEsq + 10, yTextoPix, {
+    tamanho: 7.5,
+    cor: INK,
+  });
+  yTextoPix += 14;
+  pdf.escreverTexto("PIX Copia e Cola", xEsq + 10, yTextoPix, {
+    fonte: "bold",
+    tamanho: 7.5,
+    cor: INK,
+  });
+  yTextoPix += 12;
+  const larguraTextoPix = larguraUtil - 150;
+  const caracteresPorLinha = Math.max(20, Math.floor(larguraTextoPix / 3.9));
+  for (const linha of quebrarLinhas(copiaCola, caracteresPorLinha).slice(0, 4)) {
+    pdf.escreverTexto(linha, xEsq + 10, yTextoPix, { tamanho: 6.6, cor: NAVY_DEEP });
+    yTextoPix += 10;
+  }
+
+  try {
+    const qrDataUrl = await QRCode.toDataURL(copiaCola, { margin: 1, width: 220 });
+    const qrPreparado = pdf.prepararImagem(qrDataUrl);
+    if (qrPreparado) {
+      const TAMANHO_QR = ALTURA_QR - 10;
+      pdf.desenharImagem(
+        qrPreparado.indice,
+        xDir - TAMANHO_QR - 10,
+        cursorY + 10,
+        TAMANHO_QR,
+        TAMANHO_QR,
+      );
+    }
+  } catch {
+    // QR code não gerou — o Copia e Cola em texto acima já basta pra pagar.
+  }
+
+  return cursorY + ALTURA_QR + 20 + 16;
+}
+
+function rodape(pdf: PdfSimplesPaisagem, xEsq: number) {
+  pdf.escreverTextoEmTodasPaginas(
+    `Gerado em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`,
+    xEsq,
+    pdf.alturaPagina - 26,
+    { tamanho: 7, cor: "#8b95a5" },
+  );
+}
+
+export async function gerarFaturaPdfBuffer(
+  fatura: LancamentoDetalhe,
+  loja: LojaParaPdf,
+  logos: LogoInstitucional[],
+): Promise<Buffer> {
+  const pdf = new PdfSimplesPaisagem("retrato");
+  const statusTexto = fatura.pago
+    ? "Fatura quitada"
+    : "Documento gerado eletronicamente pelo sistema — pagamento exclusivo via Pix";
+  const ctx = desenharCabecalho(pdf, loja, logos, statusTexto);
+  const { xEsq, xDir, larguraUtil } = ctx;
+  let cursorY = ctx.cursorY;
 
   // Título + badge de situação.
   pdf.escreverTexto("Fatura da Associação", xEsq, cursorY, {
@@ -124,42 +271,7 @@ export async function gerarFaturaPdfBuffer(
   pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, "#d8dee7");
   cursorY += 18;
 
-  // Favorecido / Pagador, lado a lado.
-  const larguraColuna2 = larguraUtil / 2;
-  pdf.escreverTexto("FAVORECIDO", xEsq, cursorY, { fonte: "bold", tamanho: 7, cor: MUTED });
-  pdf.escreverTexto("PAGADOR", xEsq + larguraColuna2, cursorY, {
-    fonte: "bold",
-    tamanho: 7,
-    cor: MUTED,
-  });
-  cursorY += 12;
-  // Nome institucional costuma ser a razão social por extenso (bem longa,
-  // em caixa alta) — sem truncar aqui, invade visualmente a coluna do
-  // pagador ao lado (já aconteceu no teste com "ASSOCIACAO CAPITULAR
-  // ADONHIRAMITA AO VALE DE ITAJAI").
-  const CARACTERES_COLUNA_2 = 40;
-  pdf.escreverTexto(truncarTexto(nomeLoja, CARACTERES_COLUNA_2), xEsq, cursorY, {
-    fonte: "bold",
-    tamanho: 9,
-    cor: INK,
-  });
-  pdf.escreverTexto(
-    truncarTexto(fatura.irmao_nome ?? "—", CARACTERES_COLUNA_2),
-    xEsq + larguraColuna2,
-    cursorY,
-    { fonte: "bold", tamanho: 9, cor: INK },
-  );
-  cursorY += 12;
-  if (loja.cnpj) {
-    pdf.escreverTexto(`CNPJ ${loja.cnpj}`, xEsq, cursorY, { tamanho: 7.5, cor: MUTED });
-  }
-  if (fatura.irmao_cim) {
-    pdf.escreverTexto(`CIM ${fatura.irmao_cim}`, xEsq + larguraColuna2, cursorY, {
-      tamanho: 7.5,
-      cor: MUTED,
-    });
-  }
-  cursorY += 22;
+  cursorY = desenharFavorecidoPagador(pdf, ctx, cursorY, loja, fatura.irmao_nome, fatura.irmao_cim);
 
   // Referente a.
   pdf.escreverTexto("REFERENTE A", xEsq, cursorY, { fonte: "bold", tamanho: 7, cor: MUTED });
@@ -224,72 +336,154 @@ export async function gerarFaturaPdfBuffer(
       : null);
 
   if (!fatura.pago && copiaCola) {
-    const ALTURA_QR = 110;
-    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, ALTURA_QR + 20, "#f2f4f8");
-    pdf.escreverTexto("Pague com Pix", xEsq + 10, cursorY + 14, {
-      fonte: "bold",
-      tamanho: 9.5,
-      cor: INK,
-    });
-    pdf.escreverTexto(
-      "Abra o app do seu banco, escaneie o QR Code ou copie o código Pix Copia e Cola abaixo.",
-      xEsq + 10,
-      cursorY + 28,
-      { tamanho: 7.3, cor: MUTED },
+    cursorY = await desenharBlocoPix(
+      pdf,
+      ctx,
+      cursorY,
+      copiaCola,
+      fatura.pix_chave,
+      fatura.pix_nome_beneficiario,
     );
-    let yTextoPix = cursorY + 42;
-    if (fatura.pix_chave) {
-      pdf.escreverTexto(`Chave PIX: ${fatura.pix_chave}`, xEsq + 10, yTextoPix, {
-        tamanho: 7.5,
-        cor: INK,
-      });
-      yTextoPix += 12;
-    }
-    pdf.escreverTexto(
-      `Favorecido: ${fatura.pix_nome_beneficiario || nomeLoja}`,
-      xEsq + 10,
-      yTextoPix,
-      { tamanho: 7.5, cor: INK },
-    );
-    yTextoPix += 14;
-    pdf.escreverTexto("PIX Copia e Cola", xEsq + 10, yTextoPix, {
-      fonte: "bold",
-      tamanho: 7.5,
-      cor: INK,
-    });
-    yTextoPix += 12;
-    const larguraTextoPix = larguraUtil - 150;
-    const caracteresPorLinha = Math.max(20, Math.floor(larguraTextoPix / 3.9));
-    for (const linha of quebrarLinhas(copiaCola, caracteresPorLinha).slice(0, 4)) {
-      pdf.escreverTexto(linha, xEsq + 10, yTextoPix, { tamanho: 6.6, cor: NAVY_DEEP });
-      yTextoPix += 10;
-    }
-
-    try {
-      const qrDataUrl = await QRCode.toDataURL(copiaCola, { margin: 1, width: 220 });
-      const qrPreparado = pdf.prepararImagem(qrDataUrl);
-      if (qrPreparado) {
-        const TAMANHO_QR = ALTURA_QR - 10;
-        pdf.desenharImagem(
-          qrPreparado.indice,
-          xDir - TAMANHO_QR - 10,
-          cursorY + 10,
-          TAMANHO_QR,
-          TAMANHO_QR,
-        );
-      }
-    } catch {
-      // QR code não gerou — o Copia e Cola em texto acima já basta pra pagar.
-    }
-    cursorY += ALTURA_QR + 20 + 16;
   }
 
-  pdf.escreverTextoEmTodasPaginas(
-    `Gerado em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`,
-    xEsq,
-    pdf.alturaPagina - 26,
-    { tamanho: 7, cor: "#8b95a5" },
+  rodape(pdf, xEsq);
+
+  return pdf.finalizar();
+}
+
+// Impressão agrupada de 2+ faturas do mesmo irmão numa única página (issue
+// #318), com PDF de verdade em vez de window.print() da página web — antes
+// só existia a versão HTML imprimível (FaturaAgrupadaCard.tsx), com visual
+// bem diferente do PDF de uma fatura avulsa (issue do usuário). Mesmo
+// cabeçalho/bloco Pix da fatura avulsa (desenharCabecalho/
+// desenharFavorecidoPagador/desenharBlocoPix acima); só a seção de itens e
+// o Pix somado são específicos daqui — mesmo cálculo de totalSaldo/txid
+// agrupado (`G${id}`) que o FaturaAgrupadaCard já usa no cliente.
+export async function gerarFaturasAgrupadasPdfBuffer(
+  faturas: LancamentoDetalhe[],
+  loja: LojaParaPdf,
+  logos: LogoInstitucional[],
+): Promise<Buffer> {
+  const pdf = new PdfSimplesPaisagem("retrato");
+  const primeira = faturas[0];
+  const ctx = desenharCabecalho(
+    pdf,
+    loja,
+    logos,
+    "Documento gerado eletronicamente pelo sistema — pagamento exclusivo via Pix",
   );
+  const { xEsq, xDir, larguraUtil } = ctx;
+  let cursorY = ctx.cursorY;
+
+  pdf.escreverTexto("Fatura da Associação", xEsq, cursorY, {
+    fonte: "bold",
+    tamanho: 15,
+    cor: INK,
+  });
+  cursorY += 14;
+  pdf.escreverTexto(
+    `${faturas.length} faturas agrupadas — documento para pagamento`,
+    xEsq,
+    cursorY,
+    { tamanho: 8.5, cor: MUTED },
+  );
+  const hoje = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date());
+  pdf.escreverTexto(`Emitida em ${hoje}`, xDir - 140, cursorY, { tamanho: 7.5, cor: MUTED });
+  cursorY += 20;
+  pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, "#d8dee7");
+  cursorY += 18;
+
+  cursorY = desenharFavorecidoPagador(
+    pdf,
+    ctx,
+    cursorY,
+    loja,
+    primeira.irmao_nome,
+    primeira.irmao_cim,
+  );
+
+  // Itens agrupados — uma linha por fatura, com quebra de página se a lista
+  // não couber na página atual (mesmo critério de checagem de espaço já
+  // usado em relatorio-export.ts).
+  pdf.escreverTexto("ITENS AGRUPADOS", xEsq, cursorY, { fonte: "bold", tamanho: 7, cor: MUTED });
+  cursorY += 14;
+  const ALTURA_LINHA_ITEM = 28;
+  for (const fatura of faturas) {
+    if (cursorY + ALTURA_LINHA_ITEM > pdf.alturaPagina - 40) {
+      pdf.novaPagina();
+      cursorY = pdf.margem;
+    }
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, "#eef1f5");
+    pdf.escreverTexto(truncarTexto(fatura.descricao, 70), xEsq, cursorY + 12, {
+      fonte: "bold",
+      tamanho: 8.5,
+      cor: INK,
+    });
+    const subinfo = fatura.competencia_mes
+      ? `Competência ${formatarMesAno(fatura.competencia_mes)} · Vencimento ${formatarData(fatura.data_vencimento)}`
+      : `Vencimento ${formatarData(fatura.data_vencimento)}`;
+    pdf.escreverTexto(subinfo, xEsq, cursorY + 22, { tamanho: 7, cor: MUTED });
+    const saldoItem = Number(fatura.valor) - Number(fatura.valor_pago);
+    pdf.escreverTexto(formatarMoeda(saldoItem), xDir - 80, cursorY + 16, {
+      fonte: "bold",
+      tamanho: 9,
+      cor: INK,
+    });
+    cursorY += ALTURA_LINHA_ITEM;
+  }
+  cursorY += 8;
+
+  // Total a pagar.
+  const totalSaldo = faturas.reduce((s, f) => s + (Number(f.valor) - Number(f.valor_pago)), 0);
+  const ALTURA_TOTAL = 32;
+  pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, ALTURA_TOTAL, "#f2f4f8");
+  pdf.escreverTexto("Total a pagar", xEsq + 10, cursorY + 20, {
+    fonte: "bold",
+    tamanho: 9.5,
+    cor: INK,
+  });
+  pdf.escreverTexto(formatarMoeda(totalSaldo), xDir - 100, cursorY + 20, {
+    fonte: "bold",
+    tamanho: 12,
+    cor: INK,
+  });
+  cursorY += ALTURA_TOTAL + 22;
+
+  // Pix somado — mesmo cálculo do FaturaAgrupadaCard.tsx: valor total das
+  // faturas, txid próprio prefixado com "G" pra não colidir com o Copia e
+  // Cola de nenhuma fatura individual.
+  const copiaCola =
+    primeira.pix_copia_cola ||
+    (primeira.forma_cobranca &&
+    primeira.pix_chave &&
+    primeira.pix_nome_beneficiario &&
+    primeira.pix_cidade
+      ? gerarPixCopiaCola({
+          chave: primeira.pix_chave,
+          nomeBeneficiario: primeira.pix_nome_beneficiario,
+          cidade: primeira.pix_cidade,
+          valor: totalSaldo,
+          txid: `G${primeira.id.replace(/-/g, "")}`.slice(0, 25),
+        })
+      : null);
+
+  if (copiaCola) {
+    if (cursorY + 150 > pdf.alturaPagina - 40) {
+      pdf.novaPagina();
+      cursorY = pdf.margem;
+    }
+    cursorY = await desenharBlocoPix(
+      pdf,
+      ctx,
+      cursorY,
+      copiaCola,
+      primeira.pix_chave,
+      primeira.pix_nome_beneficiario,
+      "Um único pagamento quita todas as faturas listadas.",
+    );
+  }
+
+  rodape(pdf, xEsq);
 
   return pdf.finalizar();
 }
