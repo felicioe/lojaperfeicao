@@ -542,6 +542,21 @@ const EVENTOS_FINANCEIROS_SQL = `
 
     UNION ALL
 
+    -- Espelho do branch acima (issue #476): quando a transferência JÁ tem
+    -- uma linha do extrato vinculada, credita conta_destino_id por aqui — o
+    -- branch acima para de cobrir esse caso assim que o vínculo existe, e o
+    -- branch "OFX conciliado direto" (mais acima) só toca em
+    -- o.conta_financeira_id, que é sempre a conta de origem, nunca a de
+    -- destino.
+    SELECT l.conta_destino_id AS conta_financeira_id, l.loja_id, o.data,
+           l.valor AS valor_sinal
+    FROM lancamentos l
+    JOIN ofx_lancamentos o ON o.lancamento_id = l.id AND o.loja_id = l.loja_id
+    WHERE l.pago = TRUE AND l.tipo = 'transferencia' AND l.conta_destino_id IS NOT NULL
+      AND o.conciliado = TRUE AND o.conciliacao_id IS NULL
+
+    UNION ALL
+
     SELECT cf.id AS conta_financeira_id, cf.loja_id, lc.data, cf.saldo_inicial AS valor_sinal
     FROM contas_financeiras cf
     JOIN lancamentos_contabeis lc

@@ -378,10 +378,24 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
                  WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
                    AND o.conciliacao_id IS NULL
                )
+             UNION ALL
+             -- Espelho do branch acima (issue #476): quando a transferência
+             -- JÁ tem uma linha do extrato vinculada, credita
+             -- conta_destino_id por aqui — o branch acima para de cobrir
+             -- esse caso assim que o vínculo existe, e o branch "OFX
+             -- confirmado" (mais acima) só toca em o.conta_financeira_id,
+             -- que é sempre a conta de origem, nunca a de destino.
+             SELECT l.conta_destino_id, l.valor
+             FROM lancamentos l
+             JOIN ofx_lancamentos o ON o.lancamento_id = l.id AND o.loja_id = l.loja_id
+             WHERE l.loja_id = @current_loja_id
+               AND l.pago = TRUE AND l.tipo = 'transferencia' AND l.conta_destino_id IS NOT NULL
+               AND o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.data <= ?
            ) eventos ON eventos.conta_financeira_id = cf.id
            WHERE cf.loja_id = @current_loja_id AND cf.id = ?
            GROUP BY cf.id, cf.saldo_inicial`,
           [
+            extrato.data_final,
             extrato.data_final,
             extrato.data_final,
             extrato.data_final,
