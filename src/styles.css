@@ -234,7 +234,7 @@
 
   html {
     -webkit-text-size-adjust: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Rede de segurança contra rolagem horizontal da página inteira — sem
@@ -242,14 +242,23 @@
      whitespace-nowrap, ícone com largura fixa, título longo) em QUALQUER
      tela empurra a página toda pros lados, exigindo arrastar a tela pra ver
      o resto (relatado no celular, em todas as telas — PainelShell.tsx já
-     tinha essa proteção só no <main>, não no <header>/<nav> ao redor). */
+     tinha essa proteção só no <main>, não no <header>/<nav> ao redor).
+     `clip`, não `hidden`: qualquer valor de overflow diferente de `visible`
+     força o navegador a computar o EIXO OPOSTO como `auto` quando ele
+     estivesse `visible` (regra da CSS Overflow Module) — com `overflow-x:
+     hidden`, isso silenciosamente virava `overflow-y: auto` no html/body,
+     que quebra `position: sticky` de qualquer elemento dentro (a barra
+     lateral saía do campo de visão em telas centrais muito longas, em vez
+     de ficar grudada no topo). `clip` é a exceção: não aciona esse
+     acoplamento, protege a rolagem horizontal do mesmo jeito, e mantém o
+     `overflow-y` do html/body como `visible` de verdade. */
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   ::selection {
