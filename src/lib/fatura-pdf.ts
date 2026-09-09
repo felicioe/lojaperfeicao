@@ -407,14 +407,19 @@ export async function gerarFaturasAgrupadasPdfBuffer(
   // usado em relatorio-export.ts).
   pdf.escreverTexto("ITENS AGRUPADOS", xEsq, cursorY, { fonte: "bold", tamanho: 7, cor: MUTED });
   cursorY += 14;
-  const ALTURA_LINHA_ITEM = 28;
+  // 28px não dava espaço suficiente pro texto de competência/vencimento
+  // (tamanho 7, desenhado em cursorY+22): como escreverTexto usa yTopo como
+  // topo da caixa da fonte, esse texto ocupa visualmente até ~cursorY+29,
+  // ultrapassando a linha divisória do item seguinte (cursorY+28) e cortando
+  // o texto ao meio. 36px + offsets revisados dão folga real entre as linhas.
+  const ALTURA_LINHA_ITEM = 36;
   for (const fatura of faturas) {
     if (cursorY + ALTURA_LINHA_ITEM > pdf.alturaPagina - 40) {
       pdf.novaPagina();
       cursorY = pdf.margem;
     }
     pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, "#eef1f5");
-    pdf.escreverTexto(truncarTexto(fatura.descricao, 70), xEsq, cursorY + 12, {
+    pdf.escreverTexto(truncarTexto(fatura.descricao, 70), xEsq, cursorY + 13, {
       fonte: "bold",
       tamanho: 8.5,
       cor: INK,
@@ -422,9 +427,9 @@ export async function gerarFaturasAgrupadasPdfBuffer(
     const subinfo = fatura.competencia_mes
       ? `Competência ${formatarMesAno(fatura.competencia_mes)} · Vencimento ${formatarData(fatura.data_vencimento)}`
       : `Vencimento ${formatarData(fatura.data_vencimento)}`;
-    pdf.escreverTexto(subinfo, xEsq, cursorY + 22, { tamanho: 7, cor: MUTED });
+    pdf.escreverTexto(subinfo, xEsq, cursorY + 25, { tamanho: 7, cor: MUTED });
     const saldoItem = Number(fatura.valor) - Number(fatura.valor_pago);
-    pdf.escreverTexto(formatarMoeda(saldoItem), xDir - 80, cursorY + 16, {
+    pdf.escreverTexto(formatarMoeda(saldoItem), xDir - 80, cursorY + 19, {
       fonte: "bold",
       tamanho: 9,
       cor: INK,
