@@ -620,11 +620,21 @@ export const estornarLancamento = createServerFn({ method: "POST" })
         );
       }
 
+      // Além de provisão (regime de competência antigo, hoje bloqueada por
+      // registrar_lancamento_contabil), um lançamento reaberto por
+      // desfazer_lancamento_ofx pode ter passado por uma baixa real seguida
+      // do estorno dela (conciliacao_baixa/conta_pagar_baixa + o
+      // conciliacao_estorno que a reverteu) — o par já net a zero no razão,
+      // mas os dois ficariam órfãos (origem_id apontando pra este lançamento,
+      // que deixa de existir) se não forem removidos junto.
       const [contabeis] = await conn.query<RowDataPacket[]>(
         `SELECT id FROM lancamentos_contabeis
          WHERE loja_id = @current_loja_id
            AND origem_id = ?
-           AND origem_tipo IN ('fatura_provisao', 'recebimento_avulso', 'conta_pagar_provisao')`,
+           AND origem_tipo IN (
+             'fatura_provisao', 'recebimento_avulso', 'conta_pagar_provisao',
+             'conciliacao_baixa', 'conta_pagar_baixa', 'conciliacao_estorno'
+           )`,
         [data.id],
       );
       for (const lc of contabeis) {
