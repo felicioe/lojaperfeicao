@@ -194,12 +194,17 @@ async function gravarNaFila(
       | "relatorio_manual"
       | "lembrete_vencida"
       | "convite_admin"
-      | "interstico_completo";
+      | "interstico_completo"
+      | "fatura_aberta_lote";
     destinatarios: string[];
     assunto: string;
     html: string;
     texto: string;
-    anexo?: { buffer: Buffer; nome: string; mimeType: string };
+    // Vários anexos por e-mail (issue #470 — um e-mail por irmão com o PDF
+    // de cada fatura em aberto dele). Guardado em anexos_json (0128) como
+    // base64: os arquivos são pequenos o bastante (PDFs de poucos KB) pra
+    // não valer a complexidade de uma tabela filha.
+    anexos?: { buffer: Buffer; nome: string; mimeType: string }[];
     criadoPor?: string;
     // Loja a que o envio pertence. Opcional porque a maioria dos chamadores
     // ainda roda em contexto de sistema sem saber a loja (é o que a #348
@@ -227,8 +232,8 @@ async function gravarNaFila(
     // todo o resto: quem chama de dentro de uma sessão já tem; o cron chama
     // por withLojaConnection, que também seta. Sobra falhar quando ninguém
     // sabe a loja — que é justamente o que se quer que falhe.
-    `INSERT INTO filas_email (id, loja_id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, criado_por)
-     VALUES (?, COALESCE(?, @current_loja_id), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO filas_email (id, loja_id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexos_json, criado_por)
+     VALUES (?, COALESCE(?, @current_loja_id), ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       params.lojaId ?? null,
@@ -238,9 +243,15 @@ async function gravarNaFila(
       params.assunto,
       params.html,
       params.texto,
-      params.anexo?.buffer || null,
-      params.anexo?.nome || null,
-      params.anexo?.mimeType || null,
+      params.anexos && params.anexos.length > 0
+        ? JSON.stringify(
+            params.anexos.map((a) => ({
+              nome: a.nome,
+              mimeType: a.mimeType,
+              bufferBase64: a.buffer.toString("base64"),
+            })),
+          )
+        : null,
       params.criadoPor || null,
     ],
   );
@@ -777,7 +788,7 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
   return withUserConnection(null, async (conn) => {
     // Busca filas prontas para retry (status = erro_permanente, proxima_tentativa <= NOW, tentativas < 3)
     const [filas] = await conn.query<RowDataPacket[]>(
-      `SELECT id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexo_buffer, anexo_nome, anexo_mime_type, tentativas, loja_id
+      `SELECT id, chave, tipo, destinatarios_json, assunto, corpo_html, corpo_texto, anexos_json, tentativas, loja_id
        FROM filas_email
        WHERE status = 'erro_permanente'
          AND proxima_tentativa IS NOT NULL
@@ -815,15 +826,21 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
       }
 
       const destinatarios = JSON.parse(fila.destinatarios_json) as string[];
-      const anexos = fila.anexo_buffer
-        ? [
-            {
-              filename: fila.anexo_nome,
-              content: fila.anexo_buffer as Buffer,
-              contentType: fila.anexo_mime_type,
-            },
-          ]
-        : undefined;
+      const anexosSalvos = fila.anexos_json
+        ? (JSON.parse(fila.anexos_json) as {
+            nome: string;
+            mimeType: string;
+            bufferBase64: string;
+          }[])
+        : [];
+      const anexos =
+        anexosSalvos.length > 0
+          ? anexosSalvos.map((a) => ({
+              filename: a.nome,
+              content: Buffer.from(a.bufferBase64, "base64"),
+              contentType: a.mimeType,
+            }))
+          : undefined;
 
       processadas++;
       try {
@@ -1033,29 +1050,28 @@ export async function enviarArquivoPorEmail(params: {
   destinatarios: string[];
   assunto: string;
   corpoTexto: string;
-  anexoBuffer: Buffer;
-  anexoNome: string;
-  anexoMimeType: string;
+  // Um ou mais anexos (issue #470 — várias faturas em PDF no mesmo e-mail).
+  anexos: { buffer: Buffer; nome: string; mimeType: string }[];
   // A loja de quem pediu o envio: define de qual caixa o relatório sai
   // (issue #352). Vem do comPapel na server function que chama isto.
   lojaId: string;
+  // "relatorio_manual" por padrão (chamador original, issue #111);
+  // "fatura_aberta_lote" pro envio em lote de faturas em aberto (#470).
+  tipo?: "relatorio_manual" | "fatura_aberta_lote";
 }): Promise<ResultadoEnvioRelatorio> {
   return withLojaConnection(params.lojaId, async (conn) => {
     const html = `<p>${params.corpoTexto}</p>`;
-    const chave = `relatorio_manual:${randomUUID()}`;
+    const tipo = params.tipo ?? "relatorio_manual";
+    const chave = `${tipo}:${randomUUID()}`;
 
     const filaId = await gravarNaFila(conn, {
       chave,
-      tipo: "relatorio_manual",
+      tipo,
       destinatarios: params.destinatarios,
       assunto: params.assunto,
       html,
       texto: params.corpoTexto,
-      anexo: {
-        buffer: params.anexoBuffer,
-        nome: params.anexoNome,
-        mimeType: params.anexoMimeType,
-      },
+      anexos: params.anexos,
       lojaId: params.lojaId,
     });
 
@@ -1071,6 +1087,12 @@ export async function enviarArquivoPorEmail(params: {
     // Agora o erro é guardado e devolvido junto com o resultado.
     let ultimoErro: string | null = null;
 
+    const attachments = params.anexos.map((a) => ({
+      filename: a.nome,
+      content: a.buffer,
+      contentType: a.mimeType,
+    }));
+
     for (const dest of params.destinatarios) {
       try {
         await transporter.sendMail({
@@ -1079,13 +1101,7 @@ export async function enviarArquivoPorEmail(params: {
           subject: params.assunto,
           html,
           text: params.corpoTexto,
-          attachments: [
-            {
-              filename: params.anexoNome,
-              content: params.anexoBuffer,
-              contentType: params.anexoMimeType,
-            },
-          ],
+          attachments,
         });
         sucessoCount++;
         resultados.push({ destinatario: dest, sucesso: true });
