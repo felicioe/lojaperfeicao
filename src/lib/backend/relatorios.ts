@@ -210,7 +210,10 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
       }
       const havingData = condicoesData.length > 0 ? `WHERE ${condicoesData.join(" AND ")}` : "";
 
-      const [rows] = await conn.query<RowDataPacket[]>(
+      // recibo + fora: data de pagamento já é um campo estático e correto
+      // (r.data / l.data_pagamento) — filtro de período aplicado em SQL
+      // como sempre foi.
+      const [rowsDiretos] = await conn.query<RowDataPacket[]>(
         `SELECT * FROM (
            SELECT ri.id, l.data, r.data AS data_pagamento, l.descricao,
                   (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor,
@@ -223,17 +226,6 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
            LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
            WHERE ri.loja_id = @current_loja_id AND ${recibo.where}
            UNION ALL
-           SELECT cl.id, l.data, c.data_conciliacao AS data_pagamento, l.descricao,
-                  cl.valor_aplicado AS valor,
-                  l.forma_pagamento, l.categoria_recebimento,
-                  cf.nome AS conta_nome, i.nome_civil AS irmao_nome
-           FROM conciliacao_lancamentos cl
-           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id AND c.status = 'ativa'
-           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
-           LEFT JOIN contas_financeiras cf ON cf.id = c.conta_financeira_id AND cf.loja_id = c.loja_id
-           LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
-           WHERE cl.loja_id = @current_loja_id AND ${conciliacao.where}
-           UNION ALL
            SELECT l.id, l.data, l.data_pagamento, l.descricao, l.valor,
                   l.forma_pagamento, l.categoria_recebimento,
                   cf.nome AS conta_nome, i.nome_civil AS irmao_nome
@@ -242,16 +234,108 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
            LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
            WHERE l.loja_id = @current_loja_id AND ${fora.where}
          ) rec
-         ${havingData}
-         ORDER BY data_pagamento DESC
-         LIMIT 2000`,
-        [...recibo.valores, ...conciliacao.valores, ...fora.valores, ...valoresData],
+         ${havingData}`,
+        [...recibo.valores, ...fora.valores, ...valoresData],
       );
-      // Busca as 2000 mais recentes (LIMIT precisa do DESC pra não cortar
-      // fora justamente os recebimentos mais novos quando há mais de 2000
-      // no filtro) e inverte só na saída — exibição sempre do mais antigo
-      // pro mais novo, sem arriscar sumir com dado recente por causa do cap.
-      return (rows as ItemRecebimento[]).reverse();
+
+      // Conciliação em lote: c.data_conciliacao é só a data em que o LOTE
+      // foi processado, não quando cada fatura foi de fato paga — um lote
+      // pode juntar Pix de meses diferentes quitando faturas atrasadas de
+      // meses diferentes (achado secundário da revisão pós-#476; mesma
+      // reconstrução já usada em relatorioExtratoIrmao/
+      // relatorioExtratoConciliacao, via parearLotePorOrdem). Sem isso, um
+      // lote de setembro que fecha três mensalidades pagas de fato em
+      // fevereiro/abril/julho aparecia com as três em setembro.
+      const [conciliacaoRows] = await conn.query<RowDataPacket[]>(
+        `SELECT cl.id, cl.conciliacao_id, l.data, COALESCE(l.data_vencimento, l.data) AS ordenacao,
+                c.data_conciliacao, l.descricao, cl.valor_aplicado AS valor,
+                l.forma_pagamento, l.categoria_recebimento,
+                cf.nome AS conta_nome, i.nome_civil AS irmao_nome
+         FROM conciliacao_lancamentos cl
+         JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id AND c.status = 'ativa'
+         JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+         LEFT JOIN contas_financeiras cf ON cf.id = c.conta_financeira_id AND cf.loja_id = c.loja_id
+         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         WHERE cl.loja_id = @current_loja_id AND ${conciliacao.where}`,
+        conciliacao.valores,
+      );
+
+      const idsConciliacaoLote = [
+        ...new Set(conciliacaoRows.map((r) => r.conciliacao_id as string)),
+      ];
+      const dataPagamentoPorClId = new Map<string, string>();
+      if (idsConciliacaoLote.length > 0) {
+        const [ofxDoLote] = await conn.query<RowDataPacket[]>(
+          `SELECT id, conciliacao_id, data, valor FROM ofx_lancamentos
+           WHERE conciliacao_id IN (?) AND loja_id = @current_loja_id`,
+          [idsConciliacaoLote],
+        );
+        const ofxPorConciliacao = new Map<string, { id: string; data: string; valor: number }[]>();
+        for (const o of ofxDoLote) {
+          const lista = ofxPorConciliacao.get(o.conciliacao_id) ?? [];
+          lista.push({ id: o.id, data: String(o.data), valor: Number(o.valor) });
+          ofxPorConciliacao.set(o.conciliacao_id, lista);
+        }
+        const clPorConciliacao = new Map<string, RowDataPacket[]>();
+        for (const r of conciliacaoRows) {
+          const lista = clPorConciliacao.get(r.conciliacao_id) ?? [];
+          lista.push(r);
+          clPorConciliacao.set(r.conciliacao_id, lista);
+        }
+        for (const conciliacaoId of idsConciliacaoLote) {
+          const ofxDesteLote = ofxPorConciliacao.get(conciliacaoId) ?? [];
+          const clDesteLote = clPorConciliacao.get(conciliacaoId) ?? [];
+          if (ofxDesteLote.length === 1) {
+            // Sem ambiguidade: só 1 linha do banco no evento, é ela mesma.
+            for (const r of clDesteLote) dataPagamentoPorClId.set(r.id, ofxDesteLote[0].data);
+            continue;
+          }
+          const pares = parearLotePorOrdem(
+            ofxDesteLote,
+            clDesteLote.map((r) => ({
+              id: r.id,
+              ordenacao: String(r.ordenacao),
+              valor: Number(r.valor),
+            })),
+          );
+          if (!pares) continue;
+          const dataPorOfxId = new Map(ofxDesteLote.map((o) => [o.id, o.data]));
+          for (const [ofxId, clId] of pares) {
+            dataPagamentoPorClId.set(clId, dataPorOfxId.get(ofxId)!);
+          }
+        }
+      }
+
+      const rowsConciliacao: ItemRecebimento[] = conciliacaoRows
+        .map((r) => ({
+          id: r.id as string,
+          data: r.data as string,
+          // Fallback pra data do evento (o melhor dado honesto disponível)
+          // quando não dá pra separar por linha — mesmo critério de
+          // relatorioExtratoIrmao.
+          data_pagamento: dataPagamentoPorClId.get(r.id) ?? (r.data_conciliacao as string),
+          descricao: r.descricao as string,
+          valor: Number(r.valor),
+          forma_pagamento: r.forma_pagamento as string | null,
+          categoria_recebimento: r.categoria_recebimento as string | null,
+          conta_nome: r.conta_nome as string | null,
+          irmao_nome: r.irmao_nome as string | null,
+        }))
+        .filter(
+          (r) =>
+            (!data.de || r.data_pagamento >= data.de) &&
+            (!data.ate || r.data_pagamento <= data.ate),
+        );
+
+      // Busca as 2000 mais recentes (ordena decrescente antes de cortar, pra
+      // não cortar fora justamente os recebimentos mais novos quando há mais
+      // de 2000 no filtro) e inverte só na saída — exibição sempre do mais
+      // antigo pro mais novo, sem arriscar sumir com dado recente por causa
+      // do cap.
+      const todasAsLinhas = [...(rowsDiretos as ItemRecebimento[]), ...rowsConciliacao]
+        .sort((a, b) => b.data_pagamento.localeCompare(a.data_pagamento))
+        .slice(0, 2000);
+      return todasAsLinhas.reverse();
     });
   });
 
@@ -994,10 +1078,17 @@ async function relatorioExtratoBancarioCreditado(
        AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
        AND NOT EXISTS (SELECT 1 FROM conciliacao_lancamentos cl JOIN conciliacoes co ON co.id = cl.conciliacao_id AND co.loja_id = cl.loja_id AND co.status = 'ativa' WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id)
        AND NOT EXISTS (
+         -- Escopado a esta conta (issue #476, achado secundário da revisão de
+         -- código): sem o o.conta_financeira_id = ?, uma transferência
+         -- confirmada pelo OFX do lado da ORIGEM sumia daqui pro lado do
+         -- DESTINO também, mesmo esta conta nunca tendo recebido uma linha de
+         -- extrato própria pra ela — o "extrato bancário" desta conta deixava
+         -- de mostrar um movimento real que passou por ela.
          SELECT 1 FROM ofx_lancamentos o
           WHERE o.lancamento_id = l.id AND o.loja_id = l.loja_id AND o.conciliacao_id IS NULL
+            AND o.conta_financeira_id = ?
        )`,
-    [data.contaId, data.contaId, data.contaId],
+    [data.contaId, data.contaId, data.contaId, data.contaId],
   );
 
   const linhasBase: LinhaBrutaExtratoBancario[] = [...reciboRowsBase, ...avulsoRowsBase].map(

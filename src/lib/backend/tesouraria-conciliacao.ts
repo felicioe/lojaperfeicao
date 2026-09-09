@@ -415,16 +415,29 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
         );
         saldoSistema = saldos[0] ? Number(saldos[0].saldo_atual) : null;
       }
-      const paramsFinanceiro: unknown[] = [data.contaId];
+      // Escopado por conta dos dois lados (issue #476, achado secundário da
+      // revisão de código): antes só olhava l.conta_id, então uma conta que
+      // só RECEBE transferências (ex.: uma aplicação automática) nunca
+      // aparecia aqui com pendência, mesmo tendo uma transferência não
+      // conciliada por essa própria conta. O NOT EXISTS também passa a
+      // exigir que a linha de OFX seja desta mesma conta
+      // (o.conta_financeira_id = ?) — sem isso, a transferência confirmada
+      // pelo lado da ORIGEM já não apareceria como pendente aqui pro lado do
+      // DESTINO, mesmo esse nunca tendo recebido confirmação própria.
+      const paramsFinanceiro: unknown[] = [data.contaId, data.contaId, data.contaId];
       const periodoFinanceiro = extrato ? "AND l.data_pagamento BETWEEN ? AND ?" : "";
       if (extrato) paramsFinanceiro.push(extrato.data_inicial, extrato.data_final);
       const [[financeiroSemOfx]] = await conn.query<RowDataPacket[]>(
-        `SELECT COALESCE(SUM(l.valor_pago), 0) AS valor, COUNT(*) AS itens
+        `SELECT COALESCE(SUM(
+           CASE WHEN l.tipo = 'transferencia' THEN l.valor ELSE l.valor_pago END
+         ), 0) AS valor, COUNT(*) AS itens
          FROM lancamentos l
-         WHERE l.loja_id = @current_loja_id AND l.conta_id = ? AND l.pago = TRUE ${periodoFinanceiro}
+         WHERE l.loja_id = @current_loja_id
+           AND (l.conta_id = ? OR l.conta_destino_id = ?)
+           AND l.pago = TRUE ${periodoFinanceiro}
            AND NOT EXISTS (
              SELECT 1 FROM ofx_lancamentos o
-             WHERE o.loja_id = l.loja_id
+             WHERE o.loja_id = l.loja_id AND o.conta_financeira_id = ?
                AND (o.lancamento_id = l.id
                 OR (o.conciliacao_id IS NOT NULL AND EXISTS (
                   SELECT 1 FROM conciliacao_lancamentos cl
