@@ -76,6 +76,16 @@ export const registrarSaidaTronco = createServerFn({ method: "POST" })
       );
       if (!conta?.plano_conta_id)
         throw new Error("A conta bancária precisa estar vinculada ao plano de contas.");
+      // planoContaId vem do request: sem confirmar que pertence a esta loja
+      // ANTES do INSERT em lancamentos, um id de outra loja seria gravado
+      // direto (mesma classe de achado já corrigido em criarReciboAvulso e
+      // salvarDespesaRecorrente) — hoje só é pego depois, pela procedure
+      // registrar_lancamento_contabil, uma rede de segurança mais profunda.
+      const [[planoConta]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id",
+        [data.planoContaId],
+      );
+      if (!planoConta) throw new Error("Conta do plano de contas não encontrada nesta loja.");
       const id = crypto.randomUUID();
       await conn.beginTransaction();
       try {
