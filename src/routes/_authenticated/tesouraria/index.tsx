@@ -7,11 +7,11 @@ import type { Conta } from "@/lib/backend/plano-contas";
 import {
   listarLancamentos,
   criarLancamentoManual,
-  criarTransferencia,
   gerarMensalidades as gerarMensalidadesFn,
   type Lancamento,
 } from "@/lib/backend/tesouraria-lancamentos";
 import { AcoesLancamento } from "@/components/app/LancamentoAcoes";
+import { TransferenciaDialog } from "@/components/app/TransferenciaDialog";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
@@ -610,134 +610,6 @@ function LancamentoDialog({
           disabled={saving || !d.descricao || !d.conta_id || !(Number(d.valor) > 0)}
         >
           Salvar
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  );
-}
-
-function TransferenciaDialog({
-  contas,
-  onDone,
-}: {
-  contas: ContaFinanceira[];
-  onDone: () => void;
-}) {
-  const [d, setD] = useState({
-    data: toISODate(new Date()),
-    descricao: "Transferência",
-    valor: 0,
-    conta_id: contas[0]?.id ?? "",
-    conta_destino_id: contas[1]?.id ?? "",
-  });
-  const [saving, setSaving] = useState(false);
-  const save = async () => {
-    if (d.conta_id === d.conta_destino_id) return toast.error("Contas devem ser diferentes.");
-    setSaving(true);
-    try {
-      await criarTransferencia({
-        data: {
-          contaOrigemId: d.conta_id,
-          contaDestinoId: d.conta_destino_id,
-          valor: Number(d.valor),
-          data: d.data,
-          descricao: d.descricao,
-        },
-      });
-      toast.success("Transferência registrada e lançamento contábil postado.");
-      onDone();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao transferir.");
-    } finally {
-      setSaving(false);
-    }
-  };
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Transferência entre contas</DialogTitle>
-      </DialogHeader>
-      <div className="grid gap-3">
-        <div>
-          <Label htmlFor="transf-origem">Conta de origem</Label>
-          <Select
-            value={d.conta_id}
-            onValueChange={(v) => {
-              const destino =
-                d.conta_destino_id === v
-                  ? (contas.find((c) => c.id !== v)?.id ?? "")
-                  : d.conta_destino_id;
-              setD({ ...d, conta_id: v, conta_destino_id: destino });
-            }}
-          >
-            <SelectTrigger id="transf-origem">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {contas.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="transf-destino">Conta de destino</Label>
-          <Select
-            value={d.conta_destino_id}
-            onValueChange={(v) => setD({ ...d, conta_destino_id: v })}
-          >
-            <SelectTrigger id="transf-destino">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {contas
-                .filter((c) => c.id !== d.conta_id)
-                .map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="transf-valor">Valor</Label>
-          <Input
-            id="transf-valor"
-            type="number"
-            step="0.01"
-            value={d.valor}
-            onChange={(e) => setD({ ...d, valor: Number(e.target.value) })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="transf-data">Data</Label>
-          <Input
-            id="transf-data"
-            type="date"
-            value={d.data}
-            onChange={(e) => setD({ ...d, data: e.target.value })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="transf-descricao">Descrição</Label>
-          <Input
-            id="transf-descricao"
-            value={d.descricao}
-            onChange={(e) => setD({ ...d, descricao: e.target.value })}
-          />
-        </div>
-      </div>
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button variant="outline" disabled={saving}>
-            Cancelar
-          </Button>
-        </DialogClose>
-        <Button onClick={save} disabled={saving || !(Number(d.valor) > 0)}>
-          Transferir
         </Button>
       </DialogFooter>
     </DialogContent>

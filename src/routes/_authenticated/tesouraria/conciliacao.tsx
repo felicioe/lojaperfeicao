@@ -5,6 +5,7 @@ import {
   listarOfxPendentes,
   listarOfxConferencia,
   conciliarOfxLote,
+  conciliarOfxExistente,
   criarLancamentoDeOfx,
   criarLancamentosDeOfxRateado,
   anularLinhasOfx,
@@ -20,6 +21,7 @@ import {
   type ItemHistoricoOfx,
 } from "@/lib/backend/tesouraria-conciliacao";
 import { listarContasFinanceiras, type ContaFinanceira } from "@/lib/backend/tesouraria-contas";
+import { TransferenciaDialog } from "@/components/app/TransferenciaDialog";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
 import { PageHeader } from "@/components/app/AppShell";
@@ -52,6 +54,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowDown,
+  ArrowLeftRight,
   ArrowUp,
   CheckCircle2,
   CircleDollarSign,
@@ -92,6 +95,7 @@ function Conciliacao() {
   const [vinculando, setVinculando] = useState(false);
   const [openAnular, setOpenAnular] = useState(false);
   const [openLote, setOpenLote] = useState(false);
+  const [openTransferencia, setOpenTransferencia] = useState(false);
   const [alocacaoParcial, setAlocacaoParcial] = useState<Record<string, number>>({});
 
   const { data: contas = [] } = useQuery({
@@ -190,6 +194,18 @@ function Conciliacao() {
     if (selSistema.length === 0 || selOfx.length === 0) return;
     setVinculando(true);
     try {
+      // Transferência (issue #467): já está paga e já gerou sua própria
+      // contrapartida contábil na criação — `conciliarOfxLote` exige
+      // pago=FALSE e daria baixa (duplicando a contabilização). O vínculo
+      // aqui é só apontar a linha do OFX pro lançamento já existente, 1:1.
+      if (selecionadosSistema[0]?.eh_transferencia) {
+        await conciliarOfxExistente({
+          data: { ofxId: selOfx[0], lancamentoId: selecionadosSistema[0].id },
+        });
+        toast.success("Transferência vinculada à linha do extrato.");
+        invalidate();
+        return;
+      }
       const alocacao = usarParcial
         ? Object.entries(alocacaoParcial)
             .filter(([, v]) => v > 0)
@@ -248,7 +264,17 @@ function Conciliacao() {
     .filter((o) => selOfx.includes(o.id))
     .reduce((acc, o) => acc + Number(o.valor), 0);
   const diferenca = Math.round((totalOfx - totalSistema) * 100) / 100;
-  const totaisBatem = selSistema.length > 0 && selOfx.length > 0 && diferenca === 0;
+  // Transferência (issue #467): vínculo é sempre 1:1, e não pode se
+  // misturar com outros lançamentos na mesma seleção — ela já está paga e
+  // já contabilizada, então não faz sentido bater totais com outra fatura.
+  const temTransferenciaSelecionada = selecionadosSistema.some((s) => s.eh_transferencia);
+  const misturaTransferencia = temTransferenciaSelecionada && selecionadosSistema.length > 1;
+  const transferenciaComMultiplasLinhasOfx = temTransferenciaSelecionada && selOfx.length > 1;
+  const vinculoTransferenciaInvalido = misturaTransferencia || transferenciaComMultiplasLinhasOfx;
+  const totaisBatem =
+    selSistema.length > 0 &&
+    selOfx.length > 0 &&
+    (temTransferenciaSelecionada ? !vinculoTransferenciaInvalido : diferenca === 0);
   const linhasOfxSelecionadas = ofx.filter((o) => selOfx.includes(o.id));
   const podeAnularOfx =
     selSistema.length === 0 &&
@@ -277,6 +303,7 @@ function Conciliacao() {
   const usarParcial =
     selSistema.length > 0 &&
     selOfx.length > 0 &&
+    !temTransferenciaSelecionada &&
     todosEntrada &&
     totalOfx > 0 &&
     totalOfx < totalSistema;
@@ -426,8 +453,47 @@ function Conciliacao() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
                 <CardTitle className="text-base">Sistema — em aberto</CardTitle>
+                {podeEditar && (
+                  <Dialog open={openTransferencia} onOpenChange={setOpenTransferencia}>
+                    <DialogTrigger asChild>
+                      <Button type="button" size="sm" variant="outline">
+                        <ArrowLeftRight className="h-4 w-4 mr-1" /> Lançar transferência
+                      </Button>
+                    </DialogTrigger>
+                    {openTransferencia && (
+                      <TransferenciaDialog
+                        contas={contas}
+                        titulo="Lançar transferência"
+                        ajuda={
+                          ofxSelecionadoUnico
+                            ? "Pré-preenchida a partir da linha do extrato marcada."
+                            : undefined
+                        }
+                        inicial={
+                          ofxSelecionadoUnico
+                            ? {
+                                data: ofxSelecionadoUnico.data,
+                                valor: Math.abs(Number(ofxSelecionadoUnico.valor)),
+                                contaOrigemId:
+                                  Number(ofxSelecionadoUnico.valor) < 0 ? contaId : undefined,
+                                contaDestinoId:
+                                  Number(ofxSelecionadoUnico.valor) >= 0 ? contaId : undefined,
+                              }
+                            : undefined
+                        }
+                        onDone={(id) => {
+                          setOpenTransferencia(false);
+                          const ofxParaVincular = ofxSelecionadoUnico?.id;
+                          invalidate();
+                          setSelSistema([id]);
+                          if (ofxParaVincular) setSelOfx([ofxParaVincular]);
+                        }}
+                      />
+                    )}
+                  </Dialog>
+                )}
               </CardHeader>
               <CardContent className="space-y-2">
                 <Input
@@ -470,6 +536,11 @@ function Conciliacao() {
                           </div>
                           <div className="text-xs text-muted-foreground flex items-center gap-1">
                             {fmtDate(s.data)} · {s.tipo}
+                            {!!s.eh_transferencia && (
+                              <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                                Transferência
+                              </Badge>
+                            )}
                             {vencida && (
                               <Badge variant="destructive" className="h-4 px-1 text-[10px]">
                                 Vencida
@@ -570,9 +641,19 @@ function Conciliacao() {
         <Card className="mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-2 text-sm">
             {selSistema.length > 0 && selOfx.length > 0 ? (
-              totaisBatem ? (
+              vinculoTransferenciaInvalido ? (
+                <span className="flex items-center gap-1 text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  {misturaTransferencia
+                    ? "Uma transferência não pode ser vinculada junto com outros lançamentos — marque só ela."
+                    : "Uma transferência só pode ser vinculada a uma única linha do extrato por vez."}
+                </span>
+              ) : totaisBatem ? (
                 <span className="flex items-center gap-1 text-success-foreground">
-                  <CheckCircle2 className="h-4 w-4" /> Totais batem — pronto para vincular.
+                  <CheckCircle2 className="h-4 w-4" />{" "}
+                  {temTransferenciaSelecionada
+                    ? "Pronto para vincular a transferência à linha do extrato."
+                    : "Totais batem — pronto para vincular."}
                 </span>
               ) : usarParcial ? (
                 <span className="text-muted-foreground">

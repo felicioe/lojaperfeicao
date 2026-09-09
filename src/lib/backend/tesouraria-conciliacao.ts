@@ -18,8 +18,8 @@ export type LancamentoConciliacao = {
   valor: number;
   valor_pago: number;
   tipo: string;
-  /** 1 quando a linha é uma transferência já paga (conciliável 1:1 com o extrato). */
-  eh_transferencia?: number;
+  // TINYINT(1) — o driver mysql2 devolve number, não boolean.
+  eh_transferencia: number;
 };
 
 // Lançamentos em aberto (faturas/contas a pagar ainda não baixadas) nunca
@@ -32,56 +32,61 @@ export type LancamentoConciliacao = {
 // separado (irmao_nome) e com data_vencimento pra alimentar a sugestão
 // automática por depositante da tela (issue #123).
 //
-// Transferências entram por um segundo braço: elas nascem pagas (a
-// procedure criar_transferencia grava pago=TRUE) e por isso ficavam de
-// fora do pool, deixando a linha do extrato correspondente eternamente
-// pendente. Aqui elas aparecem filtradas pela conta em conciliação (nas
-// duas pontas: origem = saída da conta, destino = entrada na conta) e
-// somente enquanto não estiverem amarradas a nenhuma linha de extrato —
-// nem por ofx_lancamentos.lancamento_id nem por conciliação ativa.
+// Transferências (issue #467) entram por um segundo braço, bem diferente
+// do primeiro: `criar_transferencia` grava a transferência já com
+// pago=TRUE e já lançada na contabilidade — não é "em aberto" no sentido
+// de fatura pendente. Mas se a linha do extrato correspondente ainda não
+// foi importada/vinculada quando a transferência foi feita, ela nunca
+// aparecia aqui pra poder ser conciliada depois. Diferente das faturas em
+// aberto, uma transferência TEM conta definida (origem e destino), então
+// dá — e precisa — filtrar pela conta em conciliação: o `tipo` devolvido é
+// calculado como 'entrada' quando esta conta é o destino do dinheiro,
+// 'saida' quando é a origem, pra reaproveitar a mesma lógica de sinal que
+// a tela já usa pros lançamentos comuns. Só entram enquanto não estiverem
+// amarradas a nenhuma linha de extrato (ofx_lancamentos.lancamento_id) nem
+// a um evento de conciliação em lote ainda ativo.
 export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<LancamentoConciliacao[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT l.id, l.data, l.data_vencimento,
-                CASE WHEN i.nome_civil IS NOT NULL THEN CONCAT(l.descricao, ' — ', i.nome_civil) ELSE l.descricao END AS descricao,
-                i.nome_civil AS irmao_nome,
-                l.valor, l.valor_pago, l.tipo, 0 AS eh_transferencia
-         FROM lancamentos l
-         LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
-         WHERE l.loja_id = @current_loja_id AND l.pago = FALSE AND l.tipo IN ('entrada', 'saida')
+        `SELECT * FROM (
+           SELECT l.id, l.data, l.data_vencimento,
+                  CASE WHEN i.nome_civil IS NOT NULL THEN CONCAT(l.descricao, ' — ', i.nome_civil) ELSE l.descricao END AS descricao,
+                  i.nome_civil AS irmao_nome,
+                  l.valor, l.valor_pago, l.tipo, 0 AS eh_transferencia
+           FROM lancamentos l
+           LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+           WHERE l.loja_id = @current_loja_id AND l.pago = FALSE AND l.tipo IN ('entrada', 'saida')
 
-         UNION ALL
+           UNION ALL
 
-         SELECT l.id, l.data, l.data AS data_vencimento,
-                l.descricao,
-                NULL AS irmao_nome,
-                l.valor, 0 AS valor_pago,
-                CASE WHEN l.conta_destino_id = ? THEN 'entrada' ELSE 'saida' END AS tipo,
-                1 AS eh_transferencia
-         FROM lancamentos l
-         WHERE l.loja_id = @current_loja_id
-           AND l.tipo = 'transferencia'
-           AND (l.conta_id = ? OR l.conta_destino_id = ?)
-           AND NOT EXISTS (
-             SELECT 1 FROM ofx_lancamentos o
-              WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
-           )
-           AND NOT EXISTS (
-             SELECT 1 FROM conciliacao_lancamentos cl
-               JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
-              WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id AND c.status = 'ativa'
-           )
-
-         ORDER BY data_vencimento IS NULL, data_vencimento, data
+           SELECT l.id, l.data, NULL AS data_vencimento,
+                  CONCAT('Transferência — ', l.descricao) AS descricao,
+                  NULL AS irmao_nome,
+                  l.valor, 0 AS valor_pago,
+                  CASE WHEN l.conta_destino_id = ? THEN 'entrada' ELSE 'saida' END AS tipo,
+                  1 AS eh_transferencia
+           FROM lancamentos l
+           WHERE l.loja_id = @current_loja_id AND l.pago = TRUE AND l.tipo = 'transferencia'
+             AND (l.conta_id = ? OR l.conta_destino_id = ?)
+             AND NOT EXISTS (
+               SELECT 1 FROM ofx_lancamentos o
+                WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM conciliacao_lancamentos cl
+                 JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id AND c.status = 'ativa'
+             )
+         ) t
+         ORDER BY t.data_vencimento IS NULL, t.data_vencimento, t.data
          LIMIT 300`,
         [data.contaId, data.contaId, data.contaId],
       );
       return rows as LancamentoConciliacao[];
     });
   });
-
 
 export type OfxLancamento = {
   id: string;
