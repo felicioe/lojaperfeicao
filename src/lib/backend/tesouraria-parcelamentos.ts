@@ -130,11 +130,19 @@ export type LancamentoParcela = {
 export const listarLancamentosDoParcelamento = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ parcelamentoId: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<LancamentoParcela[]> => {
-    return comSessao(async (conn) => {
+    return comSessao(async (conn, usuarioId) => {
+      const privilegiado = await ehPrivilegiado(conn);
+      // Mesma RLS de listarParcelamentos: admin/tesoureiro/secretario veem
+      // qualquer parcelamento da loja; o próprio irmão só vê o dele.
+      const where = privilegiado
+        ? "WHERE l.loja_id = @current_loja_id AND l.parcelamento_id = ?"
+        : "WHERE l.loja_id = @current_loja_id AND l.parcelamento_id = ? AND i.usuario_id = ?";
+      const valores = privilegiado ? [data.parcelamentoId] : [data.parcelamentoId, usuarioId];
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, descricao, valor, data_vencimento, pago, parcelado FROM lancamentos
-         WHERE loja_id = @current_loja_id AND parcelamento_id = ? ORDER BY data_vencimento`,
-        [data.parcelamentoId],
+        `SELECT l.id, l.descricao, l.valor, l.data_vencimento, l.pago, l.parcelado FROM lancamentos l
+         JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         ${where} ORDER BY l.data_vencimento`,
+        valores,
       );
       return rows as LancamentoParcela[];
     });
