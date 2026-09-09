@@ -157,10 +157,15 @@ export const salvarDespesaRecorrente = createServerFn({ method: "POST" })
         );
         data.id = id;
       }
+      // Compara por data_vencimento (não competencia_mes): é essa a
+      // granularidade que gerar_previsoes_recorrentes usa pra decidir se uma
+      // previsão respeita data_fim ("v_vencimento <= v_fim"). Comparar por mês
+      // deixava sobreviver uma previsão do próprio mês de data_fim cujo
+      // vencimento (dia) já passou dessa data.
       await conn.query(
         `DELETE FROM lancamentos
          WHERE loja_id = @current_loja_id AND recorrente_id = ? AND pago = FALSE AND valor_efetivo_confirmado = FALSE
-           AND competencia_mes > COALESCE(?, '9999-12-01')`,
+           AND data_vencimento > COALESCE(?, '9999-12-31')`,
         [data.id, data.data_fim],
       );
       await garantirPrevisoesRecorrentes(conn);
