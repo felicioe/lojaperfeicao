@@ -64,9 +64,13 @@ async function enviarRecibosPorEmail(
         destinatarios: [irmao.email as string],
         assunto: `Comprovante de pagamento — ${fatura.descricao}`,
         corpoTexto: `Olá, ${fatura.irmao_nome}! Segue em anexo o comprovante de pagamento de "${fatura.descricao}".`,
-        anexoBuffer: buffer,
-        anexoNome: `recibo-${fatura.competencia_mes ?? lancamentoId.slice(0, 8)}.pdf`,
-        anexoMimeType: "application/pdf",
+        anexos: [
+          {
+            buffer,
+            nome: `recibo-${fatura.competencia_mes ?? lancamentoId.slice(0, 8)}.pdf`,
+            mimeType: "application/pdf",
+          },
+        ],
         lojaId: loja.id as string,
       });
     } catch (err) {
@@ -372,5 +376,166 @@ export const criarFaturasAvulsasIntervalo = createServerFn({ method: "POST" })
           console.error("Falha ao enviar e-mail de fatura emitida:", err),
         );
       return { ids, ignoradas };
+    });
+  });
+
+// ---------- Enviar faturas em aberto por e-mail, em lote (issue #470) ----------
+// Diferente de listarFaturasAbertas (só mensalidade — reaproveitada por
+// tesouraria-parcelamentos.ts e pelo calendário, que dependem desse recorte),
+// esta lista é TODA entrada em aberto de qualquer tipo (mensalidade, avulsa,
+// taxa de grau etc.), pensada só pra alimentar a seleção de envio por e-mail.
+
+export type EntradaAbertaEnvio = {
+  id: string;
+  irmao_id: string;
+  irmao_nome: string;
+  descricao: string;
+  valor: number;
+  valor_pago: number;
+  data_vencimento: string | null;
+  tem_email: boolean;
+};
+
+export const listarEntradasAbertasParaEnvio = createServerFn({ method: "GET" }).handler(
+  async (): Promise<EntradaAbertaEnvio[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.irmao_id, i.nome_civil AS irmao_nome, l.descricao, l.valor, l.valor_pago,
+                l.data_vencimento, (i.email IS NOT NULL AND i.email != '') AS tem_email
+         FROM lancamentos l
+         JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id AND l.tipo = 'entrada' AND l.pago = FALSE
+         ORDER BY l.data_vencimento IS NULL, l.data_vencimento, i.nome_civil
+         LIMIT 1000`,
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        irmao_id: r.irmao_id,
+        irmao_nome: r.irmao_nome,
+        descricao: r.descricao,
+        valor: r.valor,
+        valor_pago: r.valor_pago,
+        data_vencimento: r.data_vencimento,
+        tem_email: !!r.tem_email,
+      }));
+    });
+  },
+);
+
+export type ResultadoEnvioFaturasAbertas = {
+  irmaosEnviados: number;
+  irmaosSemEmail: number;
+  irmaosComFalha: number;
+};
+
+const enviarFaturasAbertasSchema = z.object({
+  lancamentoIds: z.array(z.string().uuid()).min(1),
+});
+
+// Um e-mail por IRMÃO (não por fatura) — se ele tiver 3 lançamentos
+// selecionados, um único e-mail com os 3 PDFs em anexo (decisão do
+// usuário). Best-effort por irmão, mesmo padrão de enviarRecibosPorEmail:
+// falha de SMTP ou irmão sem e-mail não pode travar o envio dos demais.
+export const enviarFaturasAbertasPorEmail = createServerFn({ method: "POST" })
+  .validator((d: unknown) => enviarFaturasAbertasSchema.parse(d))
+  .handler(async ({ data }): Promise<ResultadoEnvioFaturasAbertas> => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
+      const { buscarLancamentoParaImpressao } = await import("./tesouraria-lancamentos");
+      const { gerarFaturaPdfBuffer } = await import("../fatura-pdf");
+      const { enviarArquivoPorEmail } = await import("../email-dispatch");
+      const { obterLogosInstitucionais } = await import("./orgs");
+
+      const [[loja]] = await conn.query<RowDataPacket[]>(
+        "SELECT id, nome, razao_social, cnpj FROM lojas WHERE id = @current_loja_id",
+      );
+      const logos = await obterLogosInstitucionais(conn);
+
+      const [linhas] = await conn.query<RowDataPacket[]>(
+        `SELECT l.id, l.irmao_id, i.nome_civil, i.email
+         FROM lancamentos l
+         JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id AND l.id IN (?)
+           AND l.tipo = 'entrada' AND l.pago = FALSE`,
+        [data.lancamentoIds],
+      );
+
+      const porIrmao = new Map<
+        string,
+        { nome: string; email: string | null; lancamentoIds: string[] }
+      >();
+      for (const linha of linhas) {
+        const irmaoId = linha.irmao_id as string;
+        const atual = porIrmao.get(irmaoId) ?? {
+          nome: linha.nome_civil as string,
+          email: linha.email as string | null,
+          lancamentoIds: [],
+        };
+        atual.lancamentoIds.push(linha.id as string);
+        porIrmao.set(irmaoId, atual);
+      }
+
+      let irmaosEnviados = 0;
+      let irmaosSemEmail = 0;
+      let irmaosComFalha = 0;
+
+      for (const [irmaoId, dados] of porIrmao) {
+        if (!dados.email) {
+          irmaosSemEmail++;
+          continue;
+        }
+        try {
+          const anexos: { buffer: Buffer; nome: string; mimeType: string }[] = [];
+          for (const lancamentoId of dados.lancamentoIds) {
+            const fatura = await buscarLancamentoParaImpressao(conn, usuarioIdAtual, lancamentoId);
+            if (!fatura) continue;
+            const buffer = await gerarFaturaPdfBuffer(
+              fatura,
+              {
+                nome: loja.nome as string,
+                razaoSocial: loja.razao_social as string | null,
+                cnpj: loja.cnpj as string | null,
+              },
+              logos,
+            );
+            anexos.push({
+              buffer,
+              nome: `fatura-${fatura.competencia_mes ?? lancamentoId.slice(0, 8)}.pdf`,
+              mimeType: "application/pdf",
+            });
+          }
+          if (anexos.length === 0) {
+            irmaosComFalha++;
+            continue;
+          }
+          const resultado = await enviarArquivoPorEmail({
+            destinatarios: [dados.email],
+            assunto: `Fatura${anexos.length > 1 ? "s" : ""} em aberto — ${anexos.length} pendência${anexos.length > 1 ? "s" : ""}`,
+            corpoTexto: `Olá, ${dados.nome}! Segue${anexos.length > 1 ? "m" : ""} em anexo ${anexos.length} fatura${anexos.length > 1 ? "s" : ""} em aberto.`,
+            anexos,
+            lojaId: loja.id as string,
+            tipo: "fatura_aberta_lote",
+          });
+          if (resultado.some((r) => r.sucesso)) irmaosEnviados++;
+          else irmaosComFalha++;
+        } catch (err) {
+          console.error(
+            `[enviarFaturasAbertasPorEmail] falha ao enviar pro irmão ${irmaoId}:`,
+            err,
+          );
+          irmaosComFalha++;
+        }
+      }
+
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "enviar_faturas_abertas_email",
+        "lancamentos",
+        null,
+        null,
+        { lancamentoIds: data.lancamentoIds, irmaosEnviados, irmaosSemEmail, irmaosComFalha },
+      );
+
+      return { irmaosEnviados, irmaosSemEmail, irmaosComFalha };
     });
   });

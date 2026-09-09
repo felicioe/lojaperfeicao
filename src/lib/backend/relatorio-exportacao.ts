@@ -118,9 +118,13 @@ export const enviarRelatorioPorEmail = createServerFn({ method: "POST" })
           destinatarios: data.destinatarios,
           assunto: `Relatório: ${data.titulo}`,
           corpoTexto: `Segue em anexo o relatório "${data.titulo}".`,
-          anexoBuffer: buffer,
-          anexoNome: `${data.titulo}.${extensaoPara(data.formato)}`,
-          anexoMimeType: mimeTypePara(data.formato),
+          anexos: [
+            {
+              buffer,
+              nome: `${data.titulo}.${extensaoPara(data.formato)}`,
+              mimeType: mimeTypePara(data.formato),
+            },
+          ],
         });
       });
     },

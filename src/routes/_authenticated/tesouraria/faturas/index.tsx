@@ -10,6 +10,9 @@ import {
   listarPreviewLoteMensalidades,
   criarFaturaAvulsa,
   criarFaturasAvulsasIntervalo,
+  listarEntradasAbertasParaEnvio,
+  enviarFaturasAbertasPorEmail,
+  type ResultadoEnvioFaturasAbertas,
 } from "@/lib/backend/tesouraria-faturas";
 import { AlocacaoParcialTable } from "@/components/app/AlocacaoParcial";
 import { sugerirAlocacao, somaAlocacao } from "@/lib/alocacao-parcial";
@@ -219,6 +222,7 @@ function Faturas() {
           <TabsTrigger value="lote">Emissão em lote</TabsTrigger>
           <TabsTrigger value="individual">Emissão individual</TabsTrigger>
           <TabsTrigger value="abertas">Em aberto</TabsTrigger>
+          <TabsTrigger value="email">Enviar por e-mail</TabsTrigger>
         </TabsList>
 
         <TabsContent value="lote" className="space-y-4">
@@ -442,8 +446,137 @@ function Faturas() {
             />
           </Card>
         </TabsContent>
+
+        <TabsContent value="email">
+          {podeEditar ? <EnviarPorEmailTab /> : <SemPermissao />}
+        </TabsContent>
       </Tabs>
     </>
+  );
+}
+
+function EnviarPorEmailTab() {
+  const [selecionados, setSelecionados] = useState<string[]>([]);
+  const [resultado, setResultado] = useState<ResultadoEnvioFaturasAbertas | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const { data: entradas = [], isLoading } = useQuery({
+    queryKey: ["entradas_abertas_para_envio"],
+    queryFn: () => listarEntradasAbertasParaEnvio(),
+  });
+
+  const toggle = (id: string) =>
+    setSelecionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const todosSemEmailSelecionados = entradas.filter(
+    (e) => selecionados.includes(e.id) && !e.tem_email,
+  );
+
+  const enviar = async () => {
+    if (selecionados.length === 0) return;
+    setEnviando(true);
+    setResultado(null);
+    try {
+      const r = await enviarFaturasAbertasPorEmail({ data: { lancamentoIds: selecionados } });
+      setResultado(r);
+      toast.success(
+        `${r.irmaosEnviados} irmão(s) receberam e-mail` +
+          (r.irmaosSemEmail > 0 ? `, ${r.irmaosSemEmail} sem e-mail cadastrado` : "") +
+          (r.irmaosComFalha > 0 ? `, ${r.irmaosComFalha} com falha` : "") +
+          ".",
+      );
+      setSelecionados([]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar faturas por e-mail.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Todo lançamento de entrada em aberto de qualquer irmão — mensalidade, taxa, doação avulsa
+        etc. Selecione o que quer mandar; se um mesmo irmão tiver mais de um selecionado, vai tudo
+        num único e-mail, com um PDF em anexo para cada fatura.
+      </p>
+      {selecionados.length > 0 && (
+        <Card className="p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm">
+            {selecionados.length} lançamento(s) selecionado(s)
+            {todosSemEmailSelecionados.length > 0 && (
+              <span className="ml-2 text-destructive">
+                — {todosSemEmailSelecionados.length} sem e-mail cadastrado (será ignorado)
+              </span>
+            )}
+          </div>
+          <Button onClick={enviar} disabled={enviando}>
+            {enviando ? "Enviando…" : "Enviar por e-mail"}
+          </Button>
+        </Card>
+      )}
+      {resultado && (
+        <Card className="p-4 text-sm space-y-1">
+          <p>{resultado.irmaosEnviados} irmão(s) receberam e-mail com sucesso.</p>
+          {resultado.irmaosSemEmail > 0 && (
+            <p className="text-muted-foreground">
+              {resultado.irmaosSemEmail} irmão(s) pulado(s) por não ter e-mail cadastrado.
+            </p>
+          )}
+          {resultado.irmaosComFalha > 0 && (
+            <p className="text-destructive">
+              {resultado.irmaosComFalha} irmão(s) com falha no envio (ver fila de e-mails).
+            </p>
+          )}
+        </Card>
+      )}
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10"></TableHead>
+              <TableHead>Irmão</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Vencimento</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {!isLoading && entradas.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  Nenhum lançamento em aberto.
+                </TableCell>
+              </TableRow>
+            )}
+            {entradas.map((e) => (
+              <TableRow key={e.id}>
+                <TableCell>
+                  <Checkbox
+                    checked={selecionados.includes(e.id)}
+                    onCheckedChange={() => toggle(e.id)}
+                    aria-label={`Selecionar lançamento de ${e.irmao_nome} — ${e.descricao}`}
+                  />
+                </TableCell>
+                <TableCell>
+                  {e.irmao_nome}
+                  {!e.tem_email && (
+                    <Badge variant="outline" className="ml-2 h-4 px-1 text-[10px]">
+                      Sem e-mail
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>{e.descricao}</TableCell>
+                <TableCell>{e.data_vencimento ? fmtDate(e.data_vencimento) : "—"}</TableCell>
+                <TableCell className="text-right font-medium">
+                  {brl(Number(e.valor) - Number(e.valor_pago))}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
   );
 }
 
