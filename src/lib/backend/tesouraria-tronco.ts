@@ -106,8 +106,16 @@ export const registrarSaidaTronco = createServerFn({ method: "POST" })
         const [[config]] = await conn.query<RowDataPacket[]>(
           "SELECT saldo_inicial FROM tronco_beneficencia_config WHERE loja_id = @current_loja_id FOR UPDATE",
         );
+        // Mesma fórmula explícita de obterResumoTronco (soma entradas e saídas
+        // em CASEs separados, cada um só reconhecendo seu próprio tipo) — a
+        // versão anterior tratava "ELSE -valor" como saída implícita, o que
+        // divergiria silenciosamente se algum dia um tipo diferente de
+        // 'entrada'/'saida' (ex.: 'transferencia') herdasse
+        // categoria_recebimento = 'tronco'.
         const [[totais]] = await conn.query<RowDataPacket[]>(
-          `SELECT COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN valor ELSE -valor END), 0) AS saldo
+          `SELECT
+             COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN valor ELSE 0 END), 0)
+             - COALESCE(SUM(CASE WHEN tipo = 'saida' THEN valor ELSE 0 END), 0) AS saldo
            FROM lancamentos
            WHERE loja_id = @current_loja_id AND categoria_recebimento = 'tronco' AND pago = TRUE`,
         );
