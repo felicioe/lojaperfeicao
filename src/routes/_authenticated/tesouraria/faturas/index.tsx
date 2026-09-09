@@ -459,14 +459,48 @@ function EnviarPorEmailTab() {
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [resultado, setResultado] = useState<ResultadoEnvioFaturasAbertas | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [filtroIrmaoId, setFiltroIrmaoId] = useState("todos");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "vencidas" | "a_vencer">("todos");
+  const [ocultarSemEmail, setOcultarSemEmail] = useState(false);
+  const [dataInicial, setDataInicial] = useState("");
+  const [dataFinal, setDataFinal] = useState("");
+  const hoje = toISODate(new Date());
 
   const { data: entradas = [], isLoading } = useQuery({
     queryKey: ["entradas_abertas_para_envio"],
     queryFn: () => listarEntradasAbertasParaEnvio(),
   });
+  const { data: irmaosFiltro = [] } = useQuery({
+    queryKey: ["irmaos_nomes"],
+    queryFn: () => listarIrmaosNomes(),
+  });
+
+  const filtradas = entradas.filter((e) => {
+    if (filtroIrmaoId !== "todos" && e.irmao_id !== filtroIrmaoId) return false;
+    if (ocultarSemEmail && !e.tem_email) return false;
+    const vencida = !!e.data_vencimento && e.data_vencimento < hoje;
+    if (filtroStatus === "vencidas" && !vencida) return false;
+    if (filtroStatus === "a_vencer" && vencida) return false;
+    if (dataInicial && (!e.data_vencimento || e.data_vencimento < dataInicial)) return false;
+    if (dataFinal && (!e.data_vencimento || e.data_vencimento > dataFinal)) return false;
+    return true;
+  });
 
   const toggle = (id: string) =>
     setSelecionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  // "Selecionar todos" age só sobre o conjunto filtrado — marcar não some
+  // com seleções feitas noutro filtro, e desmarcar só solta o que está
+  // visível agora (envio em massa e envio seletivo usam o mesmo controle).
+  const idsFiltradas = filtradas.map((e) => e.id);
+  const todosFiltradosSelecionados =
+    idsFiltradas.length > 0 && idsFiltradas.every((id) => selecionados.includes(id));
+  const toggleTodosFiltrados = () =>
+    setSelecionados((prev) =>
+      todosFiltradosSelecionados
+        ? prev.filter((id) => !idsFiltradas.includes(id))
+        : [...new Set([...prev, ...idsFiltradas])],
+    );
 
   const todosSemEmailSelecionados = entradas.filter(
     (e) => selecionados.includes(e.id) && !e.tem_email,
@@ -500,6 +534,72 @@ function EnviarPorEmailTab() {
         etc. Selecione o que quer mandar; se um mesmo irmão tiver mais de um selecionado, vai tudo
         num único e-mail, com um PDF em anexo para cada fatura.
       </p>
+      <Card className="p-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <Label className="text-xs" htmlFor="envio-email-irmao">
+            Irmão
+          </Label>
+          <Select value={filtroIrmaoId} onValueChange={setFiltroIrmaoId}>
+            <SelectTrigger id="envio-email-irmao">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {irmaosFiltro.map((i) => (
+                <SelectItem key={i.id} value={i.id}>
+                  {i.nome_civil}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="envio-email-status">
+            Status
+          </Label>
+          <Select
+            value={filtroStatus}
+            onValueChange={(v) => setFiltroStatus(v as typeof filtroStatus)}
+          >
+            <SelectTrigger id="envio-email-status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="vencidas">Vencidas</SelectItem>
+              <SelectItem value="a_vencer">A vencer</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="envio-email-venc-inicial">
+            Vencimento de
+          </Label>
+          <Input
+            id="envio-email-venc-inicial"
+            type="date"
+            value={dataInicial}
+            max={dataFinal || undefined}
+            onChange={(e) => setDataInicial(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="envio-email-venc-final">
+            até
+          </Label>
+          <Input
+            id="envio-email-venc-final"
+            type="date"
+            value={dataFinal}
+            min={dataInicial || undefined}
+            onChange={(e) => setDataFinal(e.target.value)}
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2 lg:col-span-4">
+          <Checkbox checked={ocultarSemEmail} onCheckedChange={(v) => setOcultarSemEmail(!!v)} />
+          Ocultar quem não tem e-mail cadastrado
+        </label>
+      </Card>
       {selecionados.length > 0 && (
         <Card className="p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm">
@@ -534,7 +634,15 @@ function EnviarPorEmailTab() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10"></TableHead>
+              <TableHead className="w-10">
+                {filtradas.length > 0 && (
+                  <Checkbox
+                    checked={todosFiltradosSelecionados}
+                    onCheckedChange={toggleTodosFiltrados}
+                    aria-label="Selecionar todos os lançamentos filtrados"
+                  />
+                )}
+              </TableHead>
               <TableHead>Irmão</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead>Vencimento</TableHead>
@@ -542,14 +650,14 @@ function EnviarPorEmailTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!isLoading && entradas.length === 0 && (
+            {!isLoading && filtradas.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                  Nenhum lançamento em aberto.
+                  Nenhum lançamento em aberto para este filtro.
                 </TableCell>
               </TableRow>
             )}
-            {entradas.map((e) => (
+            {filtradas.map((e) => (
               <TableRow key={e.id}>
                 <TableCell>
                   <Checkbox
