@@ -2,15 +2,25 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Pencil, Printer, Trash2, Undo2, UserCog } from "lucide-react";
+import {
+  ArrowLeftRight,
+  CheckCircle2,
+  Pencil,
+  Printer,
+  Trash2,
+  Undo2,
+  UserCog,
+} from "lucide-react";
 import {
   atribuirIrmaoLancamento,
   atualizarLancamento,
   desmarcarLancamentoPago,
   estornarLancamento,
+  estornarTransferencia,
   marcarLancamentoPago,
   type Lancamento,
 } from "@/lib/backend/tesouraria-lancamentos";
+import { TransferenciaDialog } from "@/components/app/TransferenciaDialog";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import {
   calcularMultaJuros,
@@ -47,6 +57,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { brl, toISODate } from "@/lib/format";
 
 // Ações de manutenção reutilizadas em qualquer tela que liste lançamentos
@@ -583,6 +594,56 @@ function BaixarLancamentoDialog({
   );
 }
 
+// Edição de transferência (issue #474) — reaproveita o mesmo
+// TransferenciaDialog do botão "Transferência" da Tesouraria e "Lançar
+// transferência" da Conciliação, agora em modo edição (passando
+// transferenciaId). Só chamado quando a transferência ainda não foi
+// conciliada — ver o branch em AcoesLancamento.
+function EditarTransferenciaDialog({
+  lancamento,
+  contas,
+  onDone,
+}: {
+  lancamento: Lancamento;
+  contas: { id: string; nome: string }[];
+  onDone: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label="Editar transferência"
+          title="Editar transferência"
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      {open && (
+        <TransferenciaDialog
+          key={lancamento.id}
+          contas={contas}
+          titulo="Editar transferência"
+          transferenciaId={lancamento.id}
+          inicial={{
+            data: lancamento.data.slice(0, 10),
+            valor: Number(lancamento.valor),
+            descricao: lancamento.descricao,
+            contaOrigemId: lancamento.conta_id ?? undefined,
+            contaDestinoId: lancamento.conta_destino_id ?? undefined,
+          }}
+          onDone={() => {
+            setOpen(false);
+            onDone();
+          }}
+        />
+      )}
+    </Dialog>
+  );
+}
+
 export function AcoesLancamento({
   lancamento,
   contas,
@@ -604,31 +665,35 @@ export function AcoesLancamento({
       {lancamento.tipo === "entrada" && (
         <AtribuirIrmaoDialog lancamento={lancamento} onDone={onDone} />
       )}
-      {!lancamento.pago && (
-        <>
-          {Number(lancamento.valor_pago ?? 0) === 0 && (
-            <EditarLancamentoDialog lancamento={lancamento} onDone={onDone} />
-          )}
-          <BaixarLancamentoDialog
-            lancamento={lancamento}
-            contas={contas}
-            receitas={receitas}
-            onDone={onDone}
-          />
-          {Number(lancamento.valor_pago ?? 0) === 0 && (
+      {lancamento.tipo === "transferencia" ? (
+        lancamento.transferencia_conciliada ? (
+          <Badge variant="secondary" className="h-6">
+            Conciliada
+          </Badge>
+        ) : (
+          <>
+            <EditarTransferenciaDialog lancamento={lancamento} contas={contas} onDone={onDone} />
+            <Link
+              to="/tesouraria/conciliacao"
+              search={{ contaId: lancamento.conta_id ?? undefined, transferenciaId: lancamento.id }}
+            >
+              <Button size="sm" variant="ghost" aria-label="Conciliar" title="Conciliar">
+                <ArrowLeftRight className="h-4 w-4" />
+              </Button>
+            </Link>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" variant="ghost" aria-label="Cancelar" title="Cancelar">
+                <Button size="sm" variant="ghost" aria-label="Excluir" title="Excluir">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Cancelar este lançamento?</AlertDialogTitle>
+                  <AlertDialogTitle>Excluir esta transferência?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Remove "{lancamento.descricao}" ({brl(lancamento.valor)}) e a contrapartida
-                    contábil correspondente, se existir. Só funciona pra lançamentos ainda em aberto
-                    e não pode ser desfeito.
+                    Remove "{lancamento.descricao}" ({brl(lancamento.valor)}) e desfaz o lançamento
+                    contábil de partida dobrada gerado por ela nas duas contas. Não pode ser
+                    desfeito.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -636,55 +701,111 @@ export function AcoesLancamento({
                   <AlertDialogAction
                     onClick={async () => {
                       try {
-                        await estornarLancamento({ data: { id: lancamento.id } });
-                        toast.success("Lançamento cancelado.");
+                        await estornarTransferencia({ data: { id: lancamento.id } });
+                        toast.success("Transferência excluída.");
                         onDone();
                       } catch (err) {
-                        toast.error(err instanceof Error ? err.message : "Erro ao cancelar.");
+                        toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
                       }
                     }}
                   >
-                    Cancelar lançamento
+                    Excluir transferência
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        )
+      ) : (
+        <>
+          {!lancamento.pago && (
+            <>
+              {Number(lancamento.valor_pago ?? 0) === 0 && (
+                <EditarLancamentoDialog lancamento={lancamento} onDone={onDone} />
+              )}
+              <BaixarLancamentoDialog
+                lancamento={lancamento}
+                contas={contas}
+                receitas={receitas}
+                onDone={onDone}
+              />
+              {Number(lancamento.valor_pago ?? 0) === 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="ghost" aria-label="Cancelar" title="Cancelar">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancelar este lançamento?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Remove "{lancamento.descricao}" ({brl(lancamento.valor)}) e a contrapartida
+                        contábil correspondente, se existir. Só funciona pra lançamentos ainda em
+                        aberto e não pode ser desfeito.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Voltar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={async () => {
+                          try {
+                            await estornarLancamento({ data: { id: lancamento.id } });
+                            toast.success("Lançamento cancelado.");
+                            onDone();
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Erro ao cancelar.");
+                          }
+                        }}
+                      >
+                        Cancelar lançamento
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </>
+          )}
+          {lancamento.pago && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Desmarcar pago"
+                  title="Desmarcar pago"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Desmarcar "{lancamento.descricao}" como pago?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Volta o lançamento pra "em aberto", desfazendo a baixa (data de pagamento e
+                    valor pago são zerados). Use pra corrigir uma marcação feita por engano.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      try {
+                        await desmarcarLancamentoPago({ data: { id: lancamento.id } });
+                        toast.success("Baixa desfeita.");
+                        onDone();
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Erro ao desmarcar.");
+                      }
+                    }}
+                  >
+                    Desmarcar pago
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
         </>
-      )}
-      {lancamento.pago && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button size="sm" variant="ghost" aria-label="Desmarcar pago" title="Desmarcar pago">
-              <Undo2 className="h-4 w-4" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Desmarcar "{lancamento.descricao}" como pago?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Volta o lançamento pra "em aberto", desfazendo a baixa (data de pagamento e valor
-                pago são zerados). Use pra corrigir uma marcação feita por engano.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Voltar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => {
-                  try {
-                    await desmarcarLancamentoPago({ data: { id: lancamento.id } });
-                    toast.success("Baixa desfeita.");
-                    onDone();
-                  } catch (err) {
-                    toast.error(err instanceof Error ? err.message : "Erro ao desmarcar.");
-                  }
-                }}
-              >
-                Desmarcar pago
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       )}
     </div>
   );

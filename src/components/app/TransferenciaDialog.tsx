@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { criarTransferencia } from "@/lib/backend/tesouraria-lancamentos";
-import type { ContaFinanceira } from "@/lib/backend/tesouraria-contas";
+import { criarTransferencia, atualizarTransferencia } from "@/lib/backend/tesouraria-lancamentos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,17 +23,21 @@ import { toISODate } from "@/lib/format";
 // Diálogo único de transferência entre contas — usado tanto no botão
 // "Transferência" da Tesouraria quanto no botão "Lançar transferência" da
 // Conciliação Bancária (issue #467), onde vem pré-preenchido a partir da
-// linha do extrato marcada. `onDone` recebe o id do lançamento criado pra
-// quem chamou poder pré-selecioná-lo em seguida (ex.: já deixar marcado
-// pra vincular à linha do OFX sem precisar procurar de novo na lista).
+// linha do extrato marcada. `onDone` recebe o id do lançamento criado (ou
+// editado) pra quem chamou poder pré-selecioná-lo em seguida (ex.: já
+// deixar marcado pra vincular à linha do OFX sem precisar procurar de novo
+// na lista). Com `transferenciaId` informado, vira modo edição (issue
+// #474): salva com atualizarTransferencia em vez de criarTransferencia,
+// permitindo trocar inclusive as contas de origem/destino.
 export function TransferenciaDialog({
   contas,
   onDone,
   titulo = "Transferência entre contas",
   ajuda,
   inicial,
+  transferenciaId,
 }: {
-  contas: ContaFinanceira[];
+  contas: { id: string; nome: string }[];
   onDone: (id: string) => void;
   titulo?: string;
   ajuda?: string;
@@ -45,6 +48,7 @@ export function TransferenciaDialog({
     contaOrigemId?: string;
     contaDestinoId?: string;
   };
+  transferenciaId?: string;
 }) {
   const [d, setD] = useState(() => {
     const origem = inicial?.contaOrigemId ?? contas[0]?.id ?? "";
@@ -66,17 +70,22 @@ export function TransferenciaDialog({
     if (d.conta_id === d.conta_destino_id) return toast.error("Contas devem ser diferentes.");
     setSaving(true);
     try {
-      const { id } = await criarTransferencia({
-        data: {
-          contaOrigemId: d.conta_id,
-          contaDestinoId: d.conta_destino_id,
-          valor: Number(d.valor),
-          data: d.data,
-          descricao: d.descricao,
-        },
-      });
-      toast.success("Transferência registrada e lançamento contábil postado.");
-      onDone(id);
+      const payload = {
+        contaOrigemId: d.conta_id,
+        contaDestinoId: d.conta_destino_id,
+        valor: Number(d.valor),
+        data: d.data,
+        descricao: d.descricao,
+      };
+      if (transferenciaId) {
+        await atualizarTransferencia({ data: { id: transferenciaId, ...payload } });
+        toast.success("Transferência atualizada.");
+        onDone(transferenciaId);
+      } else {
+        const { id } = await criarTransferencia({ data: payload });
+        toast.success("Transferência registrada e lançamento contábil postado.");
+        onDone(id);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao transferir.");
     } finally {
@@ -170,7 +179,7 @@ export function TransferenciaDialog({
           </Button>
         </DialogClose>
         <Button onClick={save} disabled={saving || !(Number(d.valor) > 0)}>
-          Transferir
+          {transferenciaId ? "Salvar" : "Transferir"}
         </Button>
       </DialogFooter>
     </DialogContent>

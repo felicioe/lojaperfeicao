@@ -37,6 +37,11 @@ export type Lancamento = {
   contas_financeiras: { nome: string } | null;
   destino: { nome: string } | null;
   plano_contas: { nome: string } | null;
+  // Só relevante para tipo='transferencia' — indica se ela já foi
+  // vinculada a uma linha do extrato OFX (issue #474). Uma transferência
+  // conciliada bloqueia editar/excluir, mesmo padrão já usado pros demais
+  // lançamentos (ver atualizarTransferencia/estornarTransferencia).
+  transferencia_conciliada: boolean;
 };
 
 const filtrosSchema = z.object({
@@ -99,7 +104,15 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         `SELECT l.id, l.data, l.data_vencimento, l.data_pagamento, l.descricao, l.valor, l.valor_pago, l.tipo, l.pago,
                 l.forma_pagamento, l.categoria_recebimento, l.conta_id, l.conta_destino_id, l.plano_conta_id,
                 l.irmao_id, i.nome_civil AS irmao_nome,
-                cf.nome AS conta_nome, cfd.nome AS destino_nome, pc.nome AS plano_conta_nome
+                cf.nome AS conta_nome, cfd.nome AS destino_nome, pc.nome AS plano_conta_nome,
+                (l.tipo = 'transferencia' AND (
+                  EXISTS(SELECT 1 FROM ofx_lancamentos o WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id)
+                  OR EXISTS(
+                    SELECT 1 FROM conciliacao_lancamentos cl
+                      JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                     WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id AND c.status = 'ativa'
+                  )
+                )) AS transferencia_conciliada
          FROM lancamentos l
          LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
          LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id AND cf.loja_id = l.loja_id
@@ -137,6 +150,7 @@ export const listarLancamentos = createServerFn({ method: "GET" })
         contas_financeiras: r.conta_nome ? { nome: r.conta_nome } : null,
         destino: r.destino_nome ? { nome: r.destino_nome } : null,
         plano_contas: r.plano_conta_nome ? { nome: r.plano_conta_nome } : null,
+        transferencia_conciliada: !!r.transferencia_conciliada,
       }));
     });
   });
@@ -730,6 +744,81 @@ export const criarTransferencia = createServerFn({ method: "POST" })
       const [[{ lanc_id }]] = await conn.query<RowDataPacket[]>("SELECT @lanc_id AS lanc_id");
       await registrarAuditoria(conn, usuarioIdAtual, "criar", "transferencia", lanc_id, null, data);
       return { id: lanc_id };
+    });
+  });
+
+const atualizarTransferenciaSchema = z.object({
+  id: z.string().uuid(),
+  contaOrigemId: z.string().uuid(),
+  contaDestinoId: z.string().uuid(),
+  valor: z.number().positive(),
+  data: z.string(),
+  descricao: z.string().min(1),
+});
+
+// Diferente de atualizarLancamento (que só mexe em data/vencimento/
+// descrição/valor e é bloqueado pra lançamento já pago): uma transferência
+// nasce sempre paga (já move dinheiro e já lança a contabilidade na
+// criação), então "pago" não é o que trava a edição aqui — o que trava é
+// já ter sido conciliada com uma linha do extrato (mesma checagem usada em
+// listarLancamentosParaConciliar). Permite trocar inclusive as contas de
+// origem/destino, por isso a recontabilização (apagar o lançamento
+// contábil antigo e postar um novo) fica dentro da procedure
+// atualizar_transferencia (migração 0129), atômica com o UPDATE de
+// `lancamentos` (issue #474).
+export const atualizarTransferencia = createServerFn({ method: "POST" })
+  .validator((d: unknown) => atualizarTransferenciaSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
+        [data.id],
+      );
+      if (!antes) throw new Error("Transferência não encontrada.");
+      await conn.query("CALL atualizar_transferencia(?, ?, ?, ?, ?, ?)", [
+        data.id,
+        data.contaOrigemId,
+        data.contaDestinoId,
+        data.valor,
+        data.data,
+        data.descricao,
+      ]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "editar",
+        "transferencia",
+        data.id,
+        antes,
+        data,
+      );
+    });
+  });
+
+// Estorno de transferência — mesmo espírito de estornarLancamento (exclui
+// o lançamento e a contrapartida contábil), mas sem a checagem de "!pago"
+// que não se aplica aqui (transferência nasce paga por natureza). Bloqueia
+// se já conciliada com uma linha do extrato — a validação real é feita
+// dentro da procedure (issue #474).
+export const estornarTransferencia = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
+        [data.id],
+      );
+      if (!antes) throw new Error("Transferência não encontrada.");
+      await conn.query("CALL estornar_transferencia(?)", [data.id]);
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "estornar",
+        "transferencia",
+        data.id,
+        antes,
+        null,
+      );
     });
   });
 

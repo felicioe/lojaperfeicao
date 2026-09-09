@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import {
   listarLancamentosParaConciliar,
   listarOfxPendentes,
@@ -77,8 +78,17 @@ import { extrairPossivelNome, normalizarTexto } from "@/lib/conciliacao-match";
 import { AlocacaoParcialTable } from "@/components/app/AlocacaoParcial";
 import { sugerirAlocacao, somaAlocacao } from "@/lib/alocacao-parcial";
 
+// Parâmetros opcionais na URL (issue #474) — permite chegar aqui já com a
+// conta e a transferência marcadas, a partir do atalho "Conciliar" da
+// Tesouraria (AcoesLancamento), sem precisar procurar de novo na lista.
+const conciliacaoSearchSchema = z.object({
+  contaId: z.string().uuid().optional(),
+  transferenciaId: z.string().uuid().optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/tesouraria/conciliacao")({
   head: () => ({ meta: [{ title: "Conciliação Bancária — Gestão Maçônica" }] }),
+  validateSearch: (search) => conciliacaoSearchSchema.parse(search),
   component: Conciliacao,
 });
 
@@ -86,8 +96,9 @@ function Conciliacao() {
   const can = useCan();
   const qc = useQueryClient();
   const podeEditar = can.canManageFinancas;
+  const busca = Route.useSearch();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [contaId, setContaId] = useState("");
+  const [contaId, setContaId] = useState(busca.contaId ?? "");
   const [importando, setImportando] = useState(false);
   const [buscaSistema, setBuscaSistema] = useState("");
   const [buscaSistemaAuto, setBuscaSistemaAuto] = useState(false);
@@ -375,6 +386,20 @@ function Conciliacao() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buscaSistemaAuto, selOfx]);
+
+  // Atalho "Conciliar" a partir da Tesouraria (issue #474): chega aqui com
+  // ?contaId=...&transferenciaId=... já preenchidos — assim que a
+  // transferência aparecer na lista "Sistema — em aberto" (que já lista
+  // transferências não conciliadas — ver listarLancamentosParaConciliar),
+  // marca ela sozinha, sem o usuário precisar procurar de novo.
+  const [transferenciaInicialAplicada, setTransferenciaInicialAplicada] = useState(false);
+  useEffect(() => {
+    if (transferenciaInicialAplicada || !busca.transferenciaId) return;
+    if (sistema.some((s) => s.id === busca.transferenciaId)) {
+      setSelSistema([busca.transferenciaId]);
+      setTransferenciaInicialAplicada(true);
+    }
+  }, [sistema, busca.transferenciaId, transferenciaInicialAplicada]);
 
   return (
     <>
