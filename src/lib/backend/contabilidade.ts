@@ -500,14 +500,25 @@ const EVENTOS_FINANCEIROS_SQL = `
 
     UNION ALL
 
+    -- "OFX conciliado direto" — sinal ciente de transferência (issue #476):
+    -- credita quando o vínculo é da conta de destino, debita quando é da
+    -- conta de origem. Entrada/saída seguem a regra original.
     SELECT o.conta_financeira_id, o.loja_id, o.data,
-           CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
+           CASE
+             WHEN l.tipo = 'entrada' THEN l.valor
+             WHEN l.tipo = 'transferencia' AND o.conta_financeira_id = l.conta_destino_id
+               THEN l.valor
+             ELSE -l.valor
+           END AS valor_sinal
     FROM ofx_lancamentos o
     JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
     WHERE o.conciliado = TRUE AND o.conciliacao_id IS NULL
 
     UNION ALL
 
+    -- "Avulso origem" — exclusão escopada à conta de origem (issue #476:
+    -- sem o escopo, uma transferência conciliada pelo lado do destino
+    -- sumia daqui também).
     SELECT l.conta_id AS conta_financeira_id, l.loja_id, COALESCE(l.data_pagamento, l.data) AS data,
            CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
     FROM lancamentos l
@@ -521,10 +532,12 @@ const EVENTOS_FINANCEIROS_SQL = `
       AND NOT EXISTS (
         SELECT 1 FROM ofx_lancamentos o
          WHERE o.lancamento_id = l.id AND o.loja_id = l.loja_id AND o.conciliacao_id IS NULL
+           AND o.conta_financeira_id = l.conta_id
       )
 
     UNION ALL
 
+    -- "Avulso destino" — exclusão escopada à conta de destino.
     SELECT l.conta_destino_id AS conta_financeira_id, l.loja_id, COALESCE(l.data_pagamento, l.data) AS data,
            l.valor AS valor_sinal
     FROM lancamentos l
@@ -538,22 +551,8 @@ const EVENTOS_FINANCEIROS_SQL = `
       AND NOT EXISTS (
         SELECT 1 FROM ofx_lancamentos o
          WHERE o.lancamento_id = l.id AND o.loja_id = l.loja_id AND o.conciliacao_id IS NULL
+           AND o.conta_financeira_id = l.conta_destino_id
       )
-
-    UNION ALL
-
-    -- Espelho do branch acima (issue #476): quando a transferência JÁ tem
-    -- uma linha do extrato vinculada, credita conta_destino_id por aqui — o
-    -- branch acima para de cobrir esse caso assim que o vínculo existe, e o
-    -- branch "OFX conciliado direto" (mais acima) só toca em
-    -- o.conta_financeira_id, que é sempre a conta de origem, nunca a de
-    -- destino.
-    SELECT l.conta_destino_id AS conta_financeira_id, l.loja_id, o.data,
-           l.valor AS valor_sinal
-    FROM lancamentos l
-    JOIN ofx_lancamentos o ON o.lancamento_id = l.id AND o.loja_id = l.loja_id
-    WHERE l.pago = TRUE AND l.tipo = 'transferencia' AND l.conta_destino_id IS NOT NULL
-      AND o.conciliado = TRUE AND o.conciliacao_id IS NULL
 
     UNION ALL
 

@@ -334,13 +334,26 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
              JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = c.loja_id
              WHERE c.loja_id = @current_loja_id AND c.status = 'ativa' AND c.data_conciliacao <= ?
              UNION ALL
+             -- "OFX confirmado" — sinal ciente de transferência (issue
+             -- #476): credita quando o vínculo é da conta de destino,
+             -- debita quando é da conta de origem. Entrada/saída seguem a
+             -- regra original (uma conta só).
              SELECT o.conta_financeira_id,
-                    CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END
+                    CASE
+                      WHEN l.tipo = 'entrada' THEN l.valor
+                      WHEN l.tipo = 'transferencia' AND o.conta_financeira_id = l.conta_destino_id
+                        THEN l.valor
+                      ELSE -l.valor
+                    END
              FROM ofx_lancamentos o
              JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
              WHERE o.loja_id = @current_loja_id
                AND o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.data <= ?
              UNION ALL
+             -- "Avulso origem" — exclusão escopada à conta de origem
+             -- (o.conta_financeira_id = l.conta_id), não a qualquer vínculo
+             -- do lançamento (issue #476: sem o escopo, uma transferência
+             -- conciliada pelo lado do destino sumia daqui também).
              SELECT l.conta_id,
                     CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END
              FROM lancamentos l
@@ -357,9 +370,11 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
                AND NOT EXISTS (
                  SELECT 1 FROM ofx_lancamentos o
                  WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
-                   AND o.conciliacao_id IS NULL
+                   AND o.conciliacao_id IS NULL AND o.conta_financeira_id = l.conta_id
                )
              UNION ALL
+             -- "Avulso destino" — exclusão escopada à conta de destino
+             -- (o.conta_financeira_id = l.conta_destino_id).
              SELECT l.conta_destino_id, l.valor
              FROM lancamentos l
              WHERE l.loja_id = @current_loja_id
@@ -376,26 +391,12 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
                AND NOT EXISTS (
                  SELECT 1 FROM ofx_lancamentos o
                  WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
-                   AND o.conciliacao_id IS NULL
+                   AND o.conciliacao_id IS NULL AND o.conta_financeira_id = l.conta_destino_id
                )
-             UNION ALL
-             -- Espelho do branch acima (issue #476): quando a transferência
-             -- JÁ tem uma linha do extrato vinculada, credita
-             -- conta_destino_id por aqui — o branch acima para de cobrir
-             -- esse caso assim que o vínculo existe, e o branch "OFX
-             -- confirmado" (mais acima) só toca em o.conta_financeira_id,
-             -- que é sempre a conta de origem, nunca a de destino.
-             SELECT l.conta_destino_id, l.valor
-             FROM lancamentos l
-             JOIN ofx_lancamentos o ON o.lancamento_id = l.id AND o.loja_id = l.loja_id
-             WHERE l.loja_id = @current_loja_id
-               AND l.pago = TRUE AND l.tipo = 'transferencia' AND l.conta_destino_id IS NOT NULL
-               AND o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.data <= ?
            ) eventos ON eventos.conta_financeira_id = cf.id
            WHERE cf.loja_id = @current_loja_id AND cf.id = ?
            GROUP BY cf.id, cf.saldo_inicial`,
           [
-            extrato.data_final,
             extrato.data_final,
             extrato.data_final,
             extrato.data_final,
