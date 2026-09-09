@@ -21,10 +21,12 @@ import {
 } from "@/components/ui/dialog";
 import { toISODate } from "@/lib/format";
 
-// Formulário único de transferência entre contas, usado tanto na tela de
-// Tesouraria quanto dentro da Conciliação Bancária (para lançar a
-// transferência sem sair da conciliação, já pré-preenchida com a data e o
-// valor da linha do extrato).
+// Diálogo único de transferência entre contas — usado tanto no botão
+// "Transferência" da Tesouraria quanto no botão "Lançar transferência" da
+// Conciliação Bancária (issue #467), onde vem pré-preenchido a partir da
+// linha do extrato marcada. `onDone` recebe o id do lançamento criado pra
+// quem chamou poder pré-selecioná-lo em seguida (ex.: já deixar marcado
+// pra vincular à linha do OFX sem precisar procurar de novo na lista).
 export function TransferenciaDialog({
   contas,
   onDone,
