@@ -1,14 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   relatorioExtratoIrmao,
   relatorioExtratoSgcabIrmao,
   type ItemExtratoIrmao,
 } from "@/lib/backend/relatorios";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
+import {
+  enviarFaturasAbertasPorEmail,
+  type ResultadoEnvioFaturasAbertas,
+} from "@/lib/backend/tesouraria-faturas";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { ExportarRelatorio } from "@/components/app/ExportarRelatorio";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +41,7 @@ import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
-import { Info } from "lucide-react";
+import { Info, Loader2, Mail } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/relatorios/extrato-irmao")({
   head: () => ({ meta: [{ title: "Extrato do Irmão — Gestão Maçônica" }] }),
@@ -72,6 +78,7 @@ function ExtratoIrmao() {
   const [irmaoId, setIrmaoId] = useState("");
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
+  const [enviandoFaturas, setEnviandoFaturas] = useState(false);
 
   const { data: irmaos = [] } = useQuery({
     queryKey: ["irmaos_nomes"],
@@ -95,6 +102,30 @@ function ExtratoIrmao() {
 
   const emAberto = itens.filter((i) => !i.pago);
   const historico = itens.filter((i) => i.pago || Number(i.valor_pago) > 0);
+  // Só entrada — "fatura" é o que o irmão deve à Loja; saída/estorno/
+  // transferência em aberto vinculados a ele (raro, mas o tipo permite) não
+  // fazem sentido como PDF de fatura (issue #480).
+  const faturasEnviaveis = emAberto.filter((i) => i.tipo === "entrada");
+
+  const enviarFaturasEmAberto = async () => {
+    setEnviandoFaturas(true);
+    try {
+      const r: ResultadoEnvioFaturasAbertas = await enviarFaturasAbertasPorEmail({
+        data: { lancamentoIds: faturasEnviaveis.map((i) => i.id) },
+      });
+      if (r.irmaosEnviados > 0) {
+        toast.success(`Faturas enviadas para ${irmaoNome}.`);
+      } else if (r.irmaosSemEmail > 0) {
+        toast.error(`${irmaoNome} não tem e-mail cadastrado.`);
+      } else {
+        toast.error("Não foi possível enviar as faturas.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar faturas por e-mail.");
+    } finally {
+      setEnviandoFaturas(false);
+    }
+  };
 
   const totalPago = itens.reduce((s, i) => s + Number(i.valor_pago), 0);
   const totalAberto = emAberto.reduce((s, i) => s + (Number(i.valor) - Number(i.valor_pago)), 0);
@@ -189,18 +220,34 @@ function ExtratoIrmao() {
         description="O que está em aberto (com vencimento e atraso em destaque) e o histórico do que já foi pago."
         actions={
           irmaoId && (
-            <ExportarRelatorio
-              titulo={`Extrato — ${irmaoNome}`}
-              colunas={COLUNAS}
-              linhas={linhasExportacao}
-              totais={[
-                { rotulo: "Total pago à Loja", valor: totalPago },
-                { rotulo: "Em aberto — Loja", valor: totalAberto },
-                { rotulo: "Total atrasado", valor: totalAtrasado },
-                { rotulo: "Total devido ao SGCAB", valor: totalSgcabAberto },
-                { rotulo: "Visão global — total devido", valor: totalGeralDevido },
-              ]}
-            />
+            <>
+              {faturasEnviaveis.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={enviarFaturasEmAberto}
+                  disabled={enviandoFaturas}
+                >
+                  {enviandoFaturas ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Mail className="h-4 w-4 mr-1" />
+                  )}
+                  Enviar faturas em aberto ao irmão
+                </Button>
+              )}
+              <ExportarRelatorio
+                titulo={`Extrato — ${irmaoNome}`}
+                colunas={COLUNAS}
+                linhas={linhasExportacao}
+                totais={[
+                  { rotulo: "Total pago à Loja", valor: totalPago },
+                  { rotulo: "Em aberto — Loja", valor: totalAberto },
+                  { rotulo: "Total atrasado", valor: totalAtrasado },
+                  { rotulo: "Total devido ao SGCAB", valor: totalSgcabAberto },
+                  { rotulo: "Visão global — total devido", valor: totalGeralDevido },
+                ]}
+              />
+            </>
           )
         }
       />
