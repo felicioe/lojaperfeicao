@@ -20,7 +20,12 @@ import {
   type ResumoConciliacaoOfx,
   type ItemHistoricoOfx,
 } from "@/lib/backend/tesouraria-conciliacao";
-import { listarContasFinanceiras, type ContaFinanceira } from "@/lib/backend/tesouraria-contas";
+import {
+  listarContasFinanceiras,
+  listarSaldoContas,
+  type ContaFinanceira,
+  type SaldoConta,
+} from "@/lib/backend/tesouraria-contas";
 import { TransferenciaDialog } from "@/components/app/TransferenciaDialog";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
 import { listarPlanoContasPorTipo } from "@/lib/backend/plano-contas";
@@ -125,6 +130,15 @@ function Conciliacao() {
     queryKey: ["conciliacao_conferencia", contaId],
     enabled: !!contaId,
     queryFn: () => listarOfxConferencia({ data: { contaId } }),
+  });
+
+  // Painel informativo de saldo de outras aplicações (issue #468) — não
+  // participa de nenhum número do "Fechamento do extrato" acima, só ajuda a
+  // enxergar a disponibilidade total da Loja enquanto se concilia uma conta.
+  const { data: saldoContas = [] } = useQuery({
+    queryKey: ["saldo_contas"],
+    enabled: !!contaId,
+    queryFn: () => listarSaldoContas(),
   });
 
   const invalidate = () => {
@@ -406,6 +420,10 @@ function Conciliacao() {
       </Card>
 
       {contaId && resumo && <PainelFechamento resumo={resumo} />}
+
+      {contaId && saldoContas.length > 0 && (
+        <PainelSaldoOutrasAplicacoes contas={saldoContas} contaEmConciliacaoId={contaId} />
+      )}
 
       {contaId && (
         <>
@@ -1006,6 +1024,62 @@ function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
             </span>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+function PainelSaldoOutrasAplicacoes({
+  contas,
+  contaEmConciliacaoId,
+}: {
+  contas: SaldoConta[];
+  contaEmConciliacaoId: string;
+}) {
+  const total = contas.reduce((acc, c) => acc + Number(c.saldo_atual), 0);
+  const ordenadas = [...contas].sort((a, b) => {
+    if (a.id === contaEmConciliacaoId) return -1;
+    if (b.id === contaEmConciliacaoId) return 1;
+    return a.nome.localeCompare(b.nome);
+  });
+
+  return (
+    <section
+      className="mb-6 overflow-hidden rounded-xl border bg-card"
+      aria-labelledby="saldo-outras-aplicacoes"
+    >
+      <div className="flex flex-col gap-2 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 id="saldo-outras-aplicacoes" className="font-semibold">
+            Saldo de outras aplicações
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Saldo atual de todas as contas da Loja — não entra em nenhum número do "Fechamento do
+            extrato" acima.
+          </p>
+        </div>
+        <Badge variant="secondary" className="w-fit">
+          Apenas informativo
+        </Badge>
+      </div>
+      <div className="divide-y">
+        {ordenadas.map((c) => (
+          <div key={c.id} className="flex items-center justify-between gap-3 px-5 py-3">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{c.nome}</span>
+              {c.id === contaEmConciliacaoId && (
+                <Badge variant="default" className="h-5 px-1.5 text-[10px]">
+                  Em conciliação
+                </Badge>
+              )}
+            </div>
+            <span className="font-semibold tabular-nums">{brl(c.saldo_atual)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-5 py-4">
+        <span className="font-medium">Total geral de disponibilidades</span>
+        <span className="text-lg font-semibold tabular-nums">{brl(total)}</span>
       </div>
     </section>
   );
