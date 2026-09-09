@@ -133,12 +133,25 @@ const terceiroRapidoSchema = fornecedorRapidoSchema.extend({
   tipo: z.enum(["fornecedor", "cliente"]),
 });
 
+// documento é texto livre (o usuário pode digitar com ou sem máscara) — sem
+// essa checagem, um CPF/CNPJ com dígito a mais ou a menos (typo) não batia
+// nem com 11 nem com 14 dígitos e era gravado como cnpj=NULL, cpf=NULL sem
+// nenhum aviso, perdendo o documento digitado silenciosamente (achado da
+// auditoria geral).
+function digitosDocumentoOuErro(documento: string | null): string {
+  const digitos = (documento ?? "").replace(/\D/g, "");
+  if (digitos.length !== 0 && digitos.length !== 11 && digitos.length !== 14) {
+    throw new Error("CPF/CNPJ inválido — confira a quantidade de dígitos.");
+  }
+  return digitos;
+}
+
 export const criarTerceiroRapido = createServerFn({ method: "POST" })
   .validator((d: unknown) => terceiroRapidoSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string; nome: string }> => {
     return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       const id = crypto.randomUUID();
-      const digitos = (data.documento ?? "").replace(/\D/g, "");
+      const digitos = digitosDocumentoOuErro(data.documento);
       await conn.query(
         `INSERT INTO terceiros (id, loja_id, tipo, nome, cnpj, cpf, contato, email, ativo)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
@@ -162,7 +175,7 @@ export const criarFornecedorRapido = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ id: string; nome: string }> => {
     return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
       const id = crypto.randomUUID();
-      const digitos = (data.documento ?? "").replace(/\D/g, "");
+      const digitos = digitosDocumentoOuErro(data.documento);
       await conn.query(
         `INSERT INTO terceiros (id, loja_id, tipo, nome, cnpj, cpf, contato, email, ativo)
          VALUES (?, ?, 'fornecedor', ?, ?, ?, ?, ?, TRUE)`,
