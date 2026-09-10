@@ -99,15 +99,25 @@ export const confirmarValorEfetivoContaPagar = createServerFn({ method: "POST" }
   .validator((d: unknown) => valorEfetivoSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
-      const [resultado] = await conn.query(
+      // Confere existência via SELECT em vez de affectedRows: o pool não
+      // habilita CLIENT_FOUND_ROWS, então um UPDATE que reenvia o mesmo
+      // valorEfetivo já gravado (double-click, retry de rede) não muda
+      // nenhuma coluna e MySQL reporta affectedRows=0 mesmo com a linha
+      // existente e correta — o que disparava "não encontrada" indevidamente.
+      const [[existe]] = await conn.query<RowDataPacket[]>(
+        `SELECT id FROM lancamentos
+         WHERE id = ? AND loja_id = @current_loja_id AND tipo = 'saida' AND pago = FALSE AND recorrente_id IS NOT NULL`,
+        [data.lancamentoId],
+      );
+      if (!existe) {
+        throw new Error("Parcela recorrente não encontrada ou já paga.");
+      }
+      await conn.query(
         `UPDATE lancamentos
          SET valor = ?, valor_efetivo_confirmado = TRUE
          WHERE id = ? AND loja_id = @current_loja_id AND tipo = 'saida' AND pago = FALSE AND recorrente_id IS NOT NULL`,
         [data.valorEfetivo, data.lancamentoId],
       );
-      if ((resultado as { affectedRows: number }).affectedRows !== 1) {
-        throw new Error("Parcela recorrente não encontrada ou já paga.");
-      }
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
