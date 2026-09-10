@@ -66,15 +66,35 @@ export const salvarTaxaGrau = createServerFn({ method: "POST" })
       );
       if (!org) throw new Error("Corpo maçônico não encontrado nesta Loja.");
       if (data.id) {
+        const [[antes]] = await conn.query<RowDataPacket[]>(
+          "SELECT sgcab, ritual, diploma, taxa_propria, ativo FROM taxas_grau WHERE id = ? AND loja_id = @current_loja_id",
+          [data.id],
+        );
         await conn.query(
           `UPDATE taxas_grau SET sgcab = ?, ritual = ?, diploma = ?, taxa_propria = ?, ativo = ?
            WHERE id = ? AND loja_id = @current_loja_id`,
           [data.sgcab, data.ritual, data.diploma, data.taxaPropria, data.ativo, data.id],
         );
-        await registrarAuditoria(conn, usuarioIdAtual, "atualizar", "taxa_grau", data.id, null, {
-          ...data,
-        });
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          "atualizar",
+          "taxa_grau",
+          data.id,
+          antes ?? null,
+          { ...data },
+        );
       } else {
+        // ON DUPLICATE KEY UPDATE: como org_id+ano+grau é único, chamar sem id
+        // pode tanto criar uma linha nova quanto sobrescrever uma já
+        // existente para esse grau/ano — sem checar antes, isso virava
+        // sempre um "criar" com antes=null na auditoria, mesmo quando era de
+        // fato uma sobrescrita silenciosa de taxas já cadastradas.
+        const [[existente]] = await conn.query<RowDataPacket[]>(
+          `SELECT id, sgcab, ritual, diploma, taxa_propria, ativo FROM taxas_grau
+           WHERE org_id = ? AND ano = ? AND grau = ? AND loja_id = @current_loja_id`,
+          [data.orgId, data.ano, data.grau],
+        );
         await conn.query(
           `INSERT INTO taxas_grau (loja_id, org_id, ano, grau, sgcab, ritual, diploma, taxa_propria, ativo)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -96,9 +116,15 @@ export const salvarTaxaGrau = createServerFn({ method: "POST" })
           "SELECT id FROM taxas_grau WHERE org_id = ? AND ano = ? AND grau = ? AND loja_id = @current_loja_id",
           [data.orgId, data.ano, data.grau],
         );
-        await registrarAuditoria(conn, usuarioIdAtual, "criar", "taxa_grau", novo.id, null, {
-          ...data,
-        });
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          existente ? "atualizar" : "criar",
+          "taxa_grau",
+          novo.id,
+          existente ?? null,
+          { ...data },
+        );
       }
     });
   });
@@ -271,7 +297,11 @@ export const listarFaturasSgcab = createServerFn({ method: "POST" })
   .validator((d: unknown) => filtroFaturasSchema.parse(d))
   .handler(async ({ data }): Promise<SgcabFatura[]> => {
     return comPapel(PAPEIS_LEITURA, async (conn) => {
-      const condicoes: string[] = [];
+      // sf.loja_id explícito, e não só o escopo indireto via JOIN com
+      // irmaos/orgs — mesmo padrão defensivo usado no resto do código: cada
+      // tabela consultada tem seu próprio filtro de loja_id, em vez de
+      // depender só da tabela relacionada estar escopada corretamente.
+      const condicoes: string[] = ["sf.loja_id = @current_loja_id"];
       const valores: unknown[] = [];
       if (data.orgId) {
         condicoes.push("sf.org_id = ?");
@@ -289,7 +319,7 @@ export const listarFaturasSgcab = createServerFn({ method: "POST" })
         condicoes.push("sf.irmao_id = ?");
         valores.push(data.irmaoId);
       }
-      const where = condicoes.length ? `WHERE ${condicoes.join(" AND ")}` : "";
+      const where = `WHERE ${condicoes.join(" AND ")}`;
       const [faturas] = await conn.query<RowDataPacket[]>(
         `SELECT sf.*, i.nome_civil AS irmao_nome, o.nome AS org_nome, og.nome AS nome_grau
          FROM sgcab_faturas sf
