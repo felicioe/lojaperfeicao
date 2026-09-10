@@ -1519,7 +1519,7 @@ function IndividualForm({
             rateio: rateio.length > 0 ? rateio : null,
           },
         });
-        toast.success("Fatura criada e provisão contábil lançada.");
+        toast.success("Fatura criada.");
       }
       setValor(0);
       setDescricao("");
