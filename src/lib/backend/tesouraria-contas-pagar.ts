@@ -4,7 +4,6 @@ import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
-import { garantirPrevisoesRecorrentes } from "./tesouraria-recorrentes";
 
 // lancamentos_write original: admin/tesoureiro.
 const PAPEIS = ["admin", "tesoureiro"];
@@ -83,10 +82,10 @@ async function buscarContasPagar(
 
 export const listarContasPagarAbertas = createServerFn({ method: "GET" }).handler(
   async (): Promise<ContaPagar[]> => {
-    return comPapel(PAPEIS, async (conn) => {
-      await garantirPrevisoesRecorrentes(conn);
-      return buscarContasPagar(conn, false);
-    });
+    // gerar_previsoes_recorrentes agora roda só via CRON diário (achado de
+    // performance da auditoria geral — ver executarGeracaoPrevisoesRecorrentes
+    // em tesouraria-recorrentes.ts).
+    return comPapel(PAPEIS, async (conn) => buscarContasPagar(conn, false));
   },
 );
 

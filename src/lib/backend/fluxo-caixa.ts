@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comSessao } from "./authz";
-import { garantirPrevisoesRecorrentes } from "./tesouraria-recorrentes";
 
 // Mesma visibilidade "privilegiado ou próprio" de tesouraria-lancamentos.ts/dashboard.ts.
 const PAPEIS_PRIVILEGIADOS = ["admin", "tesoureiro", "secretario"];
@@ -40,7 +39,9 @@ export const obterFluxoAnteriores = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<number> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      if (privilegiado) await garantirPrevisoesRecorrentes(conn);
+      // gerar_previsoes_recorrentes agora roda só via CRON diário (achado de
+      // performance da auditoria geral — ver executarGeracaoPrevisoesRecorrentes
+      // em tesouraria-recorrentes.ts).
       const condicaoIrmao = privilegiado
         ? ""
         : "AND l.irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)";
@@ -161,7 +162,9 @@ export const listarMovimentosPendentes = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<MovimentoPendente[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      if (privilegiado) await garantirPrevisoesRecorrentes(conn);
+      // gerar_previsoes_recorrentes agora roda só via CRON diário (achado de
+      // performance da auditoria geral — ver executarGeracaoPrevisoesRecorrentes
+      // em tesouraria-recorrentes.ts).
       const condicoes = [
         "pago = FALSE",
         "tipo IN ('entrada','saida')",
