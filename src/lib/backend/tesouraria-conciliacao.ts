@@ -20,6 +20,10 @@ export type LancamentoConciliacao = {
   tipo: string;
   // TINYINT(1) — o driver mysql2 devolve number, não boolean.
   eh_transferencia: number;
+  // Idem — true pra transferência (sempre) e pra fatura/conta a pagar já
+  // baixada fora da Conciliação (Contas a Pagar, Faturas) que ainda não foi
+  // vinculada a nenhuma linha do extrato.
+  ja_pago: number;
 };
 
 // Lançamentos em aberto (faturas/contas a pagar ainda não baixadas) nunca
@@ -45,6 +49,17 @@ export type LancamentoConciliacao = {
 // a tela já usa pros lançamentos comuns. Só entram enquanto não estiverem
 // amarradas a nenhuma linha de extrato (ofx_lancamentos.lancamento_id) nem
 // a um evento de conciliação em lote ainda ativo.
+//
+// Terceiro braço (achado do usuário): fatura ou conta a pagar baixada
+// direto pela própria tela (Faturas/Contas a Pagar, sem passar pela
+// Conciliação) fica pago=TRUE, com conta_id apontando pro banco — mas,
+// assim como a transferência, nunca foi de fato AMARRADA a uma linha do
+// extrato. Sem este braço, ela nunca mais aparecia aqui pra ser vinculada
+// depois: ficava paga pro sistema, mas "sem lastro" nenhum de conciliação
+// bancária. valor_pago vem forçado a 0 pelo mesmo motivo da transferência —
+// aqui valor_pago representa "quanto já foi vinculado a uma linha do
+// extrato" (sempre zero pra quem ainda não apareceu nesta lista), não
+// "quanto já foi pago" (que pra estas linhas é sempre o valor inteiro).
 export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
   .handler(async ({ data }): Promise<LancamentoConciliacao[]> => {
@@ -54,7 +69,7 @@ export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
            SELECT l.id, l.data, l.data_vencimento,
                   CASE WHEN i.nome_civil IS NOT NULL THEN CONCAT(l.descricao, ' — ', i.nome_civil) ELSE l.descricao END AS descricao,
                   i.nome_civil AS irmao_nome,
-                  l.valor, l.valor_pago, l.tipo, 0 AS eh_transferencia
+                  l.valor, l.valor_pago, l.tipo, 0 AS eh_transferencia, 0 AS ja_pago
            FROM lancamentos l
            LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
            WHERE l.loja_id = @current_loja_id AND l.pago = FALSE AND l.tipo IN ('entrada', 'saida')
@@ -66,7 +81,7 @@ export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
                   NULL AS irmao_nome,
                   l.valor, 0 AS valor_pago,
                   CASE WHEN l.conta_destino_id = ? THEN 'entrada' ELSE 'saida' END AS tipo,
-                  1 AS eh_transferencia
+                  1 AS eh_transferencia, 1 AS ja_pago
            FROM lancamentos l
            WHERE l.loja_id = @current_loja_id AND l.pago = TRUE AND l.tipo = 'transferencia'
              AND (l.conta_id = ? OR l.conta_destino_id = ?)
@@ -79,10 +94,30 @@ export const listarLancamentosParaConciliar = createServerFn({ method: "GET" })
                  JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
                 WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id AND c.status = 'ativa'
              )
+
+           UNION ALL
+
+           SELECT l.id, l.data, l.data_vencimento,
+                  CASE WHEN i.nome_civil IS NOT NULL THEN CONCAT(l.descricao, ' — ', i.nome_civil) ELSE l.descricao END AS descricao,
+                  i.nome_civil AS irmao_nome,
+                  l.valor, 0 AS valor_pago, l.tipo, 0 AS eh_transferencia, 1 AS ja_pago
+           FROM lancamentos l
+           LEFT JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
+           WHERE l.loja_id = @current_loja_id AND l.pago = TRUE AND l.tipo IN ('entrada', 'saida')
+             AND l.conta_id = ?
+             AND NOT EXISTS (
+               SELECT 1 FROM ofx_lancamentos o
+                WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM conciliacao_lancamentos cl
+                 JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id AND c.status = 'ativa'
+             )
          ) t
          ORDER BY t.data_vencimento IS NULL, t.data_vencimento, t.data
          LIMIT 300`,
-        [data.contaId, data.contaId, data.contaId],
+        [data.contaId, data.contaId, data.contaId, data.contaId],
       );
       return rows as LancamentoConciliacao[];
     });
