@@ -253,7 +253,12 @@ export const criarChavePix = createServerFn({ method: "POST" })
 
 const uploadQrCodeSchema = z.object({
   nomeArquivo: z.string().min(1).max(255),
-  dataUrl: z.string().startsWith("data:image/"),
+  // Mesmo limite de chavePixSchema.qrCodeUrl (cobre uma imagem de até 5 MB em
+  // base64) — sem ele, um payload muito maior era decodificado por inteiro em
+  // Buffer.from antes do único controle de tamanho (byteLength > 5MB),
+  // gastando memória proporcional ao request inteiro num processo com pool
+  // de conexões pequeno.
+  dataUrl: z.string().startsWith("data:image/").max(7_000_000),
 });
 
 // Guarda a imagem como data URL na própria coluna (qr_code_url é MEDIUMTEXT,
