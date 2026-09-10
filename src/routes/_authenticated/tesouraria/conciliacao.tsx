@@ -219,15 +219,21 @@ function Conciliacao() {
     if (selSistema.length === 0 || selOfx.length === 0) return;
     setVinculando(true);
     try {
-      // Transferência (issue #467): já está paga e já gerou sua própria
-      // contrapartida contábil na criação — `conciliarOfxLote` exige
+      // Transferência (issue #467) ou fatura/conta a pagar baixada fora da
+      // Conciliação (achado do usuário): já está paga e já gerou sua
+      // própria contrapartida contábil — `conciliarOfxLote` exige
       // pago=FALSE e daria baixa (duplicando a contabilização). O vínculo
       // aqui é só apontar a linha do OFX pro lançamento já existente, 1:1.
-      if (selecionadosSistema[0]?.eh_transferencia) {
+      const selecionado = selecionadosSistema[0];
+      if (selecionado?.eh_transferencia || selecionado?.ja_pago) {
         await conciliarOfxExistente({
-          data: { ofxId: selOfx[0], lancamentoId: selecionadosSistema[0].id },
+          data: { ofxId: selOfx[0], lancamentoId: selecionado.id },
         });
-        toast.success("Transferência vinculada à linha do extrato.");
+        toast.success(
+          selecionado.eh_transferencia
+            ? "Transferência vinculada à linha do extrato."
+            : "Lançamento vinculado à linha do extrato.",
+        );
         invalidate();
         return;
       }
@@ -289,17 +295,18 @@ function Conciliacao() {
     .filter((o) => selOfx.includes(o.id))
     .reduce((acc, o) => acc + Number(o.valor), 0);
   const diferenca = Math.round((totalOfx - totalSistema) * 100) / 100;
-  // Transferência (issue #467): vínculo é sempre 1:1, e não pode se
-  // misturar com outros lançamentos na mesma seleção — ela já está paga e
-  // já contabilizada, então não faz sentido bater totais com outra fatura.
-  const temTransferenciaSelecionada = selecionadosSistema.some((s) => s.eh_transferencia);
-  const misturaTransferencia = temTransferenciaSelecionada && selecionadosSistema.length > 1;
-  const transferenciaComMultiplasLinhasOfx = temTransferenciaSelecionada && selOfx.length > 1;
-  const vinculoTransferenciaInvalido = misturaTransferencia || transferenciaComMultiplasLinhasOfx;
+  // Transferência (issue #467) ou lançamento já pago fora da Conciliação
+  // (achado do usuário): vínculo é sempre 1:1, e não pode se misturar com
+  // outros lançamentos na mesma seleção — já está pago e já contabilizado,
+  // então não faz sentido bater totais com outra fatura.
+  const temItemJaPagoSelecionado = selecionadosSistema.some((s) => s.eh_transferencia || s.ja_pago);
+  const misturaItemJaPago = temItemJaPagoSelecionado && selecionadosSistema.length > 1;
+  const itemJaPagoComMultiplasLinhasOfx = temItemJaPagoSelecionado && selOfx.length > 1;
+  const vinculoJaPagoInvalido = misturaItemJaPago || itemJaPagoComMultiplasLinhasOfx;
   const totaisBatem =
     selSistema.length > 0 &&
     selOfx.length > 0 &&
-    (temTransferenciaSelecionada ? !vinculoTransferenciaInvalido : diferenca === 0);
+    (temItemJaPagoSelecionado ? !vinculoJaPagoInvalido : diferenca === 0);
   const linhasOfxSelecionadas = ofx.filter((o) => selOfx.includes(o.id));
   const podeAnularOfx =
     selSistema.length === 0 &&
@@ -328,7 +335,7 @@ function Conciliacao() {
   const usarParcial =
     selSistema.length > 0 &&
     selOfx.length > 0 &&
-    !temTransferenciaSelecionada &&
+    !temItemJaPagoSelecionado &&
     todosEntrada &&
     totalOfx > 0 &&
     totalOfx < totalSistema;
@@ -584,6 +591,11 @@ function Conciliacao() {
                                 Transferência
                               </Badge>
                             )}
+                            {!s.eh_transferencia && !!s.ja_pago && (
+                              <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                                Já pago — aguardando vínculo
+                              </Badge>
+                            )}
                             {vencida && (
                               <Badge variant="destructive" className="h-4 px-1 text-[10px]">
                                 Vencida
@@ -684,18 +696,18 @@ function Conciliacao() {
         <Card className="mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-2 text-sm">
             {selSistema.length > 0 && selOfx.length > 0 ? (
-              vinculoTransferenciaInvalido ? (
+              vinculoJaPagoInvalido ? (
                 <span className="flex items-center gap-1 text-destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  {misturaTransferencia
-                    ? "Uma transferência não pode ser vinculada junto com outros lançamentos — marque só ela."
-                    : "Uma transferência só pode ser vinculada a uma única linha do extrato por vez."}
+                  {misturaItemJaPago
+                    ? "Um lançamento já pago não pode ser vinculado junto com outros lançamentos — marque só ele."
+                    : "Um lançamento já pago só pode ser vinculado a uma única linha do extrato por vez."}
                 </span>
               ) : totaisBatem ? (
                 <span className="flex items-center gap-1 text-success-foreground">
                   <CheckCircle2 className="h-4 w-4" />{" "}
-                  {temTransferenciaSelecionada
-                    ? "Pronto para vincular a transferência à linha do extrato."
+                  {temItemJaPagoSelecionado
+                    ? "Pronto para vincular o lançamento à linha do extrato."
                     : "Totais batem — pronto para vincular."}
                 </span>
               ) : usarParcial ? (
