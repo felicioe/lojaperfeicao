@@ -69,6 +69,15 @@ export const salvarConta = createServerFn({ method: "POST" })
   .validator((d: unknown) => salvarContaSchema.parse(d))
   .handler(async ({ data }): Promise<{ id: string }> => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      // Busca o estado anterior antes de atualizar — sem isso, a auditoria
+      // sempre gravava antes=null mesmo em edições, perdendo o rastro do
+      // que a conta contábil tinha antes da mudança.
+      const [[antes]] = data.id
+        ? await conn.query<RowDataPacket[]>(
+            "SELECT codigo, nome, tipo, parent_id, analitica FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id",
+            [data.id],
+          )
+        : [[null]];
       await conn.query("CALL salvar_conta(?, ?, ?, ?, ?, ?, @out_id)", [
         data.id,
         data.codigo,
@@ -84,7 +93,7 @@ export const salvarConta = createServerFn({ method: "POST" })
         data.id ? "atualizar" : "criar",
         "plano_conta",
         out_id,
-        null,
+        antes ?? null,
         data,
       );
       return { id: out_id };
@@ -95,6 +104,10 @@ export const alternarAtivoConta = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[antes]] = await conn.query<RowDataPacket[]>(
+        "SELECT ativo FROM plano_contas WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
       await conn.query(
         "UPDATE plano_contas SET ativo=? WHERE id=? AND loja_id = @current_loja_id",
         [data.ativo, data.id],
@@ -105,7 +118,7 @@ export const alternarAtivoConta = createServerFn({ method: "POST" })
         "alternar_ativo",
         "plano_conta",
         data.id,
-        null,
+        antes ?? null,
         { ativo: data.ativo },
       );
     });
