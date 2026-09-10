@@ -3,7 +3,6 @@ import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel, comSessao } from "./authz";
-import { garantirPrevisoesRecorrentes } from "./tesouraria-recorrentes";
 
 // Mesma visibilidade de lancamentos usada em tesouraria-lancamentos.ts:
 // admin/tesoureiro/secretario veem tudo, irmão comum só os seus.
@@ -32,7 +31,11 @@ export const listarContasAPagarProximas = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ContaAPagarProxima[]> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      if (privilegiado) await garantirPrevisoesRecorrentes(conn);
+      // gerar_previsoes_recorrentes agora roda só via CRON diário (achado de
+      // performance da auditoria geral — ver executarGeracaoPrevisoesRecorrentes
+      // em tesouraria-recorrentes.ts): chamar isso em toda leitura do
+      // dashboard, em paralelo com outras 4 chamadas equivalentes na mesma
+      // página, media 8,7s numa única requisição em produção.
       const condicoes = [
         "tipo = 'saida'",
         "pago = FALSE",
@@ -251,7 +254,11 @@ export const obterProjecaoFluxo = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ProjecaoFluxo> => {
     return comSessao(async (conn, usuarioId) => {
       const privilegiado = await ehPrivilegiado(conn);
-      if (privilegiado) await garantirPrevisoesRecorrentes(conn);
+      // gerar_previsoes_recorrentes agora roda só via CRON diário (achado de
+      // performance da auditoria geral — ver executarGeracaoPrevisoesRecorrentes
+      // em tesouraria-recorrentes.ts): chamar isso em toda leitura do
+      // dashboard, em paralelo com outras 4 chamadas equivalentes na mesma
+      // página, media 8,7s numa única requisição em produção.
       const condicoes = ["pago = FALSE", "data_vencimento >= ?", "data_vencimento <= ?"];
       const valores: unknown[] = [data.de, data.ate];
       if (!privilegiado) {

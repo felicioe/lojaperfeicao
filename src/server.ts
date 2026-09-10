@@ -195,6 +195,38 @@ async function tratarCronFilaEmails(request: Request): Promise<Response | null> 
   }
 }
 
+// Mesmo padrão, para gerar previsões de despesas recorrentes (achado de
+// performance da auditoria geral: gerar_previsoes_recorrentes fazia um
+// cursor + até 11 INSERTs por recorrente, chamado de forma síncrona em toda
+// leitura de dashboard/fluxo-de-caixa/contas-a-pagar — 8,7s numa única
+// requisição do dashboard em produção). Granularidade mensal não precisa de
+// mais que atualização diária.
+async function tratarCronPrevisoesRecorrentes(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/cron/previsoes-recorrentes") return null;
+
+  const token = url.searchParams.get("token") ?? request.headers.get("x-cron-token");
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado || token !== esperado) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const { executarGeracaoPrevisoesRecorrentes } =
+      await import("./lib/backend/tesouraria-recorrentes");
+    const resultado = await executarGeracaoPrevisoesRecorrentes();
+    return new Response(JSON.stringify(resultado), {
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: (error as Error).message }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
 async function tratarAgendaPublica(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== "/api/publico/agenda") return null;
@@ -446,6 +478,9 @@ export default createServerEntry({
 
       const filaEmailResponse = await tratarCronFilaEmails(request);
       if (filaEmailResponse) return withSecurityHeaders(filaEmailResponse);
+
+      const previsoesRecorrentesResponse = await tratarCronPrevisoesRecorrentes(request);
+      if (previsoesRecorrentesResponse) return withSecurityHeaders(previsoesRecorrentesResponse);
 
       const agendaResponse = await tratarAgendaPublica(request);
       if (agendaResponse) return withSecurityHeaders(agendaResponse);

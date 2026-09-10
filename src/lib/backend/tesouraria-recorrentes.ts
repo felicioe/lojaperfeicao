@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+import { listarLojasAtivas, withLojaConnection } from "./db";
 
 // RLS original: SELECT e escrita ambos restritos a admin/tesoureiro (não
 // é leitura livre como a maioria das tabelas de tesouraria).
@@ -22,6 +23,28 @@ export async function garantirPrevisoesRecorrentes(conn: PoolConnection): Promis
     if ((erro as { code?: string }).code === "ER_SP_DOES_NOT_EXIST") return 0;
     throw erro;
   }
+}
+
+// CRON diário — achado de performance (auditoria geral): gerar_previsoes_
+// recorrentes faz um cursor sobre TODA despesa recorrente ativa, com um
+// UPDATE + até 11 INSERTs cada; chamar isso de forma síncrona em toda leitura
+// de dashboard/fluxo-de-caixa/contas-a-pagar (5 pontos diferentes, alguns
+// disparando em paralelo na mesma página) media 8,7s numa única requisição
+// do dashboard em produção. Granularidade mensal não precisa de mais que
+// atualização diária — os 5 pontos de leitura pararam de chamar isto
+// diretamente; write-paths em salvarDespesaRecorrente/alternarAtivoRecorrente
+// continuam chamando na hora, pois ali é uma ação pontual do usuário, não uma
+// leitura repetida.
+export async function executarGeracaoPrevisoesRecorrentes(): Promise<
+  { lojaId: string; nome: string; total: number }[]
+> {
+  const lojas = await listarLojasAtivas();
+  const resultados: { lojaId: string; nome: string; total: number }[] = [];
+  for (const loja of lojas) {
+    const total = await withLojaConnection(loja.id, (conn) => garantirPrevisoesRecorrentes(conn));
+    resultados.push({ lojaId: loja.id, nome: loja.nome, total });
+  }
+  return resultados;
 }
 
 export type DespesaRecorrente = {
