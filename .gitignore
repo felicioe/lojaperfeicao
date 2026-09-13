@@ -40,6 +40,11 @@ public/uploads/
 # repros) — nunca faz parte do código, nunca deve ser versionado.
 /tmp/
 
+# Export manual de `schema_migrations` do phpMyAdmin, usado pelo
+# scripts/checar-migracoes-pendentes.mjs (issue #503) — reflete o estado de
+# produção no momento em que foi exportado, nunca é dado versionável.
+/scripts/aplicadas-em-producao.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
