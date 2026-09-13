@@ -301,145 +301,154 @@ function LojasPlataforma() {
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHeadOrdenavel campo="nome" ord={ord}>
-                    Loja
-                  </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="slug" ord={ord}>
-                    Endereço
-                  </TableHeadOrdenavel>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHeadOrdenavel campo="usuarios" ord={ord} className="text-right">
-                    Usuários
-                  </TableHeadOrdenavel>
-                  <TableHead>Administrador</TableHead>
-                  <TableHeadOrdenavel campo="ultimo" ord={ord}>
-                    Último acesso
-                  </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="situacao" ord={ord}>
-                    Situação
-                  </TableHeadOrdenavel>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ord.itensOrdenados.length === 0 && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
-                      Nenhuma Loja cadastrada.
-                    </TableCell>
+                    <TableHeadOrdenavel campo="nome" ord={ord}>
+                      Loja
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="slug" ord={ord} className="hidden sm:table-cell">
+                      Endereço
+                    </TableHeadOrdenavel>
+                    <TableHead className="hidden sm:table-cell">CNPJ</TableHead>
+                    <TableHeadOrdenavel campo="usuarios" ord={ord} className="text-right">
+                      Usuários
+                    </TableHeadOrdenavel>
+                    <TableHead className="hidden sm:table-cell">Administrador</TableHead>
+                    <TableHeadOrdenavel campo="ultimo" ord={ord} className="hidden sm:table-cell">
+                      Último acesso
+                    </TableHeadOrdenavel>
+                    <TableHeadOrdenavel campo="situacao" ord={ord}>
+                      Situação
+                    </TableHeadOrdenavel>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                )}
-                {ord.itensOrdenados.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell className="font-medium">
-                      {l.nome}
-                      {l.razao_social && (
-                        <div className="text-xs text-muted-foreground">{l.razao_social}</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{l.slug}</TableCell>
-                    <TableCell className="text-xs">{l.cnpj ?? "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{l.usuarios_ativos}</TableCell>
-                    {/* Sem administrador ninguém consegue gerir a Loja por
+                </TableHeader>
+                <TableBody>
+                  {ord.itensOrdenados.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
+                        Nenhuma Loja cadastrada.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {ord.itensOrdenados.map((l) => (
+                    <TableRow key={l.id}>
+                      <TableCell className="font-medium">
+                        {l.nome}
+                        {l.razao_social && (
+                          <div className="text-xs text-muted-foreground">{l.razao_social}</div>
+                        )}
+                        <div className="font-mono text-xs text-muted-foreground sm:hidden">
+                          {l.slug}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden font-mono text-xs sm:table-cell">
+                        {l.slug}
+                      </TableCell>
+                      <TableCell className="hidden text-xs sm:table-cell">
+                        {l.cnpj ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{l.usuarios_ativos}</TableCell>
+                      {/* Sem administrador ninguém consegue gerir a Loja por
                         dentro — é o estado normal logo após o cadastro, até o
                         convite ser aceito. */}
-                    <TableCell className="text-xs">
-                      {l.administradores > 0 ? (
-                        <span className="text-muted-foreground">
-                          {l.administradores} administrador(es)
-                        </span>
-                      ) : l.convite && l.convite.situacao !== "aceito" ? (
-                        <div className="space-y-1">
-                          <Badge
-                            variant={l.convite.situacao === "pendente" ? "secondary" : "outline"}
-                          >
-                            {CONVITE_LABEL[l.convite.situacao]}
-                          </Badge>
-                          <div className="text-muted-foreground">{l.convite.email}</div>
-                          {l.convite.situacao === "pendente" && (
-                            <div className="text-muted-foreground">
-                              vale até {data(l.convite.expira_em)}
-                            </div>
-                          )}
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2"
-                              onClick={() => reenviar(l)}
+                      <TableCell className="hidden text-xs sm:table-cell">
+                        {l.administradores > 0 ? (
+                          <span className="text-muted-foreground">
+                            {l.administradores} administrador(es)
+                          </span>
+                        ) : l.convite && l.convite.situacao !== "aceito" ? (
+                          <div className="space-y-1">
+                            <Badge
+                              variant={l.convite.situacao === "pendente" ? "secondary" : "outline"}
                             >
-                              <RefreshCw className="h-3 w-3 mr-1" /> Reenviar
-                            </Button>
+                              {CONVITE_LABEL[l.convite.situacao]}
+                            </Badge>
+                            <div className="text-muted-foreground">{l.convite.email}</div>
                             {l.convite.situacao === "pendente" && (
+                              <div className="text-muted-foreground">
+                                vale até {data(l.convite.expira_em)}
+                              </div>
+                            )}
+                            <div className="flex gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 px-2"
-                                onClick={() => setRevogando(l)}
+                                onClick={() => reenviar(l)}
                               >
-                                <X className="h-3 w-3 mr-1" /> Cancelar
+                                <RefreshCw className="h-3 w-3 mr-1" /> Reenviar
                               </Button>
-                            )}
+                              {l.convite.situacao === "pendente" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2"
+                                  onClick={() => setRevogando(l)}
+                                >
+                                  <X className="h-3 w-3 mr-1" /> Cancelar
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          <span className="text-amber-600 dark:text-amber-500">sem admin</span>
-                          <div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2"
-                              onClick={() => abrirConvite(l)}
-                            >
-                              <Mail className="h-3 w-3 mr-1" /> Convidar
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {l.ultimo_acesso ? dataHora(l.ultimo_acesso) : "nunca"}
-                    </TableCell>
-                    <TableCell>
-                      {l.ativa ? (
-                        <Badge variant="secondary">Ativa</Badge>
-                      ) : (
-                        <Badge variant="destructive">Suspensa</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)}>
-                        <Pencil className="h-4 w-4" />
-                        <span className="sr-only">Editar {l.nome}</span>
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => abrirMenu(l)}>
-                        <Menu className="h-4 w-4" />
-                        {l.menu_itens_ocultos.length > 0 && (
-                          <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
-                            {l.menu_itens_ocultos.length}
-                          </Badge>
-                        )}
-                        <span className="sr-only">Itens do menu de {l.nome}</span>
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setConfirmar(l)}>
-                        {l.ativa ? (
-                          <PowerOff className="h-4 w-4 text-destructive" />
                         ) : (
-                          <Power className="h-4 w-4" />
+                          <div className="space-y-1">
+                            <span className="text-amber-600 dark:text-amber-500">sem admin</span>
+                            <div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2"
+                                onClick={() => abrirConvite(l)}
+                              >
+                                <Mail className="h-3 w-3 mr-1" /> Convidar
+                              </Button>
+                            </div>
+                          </div>
                         )}
-                        <span className="sr-only">
-                          {l.ativa ? "Suspender" : "Reativar"} {l.nome}
-                        </span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableCell>
+                      <TableCell className="hidden text-xs sm:table-cell">
+                        {l.ultimo_acesso ? dataHora(l.ultimo_acesso) : "nunca"}
+                      </TableCell>
+                      <TableCell>
+                        {l.ativa ? (
+                          <Badge variant="secondary">Ativa</Badge>
+                        ) : (
+                          <Badge variant="destructive">Suspensa</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Button variant="ghost" size="sm" onClick={() => abrirEdicao(l)}>
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Editar {l.nome}</span>
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => abrirMenu(l)}>
+                          <Menu className="h-4 w-4" />
+                          {l.menu_itens_ocultos.length > 0 && (
+                            <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                              {l.menu_itens_ocultos.length}
+                            </Badge>
+                          )}
+                          <span className="sr-only">Itens do menu de {l.nome}</span>
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmar(l)}>
+                          {l.ativa ? (
+                            <PowerOff className="h-4 w-4 text-destructive" />
+                          ) : (
+                            <Power className="h-4 w-4" />
+                          )}
+                          <span className="sr-only">
+                            {l.ativa ? "Suspender" : "Reativar"} {l.nome}
+                          </span>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

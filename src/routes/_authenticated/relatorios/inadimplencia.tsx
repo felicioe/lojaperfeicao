@@ -362,10 +362,10 @@ function InadimplenciaDetalhada() {
                 <TableHeadOrdenavel campo="irmao" ord={ord}>
                   Irmão
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="descricao" ord={ord}>
+                <TableHeadOrdenavel campo="descricao" ord={ord} className="hidden sm:table-cell">
                   Descrição
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="vencimento" ord={ord}>
+                <TableHeadOrdenavel campo="vencimento" ord={ord} className="hidden sm:table-cell">
                   Vencimento
                 </TableHeadOrdenavel>
                 <TableHeadOrdenavel campo="dias_atraso" ord={ord} className="text-right">
@@ -374,10 +374,18 @@ function InadimplenciaDetalhada() {
                 <TableHeadOrdenavel campo="valor_original" ord={ord} className="text-right">
                   Valor original
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="valor_multa" ord={ord} className="text-right">
+                <TableHeadOrdenavel
+                  campo="valor_multa"
+                  ord={ord}
+                  className="hidden text-right sm:table-cell"
+                >
                   Multa
                 </TableHeadOrdenavel>
-                <TableHeadOrdenavel campo="valor_juros" ord={ord} className="text-right">
+                <TableHeadOrdenavel
+                  campo="valor_juros"
+                  ord={ord}
+                  className="hidden text-right sm:table-cell"
+                >
                   Juros
                 </TableHeadOrdenavel>
                 <TableHeadOrdenavel campo="valor_total" ord={ord} className="text-right">
@@ -412,21 +420,31 @@ function InadimplenciaDetalhada() {
                   <TableCell>
                     {i.nome_civil}
                     {i.nome_simbolico ? ` (${i.nome_simbolico})` : ""}
+                    <div className="text-xs text-muted-foreground sm:hidden">
+                      {i.descricao} · vence {fmtDate(i.data_vencimento)}
+                    </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{i.descricao}</TableCell>
-                  <TableCell>{fmtDate(i.data_vencimento)}</TableCell>
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
+                    {i.descricao}
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    {fmtDate(i.data_vencimento)}
+                  </TableCell>
                   <TableCell numeric>
                     <Badge variant="destructive">{i.dias_atraso}</Badge>
                   </TableCell>
                   <TableCell numeric>{brl(i.valor_original)}</TableCell>
-                  <TableCell numeric className="text-muted-foreground">
+                  <TableCell numeric className="hidden text-muted-foreground sm:table-cell">
                     {brl(i.valor_multa)}
                   </TableCell>
-                  <TableCell numeric className="text-muted-foreground">
+                  <TableCell numeric className="hidden text-muted-foreground sm:table-cell">
                     {brl(i.valor_juros)}
                   </TableCell>
                   <TableCell numeric className="font-medium">
                     {brl(i.valor_total)}
+                    <div className="text-xs font-normal text-muted-foreground sm:hidden">
+                      multa {brl(i.valor_multa)} · juros {brl(i.valor_juros)}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
