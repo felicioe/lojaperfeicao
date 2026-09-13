@@ -755,7 +755,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           to: "/administracao/fechamento-periodo",
           label: "Fechamento de Período",
           icon: Lock,
-          show: can.isAdmin,
+          show: can.canManageFinancas,
           section: "Encerramento",
         },
         {
@@ -772,6 +772,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       label: "Contabilidade",
       icon: BookMarked,
       items: [
+        {
+          to: "/contabilidade",
+          label: "Visão Geral",
+          icon: BookMarked,
+          show: can.canManageFinancas,
+        },
         {
           to: "/contabilidade/razao",
           label: "Razão Contábil",
