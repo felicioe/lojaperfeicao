@@ -809,13 +809,14 @@ export const relatorioExtratoSgcabIrmao = createServerFn({ method: "GET" })
   });
 
 // ---------- Relatório de inadimplência detalhado (issue #115) ----------
-// Multa/juros calculados até hoje com a MESMA fórmula da procedure
-// calcular_multa_juros (também usada em baixar_faturas/BaixaDialog), só que
-// inline numa única consulta em vez de 1 CALL + 1 SELECT por fatura vencida
-// (até 1000 idas ao banco no pior caso, com até 500 inadimplentes). Inline
-// em SQL — não em JS — porque usa o mesmo ROUND/DATEDIFF do MySQL, sem risco
-// de arredondamento divergir por causa de diferença de ponto flutuante entre
-// linguagens. Se a fórmula da procedure mudar, atualizar aqui também.
+// Multa/juros calculados até hoje chamando calcular_valor_multa/
+// calcular_valor_juros (migração 0144) — as MESMAS funções que
+// calcular_multa_juros usa (também usada em baixar_faturas/BaixaDialog),
+// extraídas justamente pra não duplicar a fórmula aqui (achado #532 da
+// auditoria: antes era reimplementada inline, com risco de divergir
+// silenciosamente da procedure se uma mudasse sem a outra). Chamadas em SQL,
+// não em JS, porque usam o mesmo ROUND/DATEDIFF do MySQL, sem risco de
+// arredondamento divergir por diferença de ponto flutuante entre linguagens.
 
 export type ItemInadimplenciaDetalhado = {
   id: string;
@@ -863,31 +864,25 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
           condicoes.push("l.data_vencimento <= ?");
           valores.push(data.vencimentoAte);
         }
-        // parametros_financeiros era um singleton global (pf.id = 1, CROSS JOIN).
-        // Depois da 0092 é uma linha POR LOJA, e uma Loja recém-criada só ganha a
-        // dela quando alguém salva a tela de parâmetros — com CROSS JOIN o
-        // relatório inteiro sairia vazio nesse meio-tempo, escondendo justamente
-        // os inadimplentes. Com LEFT JOIN as faturas continuam aparecendo e
-        // multa/juros ficam zerados, que é a leitura certa de "sem multa e juros
-        // configurados".
+        // calcular_valor_multa/calcular_valor_juros leem parametros_financeiros
+        // por @current_loja_id internamente e devolvem 0 quando a Loja ainda
+        // não configurou multa/juros (mesma leitura de "sem multa e juros
+        // configurados" que o LEFT JOIN antigo dava) — não precisa mais juntar
+        // parametros_financeiros aqui.
         // Ordenado por vencimento ascendente — o mais atrasado primeiro —
         // então, se o teto de segurança (2000) cortar algo, é sempre o "menos
         // urgente" que fica de fora, nunca o mais atrasado.
         const [rows] = await conn.query<RowDataPacket[]>(
           `SELECT id, irmao_id, valor, data_vencimento, descricao, nome_civil, nome_simbolico,
                 dias_atraso,
-                IF(dias_atraso > 0 AND multa_ativa, ROUND(valor * multa_percentual / 100, 2), 0)
-                  AS valor_multa,
-                IF(dias_atraso > 0 AND juros_ativo,
-                   ROUND(valor * juros_diario_percentual / 100 * dias_atraso, 2), 0) AS valor_juros
+                calcular_valor_multa(valor, dias_atraso) AS valor_multa,
+                calcular_valor_juros(valor, dias_atraso) AS valor_juros
          FROM (
            SELECT l.id, l.irmao_id, (l.valor - l.valor_pago) AS valor, l.data_vencimento, l.descricao,
                   i.nome_civil, i.nome_simbolico,
-                  GREATEST(0, DATEDIFF(?, l.data_vencimento)) AS dias_atraso,
-                  pf.multa_ativa, pf.multa_percentual, pf.juros_ativo, pf.juros_diario_percentual
+                  GREATEST(0, DATEDIFF(?, l.data_vencimento)) AS dias_atraso
            FROM lancamentos l
            JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
-           LEFT JOIN parametros_financeiros pf ON pf.loja_id = l.loja_id
            WHERE l.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
            ORDER BY l.data_vencimento
            LIMIT 2000
