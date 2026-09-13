@@ -70,18 +70,20 @@ function ExtratoConciliacao() {
   });
 
   const { data: relatorio } = useQuery({
-    queryKey: ["relatorio_extrato_conciliacao", contaId, de, ate],
+    queryKey: ["relatorio_extrato_conciliacao", contaId, de, ate, irmaoId],
     enabled: !!contaId,
     queryFn: () =>
       relatorioExtratoConciliacao({
-        data: { contaId, de: de || null, ate: ate || null },
+        data: {
+          contaId,
+          de: de || null,
+          ate: ate || null,
+          irmaoId: irmaoId === "todos" ? null : irmaoId,
+        },
       }),
   });
-  const todosItens = relatorio?.itens ?? [];
+  const itens = relatorio?.itens ?? [];
   const truncado = relatorio?.truncado ?? false;
-  const itens = todosItens.filter(
-    (i) => irmaoId === "todos" || i.lancamentos_vinculados.some((l) => l.irmao_id === irmaoId),
-  );
 
   const desfazerMutation = useMutation({
     mutationFn: (vars: { conciliacaoId: string; motivo: string }) =>

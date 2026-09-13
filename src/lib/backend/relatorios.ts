@@ -392,6 +392,7 @@ const filtroExtratoConciliacaoSchema = z.object({
   contaId: z.string().uuid(),
   de: z.string().nullable(),
   ate: z.string().nullable(),
+  irmaoId: z.string().uuid().nullable(),
 });
 
 export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
@@ -407,6 +408,30 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
       if (data.ate) {
         condicoes.push("o.data <= ?");
         valores.push(data.ate);
+      }
+      if (data.irmaoId) {
+        // Filtra pelo irmão antes do LIMIT (não depois, em memória) — senão
+        // um período com mais de 2000 linhas OFX podia cortar fora
+        // exatamente as linhas do irmão filtrado mesmo com o total dele
+        // abaixo do teto (achado #527 da auditoria de relatórios). Inclui a
+        // linha se ela está diretamente ligada a um lançamento do irmão, OU
+        // se faz parte de um lote de conciliação que contém algum
+        // lançamento do irmão — mesmo quando o pareamento individual
+        // linha-a-linha do lote é ambíguo (ver parearLotePorOrdem), é mais
+        // seguro incluir a linha do que excluí-la silenciosamente.
+        condicoes.push(`(
+          EXISTS (
+            SELECT 1 FROM lancamentos l2
+            WHERE l2.id = o.lancamento_id AND l2.loja_id = o.loja_id AND l2.irmao_id = ?
+          )
+          OR EXISTS (
+            SELECT 1 FROM conciliacao_lancamentos cl2
+            JOIN lancamentos l3 ON l3.id = cl2.lancamento_id AND l3.loja_id = cl2.loja_id
+            WHERE cl2.conciliacao_id = o.conciliacao_id AND cl2.loja_id = o.loja_id
+              AND l3.irmao_id = ?
+          )
+        )`);
+        valores.push(data.irmaoId, data.irmaoId);
       }
       const [linhasDesc] = await conn.query<RowDataPacket[]>(
         `SELECT o.id, o.data, o.valor, o.tipo_ofx, o.descricao,
