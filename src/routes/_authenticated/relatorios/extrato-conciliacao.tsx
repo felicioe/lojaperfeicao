@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AlertTriangle } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
@@ -68,7 +69,7 @@ function ExtratoConciliacao() {
     queryFn: () => listarIrmaosNomes(),
   });
 
-  const { data: todosItens = [] } = useQuery({
+  const { data: relatorio } = useQuery({
     queryKey: ["relatorio_extrato_conciliacao", contaId, de, ate],
     enabled: !!contaId,
     queryFn: () =>
@@ -76,6 +77,8 @@ function ExtratoConciliacao() {
         data: { contaId, de: de || null, ate: ate || null },
       }),
   });
+  const todosItens = relatorio?.itens ?? [];
+  const truncado = relatorio?.truncado ?? false;
   const itens = todosItens.filter(
     (i) => irmaoId === "todos" || i.lancamentos_vinculados.some((l) => l.irmao_id === irmaoId),
   );
@@ -145,6 +148,16 @@ function ExtratoConciliacao() {
           )
         }
       />
+
+      {truncado && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-warning-muted p-3 text-sm text-warning-foreground">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Mostrando só as 2.000 linhas mais recentes do período filtrado — refine o período para
+            ver o restante.
+          </span>
+        </div>
+      )}
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3">
         <div>

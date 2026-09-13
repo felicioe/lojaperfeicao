@@ -134,7 +134,7 @@ const filtroRecebimentosSchema = z.object({
 // como sempre foi.
 export const relatorioRecebimentos = createServerFn({ method: "GET" })
   .validator((d: unknown) => filtroRecebimentosSchema.parse(d))
-  .handler(async ({ data }): Promise<ItemRecebimento[]> => {
+  .handler(async ({ data }): Promise<{ itens: ItemRecebimento[]; truncado: boolean }> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
       // Filtros que são atributo da fatura em si (não do evento de
       // recebimento) — batem igual nos 3 ramos da UNION.
@@ -331,11 +331,14 @@ export const relatorioRecebimentos = createServerFn({ method: "GET" })
       // não cortar fora justamente os recebimentos mais novos quando há mais
       // de 2000 no filtro) e inverte só na saída — exibição sempre do mais
       // antigo pro mais novo, sem arriscar sumir com dado recente por causa
-      // do cap.
-      const todasAsLinhas = [...(rowsDiretos as ItemRecebimento[]), ...rowsConciliacao]
-        .sort((a, b) => b.data_pagamento.localeCompare(a.data_pagamento))
-        .slice(0, 2000);
-      return todasAsLinhas.reverse();
+      // do cap. `truncado` (issue #515) avisa a tela quando o corte
+      // aconteceu de verdade, pra não esconder do usuário que o período
+      // filtrado tem mais recebimento do que o exibido.
+      const linhasCompletas = [...(rowsDiretos as ItemRecebimento[]), ...rowsConciliacao].sort(
+        (a, b) => b.data_pagamento.localeCompare(a.data_pagamento),
+      );
+      const truncado = linhasCompletas.length > 2000;
+      return { itens: linhasCompletas.slice(0, 2000).reverse(), truncado };
     });
   });
 
@@ -457,7 +460,7 @@ const filtroExtratoConciliacaoSchema = z.object({
 
 export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
   .validator((d: unknown) => filtroExtratoConciliacaoSchema.parse(d))
-  .handler(async ({ data }): Promise<ItemExtratoConciliacao[]> => {
+  .handler(async ({ data }): Promise<{ itens: ItemExtratoConciliacao[]; truncado: boolean }> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
       const condicoes = ["o.conta_financeira_id = ?"];
       const valores: unknown[] = [data.contaId];
@@ -495,7 +498,12 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
       );
       // Mesmo motivo do relatório de recebimentos: busca as 2000 mais
       // recentes (DESC) e só inverte na saída, pra exibir do mais antigo
-      // pro mais novo sem arriscar cortar fora dado recente.
+      // pro mais novo sem arriscar cortar fora dado recente. `truncado`
+      // (issue #515) avisa a tela quando o LIMIT realmente cortou algo —
+      // heurística: bater exatamente no teto é o sinal de corte (não dá
+      // pra saber o total real sem uma segunda consulta COUNT(*), que não
+      // vale o custo só pra decidir se mostra um aviso).
+      const truncado = linhasDesc.length === 2000;
       const linhas = linhasDesc.reverse();
 
       const idsLegado = [...new Set(linhas.map((l) => l.lancamento_id).filter(Boolean))];
@@ -587,7 +595,7 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
         }
       }
 
-      return linhas.map((l) => {
+      const itens = linhas.map((l) => {
         if (!l.conciliacao_id) {
           return {
             id: l.id,
@@ -638,6 +646,7 @@ export const relatorioExtratoConciliacao = createServerFn({ method: "GET" })
           lote_qtd_ofx: qtdOfx,
         };
       });
+      return { itens, truncado };
     });
   });
 
@@ -668,7 +677,7 @@ const filtroExtratoIrmaoSchema = z.object({
 
 export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
   .validator((d: unknown) => filtroExtratoIrmaoSchema.parse(d))
-  .handler(async ({ data }): Promise<ItemExtratoIrmao[]> => {
+  .handler(async ({ data }): Promise<{ itens: ItemExtratoIrmao[]; truncado: boolean }> => {
     return comPapel(PAPEIS_TESOURARIA, async (conn) => {
       // Filtra por vencimento (com fallback pra emissão nos lançamentos sem
       // vencimento formal — saída/estorno/transferência), não por emissão:
@@ -788,8 +797,9 @@ export const relatorioExtratoIrmao = createServerFn({ method: "GET" })
         forma_pagamento: r.forma_pagamento,
       }));
       // Mesmo motivo do relatório de recebimentos: DESC+LIMIT pra pegar os
-      // 2000 mais recentes desse irmão, invertendo só na saída.
-      return itens.reverse();
+      // 2000 mais recentes desse irmão, invertendo só na saída. `truncado`
+      // (issue #515) avisa a tela quando o LIMIT bateu no teto.
+      return { itens: itens.reverse(), truncado: rows.length === 2000 };
     });
   });
 
