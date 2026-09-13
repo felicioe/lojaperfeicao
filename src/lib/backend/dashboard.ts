@@ -127,7 +127,7 @@ export type PendenciaPrioritaria = {
 
 export const obterResumoContasReceber = createServerFn({ method: "GET" }).handler(
   async (): Promise<ResumoContasReceber> => {
-    return comSessao(async (conn) => {
+    return comPapel(PAPEIS_PRIVILEGIADOS, async (conn) => {
       const [[inadimplencia]] = await conn.query<RowDataPacket[]>(
         `SELECT COALESCE(SUM(valor - valor_pago), 0) AS valor,
                 COUNT(DISTINCT irmao_id) AS quantidade,

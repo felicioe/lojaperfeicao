@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
-import { comSessao } from "./authz";
+import { comPapel, comSessao } from "./authz";
 import { reconstruirDataPagamentoLote } from "./conciliacao-pareamento";
 
 type MovimentoLote = { valor: number; tipo: "entrada" | "saida"; data_pagamento: string };
@@ -96,7 +96,7 @@ async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
 // à consulta original, que também não filtrava).
 export const obterSaldoBaseContas = createServerFn({ method: "GET" }).handler(
   async (): Promise<number> => {
-    return comSessao(async (conn) => {
+    return comPapel(PAPEIS_PRIVILEGIADOS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
         "SELECT saldo_inicial FROM contas_financeiras WHERE loja_id = @current_loja_id",
       );
