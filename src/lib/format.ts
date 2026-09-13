@@ -1,10 +1,18 @@
-export const brl = (v: number | null | undefined) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v ?? 0));
+// Instâncias reusadas em vez de criadas a cada chamada (achado #554 da
+// auditoria de performance) — construir um Intl.NumberFormat/DateTimeFormat
+// não é grátis, e brl/fmtDate/fmtMesAno são chamadas centenas de vezes por
+// render em tabelas grandes (relatórios, extratos). Mesmo espírito do
+// colatorPtBr já cacheado em use-ordenacao.ts.
+const formatadorMoeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const formatadorData = new Intl.DateTimeFormat("pt-BR");
+const formatadorMesAno = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" });
+
+export const brl = (v: number | null | undefined) => formatadorMoeda.format(Number(v ?? 0));
 
 export const fmtDate = (d: string | Date | null | undefined) => {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d + (d.length === 10 ? "T00:00:00" : "")) : d;
-  return new Intl.DateTimeFormat("pt-BR").format(date);
+  return formatadorData.format(date);
 };
 
 // Competência é um período (mês/ano), não um dia — "01/07/2026" sugere uma
@@ -12,7 +20,7 @@ export const fmtDate = (d: string | Date | null | undefined) => {
 export const fmtMesAno = (d: string | Date | null | undefined) => {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d + (d.length === 10 ? "T00:00:00" : "")) : d;
-  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(date);
+  return formatadorMesAno.format(date);
 };
 
 export const toISODate = (d: Date) => {
