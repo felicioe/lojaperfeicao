@@ -515,6 +515,13 @@ export const atribuirIrmaoLancamento = createServerFn({ method: "POST" })
         [data.id],
       );
       if (!antes) throw new Error("Lançamento não encontrado.");
+      if (data.irmaoId) {
+        const [[irmao]] = await conn.query<RowDataPacket[]>(
+          "SELECT id FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
+          [data.irmaoId],
+        );
+        if (!irmao) throw new Error("Irmão não encontrado nesta Loja.");
+      }
       await conn.query(
         "UPDATE lancamentos SET irmao_id = ? WHERE loja_id = @current_loja_id AND id = ?",
         [data.irmaoId, data.id],
