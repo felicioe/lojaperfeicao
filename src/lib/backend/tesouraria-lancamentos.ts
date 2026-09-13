@@ -427,8 +427,14 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
              SELECT 1 FROM lancamentos_contabeis
              WHERE loja_id = @current_loja_id
                AND origem_tipo = 'conta_pagar_baixa' AND origem_id = ?
-           ) AS tem_baixa_conta_pagar`,
-        [data.id, data.id, data.id, data.id],
+           ) AS tem_baixa_conta_pagar,
+           EXISTS(
+             SELECT 1 FROM lancamentos_contabeis
+             WHERE loja_id = @current_loja_id
+               AND origem_tipo IN ('recebimento_avulso', 'tronco_saida', 'recibo_avulso')
+               AND origem_id = ?
+           ) AS tem_lancamento_contabil_proprio`,
+        [data.id, data.id, data.id, data.id, data.id],
       );
       if (vinculo.tem_recibo) {
         throw new Error(
@@ -449,6 +455,18 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
         // mesmo pagamento (achado da revisão da metodologia contábil).
         throw new Error(
           "Esta conta a pagar foi baixada — desmarcar por aqui deixaria o lançamento contábil da baixa órfão. Não é possível reverter por aqui.",
+        );
+      }
+      if (vinculo.tem_lancamento_contabil_proprio) {
+        // Recebimento avulso, saída de tronco e recibo avulso já nascem
+        // pagos com lançamento contábil próprio (débito/crédito lançado na
+        // criação, não na baixa) — igual à conta a pagar acima, "Desmarcar
+        // pago" reabriria o valor pra edição sem estornar essa contrapartida,
+        // e uma nova baixa geraria um SEGUNDO lançamento contábil pro mesmo
+        // evento, divergindo do que a tesouraria mostra (achado #523/#524
+        // da auditoria de integridade entre módulos).
+        throw new Error(
+          "Este lançamento tem contrapartida contábil própria — desmarcar por aqui deixaria o lançamento contábil órfão. Não é possível reverter por aqui.",
         );
       }
       if (antes?.parcelado) {
@@ -620,21 +638,19 @@ export const estornarLancamento = createServerFn({ method: "POST" })
         );
       }
 
-      // Além de provisão (regime de competência antigo, hoje bloqueada por
-      // registrar_lancamento_contabil), um lançamento reaberto por
-      // desfazer_lancamento_ofx pode ter passado por uma baixa real seguida
-      // do estorno dela (conciliacao_baixa/conta_pagar_baixa + o
-      // conciliacao_estorno que a reverteu) — o par já net a zero no razão,
-      // mas os dois ficariam órfãos (origem_id apontando pra este lançamento,
-      // que deixa de existir) se não forem removidos junto.
+      // Qualquer lançamento contábil vinculado a este id fica órfão se o
+      // lançamento for apagado — e só chega até aqui com pago=false e
+      // valor_pago=0 (checado acima), então nenhuma origem legítima ainda
+      // "precisa" dessa contrapartida viva. Antes a lista de origem_tipo era
+      // fixa (fatura_provisao, recebimento_avulso, conta_pagar_provisao,
+      // conciliacao_baixa, conta_pagar_baixa, conciliacao_estorno) e não
+      // cobria tronco_saida/recibo_avulso, deixando lançamento contábil
+      // órfão pra essas origens (achado #524 da auditoria de integridade
+      // entre módulos) — por isso o filtro agora é só por origem_id.
       const [contabeis] = await conn.query<RowDataPacket[]>(
         `SELECT id FROM lancamentos_contabeis
          WHERE loja_id = @current_loja_id
-           AND origem_id = ?
-           AND origem_tipo IN (
-             'fatura_provisao', 'recebimento_avulso', 'conta_pagar_provisao',
-             'conciliacao_baixa', 'conta_pagar_baixa', 'conciliacao_estorno'
-           )`,
+           AND origem_id = ?`,
         [data.id],
       );
       for (const lc of contabeis) {
