@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
@@ -109,16 +109,23 @@ function Diario() {
     0,
   );
 
-  const linhasExportacao = lancamentos.flatMap((l) =>
-    (l.lancamentos_contabeis_itens ?? []).map((it) => ({
-      data: fmtDate(l.data),
-      historico: l.descricao,
-      tipo: it.tipo === "debito" ? "D" : "C",
-      conta: it.plano_contas ? `${it.plano_contas.codigo} — ${it.plano_contas.nome}` : "—",
-      irmao: l.irmao_nome ?? "",
-      debito: it.tipo === "debito" ? Number(it.valor) : "",
-      credito: it.tipo === "credito" ? Number(it.valor) : "",
-    })),
+  // Memoizado (achado #549 da auditoria de performance): sem isso, essa
+  // lista era remontada em todo render, mesmo quando o usuário nunca chega
+  // a clicar em exportar.
+  const linhasExportacao = useMemo(
+    () =>
+      lancamentos.flatMap((l) =>
+        (l.lancamentos_contabeis_itens ?? []).map((it) => ({
+          data: fmtDate(l.data),
+          historico: l.descricao,
+          tipo: it.tipo === "debito" ? "D" : "C",
+          conta: it.plano_contas ? `${it.plano_contas.codigo} — ${it.plano_contas.nome}` : "—",
+          irmao: l.irmao_nome ?? "",
+          debito: it.tipo === "debito" ? Number(it.valor) : "",
+          credito: it.tipo === "credito" ? Number(it.valor) : "",
+        })),
+      ),
+    [lancamentos],
   );
 
   return (

@@ -102,15 +102,22 @@ function ConferenciaContabilFinanceira() {
   );
   const tudoConferido = !isLoading && contasComDivergencia.length === 0;
 
-  const linhasExportacao = contas.flatMap((c) =>
-    c.meses.map((m) => ({
-      conta: c.contaNome,
-      mes: fmtMesAno(m.mes),
-      financeiro: m.financeiro,
-      contabil: m.contabil,
-      diferenca: m.diferenca,
-      diferencaAcumulada: m.diferencaAcumulada,
-    })),
+  // Memoizado (achado #549 da auditoria de performance): sem isso, essa
+  // lista era remontada em todo render, mesmo quando o usuário nunca chega
+  // a clicar em exportar.
+  const linhasExportacao = useMemo(
+    () =>
+      contas.flatMap((c) =>
+        c.meses.map((m) => ({
+          conta: c.contaNome,
+          mes: fmtMesAno(m.mes),
+          financeiro: m.financeiro,
+          contabil: m.contabil,
+          diferenca: m.diferenca,
+          diferencaAcumulada: m.diferencaAcumulada,
+        })),
+      ),
+    [contas],
   );
 
   return (

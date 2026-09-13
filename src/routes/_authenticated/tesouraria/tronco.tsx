@@ -41,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, Landmark, Pencil, Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -100,12 +100,19 @@ function Tronco() {
     valor: (m) => Number(m.valor),
   });
   const movPag = usePaginacao(ord.itensOrdenados);
-  const linhasExportacao = f.movimentos.map((movimento) => ({
-    data: fmtDate(movimento.data),
-    descricao: movimento.descricao,
-    tipo: movimento.tipo === "saida" ? "Saída" : "Entrada PIX",
-    valor: movimento.tipo === "saida" ? -Number(movimento.valor) : Number(movimento.valor),
-  }));
+  // Memoizado (achado #549 da auditoria de performance): sem isso, essa
+  // lista era remontada em todo render, mesmo quando o usuário nunca chega
+  // a clicar em exportar.
+  const linhasExportacao = useMemo(
+    () =>
+      f.movimentos.map((movimento) => ({
+        data: fmtDate(movimento.data),
+        descricao: movimento.descricao,
+        tipo: movimento.tipo === "saida" ? "Saída" : "Entrada PIX",
+        valor: movimento.tipo === "saida" ? -Number(movimento.valor) : Number(movimento.valor),
+      })),
+    [f.movimentos],
+  );
 
   return (
     <>

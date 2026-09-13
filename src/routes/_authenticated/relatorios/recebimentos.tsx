@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
@@ -91,7 +91,10 @@ function Recebimentos() {
         },
       }),
   });
-  const itens = data?.itens ?? [];
+  // useMemo (não só `?? []`): sem isso, "itens" vira array novo em todo
+  // render mesmo com o mesmo `data`, invalidando a memoização de
+  // linhasExportacao logo abaixo.
+  const itens = useMemo(() => data?.itens ?? [], [data]);
   const truncado = data?.truncado ?? false;
 
   const totalGeral = itens.reduce((s, i) => s + Number(i.valor), 0);
@@ -101,15 +104,22 @@ function Recebimentos() {
     porFormaPagamento.set(chave, (porFormaPagamento.get(chave) ?? 0) + Number(i.valor));
   }
 
-  const linhasExportacao = itens.map((i) => ({
-    data_pagamento: fmtDate(i.data_pagamento),
-    descricao: i.descricao,
-    irmao_nome: i.irmao_nome ?? "—",
-    categoria: i.categoria_recebimento ? CATEGORIA_LABEL[i.categoria_recebimento] : "—",
-    forma_pagamento: i.forma_pagamento ?? "—",
-    conta_nome: i.conta_nome ?? "—",
-    valor: Number(i.valor),
-  }));
+  // Memoizado (achado #549 da auditoria de performance): sem isso, essa
+  // lista (até 2000 itens) era remontada em todo render, mesmo quando o
+  // usuário nunca chega a clicar em exportar.
+  const linhasExportacao = useMemo(
+    () =>
+      itens.map((i) => ({
+        data_pagamento: fmtDate(i.data_pagamento),
+        descricao: i.descricao,
+        irmao_nome: i.irmao_nome ?? "—",
+        categoria: i.categoria_recebimento ? CATEGORIA_LABEL[i.categoria_recebimento] : "—",
+        forma_pagamento: i.forma_pagamento ?? "—",
+        conta_nome: i.conta_nome ?? "—",
+        valor: Number(i.valor),
+      })),
+    [itens],
+  );
 
   const ord = useOrdenacao(itens, {
     data_pagamento: (i) => i.data_pagamento,

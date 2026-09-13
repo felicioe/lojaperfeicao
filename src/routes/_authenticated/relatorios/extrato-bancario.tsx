@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { relatorioExtratoBancario } from "@/lib/backend/relatorios";
 import { listarContasFinanceiras } from "@/lib/backend/tesouraria-contas";
 import { listarIrmaosNomes } from "@/lib/backend/irmaos";
@@ -103,20 +103,31 @@ function ExtratoBancario() {
     .filter((i) => i.valor_sinal < 0)
     .reduce((soma, i) => soma - i.valor_sinal, 0);
 
-  const linhasExportacao = itens.map((i) => ({
-    data: fmtDate(i.data),
-    descricao:
-      i.faturas && i.faturas.length > 1
-        ? `${i.descricao} (${i.faturas.map((f) => f.descricao).join("; ")})`
-        : i.descricao,
-    irmao: i.irmao_nome ?? "",
-    conta_contabil: i.plano_conta_nome ?? "",
-    tipo: TIPO_LABEL[i.tipo],
-    valor: i.valor_sinal,
-    saldo: i.saldo_corrente,
-  }));
+  // Memoizado (achado #549 da auditoria de performance): sem isso, essa
+  // lista (até 2000 itens) era remontada em todo render, mesmo quando o
+  // usuário nunca chega a clicar em exportar.
+  const linhasExportacao = useMemo(
+    () =>
+      itens.map((i) => ({
+        data: fmtDate(i.data),
+        descricao:
+          i.faturas && i.faturas.length > 1
+            ? `${i.descricao} (${i.faturas.map((f) => f.descricao).join("; ")})`
+            : i.descricao,
+        irmao: i.irmao_nome ?? "",
+        conta_contabil: i.plano_conta_nome ?? "",
+        tipo: TIPO_LABEL[i.tipo],
+        valor: i.valor_sinal,
+        saldo: i.saldo_corrente,
+      })),
+    [itens],
+  );
 
-  const ord = useOrdenacao([...itens].reverse(), {
+  // Também memoizado: [...itens].reverse() inline criava um array novo a
+  // cada render, o que por sua vez invalidava a memoização interna de
+  // useOrdenacao (seu useMemo depende deste array por referência).
+  const itensInvertidos = useMemo(() => [...itens].reverse(), [itens]);
+  const ord = useOrdenacao(itensInvertidos, {
     data: (i) => i.data,
     descricao: (i) => i.descricao,
     irmao: (i) => i.irmao_nome,
