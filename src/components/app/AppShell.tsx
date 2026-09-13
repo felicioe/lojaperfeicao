@@ -1271,7 +1271,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* ===== Layout mobile/tablet (< lg) ===== */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-sidebar px-3 text-sidebar-foreground print:hidden lg:hidden">
+        <header className="sticky top-0 z-40 flex min-h-14 items-center gap-3 border-b bg-sidebar px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-sidebar-foreground print:hidden lg:hidden">
           <button
             type="button"
             aria-label="Abrir menu"
@@ -1297,7 +1297,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="flex w-[86vw] max-w-[320px] flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground lg:hidden"
           >
             <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
-            <div className="border-b border-sidebar-border p-4 pr-12">
+            <div className="border-b border-sidebar-border p-4 pr-12 pt-[max(1rem,env(safe-area-inset-top))]">
               <Brand />
             </div>
             <nav aria-label="Navegação principal" className="flex-1 space-y-1 overflow-y-auto p-3">
