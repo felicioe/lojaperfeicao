@@ -487,16 +487,25 @@ export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" })
 // diferença entre os dois lados nesses meses é esperada e intencional: é
 // exatamente o "dinheiro chegou num mês, virou receita reconhecida em
 // outro" que esta tela existe para expor.
+// Hardening defensivo (issue #516): cada branch abaixo agora filtra por
+// @current_loja_id de propósito, mesmo já sendo restrito de fato pelo JOIN
+// final em listarConferenciaContabilFinanceira (cf.loja_id = @current_loja_id)
+// — sem colisão de UUID entre lojas, nunca vazou dado por aqui. Mas essas
+// CTEs agregam TODAS as lojas antes desse filtro final; qualquer refator
+// futuro que remova ou reaproveite essa agregação sem repetir o cuidado
+// vazaria dado financeiro de outra loja sem nenhum sinal visível — exatamente
+// o tipo de bug que esta tela existe pra pegar.
 const EVENTOS_FINANCEIROS_SQL = `
     SELECT r.conta_financeira_id, r.loja_id, r.data, r.valor_total AS valor_sinal
     FROM recibos r
+    WHERE r.loja_id = @current_loja_id
 
     UNION ALL
 
     SELECT o.conta_financeira_id, o.loja_id, o.data, o.valor AS valor_sinal
     FROM ofx_lancamentos o
     JOIN conciliacoes co ON co.id = o.conciliacao_id AND co.loja_id = o.loja_id
-    WHERE co.status = 'ativa'
+    WHERE co.status = 'ativa' AND o.loja_id = @current_loja_id
 
     UNION ALL
 
@@ -512,7 +521,7 @@ const EVENTOS_FINANCEIROS_SQL = `
            END AS valor_sinal
     FROM ofx_lancamentos o
     JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
-    WHERE o.conciliado = TRUE AND o.conciliacao_id IS NULL
+    WHERE o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.loja_id = @current_loja_id
 
     UNION ALL
 
@@ -522,7 +531,7 @@ const EVENTOS_FINANCEIROS_SQL = `
     SELECT l.conta_id AS conta_financeira_id, l.loja_id, COALESCE(l.data_pagamento, l.data) AS data,
            CASE WHEN l.tipo = 'entrada' THEN l.valor ELSE -l.valor END AS valor_sinal
     FROM lancamentos l
-    WHERE l.pago = TRUE AND l.conta_id IS NOT NULL
+    WHERE l.pago = TRUE AND l.conta_id IS NOT NULL AND l.loja_id = @current_loja_id
       AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
       AND NOT EXISTS (
         SELECT 1 FROM conciliacao_lancamentos cl
@@ -542,6 +551,7 @@ const EVENTOS_FINANCEIROS_SQL = `
            l.valor AS valor_sinal
     FROM lancamentos l
     WHERE l.pago = TRUE AND l.tipo = 'transferencia' AND l.conta_destino_id IS NOT NULL
+      AND l.loja_id = @current_loja_id
       AND NOT EXISTS (SELECT 1 FROM recibo_itens ri WHERE ri.lancamento_id = l.id AND ri.loja_id = l.loja_id)
       AND NOT EXISTS (
         SELECT 1 FROM conciliacao_lancamentos cl
@@ -560,7 +570,7 @@ const EVENTOS_FINANCEIROS_SQL = `
     FROM contas_financeiras cf
     JOIN lancamentos_contabeis lc
       ON lc.origem_tipo = 'saldo_abertura' AND lc.origem_id = cf.id AND lc.loja_id = cf.loja_id
-    WHERE cf.saldo_inicial <> 0
+    WHERE cf.saldo_inicial <> 0 AND cf.loja_id = @current_loja_id
 `;
 
 export type ConferenciaContaMes = {
@@ -602,7 +612,7 @@ export const listarConferenciaContabilFinanceira = createServerFn({ method: "GET
                 FROM contas_financeiras cf
                 JOIN lancamentos_contabeis_itens i ON i.conta_id = cf.plano_conta_id AND i.loja_id = cf.loja_id
                 JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
-                WHERE cf.plano_conta_id IS NOT NULL
+                WHERE cf.plano_conta_id IS NOT NULL AND cf.loja_id = @current_loja_id
                 GROUP BY cf.id, cf.loja_id, mes
               ),
               meses AS (
