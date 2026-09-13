@@ -225,13 +225,18 @@ export const listarCobrancasSgcab = createServerFn({ method: "POST" })
     });
   });
 
-const registrarPagamentoSchema = z.object({
-  id: z.string().uuid(),
-  status: z.enum(["pendente", "pago", "cancelado"]),
-  dataPagamento: z.string().nullable(),
-  comprovanteUrl: z.string().nullable(),
-  observacoes: z.string().nullable(),
-});
+const registrarPagamentoSchema = z
+  .object({
+    id: z.string().uuid(),
+    status: z.enum(["pendente", "pago", "cancelado"]),
+    dataPagamento: z.string().nullable(),
+    comprovanteUrl: z.string().nullable(),
+    observacoes: z.string().nullable(),
+  })
+  .refine((d) => d.status !== "pago" || !!d.dataPagamento, {
+    message: "Informe a data de pagamento.",
+    path: ["dataPagamento"],
+  });
 
 export const registrarPagamentoSgcab = createServerFn({ method: "POST" })
   .validator((d: unknown) => registrarPagamentoSchema.parse(d))
@@ -450,13 +455,18 @@ export const criarFaturaSgcab = createServerFn({ method: "POST" })
     });
   });
 
-const atualizarFaturaSchema = z.object({
-  id: z.string().uuid(),
-  status: z.enum(["pendente", "pago", "cancelado"]),
-  dataPagamento: z.string().nullable(),
-  comprovanteUrl: z.string().nullable(),
-  observacoes: z.string().max(5000).nullable(),
-});
+const atualizarFaturaSchema = z
+  .object({
+    id: z.string().uuid(),
+    status: z.enum(["pendente", "pago", "cancelado"]),
+    dataPagamento: z.string().nullable(),
+    comprovanteUrl: z.string().nullable(),
+    observacoes: z.string().max(5000).nullable(),
+  })
+  .refine((d) => d.status !== "pago" || !!d.dataPagamento, {
+    message: "Informe a data de pagamento.",
+    path: ["dataPagamento"],
+  });
 
 export const atualizarFaturaSgcab = createServerFn({ method: "POST" })
   .validator((d: unknown) => atualizarFaturaSchema.parse(d))
