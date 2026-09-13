@@ -222,9 +222,14 @@ function FluxoProjetado() {
     return toISODate(d);
   }, [horizonte]);
 
+  // queryKey e staleTime iguais aos das demais telas que buscam o mesmo
+  // dado (Dashboard, Tesouraria, Conciliação — achado #550 da auditoria de
+  // performance), pra compartilhar cache em vez de refazer a consulta ao
+  // navegar entre elas.
   const { data: saldos = [] } = useQuery({
-    queryKey: ["fluxo_saldo_atual"],
+    queryKey: ["saldo_contas"],
     queryFn: () => listarSaldoContas(),
+    staleTime: 60_000,
   });
   const saldoAtual = saldos.reduce((s, c) => s + Number(c.saldo_atual ?? 0), 0);
 

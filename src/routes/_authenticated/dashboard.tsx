@@ -94,8 +94,12 @@ function Dashboard() {
     queryFn: () => listarContasAPagarProximas({ data: { de: hoje, ate: em30DiasIso } }),
     staleTime: STALE_TIME_DASHBOARD,
   });
+  // queryKey unificada com as demais telas que buscam o mesmo dado
+  // (achado #550 da auditoria de performance) — "saldo_contas" em vez de
+  // ["dash","saldos"], pra compartilhar cache em vez de refazer a consulta
+  // ao navegar entre Dashboard/Tesouraria/Conciliação/Fluxo de Caixa.
   const saldos = useQuery({
-    queryKey: ["dash", "saldos"],
+    queryKey: ["saldo_contas"],
     queryFn: () => listarSaldoContas(),
     staleTime: STALE_TIME_DASHBOARD,
   });

@@ -86,9 +86,14 @@ function Contas() {
   }>({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "", plano_conta_id: "" });
   const [editando, setEditando] = useState<SaldoConta | null>(null);
 
+  // queryKey e staleTime iguais aos das demais telas que buscam o mesmo
+  // dado (Dashboard, Conciliação, Fluxo de Caixa — achado #550 da auditoria
+  // de performance), pra compartilhar cache em vez de refazer a consulta
+  // ao navegar entre elas.
   const saldos = useQuery({
-    queryKey: ["saldos"],
+    queryKey: ["saldo_contas"],
     queryFn: () => listarSaldoContas(),
+    staleTime: 60_000,
   });
   // "ativo" porque uma conta financeira (caixa/banco/aplicação) sempre
   // representa um bem da Loja no balanço — é o mesmo filtro que
@@ -112,7 +117,7 @@ function Contas() {
       });
       toast.success("Conta criada.");
       setNova({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "", plano_conta_id: "" });
-      qc.invalidateQueries({ queryKey: ["saldos"] });
+      qc.invalidateQueries({ queryKey: ["saldo_contas"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar.");
     }
@@ -204,7 +209,7 @@ function Contas() {
         onOpenChange={(aberto) => !aberto && setEditando(null)}
         onSalvo={() => {
           setEditando(null);
-          qc.invalidateQueries({ queryKey: ["saldos"] });
+          qc.invalidateQueries({ queryKey: ["saldo_contas"] });
         }}
       />
 
