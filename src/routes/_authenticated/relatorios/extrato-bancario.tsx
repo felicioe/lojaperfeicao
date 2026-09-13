@@ -280,13 +280,17 @@ function ExtratoBancario() {
                     <TableHeadOrdenavel campo="descricao" ord={ord}>
                       Descrição
                     </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="irmao" ord={ord}>
+                    <TableHeadOrdenavel campo="irmao" ord={ord} className="hidden sm:table-cell">
                       Irmão
                     </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="conta_contabil" ord={ord}>
+                    <TableHeadOrdenavel
+                      campo="conta_contabil"
+                      ord={ord}
+                      className="hidden sm:table-cell"
+                    >
                       Conta contábil
                     </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="tipo" ord={ord}>
+                    <TableHeadOrdenavel campo="tipo" ord={ord} className="hidden sm:table-cell">
                       Tipo
                     </TableHeadOrdenavel>
                     <TableHeadOrdenavel campo="valor" ord={ord} className="text-right">
@@ -310,6 +314,11 @@ function ExtratoBancario() {
                       <TableCell>{fmtDate(i.data)}</TableCell>
                       <TableCell>
                         {i.descricao}
+                        <div className="mt-0.5 text-xs text-muted-foreground sm:hidden">
+                          {[i.irmao_nome, i.plano_conta_nome, TIPO_LABEL[i.tipo]]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
                         {i.faturas && i.faturas.length > 1 && (
                           <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
                             {i.faturas.map((f) => (
@@ -321,9 +330,11 @@ function ExtratoBancario() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>{i.irmao_nome ?? "—"}</TableCell>
-                      <TableCell>{i.plano_conta_nome ?? "—"}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">{i.irmao_nome ?? "—"}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {i.plano_conta_nome ?? "—"}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <Badge variant="outline">{TIPO_LABEL[i.tipo]}</Badge>
                       </TableCell>
                       <TableCell
