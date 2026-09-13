@@ -54,6 +54,7 @@ import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { useCan } from "@/lib/auth-hooks";
 import { useOrdenacao } from "@/lib/use-ordenacao";
+import { redimensionarImagemParaDataUrl } from "@/lib/data-url";
 import { brl, fmtDate, GRAU_LABEL, SITUACAO_LABEL } from "@/lib/format";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import {
@@ -196,12 +197,11 @@ function IrmaoDetail() {
 
   const uploadFoto = async (file: File) => {
     try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      // Redimensionado/recomprimido no cliente antes de subir (achado #568
+      // da auditoria mobile) — a tela só exibe uma miniatura, não faz
+      // sentido subir/guardar/baixar de novo a foto original de 4-12 MB de
+      // um celular moderno em toda leitura do perfil.
+      const dataUrl = await redimensionarImagemParaDataUrl(file);
       const { url } = await uploadFotoIrmao({
         data: { irmaoId: id, dataUrl },
       });

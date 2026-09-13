@@ -21,3 +21,48 @@ export function dataUrlParaBlobUrl(dataUrl: string): string {
 export function ehUrlCompartilhavel(url: string): boolean {
   return url.startsWith("http://") || url.startsWith("https://");
 }
+
+// Redimensiona/recomprime uma foto no cliente ANTES de subir (achado #568 da
+// auditoria mobile): uma foto tirada com celular moderno (4-12 MB) virava até
+// ~6,7 MB em base64 (overhead de 33% do encoding), pesado tanto pra subir
+// (upload costuma ser bem mais lento que download em 4G) quanto pra baixar de
+// novo em toda leitura do perfil — que só exibe uma miniatura pequena.
+// Sempre reduz pra JPEG (fotos de pessoa não precisam de transparência) numa
+// largura máxima generosa o bastante pra qualquer exibição em tela, bem menor
+// que o original.
+export function redimensionarImagemParaDataUrl(
+  file: File,
+  opcoes: { larguraMaxima?: number; qualidade?: number } = {},
+): Promise<string> {
+  const larguraMaxima = opcoes.larguraMaxima ?? 480;
+  const qualidade = opcoes.qualidade ?? 0.82;
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onerror = () => reject(leitor.error ?? new Error("Falha ao ler o arquivo."));
+    leitor.onload = () => {
+      const dataUrlOriginal = leitor.result as string;
+      const img = new Image();
+      // Formato que o navegador não consegue decodificar como <img> (raro,
+      // dado que o seletor de arquivo já filtra por image/*) — sobe o
+      // original sem redimensionar em vez de falhar o upload inteiro.
+      img.onerror = () => resolve(dataUrlOriginal);
+      img.onload = () => {
+        const escala = Math.min(1, larguraMaxima / img.width);
+        const largura = Math.round(img.width * escala);
+        const altura = Math.round(img.height * escala);
+        const canvas = document.createElement("canvas");
+        canvas.width = largura;
+        canvas.height = altura;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(dataUrlOriginal);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, largura, altura);
+        resolve(canvas.toDataURL("image/jpeg", qualidade));
+      };
+      img.src = dataUrlOriginal;
+    };
+    leitor.readAsDataURL(file);
+  });
+}
