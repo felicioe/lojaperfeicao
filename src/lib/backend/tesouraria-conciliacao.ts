@@ -821,14 +821,29 @@ export const criarLancamentosDeOfxRateado = createServerFn({ method: "POST" })
       if (data.itens.some((i) => i.irmaoId && i.terceiroId)) {
         throw new Error("Cada item pode ter um irmão ou um cliente, não os dois.");
       }
+      // Uma única query pra todos os terceiros do rateio (achado #556 da
+      // auditoria de performance), em vez de 1 SELECT por item — o rateio
+      // tipicamente tem só 2-5 itens, então o ganho é pequeno, mas o padrão
+      // de N+1 é o mesmo e o custo de resolver é baixo.
+      const idsTerceiros = [
+        ...new Set(data.itens.filter((i) => i.terceiroId).map((i) => i.terceiroId as string)),
+      ];
+      const tipoPorTerceiroId = new Map<string, string>();
+      if (idsTerceiros.length > 0) {
+        const [terceiros] = await conn.query<RowDataPacket[]>(
+          `SELECT id, tipo FROM terceiros
+           WHERE id IN (?) AND loja_id = @current_loja_id AND ativo = TRUE`,
+          [idsTerceiros],
+        );
+        for (const t of terceiros) tipoPorTerceiroId.set(t.id, t.tipo);
+      }
       for (const item of data.itens) {
         if (!item.terceiroId) continue;
-        const [terceiros] = await conn.query<RowDataPacket[]>(
-          `SELECT 1 FROM terceiros WHERE id = ? AND loja_id = @current_loja_id
-           AND ativo = TRUE AND tipo IN (?, 'ambos')`,
-          [item.terceiroId, item.categoria === null ? "fornecedor" : "cliente"],
-        );
-        if (!terceiros.length) throw new Error("Cliente ou fornecedor inválido para esta loja.");
+        const tipoNecessario = item.categoria === null ? "fornecedor" : "cliente";
+        const tipoTerceiro = tipoPorTerceiroId.get(item.terceiroId);
+        if (!tipoTerceiro || (tipoTerceiro !== tipoNecessario && tipoTerceiro !== "ambos")) {
+          throw new Error("Cliente ou fornecedor inválido para esta loja.");
+        }
       }
       await conn.query("CALL criar_lancamentos_de_ofx_rateado(?, ?, @conciliacao_id)", [
         data.ofxId,
