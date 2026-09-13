@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comPapel, comSessao } from "./authz";
+import { reconstruirDataPagamentoLote } from "./conciliacao-pareamento";
 
 // Mesma visibilidade de lancamentos usada em tesouraria-lancamentos.ts:
 // admin/tesoureiro/secretario veem tudo, irmão comum só os seus.
@@ -144,7 +145,7 @@ export const obterResumoContasReceber = createServerFn({ method: "GET" }).handle
          WHERE loja_id = @current_loja_id
            AND tipo = 'entrada' AND pago = FALSE AND data_vencimento < CURRENT_DATE`,
       );
-      const [[recebido]] = await conn.query<RowDataPacket[]>(
+      const [[recebidoDireto]] = await conn.query<RowDataPacket[]>(
         `SELECT COALESCE(SUM(valor), 0) AS valor FROM (
            SELECT (ri.valor_original + ri.valor_multa + ri.valor_juros) AS valor
            FROM recibo_itens ri
@@ -153,16 +154,6 @@ export const obterResumoContasReceber = createServerFn({ method: "GET" }).handle
                              AND l.tipo = 'entrada'
            WHERE ri.loja_id = @current_loja_id
              AND YEAR(r.data) = YEAR(CURRENT_DATE) AND MONTH(r.data) = MONTH(CURRENT_DATE)
-           UNION ALL
-           SELECT cl.valor_aplicado
-           FROM conciliacao_lancamentos cl
-           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
-                              AND c.status = 'ativa'
-           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
-                             AND l.tipo = 'entrada'
-           WHERE cl.loja_id = @current_loja_id
-             AND YEAR(c.data_conciliacao) = YEAR(CURRENT_DATE)
-             AND MONTH(c.data_conciliacao) = MONTH(CURRENT_DATE)
            UNION ALL
            SELECT l.valor
            FROM lancamentos l
@@ -182,10 +173,81 @@ export const obterResumoContasReceber = createServerFn({ method: "GET" }).handle
              )
          ) recebimentos`,
       );
+
+      // Conciliação em lote (issue #510): c.data_conciliacao é só a data em
+      // que o LOTE foi processado, não quando cada fatura foi de fato paga —
+      // um lote pode juntar Pix de meses diferentes quitando faturas
+      // atrasadas de meses diferentes. Filtrar por data_conciliacao aqui
+      // fazia "Recebido no Mês" contar em setembro uma fatura paga de fato
+      // em fevereiro, só porque o lote foi processado em setembro — e o
+      // Relatório de Recebimentos (relatorios.ts) já mostrava certo pro
+      // mesmo evento, então os dois números divergiam. Reconstrói a data
+      // real por lançamento (mesma lógica de relatorioRecebimentos) e só
+      // então filtra pelo mês atual.
+      const [clRows] = await conn.query<RowDataPacket[]>(
+        `SELECT cl.id, cl.conciliacao_id, cl.valor_aplicado AS valor, c.data_conciliacao,
+                COALESCE(l.data_vencimento, l.data) AS ordenacao
+         FROM conciliacao_lancamentos cl
+         JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                            AND c.status = 'ativa'
+         JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+                           AND l.tipo = 'entrada'
+         WHERE cl.loja_id = @current_loja_id`,
+      );
+      let recebidoLote = 0;
+      if (clRows.length > 0) {
+        // Mês corrente segundo o próprio MySQL (mesma fonte de "agora" que
+        // CURRENT_DATE já usa nas outras consultas desta função) — evita
+        // qualquer risco de desvio de fuso horário comparando com um
+        // `new Date()` calculado no lado do Node.
+        const [[{ mes: mesAtual }]] = await conn.query<RowDataPacket[]>(
+          "SELECT DATE_FORMAT(CURRENT_DATE, '%Y-%m') AS mes",
+        );
+        const idsConciliacao = [...new Set(clRows.map((r) => r.conciliacao_id as string))];
+        const [ofxRows] = await conn.query<RowDataPacket[]>(
+          `SELECT id, conciliacao_id, data, valor FROM ofx_lancamentos
+           WHERE conciliacao_id IN (?) AND loja_id = @current_loja_id`,
+          [idsConciliacao],
+        );
+        const ofxPorConciliacao = new Map<string, { id: string; data: string; valor: number }[]>();
+        for (const o of ofxRows) {
+          const lista = ofxPorConciliacao.get(o.conciliacao_id) ?? [];
+          lista.push({ id: o.id, data: String(o.data), valor: Number(o.valor) });
+          ofxPorConciliacao.set(o.conciliacao_id, lista);
+        }
+        const clPorConciliacao = new Map<string, RowDataPacket[]>();
+        for (const r of clRows) {
+          const lista = clPorConciliacao.get(r.conciliacao_id) ?? [];
+          lista.push(r);
+          clPorConciliacao.set(r.conciliacao_id, lista);
+        }
+        for (const conciliacaoId of idsConciliacao) {
+          const ofxDoLote = ofxPorConciliacao.get(conciliacaoId) ?? [];
+          const clDoLote = clPorConciliacao.get(conciliacaoId) ?? [];
+          const dataPorClId =
+            ofxDoLote.length > 0
+              ? reconstruirDataPagamentoLote(
+                  ofxDoLote,
+                  clDoLote.map((r) => ({
+                    id: r.id as string,
+                    ordenacao: String(r.ordenacao),
+                    valor: Number(r.valor),
+                  })),
+                )
+              : new Map<string, string>();
+          for (const r of clDoLote) {
+            const dataReal = dataPorClId.get(r.id as string) ?? (r.data_conciliacao as string);
+            if (dataReal.slice(0, 7) === mesAtual) {
+              recebidoLote += Number(r.valor);
+            }
+          }
+        }
+      }
+
       return {
         inadimplencia: Number(inadimplencia.valor),
         quantidadeInadimplentes: Number(inadimplencia.quantidade),
-        recebidoMes: Number(recebido.valor),
+        recebidoMes: Number(recebidoDireto.valor) + recebidoLote,
         vencidoAte30: Number(inadimplencia.ate_30),
         vencido31a60: Number(inadimplencia.de_31_a_60),
         vencidoAcima60: Number(inadimplencia.acima_60),
