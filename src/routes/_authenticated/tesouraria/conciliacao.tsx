@@ -55,7 +55,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -146,10 +146,15 @@ function Conciliacao() {
   // Painel informativo de saldo de outras aplicações (issue #468) — não
   // participa de nenhum número do "Fechamento do extrato" acima, só ajuda a
   // enxergar a disponibilidade total da Loja enquanto se concilia uma conta.
+  // staleTime igual ao das demais telas que buscam o mesmo dado (achado
+  // #550 da auditoria de performance), pra compartilhar cache em vez de
+  // refazer a consulta ao navegar entre Dashboard/Tesouraria/Conciliação/
+  // Fluxo de Caixa.
   const { data: saldoContas = [] } = useQuery({
     queryKey: ["saldo_contas"],
     enabled: !!contaId,
     queryFn: () => listarSaldoContas(),
+    staleTime: 60_000,
   });
 
   const invalidate = () => {
@@ -258,29 +263,50 @@ function Conciliacao() {
   // Busca aceita vários termos separados por vírgula (OR) — cobre o caso de
   // "mais de um depositante" pedido no #123 (ex.: "joao, maria"). Vazio =
   // sem filtro nenhum, mostra tudo.
-  const termosSistema = buscaSistema
-    .split(",")
-    .map((t) => normalizarTexto(t.trim()))
-    .filter(Boolean);
-  const sistemaFiltrado = sistema.filter((s) => {
-    if (dataInicial && s.data < dataInicial) return false;
-    if (dataFinal && s.data > dataFinal) return false;
-    if (termosSistema.length === 0) return true;
-    const alvo = normalizarTexto(s.descricao);
-    return termosSistema.some((t) => alvo.includes(t));
-  });
+  //
+  // Filtro/ordenação memoizados (achado #555 da auditoria de performance):
+  // hoje o backend limita sistema/ofx a 300/500 linhas por conta, então não
+  // era um gargalo perceptível, mas evita refazer esse trabalho à toa a
+  // cada clique que não muda os filtros (ex.: marcar um checkbox de linha).
+  const termosSistema = useMemo(
+    () =>
+      buscaSistema
+        .split(",")
+        .map((t) => normalizarTexto(t.trim()))
+        .filter(Boolean),
+    [buscaSistema],
+  );
+  const sistemaFiltrado = useMemo(
+    () =>
+      sistema.filter((s) => {
+        if (dataInicial && s.data < dataInicial) return false;
+        if (dataFinal && s.data > dataFinal) return false;
+        if (termosSistema.length === 0) return true;
+        const alvo = normalizarTexto(s.descricao);
+        return termosSistema.some((t) => alvo.includes(t));
+      }),
+    [sistema, dataInicial, dataFinal, termosSistema],
+  );
   const hojeIso = new Date().toISOString().slice(0, 10);
-  const sistemaOrdenado = [...sistemaFiltrado].sort((a, b) => {
-    const aVencida = !!a.data_vencimento && a.data_vencimento < hojeIso;
-    const bVencida = !!b.data_vencimento && b.data_vencimento < hojeIso;
-    if (aVencida !== bVencida) return aVencida ? -1 : 1;
-    return (a.data_vencimento ?? a.data).localeCompare(b.data_vencimento ?? b.data);
-  });
-  const ofxFiltrado = ofx.filter((o) => {
-    if (dataInicial && o.data < dataInicial) return false;
-    if (dataFinal && o.data > dataFinal) return false;
-    return !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase());
-  });
+  const sistemaOrdenado = useMemo(
+    () =>
+      [...sistemaFiltrado].sort((a, b) => {
+        const aVencida = !!a.data_vencimento && a.data_vencimento < hojeIso;
+        const bVencida = !!b.data_vencimento && b.data_vencimento < hojeIso;
+        if (aVencida !== bVencida) return aVencida ? -1 : 1;
+        return (a.data_vencimento ?? a.data).localeCompare(b.data_vencimento ?? b.data);
+      }),
+    [sistemaFiltrado, hojeIso],
+  );
+  const ofxFiltrado = useMemo(
+    () =>
+      ofx.filter((o) => {
+        if (dataInicial && o.data < dataInicial) return false;
+        if (dataFinal && o.data > dataFinal) return false;
+        return !buscaOfx || (o.descricao ?? "").toLowerCase().includes(buscaOfx.toLowerCase());
+      }),
+    [ofx, dataInicial, dataFinal, buscaOfx],
+  );
   const ofxSelecionadoUnico =
     selOfx.length === 1 && selSistema.length === 0
       ? ofx.find((o) => o.id === selOfx[0])
