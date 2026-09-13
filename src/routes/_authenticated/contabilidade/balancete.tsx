@@ -63,6 +63,12 @@ type LinhaBalancete = {
   credito: number;
 };
 
+// Função pura, movida pra escopo de módulo (achado #549 da auditoria de
+// performance): usada dentro de useMemo abaixo, e uma versão recriada a
+// cada render dentro do componente exigiria estar na lista de dependências,
+// invalidando a memoização à toa.
+const saldoAtual = (l: LinhaBalancete) => l.saldoAnterior + l.debito - l.credito;
+
 const COLUNAS: ColunaRelatorio[] = [
   { chave: "classe", titulo: "Classe" },
   { chave: "codigo", titulo: "Código" },
@@ -154,8 +160,6 @@ function Balancete() {
     [todasLinhas, classesSelecionadas, buscaNormalizada],
   );
 
-  const saldoAtual = (l: LinhaBalancete) => l.saldoAnterior + l.debito - l.credito;
-
   const totalSaldoAnterior = linhas.reduce((s, l) => s + l.saldoAnterior, 0);
   const totalDebito = linhas.reduce((s, l) => s + l.debito, 0);
   const totalCredito = linhas.reduce((s, l) => s + l.credito, 0);
@@ -163,15 +167,22 @@ function Balancete() {
   const diferenca = totalDebito - totalCredito;
   const fechado = Math.abs(diferenca) < 0.01;
 
-  const linhasExportacao = linhas.map((l) => ({
-    classe: CLASSE_LABEL[l.tipo] ?? l.tipo,
-    codigo: l.codigo,
-    conta: l.nome,
-    saldoAnterior: l.saldoAnterior,
-    debito: l.debito,
-    credito: l.credito,
-    saldoAtual: saldoAtual(l),
-  }));
+  // Memoizado (achado #549 da auditoria de performance): sem isso, essa
+  // lista era remontada em todo render, mesmo quando o usuário nunca chega
+  // a clicar em exportar.
+  const linhasExportacao = useMemo(
+    () =>
+      linhas.map((l) => ({
+        classe: CLASSE_LABEL[l.tipo] ?? l.tipo,
+        codigo: l.codigo,
+        conta: l.nome,
+        saldoAnterior: l.saldoAnterior,
+        debito: l.debito,
+        credito: l.credito,
+        saldoAtual: saldoAtual(l),
+      })),
+    [linhas],
+  );
 
   return (
     <>

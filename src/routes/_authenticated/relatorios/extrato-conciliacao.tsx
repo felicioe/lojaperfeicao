@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
@@ -82,7 +82,10 @@ function ExtratoConciliacao() {
         },
       }),
   });
-  const itens = relatorio?.itens ?? [];
+  // useMemo (não só `?? []`): sem isso, "itens" vira array novo em todo
+  // render mesmo com o mesmo `relatorio`, invalidando a memoização de
+  // linhasExportacao logo abaixo.
+  const itens = useMemo(() => relatorio?.itens ?? [], [relatorio]);
   const truncado = relatorio?.truncado ?? false;
 
   const desfazerMutation = useMutation({
@@ -111,17 +114,24 @@ function ExtratoConciliacao() {
   const qtdConciliado = itens.filter((i) => i.conciliado).length;
   const qtdPendente = itens.filter((i) => !i.conciliado).length;
 
-  const linhasExportacao = itens.map((i) => ({
-    data: fmtDate(i.data),
-    descricao: i.descricao ?? "—",
-    valor: Number(i.valor),
-    status: i.anulacao_ofx ? "Lançamento indevido" : i.conciliado ? "Conciliado" : "Pendente",
-    vinculados:
-      i.historico ??
-      (i.lote_sem_separacao
-        ? `Lote com outras ${(i.lote_qtd_ofx ?? 1) - 1} linha(s) — sem separação possível`
-        : i.lancamentos_vinculados.map((l) => l.descricao).join("; ") || "—"),
-  }));
+  // Memoizado (achado #549 da auditoria de performance): sem isso, essa
+  // lista (até 2000 itens) era remontada em todo render, mesmo quando o
+  // usuário nunca chega a clicar em exportar.
+  const linhasExportacao = useMemo(
+    () =>
+      itens.map((i) => ({
+        data: fmtDate(i.data),
+        descricao: i.descricao ?? "—",
+        valor: Number(i.valor),
+        status: i.anulacao_ofx ? "Lançamento indevido" : i.conciliado ? "Conciliado" : "Pendente",
+        vinculados:
+          i.historico ??
+          (i.lote_sem_separacao
+            ? `Lote com outras ${(i.lote_qtd_ofx ?? 1) - 1} linha(s) — sem separação possível`
+            : i.lancamentos_vinculados.map((l) => l.descricao).join("; ") || "—"),
+      })),
+    [itens],
+  );
 
   const ord = useOrdenacao(itens, {
     data: (i) => i.data,

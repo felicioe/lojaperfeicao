@@ -247,16 +247,23 @@ function InadimplenciaDetalhada() {
   const totalJuros = itens.reduce((s, i) => s + Number(i.valor_juros), 0);
   const totalAtualizado = itens.reduce((s, i) => s + Number(i.valor_total), 0);
 
-  const linhasExportacao = itensOrdenadosManual.map((i) => ({
-    nome_civil: i.nome_civil,
-    descricao: i.descricao,
-    vencimento: fmtDate(i.data_vencimento),
-    dias_atraso: i.dias_atraso,
-    valor_original: Number(i.valor_original),
-    valor_multa: Number(i.valor_multa),
-    valor_juros: Number(i.valor_juros),
-    valor_total: Number(i.valor_total),
-  }));
+  // Memoizado (achado #549 da auditoria de performance): sem isso, essa
+  // lista (até 2000 itens) era remontada em todo render, mesmo quando o
+  // usuário nunca chega a clicar em exportar.
+  const linhasExportacao = useMemo(
+    () =>
+      itensOrdenadosManual.map((i) => ({
+        nome_civil: i.nome_civil,
+        descricao: i.descricao,
+        vencimento: fmtDate(i.data_vencimento),
+        dias_atraso: i.dias_atraso,
+        valor_original: Number(i.valor_original),
+        valor_multa: Number(i.valor_multa),
+        valor_juros: Number(i.valor_juros),
+        valor_total: Number(i.valor_total),
+      })),
+    [itensOrdenadosManual],
+  );
 
   const pag = usePaginacao(ord.itensOrdenados);
 
