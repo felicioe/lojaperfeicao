@@ -42,9 +42,17 @@ export default defineConfig({
   // fotos (node:fs/promises). Ver mysql/README.md, seção 13.
   nitro: {
     preset: "node-server",
-    // `minify` não está no tipo exposto por LovableViteTanstackOptions (a
-    // interface só cobre preset/output/cloudflare de propósito), mas é
-    // repassado como está para o nitro() real — cast só para calar o tsc.
+    // `minify`/`compressPublicAssets` não estão no tipo exposto por
+    // LovableViteTanstackOptions (a interface só cobre preset/output/
+    // cloudflare de propósito), mas são repassados como estão para o
+    // nitro() real — cast só para calar o tsc.
     minify: false,
+    // Achado #567 da auditoria mobile: nenhum .gz/.br era gerado ao lado
+    // dos assets do build (find .output/public -iname '*.gz' -o -iname
+    // '*.br' devolvia 0 arquivos) — o maior chunk do app (~635 KB) pesa
+    // muito mais em 4G sem compressão. Gera gzip+brotli pra assets
+    // públicos maiores que 1KB; o handler estático do Nitro já serve a
+    // variante certa conforme o Accept-Encoding do navegador.
+    compressPublicAssets: { gzip: true, brotli: true },
   } as import("@lovable.dev/vite-tanstack-config").LovableViteTanstackOptions["nitro"],
 });
