@@ -117,13 +117,28 @@ export async function gerarXlsxBuffer(
 
   for (const linha of linhas) planilha.addRow(linha);
 
+  // Totais direto após a última linha de dado, sem linha em branco antes, e
+  // o valor na mesma coluna numérica ("moeda") mais à direita da tabela —
+  // em vez de uma linha só de texto solta na coluna 1 — pra ficar alinhado
+  // com os valores que ele está totalizando (achado do usuário).
   if (totais.length > 0) {
-    planilha.addRow({});
+    let indiceColunaValor = colunas.length - 1;
+    for (let i = colunas.length - 1; i >= 0; i--) {
+      if (colunas[i].formato === "moeda") {
+        indiceColunaValor = i;
+        break;
+      }
+    }
+    const chaveValor = colunas[indiceColunaValor].chave;
     for (const total of totais) {
       const linhaTotal = planilha.addRow({
-        [colunas[0].chave]: `${total.rotulo}: ${formatarMoedaRelatorio(total.valor)}`,
+        [colunas[0].chave]: total.rotulo,
+        [chaveValor]: total.valor,
       });
       linhaTotal.font = { bold: true };
+      if (colunas[indiceColunaValor].formato === "moeda") {
+        linhaTotal.getCell(indiceColunaValor + 1).numFmt = "#,##0.00";
+      }
     }
   }
 
@@ -249,6 +264,57 @@ export async function gerarXlsxBufferAgrupado(
   return Buffer.from(buffer);
 }
 
+// Distribui a largura disponível proporcionalmente ao conteúdo de cada
+// coluna (título e uma amostra das primeiras linhas) em vez de fatiar a
+// página em colunas iguais — colunas de texto longo (Descrição) ganham mais
+// espaço e colunas curtas (Data, Valor) ficam mais compactas. Essencial em
+// retrato, com bem menos largura útil que paisagem, pra aproveitar o espaço
+// da melhor forma possível em vez de cortar tudo igualmente.
+function calcularLargurasColunas(
+  colunas: ColunaRelatorio[],
+  linhas: LinhaRelatorio[],
+  larguraUtil: number,
+): number[] {
+  const LARGURA_MINIMA = 46;
+  // Coluna de moeda precisa de espaço pra um valor de verdade (ex.:
+  // "999.999,99") mesmo quando a amostra atual tem só valores pequenos —
+  // sem esse piso, uma coluna de texto longo (Descrição, Irmão) podia
+  // consumir praticamente toda a largura disponível e truncar um valor
+  // financeiro no meio dos dígitos, o pior tipo de corte possível num
+  // relatório financeiro.
+  const LARGURA_MINIMA_MOEDA = 64;
+
+  const amostra = linhas.slice(0, 40);
+  const pesos = colunas.map((c) => {
+    let maxLen = c.titulo.length;
+    for (const linha of amostra) {
+      const texto = formatarValor(linha[c.chave], c.formato);
+      if (texto.length > maxLen) maxLen = texto.length;
+    }
+    return Math.max(maxLen, 4);
+  });
+  const pesoTotal = pesos.reduce((s, p) => s + p, 0);
+  const minimos = colunas.map((c) =>
+    c.formato === "moeda" ? LARGURA_MINIMA_MOEDA : LARGURA_MINIMA,
+  );
+  const somaMinimos = minimos.reduce((s, m) => s + m, 0);
+
+  if (somaMinimos >= larguraUtil) {
+    // Colunas demais pra largura disponível — nem os mínimos cabem juntos.
+    // Cai pra proporcional puro (mesma degradação da paisagem antiga),
+    // aceitando compressão maior: é o limite real de colunas que uma
+    // página em pé comporta, não tem como reservar mínimo de ninguém.
+    return pesos.map((p) => (p / pesoTotal) * larguraUtil);
+  }
+
+  // Sobra depois de garantir o mínimo de cada coluna, distribuída
+  // proporcionalmente ao peso de conteúdo — texto longo ainda ganha mais
+  // espaço extra que número, só que agora sem tirar do número o espaço
+  // que ele precisa pra não truncar o valor.
+  const sobra = larguraUtil - somaMinimos;
+  return minimos.map((minimo, i) => minimo + (pesos[i] / pesoTotal) * sobra);
+}
+
 export async function gerarPdfBuffer(
   titulo: string,
   colunas: ColunaRelatorio[],
@@ -257,7 +323,12 @@ export async function gerarPdfBuffer(
   totais: TotalRelatorio[] = [],
   geradoPor: string | null = null,
 ): Promise<Buffer> {
-  const pdf = new PdfSimplesPaisagem();
+  // Retrato (achado do usuário): toda tabela plana saía em paisagem, mesmo
+  // quando o conteúdo cabe melhor em pé — mesmo A4 girado 90° já usado no
+  // relatório agrupado (issue #450). Colunas usam largura proporcional ao
+  // conteúdo (calcularLargurasColunas), não mais fatias iguais, pra
+  // aproveitar melhor o espaço menor do retrato.
+  const pdf = new PdfSimplesPaisagem("retrato");
   // Prepara os logos ANTES de desenhar qualquer página — os objetos de
   // imagem do PDF precisam existir pra entrar no /Resources de cada
   // página (issue #376). Logo em formato que decodificarPng não suporta
@@ -267,8 +338,17 @@ export async function gerarPdfBuffer(
     .map((logo) => pdf.prepararImagem(logo.logoUrl))
     .filter((r): r is { indice: number; largura: number; altura: number } => r !== null);
 
-  const larguraColuna = (pdf.larguraPagina - pdf.margem * 2) / Math.max(colunas.length, 1);
-  const caracPorColuna = Math.max(6, Math.floor((larguraColuna - 8) / 4.2));
+  const larguraUtil = pdf.larguraPagina - pdf.margem * 2;
+  const larguras = calcularLargurasColunas(colunas, linhas, larguraUtil);
+  const xColunas: number[] = [];
+  {
+    let x = pdf.margem;
+    for (const largura of larguras) {
+      xColunas.push(x);
+      x += largura;
+    }
+  }
+  const caracPorColuna = larguras.map((largura) => Math.max(4, Math.floor((largura - 8) / 4.2)));
   const dataGeracao = new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
@@ -279,6 +359,10 @@ export async function gerarPdfBuffer(
 
   let cursorY = pdf.margem;
 
+  // Cabeçalho volta a ser só título + colunas — o resumo de totais que
+  // ficava aqui (issue #377) foi pro final da tabela, alinhado com as
+  // colunas numéricas que ele totaliza, em vez de flutuar solto no topo
+  // desconectado dos números que soma (achado do usuário).
   const desenharCabecalho = () => {
     if (logosPreparados.length > 0) {
       // Alinhados à direita, no topo — não empurra o título/colunas, que
@@ -298,32 +382,11 @@ export async function gerarPdfBuffer(
       cor: "#172033",
     });
     cursorY += 22;
-    // Resumo de totais (issue #377) — em vez da simples "Gerado em ..." de
-    // antes, que agora vive só no rodapé. Quebrado em grupos de até 3 pra
-    // não estourar a largura da página com relatórios de muitos totais
-    // (ex.: Extrato do Irmão tem 5).
-    if (totais.length > 0) {
-      const TOTAIS_POR_LINHA = 3;
-      for (let i = 0; i < totais.length; i += TOTAIS_POR_LINHA) {
-        const grupo = totais.slice(i, i + TOTAIS_POR_LINHA);
-        const textoGrupo = grupo
-          .map((t) => `${t.rotulo}: ${formatarMoedaRelatorio(t.valor)}`)
-          .join("      ");
-        pdf.desenharRetangulo(36, cursorY - 4, pdf.larguraPagina - 72, 17, "#eef3fc");
-        pdf.escreverTexto(textoGrupo, 40, cursorY - 1, {
-          fonte: "bold",
-          tamanho: 8.5,
-          cor: "#1d4ed8",
-        });
-        cursorY += 18;
-      }
-      cursorY += 4;
-    }
     pdf.desenharRetangulo(36, cursorY - 4, pdf.larguraPagina - 72, 22, "#e8edf5");
     colunas.forEach((coluna, indice) => {
       pdf.escreverTexto(
-        truncarTexto(coluna.titulo, caracPorColuna),
-        40 + indice * larguraColuna,
+        truncarTexto(coluna.titulo, caracPorColuna[indice]),
+        xColunas[indice] + 4,
         cursorY + 2,
         {
           fonte: "bold",
@@ -347,18 +410,67 @@ export async function gerarPdfBuffer(
       pdf.desenharRetangulo(36, cursorY - 3, pdf.larguraPagina - 72, 20, "#f7f9fc");
     }
     colunas.forEach((coluna, indice) => {
-      pdf.escreverTexto(
-        truncarTexto(formatarValor(linha[coluna.chave], coluna.formato), caracPorColuna),
-        40 + indice * larguraColuna,
-        cursorY + 2,
-        {
+      const texto = truncarTexto(
+        formatarValor(linha[coluna.chave], coluna.formato),
+        caracPorColuna[indice],
+      );
+      // Moeda alinhada à direita da própria coluna — convenção contábil
+      // padrão, e o mesmo alinhamento que os totais do rodapé usam, pra
+      // ficar visualmente contínuo com a coluna que estão totalizando.
+      if (coluna.formato === "moeda") {
+        const larguraTexto = larguraTextoNumerico(texto, 7.5);
+        // Math.max: um valor excepcionalmente largo (mais dígitos do que a
+        // amostra usada pra dimensionar a coluna previu) nunca empurra o
+        // texto pra esquerda do início da própria coluna, vazando por cima
+        // da coluna anterior — na pior hipótese ele começa colado na borda
+        // esquerda em vez de alinhado à direita.
+        const x = Math.max(
+          xColunas[indice] + 4,
+          xColunas[indice] + larguras[indice] - 6 - larguraTexto,
+        );
+        pdf.escreverTexto(texto, x, cursorY + 2, { tamanho: 7.5, cor: "#263044" });
+      } else {
+        pdf.escreverTexto(texto, xColunas[indice] + 4, cursorY + 2, {
           tamanho: 7.5,
           cor: "#263044",
-        },
-      );
+        });
+      }
     });
     cursorY += 20;
   });
+
+  // Totais (issue #377, reposicionados a pedido do usuário): direto após a
+  // última linha de dado, sem linha em branco antes, alinhados à direita
+  // como um valor de coluna — não mais uma faixa solta no topo. Quebra de
+  // página só quando o bloco inteiro não cabe (nunca separa um total do
+  // seu valor entre páginas).
+  if (totais.length > 0) {
+    const ALTURA_LINHA_TOTAL = 17;
+    const alturaBloco = totais.length * ALTURA_LINHA_TOTAL + 9;
+    if (cursorY + alturaBloco > pdf.alturaPagina - 40) {
+      pdf.novaPagina();
+      cursorY = pdf.margem;
+      desenharCabecalho();
+    }
+    pdf.desenharRetangulo(36, cursorY, pdf.larguraPagina - 72, 1.4, "#a9812f");
+    cursorY += 7;
+    totais.forEach((total) => {
+      pdf.desenharRetangulo(36, cursorY - 3, pdf.larguraPagina - 72, ALTURA_LINHA_TOTAL, "#f6f1e3");
+      pdf.escreverTexto(total.rotulo, 40, cursorY, {
+        fonte: "bold",
+        tamanho: 8.5,
+        cor: "#16283f",
+      });
+      const textoValor = formatarMoedaRelatorio(total.valor);
+      const larguraValor = larguraTextoNumerico(textoValor, 8.5);
+      pdf.escreverTexto(textoValor, pdf.larguraPagina - 40 - larguraValor, cursorY, {
+        fonte: "bold",
+        tamanho: 8.5,
+        cor: "#16283f",
+      });
+      cursorY += ALTURA_LINHA_TOTAL;
+    });
+  }
 
   // Rodapé (issue #377) em todas as páginas já criadas — data de geração e
   // quem gerou, do jeito que já existe em qualquer documento impresso.
