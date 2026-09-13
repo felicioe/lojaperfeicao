@@ -330,16 +330,20 @@ export const obterProjecaoFluxo = createServerFn({ method: "GET" })
         valores.push(usuarioId);
       }
       const where = condicoes.join(" AND ");
+      // SUM/GROUP BY no próprio SQL (achado #553 da auditoria de
+      // performance) em vez de trazer uma linha por lançamento em aberto só
+      // pra somar em JS — o resultado final são sempre só 2 números.
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT tipo, (valor - valor_pago) AS valor FROM lancamentos
-          WHERE loja_id = @current_loja_id AND tipo IN ('entrada','saida') AND ${where}`,
+        `SELECT tipo, COALESCE(SUM(valor - valor_pago), 0) AS total FROM lancamentos
+          WHERE loja_id = @current_loja_id AND tipo IN ('entrada','saida') AND ${where}
+          GROUP BY tipo`,
         valores,
       );
       let somaE = 0;
       let somaS = 0;
       for (const r of rows) {
-        if (r.tipo === "entrada") somaE += Number(r.valor);
-        else somaS += Number(r.valor);
+        if (r.tipo === "entrada") somaE = Number(r.total);
+        else somaS = Number(r.total);
       }
       return { somaE, somaS, delta: somaE - somaS };
     });
