@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 export type DirecaoOrdenacao = "asc" | "desc";
 
@@ -17,6 +17,17 @@ export function useOrdenacao<T>(itens: T[], extratores: Record<string, Extrator<
   const [coluna, setColuna] = useState<string | null>(null);
   const [direcao, setDirecao] = useState<DirecaoOrdenacao>("asc");
 
+  // A maioria das telas chama useOrdenacao(itens, { data: (i) => ..., ... })
+  // com o objeto de extratores inline — recriado a cada render. Depender
+  // dele no useMemo abaixo invalidaria a memoização toda vez que qualquer
+  // outro state do componente mudasse (digitar num filtro, marcar um
+  // checkbox), reordenando a lista inteira à toa (achado #545 da auditoria
+  // de performance). Guardar na ref em vez de como dependência resolve isso
+  // pra todo chamador de uma vez, sem exigir que cada tela extraia o objeto
+  // pra uma constante de módulo.
+  const extratoresRef = useRef(extratores);
+  extratoresRef.current = extratores;
+
   const alternar = (col: string) => {
     if (coluna === col) {
       setDirecao((d) => (d === "asc" ? "desc" : "asc"));
@@ -27,7 +38,7 @@ export function useOrdenacao<T>(itens: T[], extratores: Record<string, Extrator<
   };
 
   const itensOrdenados = useMemo(() => {
-    const extrator = coluna ? extratores[coluna] : null;
+    const extrator = coluna ? extratoresRef.current[coluna] : null;
     if (!extrator) return itens;
     const copia = [...itens];
     copia.sort((a, b) => {
@@ -43,7 +54,7 @@ export function useOrdenacao<T>(itens: T[], extratores: Record<string, Extrator<
     });
     if (direcao === "desc") copia.reverse();
     return copia;
-  }, [itens, coluna, direcao, extratores]);
+  }, [itens, coluna, direcao]);
 
   return { itensOrdenados, coluna, direcao, alternar };
 }
