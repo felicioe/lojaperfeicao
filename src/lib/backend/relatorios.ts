@@ -806,19 +806,50 @@ export type ItemInadimplenciaDetalhado = {
   valor_total: number;
 };
 
-export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" }).handler(
-  async (): Promise<ItemInadimplenciaDetalhado[]> => {
-    return comPapel(PAPEIS_TESOURARIA, async (conn) => {
-      const hoje = new Date().toISOString().slice(0, 10);
-      // parametros_financeiros era um singleton global (pf.id = 1, CROSS JOIN).
-      // Depois da 0092 é uma linha POR LOJA, e uma Loja recém-criada só ganha a
-      // dela quando alguém salva a tela de parâmetros — com CROSS JOIN o
-      // relatório inteiro sairia vazio nesse meio-tempo, escondendo justamente
-      // os inadimplentes. Com LEFT JOIN as faturas continuam aparecendo e
-      // multa/juros ficam zerados, que é a leitura certa de "sem multa e juros
-      // configurados".
-      const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, irmao_id, valor, data_vencimento, descricao, nome_civil, nome_simbolico,
+const filtroInadimplenciaSchema = z.object({
+  irmaoId: z.string().uuid().nullable(),
+  vencimentoDe: z.string().nullable(),
+  vencimentoAte: z.string().nullable(),
+});
+
+export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
+  .validator((d: unknown) => filtroInadimplenciaSchema.parse(d))
+  .handler(
+    async ({ data }): Promise<{ itens: ItemInadimplenciaDetalhado[]; truncado: boolean }> => {
+      return comPapel(PAPEIS_TESOURARIA, async (conn) => {
+        const hoje = new Date().toISOString().slice(0, 10);
+        // Filtros aplicados no SQL, não em memória sobre resultado já cortado
+        // (issue #509): antes o LIMIT vinha sem nenhum filtro do chamador,
+        // pegava as 500 faturas vencidas MAIS ANTIGAS da loja inteira, e só
+        // depois a tela filtrava por irmão/período em cima desse array já
+        // truncado — um irmão com fatura em atraso fora das 500 mais antigas
+        // simplesmente não aparecia, mesmo estando de fato inadimplente.
+        const condicoes = ["l.tipo = 'entrada'", "l.pago = FALSE", "l.data_vencimento < ?"];
+        const valores: unknown[] = [hoje];
+        if (data.irmaoId) {
+          condicoes.push("l.irmao_id = ?");
+          valores.push(data.irmaoId);
+        }
+        if (data.vencimentoDe) {
+          condicoes.push("l.data_vencimento >= ?");
+          valores.push(data.vencimentoDe);
+        }
+        if (data.vencimentoAte) {
+          condicoes.push("l.data_vencimento <= ?");
+          valores.push(data.vencimentoAte);
+        }
+        // parametros_financeiros era um singleton global (pf.id = 1, CROSS JOIN).
+        // Depois da 0092 é uma linha POR LOJA, e uma Loja recém-criada só ganha a
+        // dela quando alguém salva a tela de parâmetros — com CROSS JOIN o
+        // relatório inteiro sairia vazio nesse meio-tempo, escondendo justamente
+        // os inadimplentes. Com LEFT JOIN as faturas continuam aparecendo e
+        // multa/juros ficam zerados, que é a leitura certa de "sem multa e juros
+        // configurados".
+        // Ordenado por vencimento ascendente — o mais atrasado primeiro —
+        // então, se o teto de segurança (2000) cortar algo, é sempre o "menos
+        // urgente" que fica de fora, nunca o mais atrasado.
+        const [rows] = await conn.query<RowDataPacket[]>(
+          `SELECT id, irmao_id, valor, data_vencimento, descricao, nome_civil, nome_simbolico,
                 dias_atraso,
                 IF(dias_atraso > 0 AND multa_ativa, ROUND(valor * multa_percentual / 100, 2), 0)
                   AS valor_multa,
@@ -832,30 +863,30 @@ export const relatorioInadimplenciaDetalhado = createServerFn({ method: "GET" })
            FROM lancamentos l
            JOIN irmaos i ON i.id = l.irmao_id AND i.loja_id = l.loja_id
            LEFT JOIN parametros_financeiros pf ON pf.loja_id = l.loja_id
-           WHERE l.loja_id = @current_loja_id
-             AND l.tipo = 'entrada' AND l.pago = FALSE AND l.data_vencimento < ?
+           WHERE l.loja_id = @current_loja_id AND ${condicoes.join(" AND ")}
            ORDER BY l.data_vencimento
-           LIMIT 500
+           LIMIT 2000
          ) t`,
-        [hoje, hoje],
-      );
+          [hoje, ...valores],
+        );
 
-      return rows.map((r): ItemInadimplenciaDetalhado => ({
-        id: r.id,
-        irmao_id: r.irmao_id,
-        nome_civil: r.nome_civil,
-        nome_simbolico: r.nome_simbolico,
-        descricao: r.descricao,
-        data_vencimento: r.data_vencimento,
-        dias_atraso: Number(r.dias_atraso),
-        valor_original: Number(r.valor),
-        valor_multa: Number(r.valor_multa),
-        valor_juros: Number(r.valor_juros),
-        valor_total: Number(r.valor) + Number(r.valor_multa) + Number(r.valor_juros),
-      }));
-    });
-  },
-);
+        const itens = rows.map((r): ItemInadimplenciaDetalhado => ({
+          id: r.id,
+          irmao_id: r.irmao_id,
+          nome_civil: r.nome_civil,
+          nome_simbolico: r.nome_simbolico,
+          descricao: r.descricao,
+          data_vencimento: r.data_vencimento,
+          dias_atraso: Number(r.dias_atraso),
+          valor_original: Number(r.valor),
+          valor_multa: Number(r.valor_multa),
+          valor_juros: Number(r.valor_juros),
+          valor_total: Number(r.valor) + Number(r.valor_multa) + Number(r.valor_juros),
+        }));
+        return { itens, truncado: rows.length === 2000 };
+      });
+    },
+  );
 
 // ---------- Extrato Bancário (issue #142) ----------
 // Extrato tradicional de UMA conta financeira, com saldo corrente

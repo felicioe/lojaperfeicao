@@ -37,7 +37,15 @@ import {
 } from "@/components/ui/table";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowUpDown, Download, FileText, Loader2, Mail, Share2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpDown,
+  Download,
+  FileText,
+  Loader2,
+  Mail,
+  Share2,
+} from "lucide-react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
@@ -76,19 +84,24 @@ function InadimplenciaDetalhada() {
   const [vencimentoDe, setVencimentoDe] = useState("");
   const [vencimentoAte, setVencimentoAte] = useState("");
 
-  const { data: todosItens = [], isError } = useQuery({
-    queryKey: ["relatorio_inadimplencia_detalhado"],
-    queryFn: () => relatorioInadimplenciaDetalhado(),
+  const { data: resultado, isError } = useQuery({
+    queryKey: ["relatorio_inadimplencia_detalhado", irmaoId, vencimentoDe, vencimentoAte],
+    queryFn: () =>
+      relatorioInadimplenciaDetalhado({
+        data: {
+          irmaoId: irmaoId === "todos" ? null : irmaoId,
+          vencimentoDe: vencimentoDe || null,
+          vencimentoAte: vencimentoAte || null,
+        },
+      }),
   });
   const { data: irmaos = [] } = useQuery({
     queryKey: ["irmaos_nomes"],
     queryFn: () => listarIrmaosNomes(),
   });
 
-  const itens = todosItens
-    .filter((i) => irmaoId === "todos" || i.irmao_id === irmaoId)
-    .filter((i) => !vencimentoDe || i.data_vencimento >= vencimentoDe)
-    .filter((i) => !vencimentoAte || i.data_vencimento <= vencimentoAte);
+  const itens = resultado?.itens ?? [];
+  const truncado = resultado?.truncado ?? false;
 
   const itensOrdenadosManual = [...itens].sort((a, b) =>
     ordenacao === "dias_atraso" ? b.dias_atraso - a.dias_atraso : b.valor_total - a.valor_total,
@@ -250,6 +263,16 @@ function InadimplenciaDetalhada() {
           />
         }
       />
+
+      {truncado && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-warning-muted p-3 text-sm text-warning-foreground">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Mostrando só as 2.000 faturas mais atrasadas do filtro atual — refine por irmão ou
+            período para ver o restante.
+          </span>
+        </div>
+      )}
 
       <Card className="mb-4 grid gap-3 p-4 md:grid-cols-3">
         <div>
