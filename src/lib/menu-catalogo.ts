@@ -71,6 +71,7 @@ export const CATALOGO_MENU: ItemDeMenuCatalogo[] = [
   { to: "/administracao/resetar-financeiro", label: "Resetar Financeiro", grupo: "Tesouraria" },
 
   // Contabilidade
+  { to: "/contabilidade", label: "Visão Geral", grupo: "Contabilidade" },
   { to: "/contabilidade/razao", label: "Razão Contábil", grupo: "Contabilidade" },
   { to: "/contabilidade/diario", label: "Diário Contábil", grupo: "Contabilidade" },
   { to: "/contabilidade/dre", label: "DRE", grupo: "Contabilidade" },
@@ -101,6 +102,7 @@ export const CATALOGO_MENU: ItemDeMenuCatalogo[] = [
   { to: "/administracao/dados-entidade", label: "Dados da Entidade", grupo: "Administração" },
   { to: "/administracao/email", label: "E-mail", grupo: "Administração" },
   { to: "/administracao/menu-mobile", label: "Menu Mobile por Papel", grupo: "Administração" },
+  { to: "/administracao/backups", label: "Backups", grupo: "Administração" },
 
   // Meu Painel (menu do irmão comum) — itens que não aparecem em nenhum
   // grupo administrativo acima.
