@@ -1,0 +1,17 @@
+-- Achado #508 da auditoria: conciliar_ofx_baixando_lancamento (última
+-- definição em 0104) decide se posta lançamento contábil checando se existe
+-- uma linha em lancamentos_contabeis com origem_tipo IN ('fatura_provisao',
+-- 'conta_pagar_provisao') — mas registrar_lancamento_contabil (desde a 0086)
+-- tem, logo no início, "IF p_origem_tipo IN ('fatura_provisao',
+-- 'conta_pagar_provisao') THEN LEAVE rotina; END IF;" (regime de caixa: essas
+-- origens nunca geram lançamento contábil, de propósito). Ou seja, a condição
+-- que esta procedure checa é sempre FALSA, e ela nunca contabiliza em nenhum
+-- cenário — daria baixa em lancamentos.pago = TRUE sem contrapartida contábil
+-- nenhuma se alguém a chamasse.
+--
+-- Confirmado (de novo, antes de remover): nenhum caller em src/ — só
+-- aparece em comentários de relatorios.ts/tesouraria-conciliacao.ts
+-- classificando-a como fluxo legado, e nenhum CALL a ela em nenhuma outra
+-- procedure das migrações. Código morto e uma armadilha se reativado —
+-- remover é a opção mais simples e segura, nada depende dela hoje.
+DROP PROCEDURE IF EXISTS conciliar_ofx_baixando_lancamento;
