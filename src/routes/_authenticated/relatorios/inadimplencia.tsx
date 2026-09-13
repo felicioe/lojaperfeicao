@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -100,11 +100,22 @@ function InadimplenciaDetalhada() {
     queryFn: () => listarIrmaosNomes(),
   });
 
-  const itens = resultado?.itens ?? [];
+  // useMemo (não só `?? []`): sem isso, "itens" vira um array novo em TODO
+  // render mesmo com o mesmo `resultado`, o que por sua vez invalidaria a
+  // memoização de itensOrdenadosManual logo abaixo — mesma raiz do achado
+  // #545 da auditoria de performance.
+  const itens = useMemo(() => resultado?.itens ?? [], [resultado]);
   const truncado = resultado?.truncado ?? false;
 
-  const itensOrdenadosManual = [...itens].sort((a, b) =>
-    ordenacao === "dias_atraso" ? b.dias_atraso - a.dias_atraso : b.valor_total - a.valor_total,
+  // Sem isso, esse sort de até 2000 itens rodava em TODO render, inclusive
+  // por causas sem relação nenhuma (digitar num filtro, marcar um
+  // checkbox de seleção).
+  const itensOrdenadosManual = useMemo(
+    () =>
+      [...itens].sort((a, b) =>
+        ordenacao === "dias_atraso" ? b.dias_atraso - a.dias_atraso : b.valor_total - a.valor_total,
+      ),
+    [itens, ordenacao],
   );
 
   const ord = useOrdenacao(itensOrdenadosManual, {
