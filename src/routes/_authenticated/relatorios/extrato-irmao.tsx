@@ -356,7 +356,11 @@ function ExtratoIrmao() {
                     <TableHeadOrdenavel campo="vencimento" ord={ordAberto}>
                       Vencimento
                     </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="descricao" ord={ordAberto}>
+                    <TableHeadOrdenavel
+                      campo="descricao"
+                      ord={ordAberto}
+                      className="hidden sm:table-cell"
+                    >
                       Descrição
                     </TableHeadOrdenavel>
                     <TableHeadOrdenavel campo="valor" ord={ordAberto} className="text-right">
@@ -382,8 +386,12 @@ function ExtratoIrmao() {
                       <TableRow key={i.id}>
                         <TableCell>
                           {i.data_vencimento ? fmtDate(i.data_vencimento) : "—"}
+                          <div className="text-xs text-muted-foreground sm:hidden">
+                            {i.descricao}
+                            {i.tipo !== "entrada" && ` (${TIPO_LABEL[i.tipo] ?? i.tipo})`}
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           {i.descricao}
                           {i.tipo !== "entrada" && (
                             <span className="ml-2 text-xs text-muted-foreground">
@@ -439,7 +447,7 @@ function ExtratoIrmao() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Vencimento</TableHead>
-                    <TableHead>Descrição / composição</TableHead>
+                    <TableHead className="hidden sm:table-cell">Descrição / composição</TableHead>
                     <TableHead numeric>Valor</TableHead>
                     <TableHead>Situação</TableHead>
                   </TableRow>
@@ -454,8 +462,14 @@ function ExtratoIrmao() {
                   )}
                   {taxasSgcab.map((i) => (
                     <TableRow key={i.id}>
-                      <TableCell>{i.vencimento ? fmtDate(i.vencimento) : "—"}</TableCell>
                       <TableCell>
+                        {i.vencimento ? fmtDate(i.vencimento) : "—"}
+                        <div className="mt-0.5 text-xs text-muted-foreground sm:hidden">
+                          {i.titulo}
+                          {i.itens_descricao && ` — ${i.itens_descricao}`}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <div className="font-medium">{i.titulo}</div>
                         {i.itens_descricao && (
                           <div className="mt-0.5 text-xs text-muted-foreground">
@@ -504,7 +518,11 @@ function ExtratoIrmao() {
                     <TableHeadOrdenavel campo="pago_em" ord={ordHistorico}>
                       Pago em
                     </TableHeadOrdenavel>
-                    <TableHeadOrdenavel campo="descricao" ord={ordHistorico}>
+                    <TableHeadOrdenavel
+                      campo="descricao"
+                      ord={ordHistorico}
+                      className="hidden sm:table-cell"
+                    >
                       Descrição
                     </TableHeadOrdenavel>
                     <TableHeadOrdenavel campo="valor" ord={ordHistorico} className="text-right">
@@ -527,8 +545,12 @@ function ExtratoIrmao() {
                       <TableRow key={i.id}>
                         <TableCell className="text-muted-foreground">
                           {i.data_pagamento ? fmtDate(i.data_pagamento) : "—"}
+                          <div className="text-xs sm:hidden">
+                            {i.descricao}
+                            {i.tipo !== "entrada" && ` (${TIPO_LABEL[i.tipo] ?? i.tipo})`}
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           {i.descricao}
                           {i.tipo !== "entrada" && (
                             <span className="ml-2 text-xs text-muted-foreground">

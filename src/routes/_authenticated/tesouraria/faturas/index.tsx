@@ -301,10 +301,14 @@ function Faturas() {
                   <TableHeadOrdenavel campo="irmao" ord={ord}>
                     Irmão
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="descricao" ord={ord}>
+                  <TableHeadOrdenavel campo="descricao" ord={ord} className="hidden sm:table-cell">
                     Descrição
                   </TableHeadOrdenavel>
-                  <TableHeadOrdenavel campo="competencia" ord={ord}>
+                  <TableHeadOrdenavel
+                    campo="competencia"
+                    ord={ord}
+                    className="hidden sm:table-cell"
+                  >
                     Competência
                   </TableHeadOrdenavel>
                   <TableHeadOrdenavel campo="vencimento" ord={ord}>
@@ -341,9 +345,14 @@ function Faturas() {
                           />
                         </TableCell>
                       )}
-                      <TableCell>{f.irmaos?.nome_civil ?? "—"}</TableCell>
-                      <TableCell>{f.descricao}</TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell>
+                        {f.irmaos?.nome_civil ?? "—"}
+                        <div className="text-xs text-muted-foreground sm:hidden">
+                          {[f.descricao, fmtMesAno(f.competencia_mes)].filter(Boolean).join(" · ")}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">{f.descricao}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">
                         {fmtMesAno(f.competencia_mes)}
                       </TableCell>
                       <TableCell>
