@@ -476,7 +476,7 @@ export const listarAuditoriaDesbalanceados = createServerFn({ method: "GET" })
 // existe conflito de granularidade porque aqui não importa qual fatura
 // cada linha pagou (isso é ambíguo quando a quantidade de linhas de OFX
 // não bate com a quantidade de faturas — mesmo caso de
-// `parearLotePorOrdem` em relatorios.ts), só quanto e quando o dinheiro
+// `parearLotePorOrdem` em conciliacao-pareamento.ts), só quanto e quando o dinheiro
 // realmente entrou.
 //
 // "Movimento contábil" é a soma de débito−crédito, por mês, dos itens

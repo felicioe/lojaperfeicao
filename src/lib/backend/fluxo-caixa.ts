@@ -3,6 +3,82 @@ import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { comSessao } from "./authz";
+import { reconstruirDataPagamentoLote } from "./conciliacao-pareamento";
+
+type MovimentoLote = { valor: number; tipo: "entrada" | "saida"; data_pagamento: string };
+
+// Conciliação em lote (issue #510): c.data_conciliacao é só a data em que o
+// LOTE foi processado, não quando cada fatura foi de fato paga — um lote
+// pode juntar Pix de meses diferentes quitando faturas atrasadas de meses
+// diferentes. Usar data_conciliacao direto (como as duas funções abaixo
+// faziam) atribuía o recebimento/pagamento inteiro ao mês de processamento
+// do lote, divergindo do Relatório de Recebimentos (relatorios.ts), que já
+// reconstrói a data real por lançamento. Extraído pra cá porque
+// obterFluxoAnteriores e listarMovimentosRealizados precisam do mesmo
+// cálculo, só filtrando o período de forma diferente.
+async function buscarMovimentosLoteReconstruidos(
+  conn: PoolConnection,
+  condicaoIrmao: string,
+  valoresIrmao: unknown[],
+): Promise<MovimentoLote[]> {
+  const [clRows] = await conn.query<RowDataPacket[]>(
+    `SELECT cl.id, cl.conciliacao_id, cl.valor_aplicado AS valor, l.tipo, c.data_conciliacao,
+            COALESCE(l.data_vencimento, l.data) AS ordenacao
+     FROM conciliacao_lancamentos cl
+     JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                        AND c.status = 'ativa'
+     JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+     WHERE cl.loja_id = @current_loja_id
+       AND l.tipo IN ('entrada','saida') ${condicaoIrmao}`,
+    valoresIrmao,
+  );
+  if (clRows.length === 0) return [];
+
+  const idsConciliacao = [...new Set(clRows.map((r) => r.conciliacao_id as string))];
+  const [ofxRows] = await conn.query<RowDataPacket[]>(
+    `SELECT id, conciliacao_id, data, valor FROM ofx_lancamentos
+     WHERE conciliacao_id IN (?) AND loja_id = @current_loja_id`,
+    [idsConciliacao],
+  );
+  const ofxPorConciliacao = new Map<string, { id: string; data: string; valor: number }[]>();
+  for (const o of ofxRows) {
+    const lista = ofxPorConciliacao.get(o.conciliacao_id) ?? [];
+    lista.push({ id: o.id, data: String(o.data), valor: Number(o.valor) });
+    ofxPorConciliacao.set(o.conciliacao_id, lista);
+  }
+  const clPorConciliacao = new Map<string, RowDataPacket[]>();
+  for (const r of clRows) {
+    const lista = clPorConciliacao.get(r.conciliacao_id) ?? [];
+    lista.push(r);
+    clPorConciliacao.set(r.conciliacao_id, lista);
+  }
+
+  const resultado: MovimentoLote[] = [];
+  for (const conciliacaoId of idsConciliacao) {
+    const ofxDoLote = ofxPorConciliacao.get(conciliacaoId) ?? [];
+    const clDoLote = clPorConciliacao.get(conciliacaoId) ?? [];
+    const dataPorClId =
+      ofxDoLote.length > 0
+        ? reconstruirDataPagamentoLote(
+            ofxDoLote,
+            clDoLote.map((r) => ({
+              id: r.id as string,
+              ordenacao: String(r.ordenacao),
+              valor: Number(r.valor),
+            })),
+          )
+        : new Map<string, string>();
+    for (const r of clDoLote) {
+      const dataReal = dataPorClId.get(r.id as string) ?? (r.data_conciliacao as string);
+      resultado.push({
+        valor: Number(r.valor),
+        tipo: r.tipo as "entrada" | "saida",
+        data_pagamento: dataReal,
+      });
+    }
+  }
+  return resultado;
+}
 
 // Mesma visibilidade "privilegiado ou próprio" de tesouraria-lancamentos.ts/dashboard.ts.
 const PAPEIS_PRIVILEGIADOS = ["admin", "tesoureiro", "secretario"];
@@ -56,14 +132,6 @@ export const obterFluxoAnteriores = createServerFn({ method: "GET" })
            WHERE ri.loja_id = @current_loja_id
              AND l.tipo IN ('entrada','saida') ${condicaoIrmao}
            UNION ALL
-           SELECT cl.valor_aplicado AS valor, l.tipo, c.data_conciliacao AS data_pagamento
-           FROM conciliacao_lancamentos cl
-           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
-                              AND c.status = 'ativa'
-           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
-           WHERE cl.loja_id = @current_loja_id
-             AND l.tipo IN ('entrada','saida') ${condicaoIrmao}
-           UNION ALL
            SELECT l.valor, l.tipo, l.data_pagamento
            FROM lancamentos l
            WHERE l.loja_id = @current_loja_id
@@ -79,9 +147,12 @@ export const obterFluxoAnteriores = createServerFn({ method: "GET" })
              ${condicaoIrmao}
          ) mov
          WHERE data_pagamento < ?`,
-        [...valoresIrmao, ...valoresIrmao, ...valoresIrmao, data.de],
+        [...valoresIrmao, ...valoresIrmao, data.de],
       );
-      return rows.reduce(
+      const movimentosLote = (
+        await buscarMovimentosLoteReconstruidos(conn, condicaoIrmao, valoresIrmao)
+      ).filter((m) => m.data_pagamento < data.de);
+      return [...rows, ...movimentosLote].reduce(
         (s, l) => s + (l.tipo === "entrada" ? Number(l.valor) : -Number(l.valor)),
         0,
       );
@@ -119,14 +190,6 @@ export const listarMovimentosRealizados = createServerFn({ method: "GET" })
            WHERE ri.loja_id = @current_loja_id
              AND l.tipo IN ('entrada','saida') ${condicaoIrmao}
            UNION ALL
-           SELECT cl.valor_aplicado AS valor, l.tipo, c.data_conciliacao AS data_pagamento
-           FROM conciliacao_lancamentos cl
-           JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
-                              AND c.status = 'ativa'
-           JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
-           WHERE cl.loja_id = @current_loja_id
-             AND l.tipo IN ('entrada','saida') ${condicaoIrmao}
-           UNION ALL
            SELECT l.valor, l.tipo, l.data_pagamento
            FROM lancamentos l
            WHERE l.loja_id = @current_loja_id
@@ -143,9 +206,14 @@ export const listarMovimentosRealizados = createServerFn({ method: "GET" })
          ) mov
          WHERE data_pagamento >= ? AND data_pagamento <= ?
          ORDER BY data_pagamento`,
-        [...valoresIrmao, ...valoresIrmao, ...valoresIrmao, data.de, data.ate],
+        [...valoresIrmao, ...valoresIrmao, data.de, data.ate],
       );
-      return rows as MovimentoRealizado[];
+      const movimentosLote = (
+        await buscarMovimentosLoteReconstruidos(conn, condicaoIrmao, valoresIrmao)
+      ).filter((m) => m.data_pagamento >= data.de && m.data_pagamento <= data.ate);
+      return [...(rows as MovimentoRealizado[]), ...movimentosLote].sort((a, b) =>
+        a.data_pagamento.localeCompare(b.data_pagamento),
+      );
     });
   });
 
