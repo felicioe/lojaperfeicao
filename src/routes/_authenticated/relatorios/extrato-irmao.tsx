@@ -41,7 +41,7 @@ import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import type { ColunaRelatorio } from "@/lib/relatorio-export";
-import { Info, Loader2, Mail } from "lucide-react";
+import { AlertTriangle, Info, Loader2, Mail } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/relatorios/extrato-irmao")({
   head: () => ({ meta: [{ title: "Extrato do Irmão — Gestão Maçônica" }] }),
@@ -85,11 +85,13 @@ function ExtratoIrmao() {
     queryFn: () => listarIrmaosNomes(),
   });
 
-  const { data: itens = [] } = useQuery({
+  const { data: extratoIrmao } = useQuery({
     queryKey: ["relatorio_extrato_irmao", irmaoId, de, ate],
     enabled: !!irmaoId,
     queryFn: () => relatorioExtratoIrmao({ data: { irmaoId, de: de || null, ate: ate || null } }),
   });
+  const itens = extratoIrmao?.itens ?? [];
+  const truncado = extratoIrmao?.truncado ?? false;
 
   const { data: taxasSgcab = [] } = useQuery({
     queryKey: ["relatorio_extrato_sgcab_irmao", irmaoId, de, ate],
@@ -251,6 +253,16 @@ function ExtratoIrmao() {
           )
         }
       />
+
+      {truncado && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-warning-muted p-3 text-sm text-warning-foreground">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Mostrando só os 2.000 lançamentos mais recentes do período filtrado — refine o período
+            para ver o restante.
+          </span>
+        </div>
+      )}
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-3">
         <div>

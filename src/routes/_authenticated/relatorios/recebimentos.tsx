@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { brl, fmtDate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
@@ -66,7 +67,7 @@ function Recebimentos() {
     queryFn: () => listarIrmaosNomes(),
   });
 
-  const { data: itens = [], isError } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: [
       "relatorio_recebimentos",
       competenciaMes,
@@ -90,6 +91,8 @@ function Recebimentos() {
         },
       }),
   });
+  const itens = data?.itens ?? [];
+  const truncado = data?.truncado ?? false;
 
   const totalGeral = itens.reduce((s, i) => s + Number(i.valor), 0);
   const porFormaPagamento = new Map<string, number>();
@@ -139,6 +142,16 @@ function Recebimentos() {
           />
         }
       />
+
+      {truncado && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-warning-muted p-3 text-sm text-warning-foreground">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Mostrando só os 2.000 recebimentos mais recentes do período filtrado — refine o período
+            ou os filtros para ver o restante.
+          </span>
+        </div>
+      )}
 
       <Card className="mb-4 p-4 grid gap-3 md:grid-cols-4">
         <div>
