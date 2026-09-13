@@ -84,6 +84,38 @@ async function gerarLoginUnico(conn: PoolConnection, nomeCivil: string): Promise
 }
 
 /**
+ * Mesma regra de unicidade de gerarLoginUnico, mas resolvida em memória
+ * contra um conjunto de logins já conhecido — usada por rotinas que
+ * processam VÁRIOS irmãos de uma vez (listarIrmaosSemAcesso,
+ * criarAcessosEmLote). Reservar o candidato no próprio `loginsExistentes`
+ * (mutando o Set) garante que dois irmãos com nomes que geram o mesmo login
+ * base, processados no mesmo lote, ainda saem com sufixos distintos —
+ * sem isso, cada um faria uma consulta ao banco por candidato testado
+ * (achados #548/#551 da auditoria de performance: "mínimo 7 queries por
+ * irmão", boa parte delas só pra gerar o login).
+ */
+function gerarLoginUnicoEmMemoria(nomeCivil: string, loginsExistentes: Set<string>): string {
+  const base = gerarLoginBase(nomeCivil);
+  let candidato = base;
+  let sufixo = 2;
+  while (loginsExistentes.has(candidato)) {
+    candidato = `${base}${sufixo}`;
+    sufixo++;
+  }
+  loginsExistentes.add(candidato);
+  return candidato;
+}
+
+// Todos os logins já usados na Loja — buscados uma única vez pra alimentar
+// gerarLoginUnicoEmMemoria, em vez de 1+ query por irmão dentro de um loop.
+async function buscarLoginsExistentes(conn: PoolConnection): Promise<Set<string>> {
+  const [rows] = await conn.query<RowDataPacket[]>(
+    "SELECT email FROM usuarios WHERE loja_id = @current_loja_id",
+  );
+  return new Set(rows.map((r) => r.email as string));
+}
+
+/**
  * Cria a conta na Loja informada, no lugar da procedure `criar_usuario` (0006).
  *
  * A procedure é anterior ao multi-tenant e faz duas coisas erradas hoje: o
@@ -169,14 +201,12 @@ export const listarIrmaosSemAcesso = createServerFn({ method: "GET" }).handler(
       const [rows] = await conn.query<RowDataPacket[]>(
         "SELECT id, nome_civil FROM irmaos WHERE usuario_id IS NULL AND loja_id = @current_loja_id ORDER BY nome_civil",
       );
-      const comLogin = await Promise.all(
-        rows.map(async (r) => ({
-          id: r.id as string,
-          nome_civil: r.nome_civil as string,
-          loginSugerido: await gerarLoginUnico(conn, r.nome_civil),
-        })),
-      );
-      return comLogin;
+      const loginsExistentes = await buscarLoginsExistentes(conn);
+      return rows.map((r) => ({
+        id: r.id as string,
+        nome_civil: r.nome_civil as string,
+        loginSugerido: gerarLoginUnicoEmMemoria(r.nome_civil, loginsExistentes),
+      }));
     });
   },
 );
@@ -268,10 +298,15 @@ export const criarAcessosEmLote = createServerFn({ method: "POST" })
       );
       const criados: { nome: string; login: string; senha: string }[] = [];
       const falhas: { nome: string; motivo: string }[] = [];
+      // Uma única busca de logins existentes pra todo o lote (achado #548 da
+      // auditoria de performance), em vez de gerarLoginUnico consultando o
+      // banco por candidato testado dentro do loop — pra 40 irmãos, isso
+      // sozinho já eliminava boa parte das ~280 idas ao banco.
+      const loginsExistentes = await buscarLoginsExistentes(conn);
 
       for (const irmao of irmaos) {
         try {
-          const login = await gerarLoginUnico(conn, irmao.nome_civil);
+          const login = gerarLoginUnicoEmMemoria(irmao.nome_civil, loginsExistentes);
           const senha = gerarSenhaTemporaria();
           const senhaHash = await bcrypt.hash(senha, 10);
           const novoId = await criarUsuarioNaLoja(conn, lojaId, {
