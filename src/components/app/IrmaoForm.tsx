@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export type GrauIrmao = "aprendiz" | "companheiro" | "mestre";
-export type SituacaoIrmao = "ativo" | "quite" | "irregular" | "adormecido";
+export type SituacaoIrmao =
+  "ativo" | "quite" | "irregular" | "adormecido" | "desligado" | "falecido";
 
 export type IrmaoData = {
   nome_civil: string;
@@ -178,6 +179,8 @@ export function IrmaoForm({
                 <SelectItem value="quite">Quite</SelectItem>
                 <SelectItem value="irregular">Irregular</SelectItem>
                 <SelectItem value="adormecido">Adormecido</SelectItem>
+                <SelectItem value="desligado">Desligado</SelectItem>
+                <SelectItem value="falecido">Falecido</SelectItem>
               </SelectContent>
             </Select>
           </Field>

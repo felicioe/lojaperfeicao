@@ -85,7 +85,7 @@ export type Irmao = {
   data_iniciacao: string | null;
   data_elevacao: string | null;
   data_exaltacao: string | null;
-  situacao: "ativo" | "quite" | "irregular" | "adormecido";
+  situacao: "ativo" | "quite" | "irregular" | "adormecido" | "desligado" | "falecido";
   potencia: string | null;
   loja_origem: string | null;
   email: string | null;

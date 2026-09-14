@@ -41,6 +41,8 @@ export const SITUACAO_LABEL: Record<string, string> = {
   quite: "Quite",
   irregular: "Irregular",
   adormecido: "Adormecido",
+  desligado: "Desligado",
+  falecido: "Falecido",
 };
 
 export const TIPO_SESSAO_LABEL: Record<string, string> = {

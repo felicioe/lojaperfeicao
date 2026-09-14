@@ -72,14 +72,18 @@ function IrmaosList() {
     ord.itensOrdenados,
   );
 
-  // As quatro situações do irmão e a variante de Badge de cada uma. O Record
-  // tipado troca o cast por uma checagem real: escrever um nome de variante
-  // que o Badge não tem passa a ser erro de compilação.
+  // As situações do irmão (achado #608 da auditoria: desligado/falecido
+  // adicionados ao lado de ativo/quite/irregular/adormecido) e a variante
+  // de Badge de cada uma. O Record tipado troca o cast por uma checagem
+  // real: escrever um nome de variante que o Badge não tem passa a ser
+  // erro de compilação.
   const VARIANTE_POR_SITUACAO: Record<string, VarianteBadge> = {
     ativo: "default",
     quite: "secondary",
     irregular: "destructive",
     adormecido: "outline",
+    desligado: "outline",
+    falecido: "outline",
   };
   const situacaoVariant = (s: string): VarianteBadge => VARIANTE_POR_SITUACAO[s] ?? "outline";
 
