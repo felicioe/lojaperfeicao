@@ -4,6 +4,7 @@ import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { comSessao, comPapel, SemPermissaoError } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+import { validarCPF, normalizarCPF } from "../cpf";
 
 // RLS original (mysql/migrations/0002_cadastros.sql):
 // - irmaos: SELECT admin/secretario/tesoureiro (tudo) OU o próprio (usuario_id = current);
@@ -296,6 +297,25 @@ export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
       // deixar o UPDATE abaixo simplesmente não casar nada é o que evita uma
       // auditoria com `antes` nulo registrando uma edição que nunca aconteceu.
       if (!antes) throw new SemPermissaoError("Irmão não encontrado nesta Loja.");
+      // CPF: formato + dígito verificador (mesma validação já usada pra
+      // chave Pix, src/lib/cpf.ts) e checagem de duplicidade nesta Loja —
+      // antes o campo aceitava qualquer string, sem checagem nenhuma
+      // (achado #606 da auditoria de Irmãos). Só valida quando o campo é
+      // de fato enviado e não está sendo limpo.
+      if (campos.includes("cpf") && data.perfil.cpf) {
+        const cpfNormalizado = normalizarCPF(String(data.perfil.cpf));
+        if (!validarCPF(cpfNormalizado)) {
+          throw new Error("CPF inválido — confira os números digitados.");
+        }
+        const [[duplicado]] = await conn.query<RowDataPacket[]>(
+          `SELECT nome_civil FROM irmaos
+            WHERE loja_id = @current_loja_id AND id <> ? AND REPLACE(REPLACE(cpf, '.', ''), '-', '') = ?`,
+          [data.id, cpfNormalizado],
+        );
+        if (duplicado) {
+          throw new Error(`Este CPF já está cadastrado para ${duplicado.nome_civil}.`);
+        }
+      }
       // Editar a mensalidade aqui (fora do reajuste em massa) só conta como
       // negociação individual quando o valor DE FATO muda — a tela de
       // perfil (irmaos/$id.tsx) manda TODOS os campos em toda edição, então

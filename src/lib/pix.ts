@@ -3,21 +3,7 @@
 // Pix válida gera um código estático que os apps de banco sabem ler.
 // Especificação: https://www.bcb.gov.br/estabilidadefinanceira/pix (manual
 // de padrões para iniciação do Pix).
-
-function validarCPF(valor: string): boolean {
-  const digitos = valor.replace(/\D/g, "");
-  if (digitos.length !== 11 || /^(\d)\1{10}$/.test(digitos)) return false;
-  let soma = 0;
-  for (let i = 0; i < 9; i++) soma += Number(digitos[i]) * (10 - i);
-  let resto = (soma * 10) % 11;
-  if (resto >= 10) resto = 0;
-  if (resto !== Number(digitos[9])) return false;
-  soma = 0;
-  for (let i = 0; i < 10; i++) soma += Number(digitos[i]) * (11 - i);
-  resto = (soma * 10) % 11;
-  if (resto >= 10) resto = 0;
-  return resto === Number(digitos[10]);
-}
+import { validarCPF } from "./cpf";
 
 function validarCNPJ(valor: string): boolean {
   const digitos = valor.replace(/\D/g, "");
