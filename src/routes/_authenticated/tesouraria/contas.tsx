@@ -5,6 +5,7 @@ import {
   listarSaldoContas,
   criarContaFinanceira,
   editarContaFinanceira,
+  removerContaFinanceira,
   listarChavesPix,
   criarChavePix,
   removerChavePix,
@@ -120,6 +121,16 @@ function Contas() {
       qc.invalidateQueries({ queryKey: ["saldo_contas"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    }
+  };
+
+  const remover = async (id: string) => {
+    try {
+      await removerContaFinanceira({ data: { id } });
+      toast.success("Conta removida.");
+      qc.invalidateQueries({ queryKey: ["saldo_contas"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao remover.");
     }
   };
 
@@ -258,6 +269,32 @@ function Contas() {
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-11 w-11 shrink-0 p-0"
+                        aria-label={`Remover conta ${c.nome}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remover conta "{c.nome}"?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          A conta será removida permanentemente, junto com as chaves Pix cadastradas
+                          nela. Só é possível remover contas sem lançamentos, recibos, conciliações
+                          ou extrato importado — se ela já tiver movimento, a remoção será recusada.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => remover(c.id)}>Remover</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
                 {expandido === c.id && (
                   <div className="border-t bg-muted/30 px-4 pb-4">
@@ -286,7 +323,7 @@ function Contas() {
                   Saldo atual
                 </TableHeadOrdenavel>
                 <TableHead>Conta contábil</TableHead>
-                <TableHead className="w-10"></TableHead>
+                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -326,14 +363,44 @@ function Contas() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Editar conta ${c.nome}`}
-                        onClick={() => setEditando(c)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Editar conta ${c.nome}`}
+                          onClick={() => setEditando(c)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Remover conta ${c.nome}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover conta "{c.nome}"?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                A conta será removida permanentemente, junto com as chaves Pix
+                                cadastradas nela. Só é possível remover contas sem lançamentos,
+                                recibos, conciliações ou extrato importado — se ela já tiver
+                                movimento, a remoção será recusada.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => remover(c.id)}>
+                                Remover
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                   {expandido === c.id && (

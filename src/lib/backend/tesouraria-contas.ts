@@ -126,6 +126,64 @@ export const editarContaFinanceira = createServerFn({ method: "POST" })
     });
   });
 
+// Bloqueia a exclusão quando a conta já teve algum movimento real —
+// checagem prévia em vez de deixar a constraint do banco decidir: as FKs de
+// conta_financeira_id são inconsistentes entre si (RESTRICT em lancamentos/
+// conciliacoes/recibos_avulsos falharia com um erro SQL cru não tratado
+// aqui; CASCADE em ofx_lancamentos/ofx_extratos/contas_financeiras_pix
+// apagaria dados de movimentação bancária de verdade sem avisar; SET NULL
+// em recibos deixaria um recibo já emitido sem saber de qual conta saiu o
+// dinheiro) — mesmo espírito do achado #605 (bloqueio de exclusão de
+// irmão com vínculo financeiro). Chaves Pix (contas_financeiras_pix) NÃO
+// entram nesta checagem: são só configuração da conta, não movimento —
+// seguem apagadas via CASCADE junto com a conta, como já esperado.
+async function contaTemMovimento(conn: PoolConnection, contaId: string): Promise<boolean> {
+  const [[linha]] = await conn.query<RowDataPacket[]>(
+    `SELECT
+       EXISTS(SELECT 1 FROM lancamentos WHERE (conta_id = ? OR conta_destino_id = ?) AND loja_id = @current_loja_id) AS tem_lancamento,
+       EXISTS(SELECT 1 FROM recibos WHERE conta_financeira_id = ? AND loja_id = @current_loja_id) AS tem_recibo,
+       EXISTS(SELECT 1 FROM recibos_avulsos WHERE conta_financeira_id = ? AND loja_id = @current_loja_id) AS tem_recibo_avulso,
+       EXISTS(SELECT 1 FROM conciliacoes WHERE conta_financeira_id = ? AND loja_id = @current_loja_id) AS tem_conciliacao,
+       EXISTS(SELECT 1 FROM ofx_lancamentos WHERE conta_financeira_id = ? AND loja_id = @current_loja_id) AS tem_ofx_lancamento,
+       EXISTS(SELECT 1 FROM ofx_anulacoes WHERE conta_financeira_id = ? AND loja_id = @current_loja_id) AS tem_ofx_anulacao,
+       EXISTS(SELECT 1 FROM ofx_extratos WHERE conta_financeira_id = ? AND loja_id = @current_loja_id) AS tem_ofx_extrato`,
+    [contaId, contaId, contaId, contaId, contaId, contaId, contaId, contaId],
+  );
+  return Object.values(linha).some((v) => !!v);
+}
+
+const removerContaSchema = z.object({ id: z.string().uuid() });
+
+export const removerContaFinanceira = createServerFn({ method: "POST" })
+  .validator((d: unknown) => removerContaSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
+      const [[conta]] = await conn.query<RowDataPacket[]>(
+        "SELECT * FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
+      if (!conta) throw new Error("Conta não encontrada nesta Loja.");
+      if (await contaTemMovimento(conn, data.id)) {
+        throw new Error(
+          "Esta conta já tem lançamentos, recibos, conciliações ou extrato importado vinculados — não é possível excluir sem perder esse histórico. Use o campo Tipo/Banco pra renomear em vez de excluir, ou desative o uso dela.",
+        );
+      }
+      await conn.query(
+        "DELETE FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "excluir",
+        "conta_financeira",
+        data.id,
+        conta,
+        null,
+      );
+    });
+  });
+
 // ---------- Chaves PIX (por conta) ----------
 // Usadas pra gerar o "Pix Copia e Cola" (BR Code) impresso na fatura —
 // ver src/lib/pix.ts. Uma conta pode ter várias chaves de tipos
