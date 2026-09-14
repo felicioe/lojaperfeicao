@@ -16,6 +16,7 @@ import { isoBase64URL, isoUint8Array } from "@simplewebauthn/server/helpers";
 import { comSessao } from "./authz";
 import { withUserConnection } from "./db";
 import { usuarioUnicoParaLogin } from "./login-loja";
+import { lojaIdParaFiltroDeLogin, slugDaRequisicaoAtual } from "./subdominio";
 import { criarSessao, salvarDesafioWebauthn, consumirDesafioWebauthn } from "./session";
 import { carregarUsuarioComPapeis, type UsuarioSessao } from "./usuario-sessao";
 import { registrarAuditoria } from "./auditoria";
@@ -165,10 +166,20 @@ const HASH_DUMMY_TIMING = "$2b$10$Vun8doqKyfXFfoDBcD00xuFeAP/DQx1F9bKogKU/0DfbpN
 export const iniciarLoginPasskey = createServerFn({ method: "POST" })
   .validator((d: unknown) => iniciarLoginSchema.parse(d))
   .handler(async ({ data }): Promise<PublicKeyCredentialRequestOptionsJSON> => {
+    // Mesma resolução de loja por subdomínio já usada no login por senha,
+    // Google e recuperação de senha (achado #616) — sem isso, o mesmo
+    // e-mail cadastrado em duas lojas (permitido desde a migração 0092)
+    // fazia usuarioUnicoParaLogin recusar por ambiguidade e bloqueava o
+    // login por passkey pros dois usuários, mesmo acessando pelo
+    // subdomínio certo de uma das duas.
+    const slug = slugDaRequisicaoAtual();
     const usuario = await withUserConnection(null, async (conn) => {
+      const lojaId = await lojaIdParaFiltroDeLogin(conn, slug);
       const [rows] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM usuarios WHERE email = ? AND ativo = TRUE",
-        [data.email],
+        lojaId
+          ? "SELECT id FROM usuarios WHERE email = ? AND ativo = TRUE AND loja_id = ?"
+          : "SELECT id FROM usuarios WHERE email = ? AND ativo = TRUE",
+        lojaId ? [data.email, lojaId] : [data.email],
       );
       return usuarioUnicoParaLogin(rows);
     });
