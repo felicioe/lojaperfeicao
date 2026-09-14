@@ -1,14 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
 import { useMeuIrmao } from "@/lib/use-meu-irmao";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { listarLancamentosIrmao } from "@/lib/backend/irmaos";
+import {
+  enviarMinhasFaturasEmAbertoPorEmail,
+  type ResultadoEnvioFaturasAbertas,
+} from "@/lib/backend/tesouraria-faturas";
 import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { brl, fmtDate } from "@/lib/format";
-import { Download, Wallet } from "lucide-react";
+import { Download, Loader2, Mail, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel/financeiro")({
   component: PainelFinanceiro,
@@ -18,6 +24,7 @@ function PainelFinanceiro() {
   const isDesktop = useIsDesktop();
   const meuIrmao = useMeuIrmao();
   const irmaoId = meuIrmao.data?.id ?? null;
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
 
   const lancamentos = useQuery({
     queryKey: ["painel", "lancamentos", irmaoId],
@@ -41,6 +48,24 @@ function PainelFinanceiro() {
   const totalEmAberto = emAberto.reduce((a, l) => a + Number(l.valor) - Number(l.valor_pago), 0);
   const statusLabel = (l: (typeof itens)[number]) =>
     l.pago ? "Pago" : Number(l.valor_pago) > 0 ? "Parcial" : "Em aberto";
+
+  const enviarPorEmail = async () => {
+    setEnviandoEmail(true);
+    try {
+      const r: ResultadoEnvioFaturasAbertas = await enviarMinhasFaturasEmAbertoPorEmail();
+      if (r.irmaosEnviados > 0) {
+        toast.success("Faturas em aberto enviadas para o seu e-mail cadastrado.");
+      } else if (r.irmaosSemEmail > 0) {
+        toast.error("Você não tem e-mail cadastrado. Atualize em Meus Dados.");
+      } else {
+        toast.error("Não foi possível enviar as faturas.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao enviar faturas por e-mail.");
+    } finally {
+      setEnviandoEmail(false);
+    }
+  };
 
   const exportarCSV = () => {
     const cabecalho = ["Data", "Descrição", "Tipo", "Valor", "Status"];
@@ -70,9 +95,19 @@ function PainelFinanceiro() {
           title="Financeiro"
           actions={
             itens.length > 0 && (
-              <Button variant="outline" onClick={exportarCSV}>
-                <Download className="mr-1.5 h-4 w-4" /> Exportar CSV
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={exportarCSV}>
+                  <Download className="mr-1.5 h-4 w-4" /> Exportar CSV
+                </Button>
+                <Button variant="outline" onClick={enviarPorEmail} disabled={enviandoEmail}>
+                  {enviandoEmail ? (
+                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="mr-1.5 h-4 w-4" />
+                  )}
+                  Enviar por e-mail
+                </Button>
+              </div>
             )
           }
         />
@@ -91,9 +126,24 @@ function PainelFinanceiro() {
       </Card>
 
       {!isDesktop && itens.length > 0 && (
-        <Button variant="outline" className="w-full" onClick={exportarCSV}>
-          <Download className="mr-1.5 h-4 w-4" /> Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={exportarCSV}>
+            <Download className="mr-1.5 h-4 w-4" /> CSV
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={enviarPorEmail}
+            disabled={enviandoEmail}
+          >
+            {enviandoEmail ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Mail className="mr-1.5 h-4 w-4" />
+            )}
+            E-mail
+          </Button>
+        </div>
       )}
 
       {lancamentos.isError ? (

@@ -106,7 +106,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen min-h-dvh bg-muted/30">
       <div className="mx-auto flex min-h-screen min-h-dvh w-full max-w-md flex-col bg-background shadow-sm">
-        <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b bg-background px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <header className="sticky top-0 z-40 flex min-h-16 transform-gpu items-center justify-between border-b bg-background px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
           <button
             type="button"
             aria-label="Abrir menu"
@@ -138,7 +138,15 @@ export function PainelShell({ children }: { children: ReactNode }) {
 
         <nav
           aria-label="Navegação principal"
-          className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md border-t bg-primary pb-[env(safe-area-inset-bottom)] text-primary-foreground"
+          // transform-gpu força esta barra pra sua própria camada composta —
+          // sem isso, no Safari iOS ela "flutua" pra posições intermediárias
+          // da tela durante o gesto de rolagem (relatado pelo usuário) em vez
+          // de ficar grudada no rodapé real da viewport. É o efeito colateral
+          // conhecido de `overflow-x: clip` no html/body (ver comentário em
+          // styles.css) somado a `position: fixed`: o WebKit ocasionalmente
+          // recalcula a posição do elemento fixo contra o layout antigo
+          // durante o scroll com momentum, até o gesto terminar.
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md transform-gpu border-t bg-primary pb-[env(safe-area-inset-bottom)] text-primary-foreground"
         >
           <div className="flex">
             {abas.map((aba) => {
