@@ -58,7 +58,14 @@ export type ResultadoBackup = {
  * - tentativas_login guarda e-mail e IP de tentativas de TODAS as Lojas (o
  *   rate limit é pré-login, quando ainda não se sabe a loja);
  * - o cache de CNPJ é resposta de API pública, sem dono;
- * - o estado de OAuth expira em minutos e não é dado de negócio.
+ * - o estado de OAuth expira em minutos e não é dado de negócio;
+ * - backups_gerados é a própria tabela deste backup (tem loja_id, então sem
+ *   essa exclusão ela seria incluída no dump com a coluna `conteudo` dos
+ *   backups anteriores — auto-referencial: o backup de hoje conteria o
+ *   texto bruto dos até RETENCAO_MAXIMA backups retidos, cada um já
+ *   contendo os dele, crescendo de forma composta a cada geração diária até
+ *   estourar o tempo de execução ou o limite de LONGTEXT/max_allowed_packet
+ *   do MySQL — achado #618 da auditoria de backups).
  *
  * Incluí-las num arquivo entregue ao admin de uma Loja seria vazar dado das
  * outras — exatamente o que este backup passou a evitar.
@@ -71,6 +78,7 @@ const TABELAS_GLOBAIS_FORA_DO_BACKUP = new Set([
   "facebook_oauth_state",
   "google_login_tickets",
   "facebook_login_tickets",
+  "backups_gerados",
 ]);
 
 /**
