@@ -35,13 +35,14 @@ export type Orcamento = {
   ano: number;
   status: "rascunho" | "aprovado";
   observacoes: string | null;
+  versao: number;
 };
 
 export const listarOrcamentos = createServerFn({ method: "GET" }).handler(
   async (): Promise<Orcamento[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, ano, status, observacoes FROM orcamentos
+        `SELECT id, ano, status, observacoes, versao FROM orcamentos
           WHERE loja_id = @current_loja_id
           ORDER BY ano DESC`,
       );
@@ -216,5 +217,50 @@ export const obterOrcamentoCaixaMensal = createServerFn({ method: "GET" })
         porMes.set(r.mes, atual);
       }
       return Array.from(porMes.values());
+    });
+  });
+
+// ---------- Versionamento (issue #582) ----------
+// Cada aprovação tira um snapshot dos itens vigentes (competência + caixa)
+// sob a versão corrente — reabrir incrementa a versão pra próxima
+// aprovação não sobrescrever o snapshot anterior (migração 0149).
+export type OrcamentoVersao = {
+  id: string;
+  versao: number;
+  aprovado_por: string | null;
+  aprovado_em: string;
+};
+
+export const listarOrcamentoVersoes = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ orcamentoId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<OrcamentoVersao[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, versao, aprovado_por, aprovado_em FROM orcamento_versoes
+          WHERE orcamento_id = ? AND loja_id = @current_loja_id
+          ORDER BY versao DESC`,
+        [data.orcamentoId],
+      );
+      return rows as OrcamentoVersao[];
+    });
+  });
+
+export type ItemVersaoOrcamento = {
+  regime: "competencia" | "caixa";
+  conta_id: string;
+  mes: number;
+  valor: number;
+};
+
+export const listarItensVersaoOrcamento = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ orcamentoVersaoId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<ItemVersaoOrcamento[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT regime, conta_id, mes, valor FROM orcamento_versoes_itens
+          WHERE orcamento_versao_id = ? AND loja_id = @current_loja_id`,
+        [data.orcamentoVersaoId],
+      );
+      return rows as ItemVersaoOrcamento[];
     });
   });

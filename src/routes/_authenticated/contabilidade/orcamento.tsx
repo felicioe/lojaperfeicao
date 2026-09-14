@@ -11,6 +11,8 @@ import {
   reabrirOrcamento,
   listarOrcamentoCaixaItens,
   definirValorOrcamentoCaixa,
+  listarOrcamentoVersoes,
+  listarItensVersaoOrcamento,
   type ContaOrcamento,
 } from "@/lib/backend/contabilidade-orcamento";
 import { PageHeader } from "@/components/app/AppShell";
@@ -46,7 +48,7 @@ import {
 } from "@/components/ui/dialog";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Lock, Plus, Unlock } from "lucide-react";
+import { CheckCircle2, History, Lock, Plus, Unlock } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl } from "@/lib/format";
 import { mensagemDeErro } from "@/lib/erro";
@@ -65,6 +67,8 @@ function Orcamento() {
   const [novoOpen, setNovoOpen] = useState(false);
   const [novoAno, setNovoAno] = useState(String(new Date().getFullYear() + 1));
   const [novoObs, setNovoObs] = useState("");
+  const [versoesOpen, setVersoesOpen] = useState(false);
+  const [versaoSelecionadaId, setVersaoSelecionadaId] = useState<string | null>(null);
 
   const { data: orcamentos = [] } = useQuery({
     queryKey: ["orcamentos"],
@@ -98,6 +102,38 @@ function Orcamento() {
     enabled: !!selecionado,
     queryFn: () => listarOrcamentoCaixaItens({ data: { orcamentoId: selecionado!.id } }),
   });
+
+  // Versionamento (achado #582 da auditoria): cada aprovação tira um
+  // snapshot dos itens vigentes sob a versão corrente — permite comparar
+  // "orçado original" x "orçado revisado" depois de uma reabertura.
+  const { data: versoes = [] } = useQuery({
+    queryKey: ["orcamento_versoes", selecionado?.id],
+    enabled: !!selecionado,
+    queryFn: () => listarOrcamentoVersoes({ data: { orcamentoId: selecionado!.id } }),
+  });
+
+  const { data: itensVersao = [] } = useQuery({
+    queryKey: ["orcamento_versao_itens", versaoSelecionadaId],
+    enabled: !!versaoSelecionadaId,
+    queryFn: () =>
+      listarItensVersaoOrcamento({ data: { orcamentoVersaoId: versaoSelecionadaId! } }),
+  });
+
+  const totaisVersaoSelecionada = useMemo(() => {
+    const t = { receitaCompetencia: 0, despesaCompetencia: 0, entradaCaixa: 0, saidaCaixa: 0 };
+    for (const it of itensVersao) {
+      const conta = contas.find((c) => c.id === it.conta_id);
+      if (!conta) continue;
+      if (it.regime === "competencia") {
+        if (conta.tipo === "receita") t.receitaCompetencia += Number(it.valor);
+        else t.despesaCompetencia += Number(it.valor);
+      } else {
+        if (conta.tipo === "receita") t.entradaCaixa += Number(it.valor);
+        else t.saidaCaixa += Number(it.valor);
+      }
+    }
+    return t;
+  }, [itensVersao, contas]);
 
   const valorMap = useMemo(() => {
     const m = new Map<string, number>();
@@ -275,7 +311,7 @@ function Orcamento() {
           </Select>
         </div>
         {selecionado && (
-          <div className="md:col-span-2 flex items-center gap-2">
+          <div className="md:col-span-2 flex items-center gap-2 flex-wrap">
             {selecionado.status === "aprovado" ? (
               <Badge className="gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Aprovado
@@ -283,6 +319,7 @@ function Orcamento() {
             ) : (
               <Badge variant="outline">Rascunho</Badge>
             )}
+            <Badge variant="secondary">Versão {selecionado.versao}</Badge>
             {can.isAdmin && selecionado.status === "rascunho" && (
               <Button
                 size="sm"
@@ -303,9 +340,76 @@ function Orcamento() {
                 <Unlock className="h-3.5 w-3.5 mr-1" /> Reabrir
               </Button>
             )}
+            {versoes.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setVersaoSelecionadaId(versoes[0]?.id ?? null);
+                  setVersoesOpen(true);
+                }}
+              >
+                <History className="h-3.5 w-3.5 mr-1" /> Histórico de versões
+              </Button>
+            )}
           </div>
         )}
       </Card>
+
+      <Dialog open={versoesOpen} onOpenChange={setVersoesOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Histórico de versões — {selecionado?.ano}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="orcamento-versao-select">Versão aprovada em</Label>
+              <Select value={versaoSelecionadaId ?? ""} onValueChange={setVersaoSelecionadaId}>
+                <SelectTrigger id="orcamento-versao-select">
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {versoes.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      Versão {v.versao} — {new Date(v.aprovado_em).toLocaleDateString("pt-BR")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {versaoSelecionadaId && (
+              <Table>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>Receita orçada (competência)</TableCell>
+                    <TableCell className="text-right">
+                      {brl(totaisVersaoSelecionada.receitaCompetencia)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Despesa orçada (competência)</TableCell>
+                    <TableCell className="text-right">
+                      {brl(totaisVersaoSelecionada.despesaCompetencia)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Entrada orçada (caixa)</TableCell>
+                    <TableCell className="text-right">
+                      {brl(totaisVersaoSelecionada.entradaCaixa)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Saída orçada (caixa)</TableCell>
+                    <TableCell className="text-right">
+                      {brl(totaisVersaoSelecionada.saidaCaixa)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {!selecionado && (
         <Card className="p-8 text-center text-muted-foreground">
