@@ -11,20 +11,35 @@
 --   - o backfill/limpeza de configuracoes_lgpd.nome_entidade/cnpj
 --
 -- Não repete `potencias.logo_url` (já existe, adicionada pela 0118b).
+--
+-- Idempotência (achado #601 da reavaliação SaaS/multi-loja): esta migração
+-- assume que a 0105 nunca rodou em produção — mas num replay sequencial
+-- completo do zero (disaster recovery, ambiente novo), a 0105 roda antes
+-- dela e já faz exatamente este UPDATE/DROP/ADD, quebrando a 0105b com
+-- "Unknown column" e "Duplicate column". As três operações abaixo agora só
+-- executam se ainda forem necessárias — em produção (onde a 0105b já
+-- rodou) isso não muda nada; num replay do zero, viram no-op sem erro.
 -- =============================================================================
 
-UPDATE lojas l
-JOIN configuracoes_lgpd c ON c.loja_id = l.id
-SET l.razao_social = COALESCE(NULLIF(l.razao_social, ''), c.nome_entidade),
-    l.cnpj = COALESCE(NULLIF(l.cnpj, ''), c.cnpj)
-WHERE c.nome_entidade IS NOT NULL OR c.cnpj IS NOT NULL;
+SET @sql = IF(
+  EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'configuracoes_lgpd'
+      AND column_name = 'nome_entidade'
+  ),
+  'UPDATE lojas l JOIN configuracoes_lgpd c ON c.loja_id = l.id SET l.razao_social = COALESCE(NULLIF(l.razao_social, \'\'), c.nome_entidade), l.cnpj = COALESCE(NULLIF(l.cnpj, \'\'), c.cnpj) WHERE c.nome_entidade IS NOT NULL OR c.cnpj IS NOT NULL',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 ALTER TABLE configuracoes_lgpd
-  DROP COLUMN nome_entidade,
-  DROP COLUMN cnpj;
+  DROP COLUMN IF EXISTS nome_entidade,
+  DROP COLUMN IF EXISTS cnpj;
 
 ALTER TABLE lojas
-  ADD COLUMN onboarding_concluido TINYINT(1) NOT NULL DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS onboarding_concluido TINYINT(1) NOT NULL DEFAULT 0;
 
 -- Lojas já em uso não devem cair no assistente de primeira configuração.
 UPDATE lojas SET onboarding_concluido = TRUE;
