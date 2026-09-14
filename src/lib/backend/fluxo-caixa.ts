@@ -233,13 +233,14 @@ export const listarMovimentosPendentes = createServerFn({ method: "GET" })
       // gerar_previsoes_recorrentes agora roda só via CRON diário (achado de
       // performance da auditoria geral — ver executarGeracaoPrevisoesRecorrentes
       // em tesouraria-recorrentes.ts).
-      const condicoes = [
-        "pago = FALSE",
-        "tipo IN ('entrada','saida')",
-        "data_vencimento >= ?",
-        "data_vencimento <= ?",
-      ];
-      const valores: unknown[] = [data.hoje, data.dataLimite];
+      // Antes exigia `data_vencimento >= hoje`, excluindo da projeção todo
+      // título já vencido e não pago (inadimplência/conta a pagar atrasada) —
+      // o dado existe e é usado em obterResumoContasReceber, só não entrava
+      // aqui (achado #1 da auditoria de orçamento/fluxo de caixa). Sem piso
+      // inferior: tudo que ainda está em aberto com vencimento até o limite
+      // do horizonte entra na projeção, vencido ou não.
+      const condicoes = ["pago = FALSE", "tipo IN ('entrada','saida')", "data_vencimento <= ?"];
+      const valores: unknown[] = [data.dataLimite];
       if (!privilegiado) {
         condicoes.push(
           "irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)",

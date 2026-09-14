@@ -321,8 +321,13 @@ export const obterProjecaoFluxo = createServerFn({ method: "GET" })
       // em tesouraria-recorrentes.ts): chamar isso em toda leitura do
       // dashboard, em paralelo com outras 4 chamadas equivalentes na mesma
       // página, media 8,7s numa única requisição em produção.
-      const condicoes = ["pago = FALSE", "data_vencimento >= ?", "data_vencimento <= ?"];
-      const valores: unknown[] = [data.de, data.ate];
+      // Sem piso em data_vencimento (achado #1 da auditoria de orçamento/
+      // fluxo de caixa): título já vencido e ainda não pago é dívida real,
+      // tem que entrar na projeção — antes só entrava o que ainda ia vencer
+      // dentro da janela, escondendo inadimplência e contas a pagar
+      // atrasadas do card de projeção do Dashboard.
+      const condicoes = ["pago = FALSE", "data_vencimento <= ?"];
+      const valores: unknown[] = [data.ate];
       if (!privilegiado) {
         condicoes.push(
           "irmao_id IN (SELECT id FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id)",

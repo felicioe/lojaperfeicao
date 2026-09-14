@@ -250,15 +250,21 @@ function FluxoProjetado() {
   const porDia = useMemo(() => {
     const m = new Map<string, { entradas: number; saidas: number }>();
     for (const p of pendentes) {
-      const atual = m.get(p.data_vencimento) ?? { entradas: 0, saidas: 0 };
+      // Título vencido (data_vencimento no passado) entra na curva diária
+      // agrupado em "hoje" — a projeção começa no saldo atual, então uma
+      // linha datada antes de hoje apareceria fora de ordem, antes do saldo
+      // do qual ela deveria estar partindo (achado #1 da auditoria de
+      // orçamento/fluxo de caixa: antes esses títulos eram só excluídos).
+      const chave = p.data_vencimento < hoje ? hoje : p.data_vencimento;
+      const atual = m.get(chave) ?? { entradas: 0, saidas: 0 };
       if (p.tipo === "entrada") atual.entradas += Number(p.valor);
       else atual.saidas += Number(p.valor);
-      m.set(p.data_vencimento, atual);
+      m.set(chave, atual);
     }
     return Array.from(m.entries())
       .map(([data, v]) => ({ data, ...v }))
       .sort((a, b) => a.data.localeCompare(b.data));
-  }, [pendentes]);
+  }, [pendentes, hoje]);
 
   const totalEntradas = pendentes
     .filter((p) => p.tipo === "entrada")
@@ -368,7 +374,14 @@ function FluxoProjetado() {
             <TableBody>
               {itensPagina.map((p, i) => (
                 <TableRow key={i}>
-                  <TableCell>{fmtDate(p.data_vencimento)}</TableCell>
+                  <TableCell>
+                    {fmtDate(p.data_vencimento)}
+                    {p.data_vencimento < hoje && (
+                      <Badge variant="destructive" className="ml-2">
+                        Vencido
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {p.descricao}
                     {p.recorrente_id && (
