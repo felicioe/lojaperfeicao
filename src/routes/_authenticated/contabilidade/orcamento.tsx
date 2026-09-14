@@ -112,6 +112,8 @@ function Orcamento() {
     queryFn: () => listarOrcamentoVersoes({ data: { orcamentoId: selecionado!.id } }),
   });
 
+  const versaoSelecionada = versoes.find((v) => v.id === versaoSelecionadaId) ?? null;
+
   const { data: itensVersao = [] } = useQuery({
     queryKey: ["orcamento_versao_itens", versaoSelecionadaId],
     enabled: !!versaoSelecionadaId,
@@ -240,7 +242,8 @@ function Orcamento() {
   });
 
   const reabrirMutation = useMutation({
-    mutationFn: () => reabrirOrcamento({ data: { orcamentoId: selecionado!.id } }),
+    mutationFn: (motivo: string) =>
+      reabrirOrcamento({ data: { orcamentoId: selecionado!.id, motivo } }),
     onSuccess: () => {
       toast.success("Orçamento reaberto para edição");
       qc.invalidateQueries({ queryKey: ["orcamentos"] });
@@ -338,14 +341,10 @@ function Orcamento() {
               </Button>
             )}
             {can.isAdmin && selecionado.status === "aprovado" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => reabrirMutation.mutate()}
-                disabled={reabrirMutation.isPending}
-              >
-                <Unlock className="h-3.5 w-3.5 mr-1" /> Reabrir
-              </Button>
+              <ReabrirOrcamentoDialog
+                onConfirm={(motivo) => reabrirMutation.mutate(motivo)}
+                pending={reabrirMutation.isPending}
+              />
             )}
             {versoes.length > 0 && (
               <Button
@@ -411,6 +410,16 @@ function Orcamento() {
                       {brl(totaisVersaoSelecionada.saidaCaixa)}
                     </TableCell>
                   </TableRow>
+                  {versaoSelecionada?.motivo_reabertura && (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-sm text-muted-foreground">
+                        Reaberta em{" "}
+                        {versaoSelecionada.reaberto_em &&
+                          new Date(versaoSelecionada.reaberto_em).toLocaleDateString("pt-BR")}
+                        : {versaoSelecionada.motivo_reabertura}
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             )}
@@ -706,6 +715,63 @@ function TabelaValoresOrcados({
         );
       })}
     </>
+  );
+}
+
+// Mesmo padrão de ReabrirDialog em administracao/fechamento-periodo.tsx —
+// motivo obrigatório e visível antes de confirmar (achado #590 da
+// reavaliação do orçamento: reabrir um orçamento aprovado é tão sensível
+// quanto reabrir um período contábil, e devia exigir o mesmo rastro).
+function ReabrirOrcamentoDialog({
+  onConfirm,
+  pending,
+}: {
+  onConfirm: (motivo: string) => void;
+  pending: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [motivo, setMotivo] = useState("");
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Unlock className="h-3.5 w-3.5 mr-1" /> Reabrir
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reabrir orçamento</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Volta o orçamento para rascunho, permitindo editar os valores. Informe o motivo.
+          </p>
+          <div>
+            <Label htmlFor="orcamento-motivo-reabertura">Motivo da reabertura</Label>
+            <Textarea
+              id="orcamento-motivo-reabertura"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="destructive"
+            disabled={!motivo.trim() || pending}
+            onClick={() => {
+              onConfirm(motivo);
+              setOpen(false);
+              setMotivo("");
+            }}
+          >
+            Confirmar reabertura
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
