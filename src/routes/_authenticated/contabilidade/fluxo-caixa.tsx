@@ -128,20 +128,24 @@ function FluxoRealizado() {
   });
   const orcadoPorChaveMes = useMemo(() => {
     const m = new Map<string, { entradaOrcada: number; saidaOrcada: number }>();
-    anosDoPeriodo.forEach((ano, idx) => {
-      for (const r of orcadoCaixaPorAno[idx] ?? []) {
-        m.set(`${ano}-${String(r.mes).padStart(2, "0")}`, {
+    for (const anoResp of orcadoCaixaPorAno) {
+      for (const r of anoResp.meses) {
+        m.set(`${anoResp.ano}-${String(r.mes).padStart(2, "0")}`, {
           entradaOrcada: r.entradaOrcada,
           saidaOrcada: r.saidaOrcada,
         });
       }
-    });
+    }
     return m;
-  }, [anosDoPeriodo, orcadoCaixaPorAno]);
+  }, [orcadoCaixaPorAno]);
   const totalOrcadoMes = linhas.reduce((s, l) => {
     const o = orcadoPorChaveMes.get(l.mes);
     return s + (o ? o.entradaOrcada - o.saidaOrcada : 0);
   }, 0);
+  // Achado #591 da reavaliação: avisa quando algum dos anos exibidos ainda
+  // não tem orçamento de caixa aprovado — "Orçado do mês" pode estar
+  // refletindo um rascunho em edição, não um valor fechado.
+  const algumOrcamentoEmRascunho = orcadoCaixaPorAno.some((a) => a.meses.length > 0 && !a.aprovado);
 
   const exportarCSV = () => {
     const cabecalho = [
@@ -199,6 +203,13 @@ function FluxoRealizado() {
           </Button>
         </div>
       </Card>
+
+      {algumOrcamentoEmRascunho && (
+        <Badge variant="outline" className="mb-4">
+          Orçamento de caixa ainda em rascunho para um ou mais anos do período — "Orçado do mês"
+          pode mudar até a aprovação.
+        </Badge>
+      )}
 
       <Card>
         <Table>
