@@ -644,6 +644,19 @@ export const estornarLancamento = createServerFn({ method: "POST" })
           "Esta fatura já recebeu pagamento parcial — não é possível estorná-la sem reverter o pagamento primeiro.",
         );
       }
+      // Mesma trava de INSERT/UPDATE em `lancamentos` (trg_lancamentos_bloqueia_
+      // periodo_fechado_*, migração 0045) — um DELETE puro não dispara gatilho
+      // nenhum, então sem essa checagem explícita dava pra apagar uma provisão
+      // datada num período/exercício já encerrado (achado #577 da auditoria).
+      const [[periodo]] = await conn.query<RowDataPacket[]>(
+        "SELECT periodo_esta_fechado(?) AS fechado",
+        [lancamento.data],
+      );
+      if (periodo?.fechado) {
+        throw new Error(
+          "Este lançamento pertence a um período/exercício contábil já encerrado — reabra o fechamento antes de estornar.",
+        );
+      }
 
       // Qualquer lançamento contábil vinculado a este id fica órfão se o
       // lançamento for apagado — e só chega até aqui com pago=false e
