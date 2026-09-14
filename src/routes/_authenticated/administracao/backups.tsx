@@ -26,6 +26,19 @@ export const Route = createFileRoute("/_authenticated/administracao/backups")({
   component: BackupsPage,
 });
 
+// Achado #620 da auditoria de backups: o backup automático depende
+// inteiramente de um cron job configurado manualmente no hPanel da
+// Hostinger — sem nenhuma verificação em runtime de que ele continua
+// rodando. Sem esse aviso, o cron podia parar (deploy quebrado, token
+// trocado, job removido) e ninguém perceberia até o dia em que o backup
+// fosse realmente necessário.
+const DIAS_LIMITE_SEM_AVISO = 2;
+
+function diasDesde(dataIso: string): number {
+  const diffMs = Date.now() - new Date(dataIso).getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
 function tamanhoLegivel(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -101,6 +114,10 @@ function BackupsPage() {
     }
   };
 
+  const ultimoBackup = backups[0];
+  const diasSemBackup = ultimoBackup ? diasDesde(ultimoBackup.criado_em) : null;
+  const backupDesatualizado = diasSemBackup !== null && diasSemBackup > DIAS_LIMITE_SEM_AVISO;
+
   return (
     <>
       <PageHeader
@@ -112,6 +129,20 @@ function BackupsPage() {
           </Button>
         }
       />
+      {!isLoading && ultimoBackup && (
+        <p
+          className={`mb-4 text-sm ${backupDesatualizado ? "text-destructive font-medium" : "text-muted-foreground"}`}
+        >
+          {backupDesatualizado ? (
+            <>
+              ⚠ Último backup há {diasSemBackup} dias — confira se o cron job automático ainda está
+              configurado no hPanel da Hostinger.
+            </>
+          ) : (
+            <>Último backup: {fmtDate(ultimoBackup.criado_em)}.</>
+          )}
+        </p>
+      )}
       <Card>
         {isError ? (
           <EmptyState
