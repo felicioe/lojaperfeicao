@@ -118,6 +118,17 @@ export async function executarBackupDaLoja(
     );
     const multiTenant = new Set(comLoja.map((r) => String(r.TABLE_NAME)));
 
+    // Tabelas sem loja_id mas com usuario_id (ex.: preferencias_menu_usuario,
+    // isolada por usuário — migração 0124 — não por loja, de propósito): sem
+    // filtrar por essa coluna, elas caíam no catch-all "vai inteira", vazando
+    // linha de usuários de OUTRAS lojas pro backup desta (achado #619 da
+    // auditoria de backups).
+    const [comUsuario] = await conn.query<RowDataPacket[]>(
+      `SELECT TABLE_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME = 'usuario_id'`,
+    );
+    const porUsuario = new Set(comUsuario.map((r) => String(r.TABLE_NAME)));
+
     const dump: Record<string, RowDataPacket[]> = {};
     let totalLinhas = 0;
     let totalTabelas = 0;
@@ -132,11 +143,17 @@ export async function executarBackupDaLoja(
           ])
         : tabela === "lojas"
           ? await conn.query<RowDataPacket[]>("SELECT * FROM lojas WHERE id = ?", [lojaId])
-          : // Sobra o que não tem loja_id nem é infra global: tabelas de
-            // catálogo sem dono (ex.: as criadas depois da 0092 sem escopo).
-            // Vão inteiras, e é por isso que a #350 — que remove os DEFAULTs
-            // e obriga toda tabela nova a declarar a loja — importa aqui.
-            await conn.query<RowDataPacket[]>(`SELECT * FROM \`${tabela}\``);
+          : porUsuario.has(tabela)
+            ? await conn.query<RowDataPacket[]>(
+                `SELECT * FROM \`${tabela}\` WHERE usuario_id IN (SELECT id FROM usuarios WHERE loja_id = ?)`,
+                [lojaId],
+              )
+            : // Sobra o que não tem loja_id, usuario_id, nem é infra global:
+              // tabelas de catálogo sem dono (ex.: as criadas depois da 0092
+              // sem escopo). Vão inteiras, e é por isso que a #350 — que
+              // remove os DEFAULTs e obriga toda tabela nova a declarar a
+              // loja — importa aqui.
+              await conn.query<RowDataPacket[]>(`SELECT * FROM \`${tabela}\``);
       dump[tabela] = redigirLinhas(tabela, rows);
       totalLinhas += rows.length;
       totalTabelas++;
