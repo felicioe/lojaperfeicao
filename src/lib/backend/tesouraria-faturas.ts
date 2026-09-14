@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
-import { comPapel } from "./authz";
+import { comPapel, comSessao } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 
 // Toda esta área (emissão/baixa de faturas) é admin/tesoureiro apenas —
@@ -539,3 +539,85 @@ export const enviarFaturasAbertasPorEmail = createServerFn({ method: "POST" })
       return { irmaosEnviados, irmaosSemEmail, irmaosComFalha };
     });
   });
+
+// Autoatendimento — o próprio irmão pedindo as PRÓPRIAS faturas em aberto
+// por e-mail no Meu Painel (mesma função que admin/tesoureiro já tinham em
+// enviarFaturasAbertasPorEmail, mas sem aceitar lancamentoIds do cliente:
+// tudo é resolvido aqui a partir da sessão, então não tem como um irmão
+// pedir o envio da fatura de outro. Reaproveita buscarLancamentoParaImpressao,
+// que já faz essa mesma checagem "privilegiado ou dono" por linha.
+export const enviarMinhasFaturasEmAbertoPorEmail = createServerFn({ method: "POST" }).handler(
+  async (): Promise<ResultadoEnvioFaturasAbertas> => {
+    return comSessao(async (conn, usuarioId) => {
+      const [[irmao]] = await conn.query<RowDataPacket[]>(
+        "SELECT id, nome_civil, email FROM irmaos WHERE usuario_id = ? AND loja_id = @current_loja_id",
+        [usuarioId],
+      );
+      if (!irmao) throw new Error("Cadastro ainda não vinculado a este usuário.");
+
+      const [linhas] = await conn.query<RowDataPacket[]>(
+        `SELECT id FROM lancamentos
+          WHERE irmao_id = ? AND loja_id = @current_loja_id
+            AND tipo = 'entrada' AND pago = FALSE`,
+        [irmao.id],
+      );
+      if (linhas.length === 0) return { irmaosEnviados: 0, irmaosSemEmail: 0, irmaosComFalha: 0 };
+      if (!irmao.email) return { irmaosEnviados: 0, irmaosSemEmail: 1, irmaosComFalha: 0 };
+
+      const { buscarLancamentoParaImpressao } = await import("./tesouraria-lancamentos");
+      const { gerarFaturaPdfBuffer } = await import("../fatura-pdf");
+      const { enviarArquivoPorEmail } = await import("../email-dispatch");
+      const { obterLogosInstitucionais } = await import("./orgs");
+
+      const [[loja]] = await conn.query<RowDataPacket[]>(
+        "SELECT id, nome, razao_social, cnpj FROM lojas WHERE id = @current_loja_id",
+      );
+      const logos = await obterLogosInstitucionais(conn);
+
+      const anexos: { buffer: Buffer; nome: string; mimeType: string }[] = [];
+      for (const linha of linhas) {
+        const fatura = await buscarLancamentoParaImpressao(conn, usuarioId, linha.id);
+        if (!fatura) continue;
+        const buffer = await gerarFaturaPdfBuffer(
+          fatura,
+          {
+            nome: loja.nome as string,
+            razaoSocial: loja.razao_social as string | null,
+            cnpj: loja.cnpj as string | null,
+          },
+          logos,
+        );
+        anexos.push({
+          buffer,
+          nome: `fatura-${fatura.competencia_mes ?? linha.id.slice(0, 8)}.pdf`,
+          mimeType: "application/pdf",
+        });
+      }
+      if (anexos.length === 0) return { irmaosEnviados: 0, irmaosSemEmail: 0, irmaosComFalha: 1 };
+
+      const resultado = await enviarArquivoPorEmail({
+        destinatarios: [irmao.email],
+        assunto: `Fatura${anexos.length > 1 ? "s" : ""} em aberto — ${anexos.length} pendência${anexos.length > 1 ? "s" : ""}`,
+        corpoTexto: `Olá, ${irmao.nome_civil}! Segue${anexos.length > 1 ? "m" : ""} em anexo ${anexos.length} fatura${anexos.length > 1 ? "s" : ""} em aberto.`,
+        anexos,
+        lojaId: loja.id as string,
+        tipo: "fatura_aberta_lote",
+      });
+      const enviado = resultado.some((r) => r.sucesso);
+
+      await registrarAuditoria(
+        conn,
+        usuarioId,
+        "enviar_minhas_faturas_email",
+        "lancamentos",
+        irmao.id,
+        null,
+        { quantidade: anexos.length, enviado },
+      );
+
+      return enviado
+        ? { irmaosEnviados: 1, irmaosSemEmail: 0, irmaosComFalha: 0 }
+        : { irmaosEnviados: 0, irmaosSemEmail: 0, irmaosComFalha: 1 };
+    });
+  },
+);
