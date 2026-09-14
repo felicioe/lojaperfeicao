@@ -36,9 +36,14 @@ export const GRAU_LABEL: Record<string, string> = {
   mestre: "Mestre",
 };
 
+// Rótulo "Regularizado" em vez de "Quite" (achado #609): situacao é um
+// campo cadastral definido manualmente pelo secretário, independente do
+// cálculo de mensalidades em aberto que obterStatusQuitacao faz em tempo
+// real (usado no Certificado de Quitação e no resumo financeiro) — as duas
+// coisas podiam divergir e o mesmo rótulo "Quite" para ambas confundia.
 export const SITUACAO_LABEL: Record<string, string> = {
   ativo: "Ativo",
-  quite: "Quite",
+  quite: "Regularizado",
   irregular: "Irregular",
   adormecido: "Adormecido",
   desligado: "Desligado",

@@ -194,7 +194,7 @@ const novoIrmaoSchema = z.object({
   data_iniciacao: z.string().nullable().optional(),
   data_elevacao: z.string().nullable().optional(),
   data_exaltacao: z.string().nullable().optional(),
-  situacao: z.enum(["ativo", "quite", "irregular", "adormecido"]),
+  situacao: z.enum(["ativo", "quite", "irregular", "adormecido", "desligado", "falecido"]),
   potencia: z.string().nullable().optional(),
   loja_origem: z.string().nullable().optional(),
   email: z.string().nullable().optional(),

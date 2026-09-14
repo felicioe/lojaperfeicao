@@ -176,13 +176,17 @@ export function IrmaoForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ativo">Ativo</SelectItem>
-                <SelectItem value="quite">Quite</SelectItem>
+                <SelectItem value="quite">Regularizado</SelectItem>
                 <SelectItem value="irregular">Irregular</SelectItem>
                 <SelectItem value="adormecido">Adormecido</SelectItem>
                 <SelectItem value="desligado">Desligado</SelectItem>
                 <SelectItem value="falecido">Falecido</SelectItem>
               </SelectContent>
             </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Situação cadastral definida manualmente — não reflete mensalidades em aberto (confira
+              em Financeiro/Quitação).
+            </p>
           </Field>
           <Field label="Data de iniciação" id="irmao-form-data-de-iniciacao">
             <Input
