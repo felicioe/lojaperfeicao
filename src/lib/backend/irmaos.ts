@@ -11,6 +11,18 @@ import { validarCPF, normalizarCPF } from "../cpf";
 //   INSERT/UPDATE admin/secretario; DELETE admin.
 // - irmao_orgs/irmao_formacao/irmao_filhos/irmao_parentes/irmao_elevacoes: mesmo SELECT
 //   (admin/secretario/tesoureiro OU o próprio irmão vinculado); escrita admin/secretario.
+//
+// Achado #607 da auditoria de Irmãos: tesoureiro enxerga a ficha completa
+// (CPF, RG, endereço, religião, filhos, cônjuge etc.), não só os dados
+// financeiros que a função de cobrança exigiria — o que vai além do
+// princípio de minimização de dados da LGPD. Duas opções foram avaliadas:
+// (1) criar uma projeção "financeira" da ficha, restrita a nome/situação/
+// mensalidade/contato básico, reservando a ficha completa a admin/
+// secretário, ou (2) manter o acesso total, documentando a decisão. O
+// usuário optou explicitamente pela opção 2, dado o porte pequeno das
+// lojas e a confiança inerente ao cargo de tesoureiro — decisão de
+// produto, não uma omissão. Não alterar sem confirmar de novo com o
+// usuário.
 const PAPEIS_PRIVILEGIADOS = ["admin", "secretario", "tesoureiro"];
 const PAPEIS_ESCRITA = ["admin", "secretario"];
 
