@@ -119,6 +119,31 @@ function Orcamento() {
     return { receita, despesa };
   }, [itens, contas]);
 
+  // Realizado por conta × mês (achado #580 da auditoria de orçamento/fluxo
+  // de caixa): as duas visões anteriores só abriam UM dos dois eixos — o
+  // Acompanhamento Mensal agregava todas as contas juntas por mês, e o DRE
+  // Orçado abria por conta mas somava o ano inteiro. Sem essa matriz não
+  // dava pra ver, por exemplo, que uma conta específica estourou o orçado
+  // num mês específico.
+  const realizadoPorContaMes = useMemo(() => {
+    const m = new Map<string, number[]>();
+    for (const it of realizado) {
+      const mes = new Date(it.data + "T00:00:00").getMonth();
+      const arr = m.get(it.conta_id) ?? Array(12).fill(0);
+      const sinal =
+        it.conta_tipo === "receita"
+          ? it.tipo === "credito"
+            ? 1
+            : -1
+          : it.tipo === "debito"
+            ? 1
+            : -1;
+      arr[mes] += sinal * Number(it.valor);
+      m.set(it.conta_id, arr);
+    }
+    return m;
+  }, [realizado]);
+
   const criarMutation = useMutation({
     mutationFn: () =>
       criarOrcamento({ data: { ano: Number(novoAno), observacoes: novoObs || null } }),
@@ -159,6 +184,7 @@ function Orcamento() {
   const contasReceita = contas.filter((c) => c.tipo === "receita");
   const contasDespesa = contas.filter((c) => c.tipo === "despesa");
   const editavel = selecionado?.status === "rascunho";
+  const [mesDetalhe, setMesDetalhe] = useState<string>("ano");
 
   return (
     <>
@@ -267,6 +293,7 @@ function Orcamento() {
           <TabsList>
             <TabsTrigger value="valores">Valores Orçados</TabsTrigger>
             <TabsTrigger value="acompanhamento">Acompanhamento Mensal</TabsTrigger>
+            <TabsTrigger value="detalhado">Detalhado por Conta</TabsTrigger>
           </TabsList>
 
           <TabsContent value="valores" className="space-y-4">
@@ -401,6 +428,108 @@ function Orcamento() {
                 </TableBody>
               </Table>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="detalhado" className="space-y-4">
+            <Card className="p-4 grid gap-3 md:grid-cols-4 items-end">
+              <div>
+                <Label htmlFor="orcamento-detalhe-mes">Período</Label>
+                <Select value={mesDetalhe} onValueChange={setMesDetalhe}>
+                  <SelectTrigger id="orcamento-detalhe-mes">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ano">Ano todo</SelectItem>
+                    {MESES.map((m, i) => (
+                      <SelectItem key={m} value={String(i)}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </Card>
+
+            {(["receita", "despesa"] as const).map((tipo) => {
+              const lista = tipo === "receita" ? contasReceita : contasDespesa;
+              const linhas = lista.map((c) => {
+                const orcadoMensal = Array.from(
+                  { length: 12 },
+                  (_, i) => valorMap.get(`${c.id}:${i + 1}`) ?? 0,
+                );
+                const realizadoMensal = realizadoPorContaMes.get(c.id) ?? Array(12).fill(0);
+                const orcado =
+                  mesDetalhe === "ano"
+                    ? orcadoMensal.reduce((s, v) => s + v, 0)
+                    : orcadoMensal[Number(mesDetalhe)];
+                const realizadoValor =
+                  mesDetalhe === "ano"
+                    ? realizadoMensal.reduce((s, v) => s + v, 0)
+                    : realizadoMensal[Number(mesDetalhe)];
+                return {
+                  conta: c,
+                  orcado,
+                  realizado: realizadoValor,
+                  variacao: realizadoValor - orcado,
+                };
+              });
+              const totalOrcado = linhas.reduce((s, l) => s + l.orcado, 0);
+              const totalRealizado = linhas.reduce((s, l) => s + l.realizado, 0);
+              return (
+                <Card key={tipo} className="overflow-x-auto">
+                  <div className="p-3 border-b font-medium">
+                    {tipo === "receita" ? "Receitas" : "Despesas"}
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Conta</TableHead>
+                        <TableHead className="text-right">Orçado</TableHead>
+                        <TableHead className="text-right">Realizado</TableHead>
+                        <TableHead className="text-right">Variação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {linhas.map(({ conta, orcado, realizado, variacao }) => (
+                        <TableRow key={conta.id}>
+                          <TableCell className="font-mono text-xs">
+                            {conta.codigo} {conta.nome}
+                          </TableCell>
+                          <TableCell className="text-right">{brl(orcado)}</TableCell>
+                          <TableCell className="text-right">{brl(realizado)}</TableCell>
+                          <TableCell
+                            className={`text-right font-medium ${
+                              (tipo === "receita" ? variacao < 0 : variacao > 0)
+                                ? "text-destructive"
+                                : ""
+                            }`}
+                          >
+                            {brl(variacao)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {linhas.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                            Nenhuma conta analítica de {tipo} cadastrada.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                    {linhas.length > 0 && (
+                      <TableRow className="font-semibold bg-muted/30">
+                        <TableCell>Total</TableCell>
+                        <TableCell className="text-right">{brl(totalOrcado)}</TableCell>
+                        <TableCell className="text-right">{brl(totalRealizado)}</TableCell>
+                        <TableCell className="text-right">
+                          {brl(totalRealizado - totalOrcado)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Table>
+                </Card>
+              );
+            })}
           </TabsContent>
         </Tabs>
       )}
