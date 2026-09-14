@@ -119,6 +119,7 @@ export const reabrirOrcamento = createServerFn({ method: "POST" })
 
 // ---------- Acompanhamento mensal (aba "Acompanhamento" do orçamento) ----------
 export type ItemRealizadoAnual = {
+  conta_id: string;
   tipo: "debito" | "credito";
   valor: number;
   conta_tipo: "receita" | "despesa";
@@ -129,8 +130,12 @@ export const listarRealizadoAnual = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ ano: z.number().int() }).parse(d))
   .handler(async ({ data }): Promise<ItemRealizadoAnual[]> => {
     return comPapel(PAPEIS, async (conn) => {
+      // conta_id incluído (achado #580 da auditoria de orçamento/fluxo de
+      // caixa) — antes só dava pra agregar o realizado por mês somando todas
+      // as contas de receita/despesa juntas, sem como abrir por conta na
+      // mesma tela do "Acompanhamento Mensal".
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT i.tipo, i.valor, pc.tipo AS conta_tipo, lc.data
+        `SELECT i.conta_id, i.tipo, i.valor, pc.tipo AS conta_tipo, lc.data
          FROM lancamentos_contabeis_itens i
          JOIN plano_contas pc ON pc.id = i.conta_id AND pc.loja_id = i.loja_id
          JOIN lancamentos_contabeis lc ON lc.id = i.lancamento_id AND lc.loja_id = i.loja_id
