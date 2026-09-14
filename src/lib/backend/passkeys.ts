@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import type { RowDataPacket } from "mysql2";
 import {
   generateRegistrationOptions,
@@ -154,6 +155,13 @@ export const removerPasskey = createServerFn({ method: "POST" })
 
 const iniciarLoginSchema = z.object({ email: z.string().min(1) });
 
+// Mesmo hash-alvo fixo usado em auth.ts pra igualar o tempo de resposta
+// entre "e-mail existe mas sem passkey" e "e-mail não existe" (achado #612)
+// — sem uma operação cara equivalente nos dois casos, o tempo de resposta
+// de iniciarLoginPasskey vazava se o e-mail está cadastrado, ainda que a
+// mensagem de erro seja idêntica nos dois casos.
+const HASH_DUMMY_TIMING = "$2b$10$Vun8doqKyfXFfoDBcD00xuFeAP/DQx1F9bKogKU/0DfbpNyjxL54S";
+
 export const iniciarLoginPasskey = createServerFn({ method: "POST" })
   .validator((d: unknown) => iniciarLoginSchema.parse(d))
   .handler(async ({ data }): Promise<PublicKeyCredentialRequestOptionsJSON> => {
@@ -167,6 +175,7 @@ export const iniciarLoginPasskey = createServerFn({ method: "POST" })
     // Mensagem propositalmente igual à de "nenhuma passkey cadastrada" —
     // não confirma se o e-mail existe (evita enumeração de contas).
     if (!usuario) {
+      await bcrypt.compare(data.email, HASH_DUMMY_TIMING);
       throw new Error("Nenhuma passkey cadastrada para esse usuário.");
     }
 
@@ -178,6 +187,7 @@ export const iniciarLoginPasskey = createServerFn({ method: "POST" })
       return rows;
     });
     if (credenciais.length === 0) {
+      await bcrypt.compare(data.email, HASH_DUMMY_TIMING);
       throw new Error("Nenhuma passkey cadastrada para esse usuário.");
     }
 
