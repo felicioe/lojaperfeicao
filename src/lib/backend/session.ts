@@ -66,6 +66,21 @@ export async function criarSessao(usuarioId: string, criadaEm: number = Date.now
   await updateSession<SessaoData>(sessionConfig(), { usuarioId, criadaEm });
 }
 
+// Achado #611 da auditoria de autenticação: isto só apaga o cookie deste
+// navegador — não existe tabela de sessões no servidor, então uma cópia
+// bruta do cookie (dispositivo destravado, extração de disco, log de
+// proxy) continua autenticando normalmente por até 30 dias mesmo depois
+// do "Sair", porque nada no servidor muda pra aquele token específico. A
+// mitigação real pra "suspeito que fui comprometido" já existe e é a
+// troca de senha: comSessao/comPapel (authz.ts) invalidam qualquer sessão
+// mais velha que usuarios.senha_alterada_em.
+//
+// Corrigir isso de verdade exigiria uma tabela de sessões por dispositivo
+// e checagem de revogação em toda requisição autenticada — mudança
+// arquitetural no núcleo de autenticação, não um ajuste pontual. Decisão
+// confirmada com o usuário: não implementar agora, dado o porte pequeno
+// das lojas e a mitigação parcial já existente via troca de senha. Não
+// alterar sem confirmar de novo com o usuário.
 export async function encerrarSessao(): Promise<void> {
   await clearSession(sessionConfig());
 }
