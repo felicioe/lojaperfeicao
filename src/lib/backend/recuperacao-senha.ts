@@ -89,13 +89,23 @@ export const solicitarRecuperacaoSenha = createServerFn({ method: "POST" })
     if (!temContatoReal) return { enviado: false };
 
     const { token, hash } = gerarToken();
-    await withLojaConnection(usuario.loja_id, (conn) =>
-      conn.query(
+    await withLojaConnection(usuario.loja_id, async (conn) => {
+      // Invalida tokens pendentes anteriores do mesmo usuário antes de
+      // emitir o novo (achado #615) — cada token já é de uso único e
+      // expira em 30 min, mas um link mais antigo ainda dentro da
+      // validade continuava utilizável mesmo depois de um novo pedido,
+      // ampliando à toa a superfície de um e-mail antigo comprometido.
+      await conn.query(
+        `UPDATE tokens_recuperacao_senha SET usado_em = NOW()
+          WHERE usuario_id = ? AND loja_id = @current_loja_id AND usado_em IS NULL`,
+        [usuario.id],
+      );
+      await conn.query(
         `INSERT INTO tokens_recuperacao_senha (loja_id, usuario_id, token_hash, expira_em)
          VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))`,
         [usuario.loja_id, usuario.id, hash, VALIDADE_MINUTOS],
-      ),
-    );
+      );
+    });
     const enviado = await enviarEmailRecuperacaoSenha(
       usuario.id,
       usuario.loja_id,
