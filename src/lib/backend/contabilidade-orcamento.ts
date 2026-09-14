@@ -197,11 +197,24 @@ export const definirValorOrcamentoCaixa = createServerFn({ method: "POST" })
 // carregar o detalhamento por conta (a tela de Fluxo de Caixa não abre por
 // conta, só por mês).
 export type OrcamentoCaixaMensal = { mes: number; entradaOrcada: number; saidaOrcada: number };
+// `aprovado` diz se o orçamento desse ano já foi aprovado (achado #591 da
+// reavaliação: sem isso, a tela de Fluxo de Caixa mostrava "Orçado do mês"
+// refletindo um rascunho em edição, sem nenhum aviso de que aqueles
+// valores ainda podem mudar até a aprovação).
+export type OrcamentoCaixaMensalAno = {
+  ano: number;
+  aprovado: boolean;
+  meses: OrcamentoCaixaMensal[];
+};
 
 export const obterOrcamentoCaixaMensal = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ ano: z.number().int() }).parse(d))
-  .handler(async ({ data }): Promise<OrcamentoCaixaMensal[]> => {
+  .handler(async ({ data }): Promise<OrcamentoCaixaMensalAno> => {
     return comPapel(PAPEIS, async (conn) => {
+      const [[orcamento]] = await conn.query<RowDataPacket[]>(
+        `SELECT status FROM orcamentos WHERE loja_id = @current_loja_id AND ano = ?`,
+        [data.ano],
+      );
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT oci.mes, pc.tipo AS conta_tipo, SUM(oci.valor) AS total
          FROM orcamento_caixa_itens oci
@@ -218,7 +231,11 @@ export const obterOrcamentoCaixaMensal = createServerFn({ method: "GET" })
         else atual.saidaOrcada += Number(r.total);
         porMes.set(r.mes, atual);
       }
-      return Array.from(porMes.values());
+      return {
+        ano: data.ano,
+        aprovado: orcamento?.status === "aprovado",
+        meses: Array.from(porMes.values()),
+      };
     });
   });
 
