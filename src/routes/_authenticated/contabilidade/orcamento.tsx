@@ -229,6 +229,12 @@ function Orcamento() {
     onSuccess: () => {
       toast.success("Orçamento aprovado");
       qc.invalidateQueries({ queryKey: ["orcamentos"] });
+      // aprovar_orcamento (0149) tira um snapshot novo em orcamento_versoes a
+      // cada aprovação — sem invalidar essa query, o botão "Histórico de
+      // versões" (que só aparece com versoes.length > 0) ficava escondido
+      // logo após a primeira aprovação, mesmo com o snapshot já no banco
+      // (achado #589 da reavaliação do módulo).
+      qc.invalidateQueries({ queryKey: ["orcamento_versoes", selecionado?.id] });
     },
     onError: (e) => toast.error(mensagemDeErro(e, "Erro ao aprovar")),
   });
@@ -238,6 +244,7 @@ function Orcamento() {
     onSuccess: () => {
       toast.success("Orçamento reaberto para edição");
       qc.invalidateQueries({ queryKey: ["orcamentos"] });
+      qc.invalidateQueries({ queryKey: ["orcamento_versoes", selecionado?.id] });
     },
     onError: (e) => toast.error(mensagemDeErro(e, "Erro ao reabrir")),
   });
