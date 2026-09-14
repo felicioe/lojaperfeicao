@@ -9,6 +9,9 @@ import {
   definirValorOrcamento,
   aprovarOrcamento,
   reabrirOrcamento,
+  listarOrcamentoCaixaItens,
+  definirValorOrcamentoCaixa,
+  type ContaOrcamento,
 } from "@/lib/backend/contabilidade-orcamento";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -87,11 +90,26 @@ function Orcamento() {
     queryFn: () => listarRealizadoAnual({ data: { ano: selecionado!.ano } }),
   });
 
+  // Orçamento em base de caixa (achado #581 da auditoria): mesmo cabeçalho
+  // orcamentos, itens numa tabela irmã (orcamento_caixa_itens) pra não
+  // misturar com os valores de competência acima.
+  const { data: itensCaixa = [] } = useQuery({
+    queryKey: ["orcamento_caixa_itens", selecionado?.id],
+    enabled: !!selecionado,
+    queryFn: () => listarOrcamentoCaixaItens({ data: { orcamentoId: selecionado!.id } }),
+  });
+
   const valorMap = useMemo(() => {
     const m = new Map<string, number>();
     for (const it of itens) m.set(`${it.conta_id}:${it.mes}`, Number(it.valor));
     return m;
   }, [itens]);
+
+  const valorMapCaixa = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const it of itensCaixa) m.set(`${it.conta_id}:${it.mes}`, Number(it.valor));
+    return m;
+  }, [itensCaixa]);
 
   const realizadoPorMes = useMemo(() => {
     const receita = Array(12).fill(0);
@@ -160,6 +178,13 @@ function Orcamento() {
     mutationFn: ({ contaId, mes, valor }: { contaId: string; mes: number; valor: number }) =>
       definirValorOrcamento({ data: { orcamentoId: selecionado!.id, contaId, mes, valor } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orcamento_itens", selecionado?.id] }),
+    onError: (e) => toast.error(mensagemDeErro(e, "Erro ao salvar valor")),
+  });
+
+  const salvarValorCaixaMutation = useMutation({
+    mutationFn: ({ contaId, mes, valor }: { contaId: string; mes: number; valor: number }) =>
+      definirValorOrcamentoCaixa({ data: { orcamentoId: selecionado!.id, contaId, mes, valor } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orcamento_caixa_itens", selecionado?.id] }),
     onError: (e) => toast.error(mensagemDeErro(e, "Erro ao salvar valor")),
   });
 
@@ -292,76 +317,36 @@ function Orcamento() {
         <Tabs defaultValue="valores">
           <TabsList>
             <TabsTrigger value="valores">Valores Orçados</TabsTrigger>
+            <TabsTrigger value="valores_caixa">Valores Orçados (Caixa)</TabsTrigger>
             <TabsTrigger value="acompanhamento">Acompanhamento Mensal</TabsTrigger>
             <TabsTrigger value="detalhado">Detalhado por Conta</TabsTrigger>
           </TabsList>
 
           <TabsContent value="valores" className="space-y-4">
-            {(["receita", "despesa"] as const).map((tipo) => {
-              const lista = tipo === "receita" ? contasReceita : contasDespesa;
-              return (
-                <Card key={tipo} className="overflow-x-auto">
-                  <div className="p-3 border-b font-medium">
-                    {tipo === "receita" ? "Receitas" : "Despesas"}
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="sticky left-0 bg-background">Conta</TableHead>
-                        {MESES.map((m) => (
-                          <TableHead key={m} className="text-right w-24">
-                            {m}
-                          </TableHead>
-                        ))}
-                        <TableHead className="text-right">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {lista.map((c) => {
-                        const totalConta = Array.from(
-                          { length: 12 },
-                          (_, i) => valorMap.get(`${c.id}:${i + 1}`) ?? 0,
-                        ).reduce((s, v) => s + v, 0);
-                        return (
-                          <TableRow key={c.id}>
-                            <TableCell className="sticky left-0 bg-background font-mono text-xs">
-                              {c.codigo} {c.nome}
-                            </TableCell>
-                            {MESES.map((_, i) => (
-                              <ValorCell
-                                key={i}
-                                valor={valorMap.get(`${c.id}:${i + 1}`) ?? 0}
-                                editavel={!!editavel && !!can.canManageFinancas}
-                                onSave={(v) =>
-                                  salvarValorMutation.mutate({
-                                    contaId: c.id,
-                                    mes: i + 1,
-                                    valor: v,
-                                  })
-                                }
-                              />
-                            ))}
-                            <TableCell className="text-right font-medium">
-                              {brl(totalConta)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                      {lista.length === 0 && (
-                        <TableRow>
-                          <TableCell
-                            colSpan={14}
-                            className="text-center py-4 text-muted-foreground"
-                          >
-                            Nenhuma conta analítica de {tipo} cadastrada.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </Card>
-              );
-            })}
+            <TabelaValoresOrcados
+              contasReceita={contasReceita}
+              contasDespesa={contasDespesa}
+              valorMap={valorMap}
+              editavel={!!editavel && !!can.canManageFinancas}
+              onSave={(contaId, mes, valor) => salvarValorMutation.mutate({ contaId, mes, valor })}
+            />
+          </TabsContent>
+
+          <TabsContent value="valores_caixa" className="space-y-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              Orçamento em regime de caixa — quanto se planeja efetivamente receber/pagar em cada
+              mês, independente de quando a receita/despesa foi reconhecida contabilmente. Usado na
+              comparação orçado x realizado do Fluxo de Caixa.
+            </p>
+            <TabelaValoresOrcados
+              contasReceita={contasReceita}
+              contasDespesa={contasDespesa}
+              valorMap={valorMapCaixa}
+              editavel={!!editavel && !!can.canManageFinancas}
+              onSave={(contaId, mes, valor) =>
+                salvarValorCaixaMutation.mutate({ contaId, mes, valor })
+              }
+            />
           </TabsContent>
 
           <TabsContent value="acompanhamento">
@@ -533,6 +518,82 @@ function Orcamento() {
           </TabsContent>
         </Tabs>
       )}
+    </>
+  );
+}
+
+// Grade conta x mês reaproveitada pelos valores orçados de competência e
+// de caixa (achado #581 da auditoria) — mesmo layout, só troca o mapa de
+// valores e o callback de salvar.
+function TabelaValoresOrcados({
+  contasReceita,
+  contasDespesa,
+  valorMap,
+  editavel,
+  onSave,
+}: {
+  contasReceita: ContaOrcamento[];
+  contasDespesa: ContaOrcamento[];
+  valorMap: Map<string, number>;
+  editavel: boolean;
+  onSave: (contaId: string, mes: number, valor: number) => void;
+}) {
+  return (
+    <>
+      {(["receita", "despesa"] as const).map((tipo) => {
+        const lista = tipo === "receita" ? contasReceita : contasDespesa;
+        return (
+          <Card key={tipo} className="overflow-x-auto">
+            <div className="p-3 border-b font-medium">
+              {tipo === "receita" ? "Receitas" : "Despesas"}
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="sticky left-0 bg-background">Conta</TableHead>
+                  {MESES.map((m) => (
+                    <TableHead key={m} className="text-right w-24">
+                      {m}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lista.map((c) => {
+                  const totalConta = Array.from(
+                    { length: 12 },
+                    (_, i) => valorMap.get(`${c.id}:${i + 1}`) ?? 0,
+                  ).reduce((s, v) => s + v, 0);
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell className="sticky left-0 bg-background font-mono text-xs">
+                        {c.codigo} {c.nome}
+                      </TableCell>
+                      {MESES.map((_, i) => (
+                        <ValorCell
+                          key={i}
+                          valor={valorMap.get(`${c.id}:${i + 1}`) ?? 0}
+                          editavel={editavel}
+                          onSave={(v) => onSave(c.id, i + 1, v)}
+                        />
+                      ))}
+                      <TableCell className="text-right font-medium">{brl(totalConta)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {lista.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={14} className="text-center py-4 text-muted-foreground">
+                      Nenhuma conta analítica de {tipo} cadastrada.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        );
+      })}
     </>
   );
 }
