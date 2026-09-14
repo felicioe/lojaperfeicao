@@ -15,6 +15,13 @@
 -- customizado), fica sem seed — o admin configura manualmente em
 -- Contabilidade > Parâmetros Contábeis, mesmo comportamento já previsto
 -- desde a 0104.
+--
+-- Idempotência (achado #601 da reavaliação SaaS/multi-loja): num replay
+-- sequencial completo do zero, a 0104 já cria e semeia esta tabela antes
+-- de chegar aqui — sem o `WHERE NOT EXISTS` em cada INSERT (mesmo padrão
+-- que a própria 0104 já usa no fallback de 'contas_a_receber'), este seed
+-- duplicado quebrava a PRIMARY KEY (loja_id, papel). Em produção (onde a
+-- 0104 nunca chegou a semear) o resultado final não muda.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS parametros_contabeis (
@@ -30,7 +37,12 @@ CREATE TABLE IF NOT EXISTS parametros_contabeis (
 -- 'contas_a_receber' tenta '1.1.02' primeiro (instalação que nunca rodou a
 -- 0071) e só então '1.1.91' (o caso comum hoje — legado, inativa).
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
-SELECT loja_id, 'contas_a_receber', id FROM plano_contas WHERE codigo = '1.1.02';
+SELECT pc.loja_id, 'contas_a_receber', pc.id FROM plano_contas pc
+ WHERE pc.codigo = '1.1.02'
+   AND NOT EXISTS (
+     SELECT 1 FROM parametros_contabeis p
+      WHERE p.loja_id = pc.loja_id AND p.papel = 'contas_a_receber'
+   );
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
 SELECT pc.loja_id, 'contas_a_receber', pc.id FROM plano_contas pc
  WHERE pc.codigo = '1.1.91'
@@ -40,22 +52,57 @@ SELECT pc.loja_id, 'contas_a_receber', pc.id FROM plano_contas pc
    );
 
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
-SELECT loja_id, 'fornecedores', id FROM plano_contas WHERE codigo = '2.1.01';
+SELECT pc.loja_id, 'fornecedores', pc.id FROM plano_contas pc
+ WHERE pc.codigo = '2.1.01'
+   AND NOT EXISTS (
+     SELECT 1 FROM parametros_contabeis p
+      WHERE p.loja_id = pc.loja_id AND p.papel = 'fornecedores'
+   );
 
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
-SELECT loja_id, 'mensalidades', id FROM plano_contas WHERE codigo = '4.1.01';
+SELECT pc.loja_id, 'mensalidades', pc.id FROM plano_contas pc
+ WHERE pc.codigo = '4.1.01'
+   AND NOT EXISTS (
+     SELECT 1 FROM parametros_contabeis p
+      WHERE p.loja_id = pc.loja_id AND p.papel = 'mensalidades'
+   );
 
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
-SELECT loja_id, 'multas_juros', id FROM plano_contas WHERE codigo = '4.1.06';
+SELECT pc.loja_id, 'multas_juros', pc.id FROM plano_contas pc
+ WHERE pc.codigo = '4.1.06'
+   AND NOT EXISTS (
+     SELECT 1 FROM parametros_contabeis p
+      WHERE p.loja_id = pc.loja_id AND p.papel = 'multas_juros'
+   );
 
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
-SELECT loja_id, 'descontos_concedidos', id FROM plano_contas WHERE codigo = '5.1.06';
+SELECT pc.loja_id, 'descontos_concedidos', pc.id FROM plano_contas pc
+ WHERE pc.codigo = '5.1.06'
+   AND NOT EXISTS (
+     SELECT 1 FROM parametros_contabeis p
+      WHERE p.loja_id = pc.loja_id AND p.papel = 'descontos_concedidos'
+   );
 
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
-SELECT loja_id, 'resultado_receita_padrao', id FROM plano_contas WHERE codigo = '4.9.01';
+SELECT pc.loja_id, 'resultado_receita_padrao', pc.id FROM plano_contas pc
+ WHERE pc.codigo = '4.9.01'
+   AND NOT EXISTS (
+     SELECT 1 FROM parametros_contabeis p
+      WHERE p.loja_id = pc.loja_id AND p.papel = 'resultado_receita_padrao'
+   );
 
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
-SELECT loja_id, 'resultado_despesa_padrao', id FROM plano_contas WHERE codigo = '5.9.01';
+SELECT pc.loja_id, 'resultado_despesa_padrao', pc.id FROM plano_contas pc
+ WHERE pc.codigo = '5.9.01'
+   AND NOT EXISTS (
+     SELECT 1 FROM parametros_contabeis p
+      WHERE p.loja_id = pc.loja_id AND p.papel = 'resultado_despesa_padrao'
+   );
 
 INSERT INTO parametros_contabeis (loja_id, papel, plano_conta_id)
-SELECT loja_id, 'resultado_acumulado', id FROM plano_contas WHERE codigo = '3.1.01';
+SELECT pc.loja_id, 'resultado_acumulado', pc.id FROM plano_contas pc
+ WHERE pc.codigo = '3.1.01'
+   AND NOT EXISTS (
+     SELECT 1 FROM parametros_contabeis p
+      WHERE p.loja_id = pc.loja_id AND p.papel = 'resultado_acumulado'
+   );
