@@ -109,13 +109,18 @@ export const confirmarAtivacaoTotp = createServerFn({ method: "POST" })
       }
 
       const totp = novoTotp(pendente.secret, usuario.email);
-      if (totp.validate({ token: data.codigo, window: 1 }) === null) {
+      const delta = totp.validate({ token: data.codigo, window: 1 });
+      if (delta === null) {
         throw new Error("Código inválido.");
       }
 
+      // Já grava o step usado na ativação (achado #614) — sem isso, o
+      // mesmíssimo código do app ainda poderia ser reaproveitado no
+      // primeiro login logo em seguida, dentro da mesma janela de ~90s.
       await conn.query(
-        "UPDATE usuario_totp SET ativado_em = NOW() WHERE usuario_id = ? AND loja_id = @current_loja_id",
-        [usuarioId],
+        `UPDATE usuario_totp SET ativado_em = NOW(), ultimo_step_usado = ?
+          WHERE usuario_id = ? AND loja_id = @current_loja_id`,
+        [totp.counter() + delta, usuarioId],
       );
 
       const codigosBackup = gerarCodigosBackup();
@@ -222,13 +227,28 @@ export async function validarCodigoTotpOuBackup(
     usuarioId,
   ]);
   const [[totpRow]] = await conn.query<RowDataPacket[]>(
-    "SELECT secret FROM usuario_totp WHERE usuario_id = ? AND ativado_em IS NOT NULL",
+    "SELECT secret, ultimo_step_usado FROM usuario_totp WHERE usuario_id = ? AND ativado_em IS NOT NULL",
     [usuarioId],
   );
   if (!usuario || !totpRow) return false;
 
   const totp = novoTotp(totpRow.secret, usuario.email);
-  if (totp.validate({ token: codigo, window: 1 }) !== null) return true;
+  const delta = totp.validate({ token: codigo, window: 1 });
+  if (delta !== null) {
+    // Anti-replay (achado #614): window:1 aceita o passo atual e um
+    // adjacente de cada lado (~90s), mas nada impedia o MESMO código,
+    // ainda dentro dessa janela, ser aceito duas vezes. Recusa reuso do
+    // mesmo step, mesmo que matematicamente ainda válido.
+    const step = totp.counter() + delta;
+    if (totpRow.ultimo_step_usado !== null && Number(totpRow.ultimo_step_usado) === step) {
+      return false;
+    }
+    await conn.query("UPDATE usuario_totp SET ultimo_step_usado = ? WHERE usuario_id = ?", [
+      step,
+      usuarioId,
+    ]);
+    return true;
+  }
 
   // Não é um código TOTP válido no momento — tenta como código de backup
   // (uso único, marca usado_em ao acertar).
