@@ -329,7 +329,12 @@ function Orcamento() {
             ) : (
               <Badge variant="outline">Rascunho</Badge>
             )}
-            <Badge variant="secondary">Versão {selecionado.versao}</Badge>
+            {/* Só mostra a versão quando existe ao menos um snapshot aprovado —
+                orcamentos.versao começa em 1 desde a criação (migração 0149),
+                então um rascunho recém-criado nunca aprovado já mostrava
+                "Versão 1", sugerindo um histórico que não existe (achado
+                #594 da reavaliação do módulo). */}
+            {versoes.length > 0 && <Badge variant="secondary">Versão {selecionado.versao}</Badge>}
             {can.isAdmin && selecionado.status === "rascunho" && (
               <Button
                 size="sm"
