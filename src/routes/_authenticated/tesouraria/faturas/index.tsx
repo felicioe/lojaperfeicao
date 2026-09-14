@@ -1423,7 +1423,7 @@ function LoteForm({
 
         <div className="md:col-span-4 text-sm text-muted-foreground">
           {unicaCompetencia
-            ? `${preview.length} irmão(s) serão cobrados nesta emissão (situação ativa/quite/irregular, com mensalidade > 0, ainda sem fatura para esta competência).`
+            ? `${preview.length} irmão(s) serão cobrados nesta emissão (situação ativa/regularizada/irregular, com mensalidade > 0, ainda sem fatura para esta competência).`
             : "Gera a mensalidade padrão pra todas as competências do intervalo que ainda não têm fatura (vencimento no dia 07 do mês seguinte a cada competência). Competência já gerada antes é pulada automaticamente — pode incluir meses já feitos sem duplicar nada."}
         </div>
         {unicaCompetencia && preview.length > 0 && (

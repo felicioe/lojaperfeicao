@@ -449,6 +449,10 @@ function IrmaoDetail() {
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Situação cadastral definida manualmente — não reflete mensalidades em aberto
+                  (confira em Financeiro/Quitação).
+                </p>
               </Field>
               <Field label="Potência (texto livre)" id="irmao-potencia">
                 <Input
