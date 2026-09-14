@@ -24,6 +24,14 @@ const loginSchema = z.object({
   senha: z.string().min(1),
 });
 
+// Hash bcrypt fixo, de uma string qualquer que não é senha de nenhuma conta
+// real — usado como alvo do bcrypt.compare quando o e-mail não existe
+// (achado #612 da auditoria de autenticação). Sem isso, o `||` do login
+// abaixo só chama bcrypt.compare (custo ~50-150ms) quando o e-mail existe,
+// criando um canal de tempo que deixa descobrir e-mails cadastrados mesmo
+// com a mensagem de erro idêntica.
+const HASH_DUMMY_TIMING = "$2b$10$Vun8doqKyfXFfoDBcD00xuFeAP/DQx1F9bKogKU/0DfbpNyjxL54S";
+
 const signupSchema = z.object({
   nomeCompleto: z.string().min(1),
   email: z.string().email(),
@@ -54,7 +62,8 @@ export const login = createServerFn({ method: "POST" })
       return usuarioUnicoParaLogin(rows);
     });
 
-    if (!usuario || !(await bcrypt.compare(data.senha, usuario.senha_hash))) {
+    const senhaConfere = await bcrypt.compare(data.senha, usuario?.senha_hash ?? HASH_DUMMY_TIMING);
+    if (!usuario || !senhaConfere) {
       await withUserConnection(null, (conn) => registrarTentativaFalha(conn, data.email));
       throw new Error("E-mail ou senha inválidos.");
     }
