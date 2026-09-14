@@ -75,6 +75,25 @@ async function exigirIrmaoDaLoja(conn: PoolConnection, irmaoId: string): Promise
   return row.loja_id as string;
 }
 
+// irmaos.grau (aprendiz/companheiro/mestre) e irmao_orgs.grau_atual (inteiro,
+// por corpo maçônico — pode passar de 3 em corpos com graus filosóficos) são
+// dois campos independentes que nada sincronizava (achado #610 da auditoria
+// de Irmãos): o cálculo de interstício usa só grau_atual do corpo principal,
+// a ficha/listagem usa só irmaos.grau, e secretário editando um esquecia do
+// outro. Sincroniza os dois só na faixa 1-3 (os graus de Loja Simbólica, que
+// é o que irmaos.grau representa) — um grau_atual maior (corpo filosófico)
+// nunca sobrescreve irmaos.grau, que não tem onde guardar isso.
+const GRAU_NUMERO_PARA_TEXTO: Record<number, "aprendiz" | "companheiro" | "mestre"> = {
+  1: "aprendiz",
+  2: "companheiro",
+  3: "mestre",
+};
+const GRAU_TEXTO_PARA_NUMERO: Record<string, number> = {
+  aprendiz: 1,
+  companheiro: 2,
+  mestre: 3,
+};
+
 export type Irmao = {
   id: string;
   usuario_id: string | null;
@@ -335,6 +354,20 @@ export const atualizarPerfilIrmao = createServerFn({ method: "POST" })
         ...valores,
         data.id,
       ]);
+      // Sincroniza irmao_orgs.grau_atual do corpo principal (achado #610) —
+      // só quando esse grau_atual hoje é nulo ou já está na faixa 1-3, pra
+      // nunca sobrescrever um grau filosófico maior mantido por outro corpo.
+      if (campos.includes("grau")) {
+        const numero = GRAU_TEXTO_PARA_NUMERO[String(data.perfil.grau)];
+        if (numero) {
+          await conn.query(
+            `UPDATE irmao_orgs SET grau_atual = ?
+              WHERE irmao_id = ? AND loja_id = @current_loja_id AND principal = TRUE
+                AND (grau_atual IS NULL OR grau_atual <= 3)`,
+            [numero, data.id],
+          );
+        }
+      }
       const depois = Object.fromEntries(campos.map((c) => [c, data.perfil[c] ?? null]));
       await registrarAuditoria(
         conn,
@@ -482,6 +515,16 @@ export const criarIrmaoOrg = createServerFn({ method: "POST" })
         "INSERT INTO irmao_orgs (loja_id, irmao_id, org_id, principal, grau_atual) VALUES (?, ?, ?, ?, ?)",
         [lojaId, data.irmaoId, data.orgId, data.principal, data.grauAtual],
       );
+      // Sincroniza irmaos.grau com o grau_atual do corpo marcado como
+      // principal (achado #610) — só na faixa 1-3 (Loja Simbólica); um corpo
+      // filosófico com grau maior não tem como representar isso em
+      // irmaos.grau, então não mexe.
+      if (data.principal && data.grauAtual && GRAU_NUMERO_PARA_TEXTO[data.grauAtual]) {
+        await conn.query("UPDATE irmaos SET grau = ? WHERE id = ? AND loja_id = @current_loja_id", [
+          GRAU_NUMERO_PARA_TEXTO[data.grauAtual],
+          data.irmaoId,
+        ]);
+      }
     });
   });
 
