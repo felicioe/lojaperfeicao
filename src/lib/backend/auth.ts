@@ -35,7 +35,9 @@ const HASH_DUMMY_TIMING = "$2b$10$Vun8doqKyfXFfoDBcD00xuFeAP/DQx1F9bKogKU/0DfbpN
 const signupSchema = z.object({
   nomeCompleto: z.string().min(1),
   email: z.string().email(),
-  senha: z.string().min(6),
+  // Elevado de min(6) pra min(8) por consistência com os demais fluxos de
+  // senha do sistema (achado #613 da auditoria de autenticação).
+  senha: z.string().min(8),
   aceiteLgpd: z.literal(true, { message: "É preciso aceitar a Política de Privacidade." }),
 });
 
@@ -158,7 +160,12 @@ export const registrarConsentimentoLgpd = createServerFn({ method: "POST" }).han
 });
 
 const trocarMinhaSenhaSchema = z.object({
-  novaSenha: z.string().min(3),
+  // Achado #613 da auditoria de autenticação: aceitava min(3) — mais fraco
+  // que o próprio cadastro (signup) — no fluxo que deveria justamente
+  // elevar a senha padrão conhecida (login previsível nome.sobrenome, ver
+  // rate-limit.ts) para algo forte no primeiro acesso. Alinhado com o
+  // mínimo já usado em redefinirSchema (recuperacao-senha.ts).
+  novaSenha: z.string().min(8),
   // Só null no fluxo de primeiro acesso (/trocar-senha, deve_trocar_senha
   // ativo) — a pessoa acabou de digitar a senha padrão pra entrar, pedir
   // de novo não agrega segurança. Fora desse fluxo, é obrigatório (achado

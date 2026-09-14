@@ -327,7 +327,7 @@ function AuthPage() {
                         autoComplete="new-password"
                         aria-describedby={authError ? "cadastro-erro" : undefined}
                         aria-invalid={!!authError}
-                        minLength={6}
+                        minLength={8}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required

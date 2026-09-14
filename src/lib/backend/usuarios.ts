@@ -435,7 +435,10 @@ export { TODOS_PAPEIS };
 
 const redefinirSenhaSchema = z.object({
   usuarioId: z.string().uuid(),
-  novaSenha: z.string().min(3),
+  // Achado #613 da auditoria de autenticação: aceitava min(3). Alinhado
+  // com o mínimo já usado em redefinirSchema (recuperacao-senha.ts) e em
+  // trocarMinhaSenhaSchema (auth.ts).
+  novaSenha: z.string().min(8),
   // true = "obrigar troca no primeiro acesso" (senha vira temporária,
   // barrada em /trocar-senha). false = "fixar" (senha permanente).
   obrigarTrocaSenha: z.boolean(),

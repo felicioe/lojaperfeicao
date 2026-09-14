@@ -570,6 +570,9 @@ function CodigosBackupConteudo({
   );
 }
 
+// Mesmo mínimo de trocarMinhaSenhaSchema (auth.ts) — achado #613.
+const SENHA_MINIMA = 8;
+
 function TrocarSenhaCard() {
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
@@ -578,7 +581,8 @@ function TrocarSenhaCard() {
 
   const salvar = async () => {
     if (!senhaAtual) return toast.error("Informe a senha atual.");
-    if (novaSenha.length < 3) return toast.error("Senha muito curta.");
+    if (novaSenha.length < SENHA_MINIMA)
+      return toast.error(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
     if (novaSenha !== confirmacao) return toast.error("As senhas não conferem.");
     setSalvando(true);
     try {
@@ -621,7 +625,11 @@ function TrocarSenhaCard() {
             type="password"
             value={novaSenha}
             onChange={(e) => setNovaSenha(e.target.value)}
+            minLength={SENHA_MINIMA}
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pelo menos {SENHA_MINIMA} caracteres.
+          </p>
         </div>
         <div>
           <Label htmlFor="seguranca-confirmar-nova-senha">Confirmar nova senha</Label>

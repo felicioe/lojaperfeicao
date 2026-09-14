@@ -73,6 +73,8 @@ import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 // final que vai pro servidor continua sendo o admin, editável antes de
 // enviar.
 const SENHA_TEMP_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+// Mesmo mínimo de redefinirSenhaSchema (usuarios.ts) — achado #613.
+const SENHA_MINIMA = 8;
 function gerarSenhaAleatoriaCliente(tamanho = 10): string {
   const valores = new Uint32Array(tamanho);
   crypto.getRandomValues(valores);
@@ -415,7 +417,11 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
   };
 
   const salvarSenha = async (senha: string) => {
-    if (!senha) return toast.error("Informe uma senha.");
+    // Achado #613 da auditoria de autenticação: o servidor já recusa senha
+    // abaixo do mínimo, mas validar aqui evita a viagem ao servidor só pra
+    // devolver o erro.
+    if (senha.length < SENHA_MINIMA)
+      return toast.error(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
     setSalvando(true);
     try {
       await redefinirSenhaUsuario({
@@ -585,6 +591,7 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
                 value={novaSenha}
                 onChange={(e) => setNovaSenha(e.target.value)}
                 placeholder="Digite ou gere uma senha"
+                minLength={SENHA_MINIMA}
               />
               <Button
                 type="button"
@@ -594,6 +601,7 @@ function UsuarioRow({ usuario, onChanged }: { usuario: UsuarioAdmin; onChanged: 
               >
                 <Dices className="h-3 w-3" /> Gerar senha aleatória
               </Button>
+              <p className="text-xs text-muted-foreground">Pelo menos {SENHA_MINIMA} caracteres.</p>
             </div>
             <div className="space-y-2">
               <Label id="depois-definida-label">Depois de definida</Label>
