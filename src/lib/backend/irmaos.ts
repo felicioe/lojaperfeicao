@@ -337,6 +337,33 @@ export const excluirIrmao = createServerFn({ method: "POST" })
         [data.id],
       );
       if (!irmao) throw new SemPermissaoError("Irmão não encontrado nesta Loja.");
+
+      // Checagem prévia em vez de deixar a constraint do banco decidir: as
+      // FKs de irmao_id são inconsistentes entre si (SET NULL em lancamentos
+      // deixaria mensalidade paga/pendente órfã, sem dono; RESTRICT em
+      // recibos/parcelamentos/gestao_cargos falharia com um erro SQL cru,
+      // não tratado aqui) — achado #605 da auditoria de Irmãos. Bloqueia com
+      // mensagem clara e orienta a desativar (mudar situação) em vez de
+      // excluir, preservando o histórico financeiro.
+      const [[vinculos]] = await conn.query<RowDataPacket[]>(
+        `SELECT
+           EXISTS(SELECT 1 FROM lancamentos WHERE irmao_id = ? AND loja_id = @current_loja_id) AS tem_lancamento,
+           EXISTS(SELECT 1 FROM recibos WHERE irmao_id = ? AND loja_id = @current_loja_id) AS tem_recibo,
+           EXISTS(SELECT 1 FROM parcelamentos WHERE irmao_id = ? AND loja_id = @current_loja_id) AS tem_parcelamento,
+           EXISTS(SELECT 1 FROM gestao_cargos WHERE irmao_id = ? AND loja_id = @current_loja_id) AS tem_cargo`,
+        [data.id, data.id, data.id, data.id],
+      );
+      if (
+        vinculos.tem_lancamento ||
+        vinculos.tem_recibo ||
+        vinculos.tem_parcelamento ||
+        vinculos.tem_cargo
+      ) {
+        throw new Error(
+          'Este Irmão tem lançamentos financeiros, recibos, parcelamentos ou cargos vinculados — não é possível excluir sem perder esse histórico. Marque a situação como "adormecido" (ou outra situação de inatividade) em vez de excluir.',
+        );
+      }
+
       await conn.query("DELETE FROM irmaos WHERE id = ? AND loja_id = @current_loja_id", [data.id]);
       await registrarAuditoria(
         conn,
