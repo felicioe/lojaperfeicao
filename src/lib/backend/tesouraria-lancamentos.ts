@@ -378,22 +378,76 @@ export const marcarLancamentoPago = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT pago, data_pagamento, valor_pago FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
+        `SELECT l.pago, l.data_pagamento, l.valor_pago, l.valor, l.tipo, l.descricao,
+                l.plano_conta_id, cf.plano_conta_id AS conta_plano_conta_id
+         FROM lancamentos l
+         LEFT JOIN contas_financeiras cf ON cf.id = l.conta_id AND cf.loja_id = l.loja_id
+         WHERE l.loja_id = @current_loja_id AND l.id = ?`,
         [data.id],
       );
-      // valor_pago = valor: mesmo invariante "pago=TRUE implica valor_pago
-      // >= valor" que baixar_faturas/baixar_conta_pagar/etc já seguem desde
-      // 0048 — sem isso, Total pago no Extrato do Irmão e o saldo em aberto
-      // (valor - valor_pago) ficavam errados pra lançamento baixado por
-      // aqui (achado #9 da auditoria financeira).
-      await conn.query(
-        "UPDATE lancamentos SET pago = TRUE, data_pagamento = ?, valor_pago = valor WHERE loja_id = @current_loja_id AND id = ?",
-        [data.dataPagamento, data.id],
-      );
-      await registrarAuditoria(conn, usuarioIdAtual, "marcar_pago", "lancamentos", data.id, antes, {
-        pago: true,
-        data_pagamento: data.dataPagamento,
-      });
+      if (!antes) throw new Error("Lançamento não encontrado.");
+      // A contrapartida contábil só pode ser gerada com uma conta de
+      // resultado definida (achado #578 da auditoria de contabilidade x
+      // financeiro) — sem isso o saldo de caixa subia sem nunca refletir no
+      // Diário/Balancete.
+      if (!antes.plano_conta_id) {
+        throw new Error(
+          "Este lançamento não tem conta do plano de contas definida — edite-o antes de baixar, para que a baixa gere o lançamento contábil correspondente.",
+        );
+      }
+      if (!antes.conta_plano_conta_id) {
+        throw new Error(
+          "A conta financeira deste lançamento não tem conta do plano de contas vinculada — não é possível gerar o lançamento contábil.",
+        );
+      }
+      await conn.beginTransaction();
+      try {
+        // valor_pago = valor: mesmo invariante "pago=TRUE implica valor_pago
+        // >= valor" que baixar_faturas/baixar_conta_pagar/etc já seguem desde
+        // 0048 — sem isso, Total pago no Extrato do Irmão e o saldo em aberto
+        // (valor - valor_pago) ficavam errados pra lançamento baixado por
+        // aqui (achado #9 da auditoria financeira).
+        await conn.query(
+          "UPDATE lancamentos SET pago = TRUE, data_pagamento = ?, valor_pago = valor WHERE loja_id = @current_loja_id AND id = ?",
+          [data.dataPagamento, data.id],
+        );
+        const itens =
+          antes.tipo === "entrada"
+            ? [
+                { conta_id: antes.conta_plano_conta_id, tipo: "debito", valor: antes.valor },
+                { conta_id: antes.plano_conta_id, tipo: "credito", valor: antes.valor },
+              ]
+            : [
+                { conta_id: antes.plano_conta_id, tipo: "debito", valor: antes.valor },
+                { conta_id: antes.conta_plano_conta_id, tipo: "credito", valor: antes.valor },
+              ];
+        await conn.query(
+          `CALL registrar_lancamento_contabil(?, ?, ?, ?, 'lancamento_manual', ?, @lm_contabil_id)`,
+          [
+            data.dataPagamento,
+            `${data.dataPagamento.slice(0, 7)}-01`,
+            antes.descricao,
+            JSON.stringify(itens),
+            data.id,
+          ],
+        );
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          "marcar_pago",
+          "lancamentos",
+          data.id,
+          antes,
+          {
+            pago: true,
+            data_pagamento: data.dataPagamento,
+          },
+        );
+        await conn.commit();
+      } catch (erro) {
+        await conn.rollback();
+        throw erro;
+      }
     });
   });
 
@@ -431,7 +485,7 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
            EXISTS(
              SELECT 1 FROM lancamentos_contabeis
              WHERE loja_id = @current_loja_id
-               AND origem_tipo IN ('recebimento_avulso', 'tronco_saida', 'recibo_avulso')
+               AND origem_tipo IN ('recebimento_avulso', 'tronco_saida', 'recibo_avulso', 'lancamento_manual')
                AND origem_id = ?
            ) AS tem_lancamento_contabil_proprio`,
         [data.id, data.id, data.id, data.id, data.id],
@@ -458,13 +512,14 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
         );
       }
       if (vinculo.tem_lancamento_contabil_proprio) {
-        // Recebimento avulso, saída de tronco e recibo avulso já nascem
-        // pagos com lançamento contábil próprio (débito/crédito lançado na
-        // criação, não na baixa) — igual à conta a pagar acima, "Desmarcar
-        // pago" reabriria o valor pra edição sem estornar essa contrapartida,
-        // e uma nova baixa geraria um SEGUNDO lançamento contábil pro mesmo
-        // evento, divergindo do que a tesouraria mostra (achado #523/#524
-        // da auditoria de integridade entre módulos).
+        // Recebimento avulso, saída de tronco, recibo avulso e lançamento
+        // manual (quando pago) já nascem com lançamento contábil próprio
+        // (débito/crédito lançado na criação, não na baixa) — igual à conta
+        // a pagar acima, "Desmarcar pago" reabriria o valor pra edição sem
+        // estornar essa contrapartida, e uma nova baixa geraria um SEGUNDO
+        // lançamento contábil pro mesmo evento, divergindo do que a
+        // tesouraria mostra (achado #523/#524 da auditoria de integridade
+        // entre módulos).
         throw new Error(
           "Este lançamento tem contrapartida contábil própria — desmarcar por aqui deixaria o lançamento contábil órfão. Não é possível reverter por aqui.",
         );
@@ -712,11 +767,13 @@ const novoLancamentoSchema = z.object({
   observacoes: z.string().nullable(),
 });
 
-// Lançamento manual — igual ao original, é INSERT direto (sem stored
-// procedure), não gera lançamento contábil de partida dobrada (achado #157
-// da revisão de segurança — a contrapartida contábil em si ficou como
-// decisão em aberto na issue, é mudança estrutural maior; aqui só a
-// auditoria, que é o gap claro e sem ambiguidade).
+// Lançamento manual — INSERT direto (sem stored procedure). Quando já nasce
+// pago, gera a contrapartida contábil de partida dobrada (achado #578 da
+// auditoria de contabilidade x financeiro: antes só a auditoria era
+// registrada, e o saldo de caixa subia sem nunca aparecer no Diário/
+// Balancete — regime de caixa, então só há fato contábil a registrar
+// quando existe pagamento de verdade; se nasce em aberto, fica igual à
+// provisão, sem lançamento contábil, até ser baixado em marcarLancamentoPago).
 export const criarLancamentoManual = createServerFn({ method: "POST" })
   .validator((d: unknown) => novoLancamentoSchema.parse(d))
   .handler(async ({ data }) => {
@@ -725,7 +782,7 @@ export const criarLancamentoManual = createServerFn({ method: "POST" })
       // esta Loja, um id de outra Loja era gravado direto (mesma classe do
       // achado crítico de criarReciboAvulso, na auditoria geral de bugs).
       const [[conta]] = await conn.query<RowDataPacket[]>(
-        "SELECT id FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
+        "SELECT id, plano_conta_id FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
         [data.conta_id],
       );
       if (!conta) throw new Error("Conta financeira não encontrada nesta loja.");
@@ -736,31 +793,77 @@ export const criarLancamentoManual = createServerFn({ method: "POST" })
         );
         if (!planoConta) throw new Error("Conta do plano de contas não encontrada nesta loja.");
       }
-      await conn.query(
-        `INSERT INTO lancamentos (loja_id, data, data_vencimento, descricao, valor, tipo, conta_id, plano_conta_id, pago, data_pagamento, observacoes)
-         VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          data.data,
-          data.data_vencimento,
-          data.descricao,
-          data.valor,
-          data.tipo,
-          data.conta_id,
-          data.plano_conta_id,
-          data.pago,
-          data.data_pagamento,
-          data.observacoes,
-        ],
-      );
-      await registrarAuditoria(
-        conn,
-        usuarioIdAtual,
-        "criar",
-        "lancamento_manual",
-        null,
-        null,
-        data,
-      );
+      if (data.pago) {
+        if (!data.plano_conta_id) {
+          throw new Error(
+            "Selecione a conta do plano de contas — obrigatória para lançar um recebimento/pagamento já baixado na contabilidade.",
+          );
+        }
+        if (!conta.plano_conta_id) {
+          throw new Error(
+            "A conta financeira selecionada não tem conta do plano de contas vinculada — não é possível gerar o lançamento contábil.",
+          );
+        }
+      }
+      const id = crypto.randomUUID();
+      await conn.beginTransaction();
+      try {
+        await conn.query(
+          `INSERT INTO lancamentos (loja_id, id, data, data_vencimento, descricao, valor, tipo, conta_id, plano_conta_id, pago, data_pagamento, valor_pago, observacoes)
+           VALUES (@current_loja_id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            data.data,
+            data.data_vencimento,
+            data.descricao,
+            data.valor,
+            data.tipo,
+            data.conta_id,
+            data.plano_conta_id,
+            data.pago,
+            data.data_pagamento,
+            data.pago ? data.valor : 0,
+            data.observacoes,
+          ],
+        );
+        if (data.pago) {
+          const dataPagamento = data.data_pagamento ?? data.data;
+          const itens =
+            data.tipo === "entrada"
+              ? [
+                  { conta_id: conta.plano_conta_id, tipo: "debito", valor: data.valor },
+                  { conta_id: data.plano_conta_id, tipo: "credito", valor: data.valor },
+                ]
+              : [
+                  { conta_id: data.plano_conta_id, tipo: "debito", valor: data.valor },
+                  { conta_id: conta.plano_conta_id, tipo: "credito", valor: data.valor },
+                ];
+          await conn.query(
+            `CALL registrar_lancamento_contabil(?, ?, ?, ?, 'lancamento_manual', ?, @lm_contabil_id)`,
+            [
+              dataPagamento,
+              `${dataPagamento.slice(0, 7)}-01`,
+              data.descricao,
+              JSON.stringify(itens),
+              id,
+            ],
+          );
+        }
+        await registrarAuditoria(
+          conn,
+          usuarioIdAtual,
+          "criar",
+          "lancamento_manual",
+          id,
+          null,
+          data,
+        );
+        await conn.commit();
+      } catch (erro) {
+        await conn.rollback();
+        throw erro;
+      }
+      return { id };
     });
   });
 

@@ -569,7 +569,7 @@ function LancamentoDialog({
           <Label htmlFor="lanc-categoria">Categoria (plano de contas)</Label>
           <Select value={d.plano_conta_id} onValueChange={(v) => setD({ ...d, plano_conta_id: v })}>
             <SelectTrigger id="lanc-categoria">
-              <SelectValue placeholder="Opcional" />
+              <SelectValue placeholder={d.pago ? "Selecionar" : "Opcional"} />
             </SelectTrigger>
             <SelectContent>
               {planos.map((p) => (
@@ -579,6 +579,13 @@ function LancamentoDialog({
               ))}
             </SelectContent>
           </Select>
+          {/* Obrigatória quando já pago/recebido — é a contrapartida que
+              gera o lançamento contábil (achado #578 da auditoria). */}
+          {d.pago && !d.plano_conta_id && (
+            <p className="mt-1 text-xs text-destructive">
+              Obrigatória para lançamento já pago/recebido.
+            </p>
+          )}
         </div>
         <div className="md:col-span-2 flex items-center gap-2">
           <Checkbox
@@ -607,7 +614,13 @@ function LancamentoDialog({
         </DialogClose>
         <Button
           onClick={save}
-          disabled={saving || !d.descricao || !d.conta_id || !(Number(d.valor) > 0)}
+          disabled={
+            saving ||
+            !d.descricao ||
+            !d.conta_id ||
+            !(Number(d.valor) > 0) ||
+            (d.pago && !d.plano_conta_id)
+          }
         >
           Salvar
         </Button>
