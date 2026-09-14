@@ -111,10 +111,12 @@ export const aprovarOrcamento = createServerFn({ method: "POST" })
   });
 
 export const reabrirOrcamento = createServerFn({ method: "POST" })
-  .validator((d: unknown) => z.object({ orcamentoId: z.string().uuid() }).parse(d))
+  .validator((d: unknown) =>
+    z.object({ orcamentoId: z.string().uuid(), motivo: z.string().min(1) }).parse(d),
+  )
   .handler(async ({ data }) => {
     return comPapel(PAPEIS, async (conn) => {
-      await conn.query("CALL reabrir_orcamento(?)", [data.orcamentoId]);
+      await conn.query("CALL reabrir_orcamento(?, ?)", [data.orcamentoId, data.motivo]);
     });
   });
 
@@ -229,6 +231,9 @@ export type OrcamentoVersao = {
   versao: number;
   aprovado_por: string | null;
   aprovado_em: string;
+  reaberto_por: string | null;
+  reaberto_em: string | null;
+  motivo_reabertura: string | null;
 };
 
 export const listarOrcamentoVersoes = createServerFn({ method: "GET" })
@@ -236,7 +241,8 @@ export const listarOrcamentoVersoes = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<OrcamentoVersao[]> => {
     return comPapel(PAPEIS, async (conn) => {
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT id, versao, aprovado_por, aprovado_em FROM orcamento_versoes
+        `SELECT id, versao, aprovado_por, aprovado_em, reaberto_por, reaberto_em, motivo_reabertura
+           FROM orcamento_versoes
           WHERE orcamento_id = ? AND loja_id = @current_loja_id
           ORDER BY versao DESC`,
         [data.orcamentoId],
