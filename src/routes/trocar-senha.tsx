@@ -16,6 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+// Achado #613 da auditoria de autenticação: o mínimo aqui era 3, mais fraco
+// que o próprio cadastro — justo no fluxo que deveria elevar a senha padrão
+// conhecida (login previsível nome.sobrenome) para algo forte no primeiro
+// acesso. Alinhado com o mínimo do servidor (trocarMinhaSenhaSchema, auth.ts).
+const SENHA_MINIMA = 8;
+
 export const Route = createFileRoute("/trocar-senha")({
   beforeLoad: async () => {
     const usuario = await getSessao();
@@ -35,7 +41,8 @@ function TrocarSenha() {
   const [enviando, setEnviando] = useState(false);
 
   const salvar = async () => {
-    if (novaSenha.length < 3) return toast.error("A senha precisa ter pelo menos 3 caracteres.");
+    if (novaSenha.length < SENHA_MINIMA)
+      return toast.error(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
     if (novaSenha !== confirmacao) return toast.error("As senhas não conferem.");
     setEnviando(true);
     try {
@@ -85,8 +92,12 @@ function TrocarSenha() {
                 autoComplete="new-password"
                 value={novaSenha}
                 onChange={(e) => setNovaSenha(e.target.value)}
+                minLength={SENHA_MINIMA}
                 autoFocus
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pelo menos {SENHA_MINIMA} caracteres.
+              </p>
             </div>
             <div>
               <Label htmlFor="confirmar-senha">Confirmar nova senha</Label>
