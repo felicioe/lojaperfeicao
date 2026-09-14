@@ -95,6 +95,35 @@ function FluxoRealizado() {
 
   const saldoAnterior = saldoBaseContas + anteriores;
 
+  // Anos do período selecionado calculados direto de "De"/"Até" (não dos
+  // meses que aparecem em `movimentos`) — precisa incluir também um ano/mês
+  // sem nenhuma movimentação realizada, senão o orçado desse mês nunca é
+  // buscado (achado #592 da reavaliação do orçamento).
+  const anosDoPeriodo = useMemo(
+    () => Array.from(new Set([Number(de.slice(0, 4)), Number(ate.slice(0, 4))])).sort(),
+    [de, ate],
+  );
+  const { data: orcadoCaixaPorAno = [] } = useQuery({
+    queryKey: ["orcamento_caixa_mensal", anosDoPeriodo],
+    queryFn: () =>
+      Promise.all(anosDoPeriodo.map((ano) => obterOrcamentoCaixaMensal({ data: { ano } }))),
+  });
+  const orcadoPorChaveMes = useMemo(() => {
+    const m = new Map<string, { entradaOrcada: number; saidaOrcada: number }>();
+    const mesDe = de.slice(0, 7);
+    const mesAte = ate.slice(0, 7);
+    for (const anoResp of orcadoCaixaPorAno) {
+      for (const r of anoResp.meses) {
+        const chave = `${anoResp.ano}-${String(r.mes).padStart(2, "0")}`;
+        // obterOrcamentoCaixaMensal devolve o ano inteiro — restringe aos
+        // meses de fato dentro do período "De"/"Até" selecionado na tela.
+        if (chave < mesDe || chave > mesAte) continue;
+        m.set(chave, { entradaOrcada: r.entradaOrcada, saidaOrcada: r.saidaOrcada });
+      }
+    }
+    return m;
+  }, [orcadoCaixaPorAno, de, ate]);
+
   const linhas = useMemo(() => {
     const porMes = new Map<string, LinhaMensal>();
     for (const m of movimentos) {
@@ -104,40 +133,20 @@ function FluxoRealizado() {
       else atual.saidas += Number(m.valor);
       porMes.set(chave, atual);
     }
+    // Um mês orçado em caixa sem nenhuma movimentação realizada é
+    // informação relevante ("isso estava orçado e não aconteceu") — sem
+    // isso o mês simplesmente sumia da comparação orçado x realizado
+    // (achado #592 da reavaliação).
+    for (const chave of orcadoPorChaveMes.keys()) {
+      if (!porMes.has(chave)) porMes.set(chave, { mes: chave, entradas: 0, saidas: 0 });
+    }
     return Array.from(porMes.values()).sort((a, b) => a.mes.localeCompare(b.mes));
-  }, [movimentos]);
+  }, [movimentos, orcadoPorChaveMes]);
 
   const totalEntradas = linhas.reduce((s, l) => s + l.entradas, 0);
   const totalSaidas = linhas.reduce((s, l) => s + l.saidas, 0);
   const saldoFinal = saldoAnterior + totalEntradas - totalSaidas;
 
-  // Orçamento em base de caixa (achado #581 da auditoria de orçamento/fluxo
-  // de caixa) — o orçamento existente só comparava com o regime de
-  // competência (DRE Orçado); aqui é a mesma dimensão só que em caixa,
-  // buscada por ano (o orçamento é anual) pros anos que aparecem no período
-  // selecionado, e casada por mês (chave "AAAA-MM", igual a `linhas`).
-  const anosDoPeriodo = useMemo(
-    () => Array.from(new Set(linhas.map((l) => Number(l.mes.slice(0, 4))))).sort(),
-    [linhas],
-  );
-  const { data: orcadoCaixaPorAno = [] } = useQuery({
-    queryKey: ["orcamento_caixa_mensal", anosDoPeriodo],
-    enabled: anosDoPeriodo.length > 0,
-    queryFn: () =>
-      Promise.all(anosDoPeriodo.map((ano) => obterOrcamentoCaixaMensal({ data: { ano } }))),
-  });
-  const orcadoPorChaveMes = useMemo(() => {
-    const m = new Map<string, { entradaOrcada: number; saidaOrcada: number }>();
-    for (const anoResp of orcadoCaixaPorAno) {
-      for (const r of anoResp.meses) {
-        m.set(`${anoResp.ano}-${String(r.mes).padStart(2, "0")}`, {
-          entradaOrcada: r.entradaOrcada,
-          saidaOrcada: r.saidaOrcada,
-        });
-      }
-    }
-    return m;
-  }, [orcadoCaixaPorAno]);
   const totalOrcadoMes = linhas.reduce((s, l) => {
     const o = orcadoPorChaveMes.get(l.mes);
     return s + (o ? o.entradaOrcada - o.saidaOrcada : 0);
