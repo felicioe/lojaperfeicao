@@ -6,6 +6,7 @@ import {
   listarMovimentosRealizados,
   listarMovimentosPendentes,
 } from "@/lib/backend/fluxo-caixa";
+import { obterOrcamentoCaixaMensal } from "@/lib/backend/contabilidade-orcamento";
 import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -110,17 +111,61 @@ function FluxoRealizado() {
   const totalSaidas = linhas.reduce((s, l) => s + l.saidas, 0);
   const saldoFinal = saldoAnterior + totalEntradas - totalSaidas;
 
+  // Orçamento em base de caixa (achado #581 da auditoria de orçamento/fluxo
+  // de caixa) — o orçamento existente só comparava com o regime de
+  // competência (DRE Orçado); aqui é a mesma dimensão só que em caixa,
+  // buscada por ano (o orçamento é anual) pros anos que aparecem no período
+  // selecionado, e casada por mês (chave "AAAA-MM", igual a `linhas`).
+  const anosDoPeriodo = useMemo(
+    () => Array.from(new Set(linhas.map((l) => Number(l.mes.slice(0, 4))))).sort(),
+    [linhas],
+  );
+  const { data: orcadoCaixaPorAno = [] } = useQuery({
+    queryKey: ["orcamento_caixa_mensal", anosDoPeriodo],
+    enabled: anosDoPeriodo.length > 0,
+    queryFn: () =>
+      Promise.all(anosDoPeriodo.map((ano) => obterOrcamentoCaixaMensal({ data: { ano } }))),
+  });
+  const orcadoPorChaveMes = useMemo(() => {
+    const m = new Map<string, { entradaOrcada: number; saidaOrcada: number }>();
+    anosDoPeriodo.forEach((ano, idx) => {
+      for (const r of orcadoCaixaPorAno[idx] ?? []) {
+        m.set(`${ano}-${String(r.mes).padStart(2, "0")}`, {
+          entradaOrcada: r.entradaOrcada,
+          saidaOrcada: r.saidaOrcada,
+        });
+      }
+    });
+    return m;
+  }, [anosDoPeriodo, orcadoCaixaPorAno]);
+  const totalOrcadoMes = linhas.reduce((s, l) => {
+    const o = orcadoPorChaveMes.get(l.mes);
+    return s + (o ? o.entradaOrcada - o.saidaOrcada : 0);
+  }, 0);
+
   const exportarCSV = () => {
-    const cabecalho = ["Mês", "Entradas", "Saídas", "Saldo do mês", "Saldo acumulado"];
+    const cabecalho = [
+      "Mês",
+      "Entradas",
+      "Saídas",
+      "Saldo do mês",
+      "Saldo acumulado",
+      "Orçado do mês",
+      "Variação",
+    ];
     let acumulado = saldoAnterior;
     const linhasCsv = linhas.map((l) => {
       acumulado += l.entradas - l.saidas;
+      const orcado = orcadoPorChaveMes.get(l.mes);
+      const orcadoMes = orcado ? orcado.entradaOrcada - orcado.saidaOrcada : null;
       return [
         l.mes,
         l.entradas.toFixed(2),
         l.saidas.toFixed(2),
         (l.entradas - l.saidas).toFixed(2),
         acumulado.toFixed(2),
+        orcadoMes === null ? "" : orcadoMes.toFixed(2),
+        orcadoMes === null ? "" : (l.entradas - l.saidas - orcadoMes).toFixed(2),
       ];
     });
     const csv = [cabecalho, ...linhasCsv]
@@ -164,32 +209,53 @@ function FluxoRealizado() {
               <TableHead numeric>Saídas</TableHead>
               <TableHead numeric>Saldo do mês</TableHead>
               <TableHead numeric>Saldo acumulado</TableHead>
+              <TableHead numeric>Orçado do mês</TableHead>
+              <TableHead numeric>Variação</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow className="bg-muted/20 italic text-muted-foreground">
               <TableCell colSpan={4}>Saldo anterior ao período</TableCell>
               <TableCell numeric>{brl(saldoAnterior)}</TableCell>
+              <TableCell colSpan={2} />
             </TableRow>
             {linhas.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                   Nenhuma movimentação de caixa no período.
                 </TableCell>
               </TableRow>
             )}
             {linhas.map((l) => {
               acumulado += l.entradas - l.saidas;
+              const orcado = orcadoPorChaveMes.get(l.mes);
+              const orcadoMes = orcado ? orcado.entradaOrcada - orcado.saidaOrcada : null;
+              const saldoMes = l.entradas - l.saidas;
               return (
                 <TableRow key={l.mes}>
                   <TableCell>{l.mes}</TableCell>
                   <TableCell numeric>{brl(l.entradas)}</TableCell>
                   <TableCell numeric>{brl(l.saidas)}</TableCell>
                   <TableCell numeric className="font-medium">
-                    {brl(l.entradas - l.saidas)}
+                    {brl(saldoMes)}
                   </TableCell>
                   <TableCell numeric className="font-medium">
                     {brl(acumulado)}
+                  </TableCell>
+                  <TableCell numeric className="text-muted-foreground">
+                    {orcadoMes === null ? "—" : brl(orcadoMes)}
+                  </TableCell>
+                  <TableCell
+                    numeric
+                    className={
+                      orcadoMes === null
+                        ? "text-muted-foreground"
+                        : saldoMes - orcadoMes < 0
+                          ? "text-destructive"
+                          : "text-emerald-600"
+                    }
+                  >
+                    {orcadoMes === null ? "—" : brl(saldoMes - orcadoMes)}
                   </TableCell>
                 </TableRow>
               );
@@ -203,6 +269,10 @@ function FluxoRealizado() {
               <TableCell numeric>{brl(totalEntradas - totalSaidas)}</TableCell>
               <TableCell numeric className="font-semibold">
                 {brl(saldoFinal)}
+              </TableCell>
+              <TableCell numeric>{brl(totalOrcadoMes)}</TableCell>
+              <TableCell numeric className="font-semibold">
+                {brl(totalEntradas - totalSaidas - totalOrcadoMes)}
               </TableCell>
             </TableRow>
           </TableFooter>

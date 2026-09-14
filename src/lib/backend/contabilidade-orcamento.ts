@@ -146,3 +146,75 @@ export const listarRealizadoAnual = createServerFn({ method: "GET" })
       return rows as ItemRealizadoAnual[];
     });
   });
+
+// ---------- Orçamento em base de caixa (issue #581) ----------
+// Mesmo cabeçalho `orcamentos` e mesmo plano de contas do orçamento de
+// competência, só numa tabela de itens irmã (orcamento_caixa_itens,
+// migração 0148) — pra não misturar os dois regimes na mesma linha nem
+// alterar a leitura já existente do DRE Orçado.
+export type OrcamentoCaixaItem = { conta_id: string; mes: number; valor: number };
+
+export const listarOrcamentoCaixaItens = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ orcamentoId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<OrcamentoCaixaItem[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT conta_id, mes, valor FROM orcamento_caixa_itens
+          WHERE orcamento_id = ? AND loja_id = @current_loja_id`,
+        [data.orcamentoId],
+      );
+      return rows as OrcamentoCaixaItem[];
+    });
+  });
+
+export const definirValorOrcamentoCaixa = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z
+      .object({
+        orcamentoId: z.string().uuid(),
+        contaId: z.string().uuid(),
+        mes: z.number().int().min(1).max(12),
+        valor: z.number(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS, async (conn) => {
+      await conn.query("CALL definir_valor_orcamento_caixa(?, ?, ?, ?)", [
+        data.orcamentoId,
+        data.contaId,
+        data.mes,
+        data.valor,
+      ]);
+    });
+  });
+
+// Total orçado de caixa por mês (entrada/saída) — usado na aba "Realizado"
+// do Fluxo de Caixa pra mostrar "Orçado do mês"/"Variação" sem precisar
+// carregar o detalhamento por conta (a tela de Fluxo de Caixa não abre por
+// conta, só por mês).
+export type OrcamentoCaixaMensal = { mes: number; entradaOrcada: number; saidaOrcada: number };
+
+export const obterOrcamentoCaixaMensal = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ ano: z.number().int() }).parse(d))
+  .handler(async ({ data }): Promise<OrcamentoCaixaMensal[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT oci.mes, pc.tipo AS conta_tipo, SUM(oci.valor) AS total
+         FROM orcamento_caixa_itens oci
+         JOIN orcamentos o ON o.id = oci.orcamento_id AND o.loja_id = oci.loja_id
+         JOIN plano_contas pc ON pc.id = oci.conta_id AND pc.loja_id = oci.loja_id
+         WHERE oci.loja_id = @current_loja_id AND o.ano = ?
+         GROUP BY oci.mes, pc.tipo`,
+        [data.ano],
+      );
+      const porMes = new Map<number, OrcamentoCaixaMensal>();
+      for (const r of rows) {
+        const atual = porMes.get(r.mes) ?? { mes: r.mes, entradaOrcada: 0, saidaOrcada: 0 };
+        if (r.conta_tipo === "receita") atual.entradaOrcada += Number(r.total);
+        else atual.saidaOrcada += Number(r.total);
+        porMes.set(r.mes, atual);
+      }
+      return Array.from(porMes.values());
+    });
+  });
