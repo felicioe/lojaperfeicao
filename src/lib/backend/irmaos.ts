@@ -459,11 +459,15 @@ export const uploadFotoIrmao = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadFotoSchema.parse(d))
   .handler(async ({ data }): Promise<{ url: string }> => {
     return comPapel(PAPEIS_ESCRITA, async () => {
-      const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) throw new Error("Arquivo inválido.");
-      if (!match[1].startsWith("image/")) {
-        throw new Error("Tipo de arquivo não permitido. Envie uma imagem.");
-      }
+      // Allowlist explícita (achado #639 do pentest desta sessão) — aceitar
+      // qualquer "image/*" incluía image/svg+xml, que pode conter <script>
+      // embutido. Hoje a foto só é renderizada via <img>/<AvatarImage>, que
+      // não executa script de SVG, mas é uma proteção frágil: a primeira
+      // tela que abrir a foto em nova aba ou usar <object>/<embed> vira XSS
+      // armazenado. Mesmo padrão já usado em uploadQrCodePix
+      // (tesouraria-contas.ts).
+      const match = data.dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/);
+      if (!match) throw new Error("Envie uma imagem PNG, JPG ou WebP.");
       const buffer = Buffer.from(match[2], "base64");
       if (buffer.byteLength > TAMANHO_MAXIMO_FOTO_BYTES) {
         throw new Error("Arquivo maior que o limite de 5 MB.");
