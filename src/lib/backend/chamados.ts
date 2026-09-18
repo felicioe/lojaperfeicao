@@ -36,13 +36,17 @@ function validarAnexos(
   if (anexos.length > MAXIMO_ANEXOS_POR_MENSAGEM) {
     throw new Error(`No máximo ${MAXIMO_ANEXOS_POR_MENSAGEM} anexos por mensagem.`);
   }
+  // Allowlist explícita (achado #639 do pentest desta sessão) — aceitar
+  // qualquer "image/*" incluía image/svg+xml, que pode conter <script>
+  // embutido. Mesmo padrão já usado em uploadQrCodePix (tesouraria-contas.ts).
+  const MIME_PERMITIDO = /^data:(image\/(?:png|jpeg|webp)|application\/pdf);base64,(.+)$/;
   return anexos.map((a) => {
-    const match = a.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-    if (!match) throw new Error(`Arquivo inválido: ${a.nomeArquivo}.`);
+    const match = a.dataUrl.match(MIME_PERMITIDO);
+    if (!match)
+      throw new Error(
+        `Tipo de arquivo não permitido em ${a.nomeArquivo}. Envie imagem (PNG/JPG/WebP) ou PDF.`,
+      );
     const mime = match[1];
-    if (!(mime.startsWith("image/") || mime === "application/pdf")) {
-      throw new Error(`Tipo de arquivo não permitido em ${a.nomeArquivo}. Envie imagem ou PDF.`);
-    }
     const tamanho = Buffer.byteLength(match[2], "base64");
     if (tamanho > TAMANHO_MAXIMO_ANEXO) {
       throw new Error(`${a.nomeArquivo} é maior que o limite de 5 MB.`);
