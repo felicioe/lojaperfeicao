@@ -145,9 +145,19 @@ export const desativarMeuTotp = createServerFn({ method: "POST" })
   .validator((d: unknown) => desativarSchema.parse(d))
   .handler(async ({ data }) => {
     return comSessao(async (conn, usuarioId) => {
+      // Lockout (achado de auditoria AppSec, 2026-09-18): diferente do
+      // login e de confirmarLogin2FA, este endpoint self-service não tinha
+      // NENHUM rate limit — um atacante com uma sessão roubada (cookie
+      // vazado, sem senha/2FA) podia forçar bruta o código de 6 dígitos
+      // sem bloqueio algum. Chave por usuário, mesma tabela de
+      // tentativas_login.
+      const chave = `totp_self:${usuarioId}`;
+      await verificarBloqueio(conn, chave);
       if (!(await validarCodigoTotpOuBackup(conn, usuarioId, data.codigo))) {
+        await registrarTentativaFalha(conn, chave);
         throw new Error("Código inválido.");
       }
+      await limparTentativas(conn, chave);
       await conn.query(
         "DELETE FROM usuario_totp WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],
@@ -186,9 +196,15 @@ export const regenerarCodigosBackup = createServerFn({ method: "POST" })
   .validator((d: unknown) => desativarSchema.parse(d))
   .handler(async ({ data }): Promise<{ codigosBackup: string[] }> => {
     return comSessao(async (conn, usuarioId, lojaId) => {
+      // Mesmo lockout de desativarMeuTotp — achado de auditoria AppSec,
+      // 2026-09-18.
+      const chave = `totp_self:${usuarioId}`;
+      await verificarBloqueio(conn, chave);
       if (!(await validarCodigoTotpOuBackup(conn, usuarioId, data.codigo))) {
+        await registrarTentativaFalha(conn, chave);
         throw new Error("Código inválido.");
       }
+      await limparTentativas(conn, chave);
       await conn.query(
         "DELETE FROM usuario_totp_codigos_backup WHERE usuario_id = ? AND loja_id = @current_loja_id",
         [usuarioId],

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestIP } from "@tanstack/react-start/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import type { RowDataPacket } from "mysql2";
@@ -8,7 +9,13 @@ import { criarSessao, encerrarSessao, usuarioIdDaSessao, salvarLoginPendente2FA 
 import { registrarAuditoria } from "./auditoria";
 import { carregarUsuarioComPapeis, type Papel, type UsuarioSessao } from "./usuario-sessao";
 import { usuarioTemTotpAtivo } from "./totp";
-import { verificarBloqueio, registrarTentativaFalha, limparTentativas } from "./rate-limit";
+import {
+  verificarBloqueio,
+  registrarTentativaFalha,
+  limparTentativas,
+  verificarBloqueioIp,
+  registrarTentativaFalhaIp,
+} from "./rate-limit";
 import { usuarioUnicoParaLogin } from "./login-loja";
 import { lojaIdParaFiltroDeLogin, slugDaRequisicaoAtual } from "./subdominio";
 
@@ -44,7 +51,15 @@ const signupSchema = z.object({
 export const login = createServerFn({ method: "POST" })
   .validator((data: unknown) => loginSchema.parse(data))
   .handler(async ({ data }): Promise<LoginResultado> => {
+    // xForwardedFor: true — a app já confia em X-Forwarded-Host pra resolver
+    // loja por subdomínio (subdominio.ts), o proxy da Hostinger fica na
+    // mesma fronteira de confiança. Bloqueio por CHAVE (e-mail) cobre força
+    // bruta contra uma conta; bloqueio por IP cobre password spraying
+    // (mesma senha comum contra muitos e-mails diferentes), que o primeiro
+    // não pega — achado de auditoria AppSec, 2026-09-18.
+    const ip = getRequestIP({ xForwardedFor: true }) ?? "desconhecido";
     await withUserConnection(null, (conn) => verificarBloqueio(conn, data.email));
+    await withUserConnection(null, (conn) => verificarBloqueioIp(conn, ip));
 
     // Loja do subdomínio (issue #338) — quando o host bate com um
     // subdomínio de loja reconhecível, a busca abaixo já sai filtrada por
@@ -67,6 +82,7 @@ export const login = createServerFn({ method: "POST" })
     const senhaConfere = await bcrypt.compare(data.senha, usuario?.senha_hash ?? HASH_DUMMY_TIMING);
     if (!usuario || !senhaConfere) {
       await withUserConnection(null, (conn) => registrarTentativaFalha(conn, data.email));
+      await withUserConnection(null, (conn) => registrarTentativaFalhaIp(conn, ip));
       throw new Error("E-mail ou senha inválidos.");
     }
     if (!usuario.ativo) {
