@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestIP } from "@tanstack/react-start/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import type { RowDataPacket } from "mysql2";
@@ -15,6 +16,7 @@ import {
 import { isoBase64URL, isoUint8Array } from "@simplewebauthn/server/helpers";
 import { comSessao } from "./authz";
 import { withUserConnection } from "./db";
+import { verificarBloqueioIp, registrarTentativaFalhaIp } from "./rate-limit";
 import { usuarioUnicoParaLogin } from "./login-loja";
 import { lojaIdParaFiltroDeLogin, slugDaRequisicaoAtual } from "./subdominio";
 import { criarSessao, salvarDesafioWebauthn, consumirDesafioWebauthn } from "./session";
@@ -166,6 +168,13 @@ const HASH_DUMMY_TIMING = "$2b$10$Vun8doqKyfXFfoDBcD00xuFeAP/DQx1F9bKogKU/0DfbpN
 export const iniciarLoginPasskey = createServerFn({ method: "POST" })
   .validator((d: unknown) => iniciarLoginSchema.parse(d))
   .handler(async ({ data }): Promise<PublicKeyCredentialRequestOptionsJSON> => {
+    // Rate limit por IP (achado de auditoria AppSec, 2026-09-18) — sem
+    // isso, este endpoint (gera opções WebAuthn + 2 idas ao banco por
+    // chamada) podia ser espancado sem limite nenhum, diferente do login
+    // por senha/2FA que já tinham essa proteção.
+    const ip = getRequestIP({ xForwardedFor: true }) ?? "desconhecido";
+    await withUserConnection(null, (conn) => verificarBloqueioIp(conn, ip));
+
     // Mesma resolução de loja por subdomínio já usada no login por senha,
     // Google e recuperação de senha (achado #616) — sem isso, o mesmo
     // e-mail cadastrado em duas lojas (permitido desde a migração 0092)
@@ -187,6 +196,7 @@ export const iniciarLoginPasskey = createServerFn({ method: "POST" })
     // não confirma se o e-mail existe (evita enumeração de contas).
     if (!usuario) {
       await bcrypt.compare(data.email, HASH_DUMMY_TIMING);
+      await withUserConnection(null, (conn) => registrarTentativaFalhaIp(conn, ip));
       throw new Error("Nenhuma passkey cadastrada para esse usuário.");
     }
 
@@ -199,6 +209,7 @@ export const iniciarLoginPasskey = createServerFn({ method: "POST" })
     });
     if (credenciais.length === 0) {
       await bcrypt.compare(data.email, HASH_DUMMY_TIMING);
+      await withUserConnection(null, (conn) => registrarTentativaFalhaIp(conn, ip));
       throw new Error("Nenhuma passkey cadastrada para esse usuário.");
     }
 

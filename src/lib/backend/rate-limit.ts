@@ -55,3 +55,36 @@ export async function registrarTentativaFalha(conn: PoolConnection, chave: strin
 export async function limparTentativas(conn: PoolConnection, chave: string): Promise<void> {
   await conn.query("DELETE FROM tentativas_login WHERE chave = ?", [normalizarChave(chave)]);
 }
+
+// Bloqueio por chave (e-mail/login) cobre força bruta contra UMA conta, mas
+// não impede um atacante tentar a mesma senha comum contra muitos e-mails
+// diferentes (password spraying) — cada e-mail tem seu próprio contador
+// (achado de auditoria AppSec, 2026-09-18). Reaproveita a mesma tabela com
+// um prefixo de chave diferente, escopado por IP em vez de por conta; limite
+// mais alto que o por-conta pra não travar uma loja inteira atrás do mesmo
+// NAT/proxy corporativo.
+const LIMITE_TENTATIVAS_IP = 30;
+
+export async function verificarBloqueioIp(conn: PoolConnection, ip: string): Promise<void> {
+  await verificarBloqueio(conn, `ip:${ip}`);
+}
+
+export async function registrarTentativaFalhaIp(conn: PoolConnection, ip: string): Promise<void> {
+  const chave = normalizarChave(`ip:${ip}`);
+  await conn.query(
+    `INSERT INTO tentativas_login (chave, tentativas)
+     VALUES (?, 1)
+     ON DUPLICATE KEY UPDATE tentativas = tentativas + 1`,
+    [chave],
+  );
+  const [[row]] = await conn.query<RowDataPacket[]>(
+    "SELECT tentativas FROM tentativas_login WHERE chave = ?",
+    [chave],
+  );
+  if (row && row.tentativas >= LIMITE_TENTATIVAS_IP) {
+    await conn.query(
+      "UPDATE tentativas_login SET tentativas = 0, bloqueado_ate = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE chave = ?",
+      [BLOQUEIO_MINUTOS, chave],
+    );
+  }
+}
