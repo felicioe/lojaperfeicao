@@ -10,15 +10,25 @@ import {
   obterResumoContasReceber,
   obterMediaDespesasMensais,
   listarPendenciasPrioritarias,
+  listarIrmaosRiscoInadimplencia,
   type ContaAPagarProxima,
   type PendenciaPrioritaria,
   type ResumoContasReceber,
+  type IrmaoRiscoInadimplencia,
 } from "@/lib/backend/dashboard";
 import { listarSaldoContas } from "@/lib/backend/tesouraria-contas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/AppShell";
 import { brl, fmtDate } from "@/lib/format";
-import { ArrowRight, CalendarDays, FileText, Library, RefreshCw, Vote } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  FileText,
+  Library,
+  RefreshCw,
+  TrendingDown,
+  Vote,
+} from "lucide-react";
 import { listarDocumentos } from "@/lib/backend/documentos";
 import { listarEnquetes } from "@/lib/backend/enquetes";
 import { listarEventos } from "@/lib/backend/eventos";
@@ -136,6 +146,11 @@ function Dashboard() {
   const pendenciasPrioritarias = useQuery({
     queryKey: ["dash", "pendenciasPrioritarias"],
     queryFn: () => listarPendenciasPrioritarias(),
+    staleTime: STALE_TIME_DASHBOARD,
+  });
+  const riscoInadimplencia = useQuery({
+    queryKey: ["dash", "riscoInadimplencia"],
+    queryFn: () => listarIrmaosRiscoInadimplencia(),
     staleTime: STALE_TIME_DASHBOARD,
   });
   const documentos = useQuery({
@@ -280,6 +295,15 @@ function Dashboard() {
         <PendenciasPrioritarias query={pendenciasPrioritarias} />
       </section>
 
+      <section aria-labelledby="risco-title" className="mb-5 sm:mb-6">
+        <SectionHeader
+          id="risco-title"
+          title="Irmãos em risco de atraso"
+          description="Padrão recorrente de atraso nas últimas mensalidades já vencidas — critério fixo (2 ou mais das últimas 6 pagas ou em aberto há mais de 5 dias), não é previsão automática."
+        />
+        <RiscoInadimplencia query={riscoInadimplencia} />
+      </section>
+
       <section aria-labelledby="loja-title">
         <SectionHeader
           id="loja-title"
@@ -407,6 +431,7 @@ type EstadoConsulta = {
 
 type ConsultaContasPagar = EstadoConsulta & { data?: ContaAPagarProxima[] };
 type ConsultaPendencias = EstadoConsulta & { data?: PendenciaPrioritaria[] };
+type ConsultaRisco = EstadoConsulta & { data?: IrmaoRiscoInadimplencia[] };
 
 function AgendaFinanceiraCard({
   query,
@@ -576,6 +601,107 @@ function PendenciasPrioritarias({ query }: { query: ConsultaPendencias }) {
                 </TableCell>
                 <TableCell className="text-right">
                   <Badge variant="destructive">{pendencia.dias_atraso} dias</Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
+  );
+}
+
+function RiscoInadimplencia({ query }: { query: ConsultaRisco }) {
+  if (query.isPending) {
+    return (
+      <Card className="p-4" aria-label="Carregando irmãos em risco de atraso">
+        <div className="space-y-3">
+          {Array.from({ length: 3 }, (_, index) => (
+            <Skeleton key={index} className="h-10 w-full" />
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <Card className="p-4" role="alert">
+        <p className="text-sm font-medium text-destructive">Indicador indisponível</p>
+        <Button
+          variant="link"
+          className="mt-2 h-auto p-0 text-xs"
+          onClick={() => void query.refetch()}
+        >
+          <RefreshCw aria-hidden="true" /> Tentar novamente
+        </Button>
+      </Card>
+    );
+  }
+
+  if (!query.data?.length) {
+    return (
+      <Card className="p-5 text-center text-sm text-muted-foreground">
+        Nenhum irmão com padrão recorrente de atraso nas últimas mensalidades.
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="sm:hidden">
+        <ul className="divide-y" aria-label="Irmãos em risco de atraso">
+          {query.data.map((irmao) => (
+            <li key={irmao.irmao_id} className="p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  to="/irmaos/$id"
+                  params={{ id: irmao.irmao_id }}
+                  className="min-w-0 font-medium leading-snug underline-offset-4 hover:underline"
+                >
+                  {irmao.nome_civil}
+                </Link>
+                <Badge variant="destructive" className="shrink-0">
+                  <TrendingDown className="h-3 w-3" aria-hidden="true" />
+                  {irmao.qtd_atrasos}/{irmao.total_consideradas}
+                </Badge>
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Média de {irmao.media_dias_atraso.toFixed(0)} dias de atraso nas mensalidades
+                consideradas
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="hidden overflow-x-auto sm:block">
+        <Table className="min-w-[560px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Irmão</TableHead>
+              <TableHead className="text-right">Atrasos recorrentes</TableHead>
+              <TableHead className="text-right">Média de dias de atraso</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {query.data.map((irmao) => (
+              <TableRow key={irmao.irmao_id}>
+                <TableCell className="font-medium">
+                  <Link
+                    to="/irmaos/$id"
+                    params={{ id: irmao.irmao_id }}
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {irmao.nome_civil}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Badge variant="destructive">
+                    {irmao.qtd_atrasos} de {irmao.total_consideradas}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {irmao.media_dias_atraso.toFixed(0)} dias
                 </TableCell>
               </TableRow>
             ))}
