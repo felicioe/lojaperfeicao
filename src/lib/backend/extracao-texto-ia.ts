@@ -59,7 +59,6 @@ export async function processarLoteExtracaoTextoIA(
   const [docsPendentes] = await conn.query<RowDataPacket[]>(
     `SELECT id, arquivo_url FROM documentos
      WHERE loja_id = @current_loja_id
-       AND (categoria = 'legislacao' OR categoria LIKE 'legislacao:%')
        AND arquivo_url IS NOT NULL AND arquivo_url <> ''
        AND texto_extraido IS NULL
      LIMIT ?`,
@@ -92,7 +91,6 @@ export async function processarLoteExtracaoTextoIA(
   const [[restoDocs]] = await conn.query<RowDataPacket[]>(
     `SELECT COUNT(*) AS total FROM documentos
      WHERE loja_id = @current_loja_id
-       AND (categoria = 'legislacao' OR categoria LIKE 'legislacao:%')
        AND arquivo_url IS NOT NULL AND arquivo_url <> '' AND texto_extraido IS NULL`,
   );
   const [[restoPecas]] = await conn.query<RowDataPacket[]>(
