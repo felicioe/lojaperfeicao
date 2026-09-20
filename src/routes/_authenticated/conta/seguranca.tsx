@@ -18,6 +18,13 @@ import {
   regenerarCodigosBackup,
 } from "@/lib/backend/totp";
 import { trocarMinhaSenha } from "@/lib/backend/auth";
+import { inscreverPush, cancelarInscricaoPush, obterChavePushPublica } from "@/lib/backend/push";
+import {
+  suportaPush,
+  inscricaoPushAtual,
+  assinarPushNesteAparelho,
+  inscricaoParaPayload,
+} from "@/lib/push-client";
 import {
   statusVinculacaoGoogle,
   iniciarVinculacaoGoogle,
@@ -28,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -57,6 +65,7 @@ import {
   RotateCw,
   Copy,
   CheckCircle2,
+  Bell,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/conta/seguranca")({
@@ -75,6 +84,7 @@ function SegurancaPage() {
         <PasskeysCard />
         <GoogleCard />
         <Totp2FACard />
+        <NotificacoesPushCard />
         <TrocarSenhaCard />
       </div>
     </>
@@ -567,6 +577,90 @@ function CodigosBackupConteudo({
         <Button onClick={onFechar}>Já salvei, concluir</Button>
       </DialogFooter>
     </>
+  );
+}
+
+function NotificacoesPushCard() {
+  const [suportado] = useState(() => suportaPush());
+  const [ativo, setAtivo] = useState(false);
+  const [carregando, setCarregando] = useState(true);
+  const [alternando, setAlternando] = useState(false);
+
+  useEffect(() => {
+    if (!suportado) {
+      setCarregando(false);
+      return;
+    }
+    inscricaoPushAtual()
+      .then((inscricao) => setAtivo(!!inscricao))
+      .finally(() => setCarregando(false));
+  }, [suportado]);
+
+  const ativar = async () => {
+    setAlternando(true);
+    try {
+      const { chave } = await obterChavePushPublica();
+      if (!chave) {
+        throw new Error(
+          "Notificações push ainda não configuradas neste servidor. Fale com o administrador.",
+        );
+      }
+      const inscricao = await assinarPushNesteAparelho(chave);
+      await inscreverPush({ data: inscricaoParaPayload(inscricao) });
+      setAtivo(true);
+      toast.success("Notificações ativadas neste aparelho.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível ativar.");
+    } finally {
+      setAlternando(false);
+    }
+  };
+
+  const desativar = async () => {
+    setAlternando(true);
+    try {
+      const inscricao = await inscricaoPushAtual();
+      if (inscricao) {
+        await cancelarInscricaoPush({ data: { endpoint: inscricao.endpoint } });
+        await inscricao.unsubscribe();
+      }
+      setAtivo(false);
+      toast.success("Notificações desativadas neste aparelho.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível desativar.");
+    } finally {
+      setAlternando(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Bell className="h-4 w-4" /> Notificações no aparelho
+        </CardTitle>
+        <CardDescription>
+          Avisos em tempo real (aniversário, mensalidade vencida, interstício completo e outros)
+          direto neste navegador, sem depender de e-mail.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!suportado ? (
+          <p className="text-sm text-muted-foreground">
+            Este navegador não suporta notificações push.
+          </p>
+        ) : (
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-sm">Ativar notificações neste aparelho</span>
+            <Switch
+              checked={ativo}
+              disabled={carregando || alternando}
+              onCheckedChange={(v) => (v ? ativar() : desativar())}
+            />
+          </label>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
