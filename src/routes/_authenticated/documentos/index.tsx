@@ -7,6 +7,7 @@ import {
   criarDocumento,
   excluirDocumento,
   listarDocumentos,
+  obterArquivoDocumento,
   uploadArquivoDocumento,
 } from "@/lib/backend/documentos";
 import {
@@ -150,21 +151,29 @@ function LegislacaoPage() {
   const [dialogAberto, setDialogAberto] = useState(false);
   const [visualizando, setVisualizando] = useState<Documento | null>(null);
   const [editando, setEditando] = useState<Documento | null>(null);
+  // O conteúdo (arquivo_url) não vem mais na listagem — ver nota em
+  // DOCUMENTO_SELECT (backend). Busca sob demanda só do documento aberto.
+  const arquivoVisualizando = useQuery({
+    queryKey: ["documento-arquivo", visualizando?.id],
+    queryFn: () => obterArquivoDocumento({ data: { id: visualizando!.id } }),
+    enabled: visualizando !== null,
+  });
+  const arquivoUrl = arquivoVisualizando.data?.arquivoUrl ?? null;
   // Nova aba/Imprimir navegam a janela pro arquivo — data URL nessa
   // navegação é bloqueada/inconsistente entre navegadores, então converte
   // pra blob URL (revogado ao trocar/fechar) só pra esses dois usos.
   const [urlVisualizacaoBlob, setUrlVisualizacaoBlob] = useState<string | null>(null);
   useEffect(() => {
-    if (!visualizando?.arquivo_url) {
+    if (!arquivoUrl) {
       setUrlVisualizacaoBlob(null);
       return;
     }
-    const blobUrl = dataUrlParaBlobUrl(visualizando.arquivo_url);
+    const blobUrl = dataUrlParaBlobUrl(arquivoUrl);
     setUrlVisualizacaoBlob(blobUrl);
     return () => {
       if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
     };
-  }, [visualizando?.arquivo_url]);
+  }, [arquivoUrl]);
   const [loteAberto, setLoteAberto] = useState(false);
 
   const {
@@ -239,15 +248,15 @@ function LegislacaoPage() {
 
   const categoriaAtual = CATEGORIAS.find((item) => item.id === categoria);
 
-  const compartilhar = async (documento: Documento) => {
-    if (!documento.arquivo_url) return;
-    const url = new URL(documento.arquivo_url, window.location.origin).toString();
+  const compartilhar = async (titulo: string, arquivoUrlAtual: string | null) => {
+    if (!arquivoUrlAtual) return;
+    const url = new URL(arquivoUrlAtual, window.location.origin).toString();
     if (!ehUrlCompartilhavel(url)) {
       toast.error("Este arquivo não tem um link compartilhável — use Baixar e envie o arquivo.");
       return;
     }
     try {
-      if (navigator.share) await navigator.share({ title: documento.titulo, url });
+      if (navigator.share) await navigator.share({ title: titulo, url });
       else {
         await navigator.clipboard.writeText(url);
         toast.success("Link copiado para compartilhar.");
@@ -258,11 +267,11 @@ function LegislacaoPage() {
     }
   };
 
-  const urlDocumento = (documento: Documento) =>
-    documento.arquivo_url ? new URL(documento.arquivo_url, window.location.origin).toString() : "";
+  const urlAbsoluta = (arquivoUrlAtual: string | null) =>
+    arquivoUrlAtual ? new URL(arquivoUrlAtual, window.location.origin).toString() : "";
 
-  const urlWhatsapp = (documento: Documento) =>
-    `https://wa.me/?text=${encodeURIComponent(`${documento.titulo}\n${urlDocumento(documento)}`)}`;
+  const urlWhatsapp = (titulo: string, arquivoUrlAtual: string | null) =>
+    `https://wa.me/?text=${encodeURIComponent(`${titulo}\n${urlAbsoluta(arquivoUrlAtual)}`)}`;
 
   return (
     <>
@@ -500,7 +509,7 @@ function LegislacaoPage() {
                       </p>
                     </div>
                     <div className="ml-auto flex w-full flex-wrap justify-end gap-1 sm:w-auto">
-                      {documento.arquivo_url && (
+                      {documento.tem_arquivo && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -508,17 +517,6 @@ function LegislacaoPage() {
                         >
                           <ExternalLink className="mr-1.5 h-4 w-4" />
                           <span className="hidden sm:inline">Visualizar</span>
-                        </Button>
-                      )}
-                      {documento.arquivo_url && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => void compartilhar(documento)}
-                          aria-label={`Compartilhar ${documento.titulo}`}
-                          title="Compartilhar"
-                        >
-                          <Share2 className="h-4 w-4" />
                         </Button>
                       )}
                       {(can.isAdmin || can.canManageIrmaos) && (
@@ -530,19 +528,6 @@ function LegislacaoPage() {
                           title="Renomear ou mover"
                         >
                           <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {documento.arquivo_url && (
-                        <Button variant="ghost" size="sm" asChild>
-                          <a
-                            href={documento.arquivo_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            download={documento.arquivo_nome_original ?? undefined}
-                          >
-                            <Download className="h-4 w-4" />
-                            <span className="sr-only">Salvar {documento.titulo}</span>
-                          </a>
                         </Button>
                       )}
                       {can.isAdmin && (
@@ -593,59 +578,83 @@ function LegislacaoPage() {
         onOpenChange={(aberto) => !aberto && setVisualizando(null)}
       >
         <DialogContent className="flex h-[92vh] max-w-[96vw] flex-col gap-3 p-4 sm:max-w-5xl">
-          {visualizando?.arquivo_url && (
+          {visualizando && (
             <>
               <DialogHeader className="pr-8">
                 <DialogTitle className="truncate">{visualizando.titulo}</DialogTitle>
                 <DialogDescription>Visualização online do documento em PDF.</DialogDescription>
               </DialogHeader>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => void compartilhar(visualizando)}>
-                  <Share2 className="mr-1.5 h-4 w-4" /> Compartilhar
-                </Button>
-                {ehUrlCompartilhavel(urlDocumento(visualizando)) && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={urlWhatsapp(visualizando)} target="_blank" rel="noopener noreferrer">
-                      <MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp
-                    </a>
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" asChild>
-                  <a
-                    href={visualizando.arquivo_url}
-                    download={visualizando.arquivo_nome_original ?? undefined}
-                  >
-                    <Download className="mr-1.5 h-4 w-4" /> Salvar
-                  </a>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!urlVisualizacaoBlob}
-                  onClick={() => {
-                    if (!urlVisualizacaoBlob) return;
-                    const janela = window.open(
-                      urlVisualizacaoBlob,
-                      "_blank",
-                      "noopener,noreferrer",
-                    );
-                    if (janela)
-                      janela.addEventListener("load", () => janela.print(), { once: true });
-                  }}
-                >
-                  <Printer className="mr-1.5 h-4 w-4" /> Imprimir
-                </Button>
-                <Button variant="ghost" size="sm" disabled={!urlVisualizacaoBlob} asChild>
-                  <a href={urlVisualizacaoBlob ?? "#"} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="mr-1.5 h-4 w-4" /> Nova aba
-                  </a>
-                </Button>
-              </div>
-              <iframe
-                title={`Visualização de ${visualizando.titulo}`}
-                src={urlVisualizacaoBlob ?? undefined}
-                className="min-h-0 flex-1 rounded-lg border bg-white"
-              />
+              {arquivoVisualizando.isLoading ? (
+                <p className="flex-1 text-center text-sm text-muted-foreground">
+                  Carregando arquivo…
+                </p>
+              ) : arquivoVisualizando.isError || !arquivoUrl ? (
+                <p className="flex-1 text-center text-sm text-destructive">
+                  Não foi possível carregar o arquivo. Feche e tente novamente.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void compartilhar(visualizando.titulo, arquivoUrl)}
+                    >
+                      <Share2 className="mr-1.5 h-4 w-4" /> Compartilhar
+                    </Button>
+                    {ehUrlCompartilhavel(urlAbsoluta(arquivoUrl)) && (
+                      <Button variant="outline" size="sm" asChild>
+                        <a
+                          href={urlWhatsapp(visualizando.titulo, arquivoUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp
+                        </a>
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={arquivoUrl}
+                        download={visualizando.arquivo_nome_original ?? undefined}
+                      >
+                        <Download className="mr-1.5 h-4 w-4" /> Salvar
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!urlVisualizacaoBlob}
+                      onClick={() => {
+                        if (!urlVisualizacaoBlob) return;
+                        const janela = window.open(
+                          urlVisualizacaoBlob,
+                          "_blank",
+                          "noopener,noreferrer",
+                        );
+                        if (janela)
+                          janela.addEventListener("load", () => janela.print(), { once: true });
+                      }}
+                    >
+                      <Printer className="mr-1.5 h-4 w-4" /> Imprimir
+                    </Button>
+                    <Button variant="ghost" size="sm" disabled={!urlVisualizacaoBlob} asChild>
+                      <a
+                        href={urlVisualizacaoBlob ?? "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="mr-1.5 h-4 w-4" /> Nova aba
+                      </a>
+                    </Button>
+                  </div>
+                  <iframe
+                    title={`Visualização de ${visualizando.titulo}`}
+                    src={urlVisualizacaoBlob ?? undefined}
+                    className="min-h-0 flex-1 rounded-lg border bg-white"
+                  />
+                </>
+              )}
             </>
           )}
         </DialogContent>

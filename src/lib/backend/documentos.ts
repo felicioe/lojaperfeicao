@@ -23,7 +23,7 @@ export type Documento = {
   titulo: string;
   categoria: string;
   conteudo: string;
-  arquivo_url: string | null;
+  tem_arquivo: boolean;
   arquivo_nome_original: string | null;
   arquivo_mime: string | null;
   criado_por: string;
@@ -31,8 +31,16 @@ export type Documento = {
   criado_em: string;
 };
 
+// achado: listar documentos trazia arquivo_url (o PDF inteiro em base64,
+// LONGTEXT) de TODOS os documentos da loja em toda visita à página — a
+// lista trava/falha ("Não foi possível carregar os documentos") assim que
+// o acervo acumula PDFs grandes, porque o payload da resposta cresce junto
+// com CADA arquivo enviado, mesmo quando o usuário só quer ver a lista de
+// títulos. arquivo_url só é buscado agora sob demanda, um documento por
+// vez, em obterArquivoDocumento — a lista traz só um booleano.
 const DOCUMENTO_SELECT = `
-  SELECT d.id, d.titulo, d.categoria, d.conteudo, d.arquivo_url,
+  SELECT d.id, d.titulo, d.categoria, d.conteudo,
+         (d.arquivo_url IS NOT NULL AND d.arquivo_url <> '') AS tem_arquivo,
          d.arquivo_nome_original, d.arquivo_mime, d.criado_por,
          u.nome_completo AS criador_nome, d.criado_em
   FROM documentos d
@@ -46,10 +54,25 @@ export const listarDocumentos = createServerFn({ method: "GET" }).handler(
       const [rows] = await conn.query<RowDataPacket[]>(
         `${DOCUMENTO_SELECT} ORDER BY d.criado_em DESC`,
       );
-      return rows as Documento[];
+      return rows.map((row) => ({ ...row, tem_arquivo: !!row.tem_arquivo }) as Documento);
     });
   },
 );
+
+// Busca o arquivo (base64) de UM documento por vez, sob demanda — ver nota
+// em DOCUMENTO_SELECT sobre por que a lista não traz mais isso.
+export const obterArquivoDocumento = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<{ arquivoUrl: string | null }> => {
+    return comSessao(async (conn) => {
+      const [[row]] = await conn.query<RowDataPacket[]>(
+        "SELECT arquivo_url FROM documentos WHERE id = ? AND loja_id = @current_loja_id",
+        [data.id],
+      );
+      if (!row) throw new Error("Documento não encontrado nesta Loja.");
+      return { arquivoUrl: row.arquivo_url || null };
+    });
+  });
 
 const criarDocumentoSchema = z.object({
   titulo: z.string().min(1),
