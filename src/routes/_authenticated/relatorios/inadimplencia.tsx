@@ -237,11 +237,6 @@ function InadimplenciaDetalhada() {
     toast.info("O PDF foi baixado. Anexe-o no aplicativo pelo qual deseja enviar.");
   };
 
-  const abrirPdfEmNovaAba = () => {
-    if (!pdfUrl) return;
-    window.open(pdfUrl, "_blank", "noopener,noreferrer");
-  };
-
   const totalOriginal = itens.reduce((s, i) => s + Number(i.valor_original), 0);
   const totalMulta = itens.reduce((s, i) => s + Number(i.valor_multa), 0);
   const totalJuros = itens.reduce((s, i) => s + Number(i.valor_juros), 0);
@@ -510,13 +505,15 @@ function InadimplenciaDetalhada() {
                   title="Prévia em PDF da cobrança"
                   className="h-[56dvh] min-h-80 w-full rounded-lg border bg-background"
                 />
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-background px-3 py-2 text-xs text-muted-foreground">
-                  <span>
-                    No celular ou em navegadores com bloqueio de preview, abra o PDF em nova aba.
-                  </span>
-                  <Button type="button" variant="outline" size="sm" onClick={abrirPdfEmNovaAba}>
-                    Abrir em nova aba
-                  </Button>
+                {/* achado: "Abrir em nova aba" (window.open da blob URL) foi
+                    removido — em PWA instalado ou navegador in-app (WhatsApp,
+                    Instagram), isso navega a ÚNICA janela existente pro PDF
+                    cru, sem barra de endereço nem botão voltar, prendendo o
+                    usuário lá. "Baixar PDF" (no rodapé) é o caminho seguro:
+                    abre no visualizador nativo do aparelho, fora do app. */}
+                <div className="rounded-lg border bg-background px-3 py-2 text-xs text-muted-foreground">
+                  Se a prévia acima não aparecer, toque em "Baixar PDF" abaixo para abrir no
+                  visualizador do aparelho.
                 </div>
               </div>
             ) : (
