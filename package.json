@@ -23,6 +23,7 @@
     "testar:isolamento": "node scripts/testar-isolamento.mjs"
   },
   "dependencies": {
+    "@google/genai": "^2.23.0",
     "@hookform/resolvers": "^5.2.2",
     "@lovable.dev/vite-tanstack-config": "2.8.4",
     "@radix-ui/react-accordion": "^1.2.12",
