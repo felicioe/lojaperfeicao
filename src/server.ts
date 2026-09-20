@@ -227,6 +227,36 @@ async function tratarCronPrevisoesRecorrentes(request: Request): Promise<Respons
   }
 }
 
+// Mesmo padrão, para extrair (em lotes pequenos) o texto dos PDFs de
+// Legislação/Biblioteca de Peças usados pelos assistentes de IA (#648,
+// #657) — ver extracao-texto-ia.ts sobre por que isso NÃO roda dentro da
+// própria pergunta ao assistente (504 em produção). Reaproveita
+// CRON_SECRET.
+async function tratarCronExtracaoTextoIA(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== "/api/cron/extrair-textos-ia") return null;
+
+  const token = url.searchParams.get("token") ?? request.headers.get("x-cron-token");
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado || token !== esperado) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const { executarExtracaoTextoIA } = await import("./lib/backend/extracao-texto-ia");
+    const resultado = await executarExtracaoTextoIA();
+    return new Response(JSON.stringify(resultado), {
+      headers: { "content-type": "application/json" },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ erro: (error as Error).message }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+}
+
 async function tratarAgendaPublica(request: Request): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== "/api/publico/agenda") return null;
@@ -481,6 +511,9 @@ export default createServerEntry({
 
       const previsoesRecorrentesResponse = await tratarCronPrevisoesRecorrentes(request);
       if (previsoesRecorrentesResponse) return withSecurityHeaders(previsoesRecorrentesResponse);
+
+      const extracaoTextoIAResponse = await tratarCronExtracaoTextoIA(request);
+      if (extracaoTextoIAResponse) return withSecurityHeaders(extracaoTextoIAResponse);
 
       const agendaResponse = await tratarAgendaPublica(request);
       if (agendaResponse) return withSecurityHeaders(agendaResponse);

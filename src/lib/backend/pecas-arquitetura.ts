@@ -49,7 +49,7 @@ export type PecaArquitetura = {
   criado_em: string;
 };
 
-const PECA_SELECT = `
+export const PECA_SELECT = `
   SELECT pa.id, pa.autor_id, i.nome_civil AS autor_nome, pa.sessao_id, s.data AS sessao_data,
          pa.titulo, pa.tema, pa.resumo, pa.grau, pa.situacao, ap.nome_civil AS aprovado_por_nome,
          pa.aprovado_em, pa.arquivo_url, pa.arquivo_nome_original, pa.arquivo_mime, pa.criado_em
@@ -73,7 +73,7 @@ const PECA_SELECT = `
 // recusa a comparação com "Illegal mix of collations", derrubando a
 // consulta inteira (nunca aparecia como erro visível: o catch do
 // useQuery só deixava a lista vazia, "Nenhuma peça cadastrada").
-const PODE_VER_CONDICAO = `(
+export const PODE_VER_CONDICAO = `(
   has_role(@current_usuario_id, 'admin') OR has_role(@current_usuario_id, 'secretario')
   OR i.usuario_id = @current_usuario_id COLLATE utf8mb4_unicode_ci
   OR (

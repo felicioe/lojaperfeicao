@@ -10,10 +10,9 @@ import {
   obterArquivoDocumento,
   uploadArquivoDocumento,
 } from "@/lib/backend/documentos";
-import {
-  perguntarAssistenteLegislacao,
-  type RespostaAssistenteLegislacao,
-} from "@/lib/backend/assistente-legislacao";
+import { perguntarAssistenteLegislacao } from "@/lib/backend/assistente-legislacao";
+import { AssistenteIACard } from "@/components/app/AssistenteIACard";
+import { PrepararTextosAssistenteBotao } from "@/components/app/PrepararTextosAssistenteBotao";
 import { dataUrlParaBlobUrl, ehUrlCompartilhavel } from "@/lib/data-url";
 import { EmptyState, PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
@@ -64,7 +63,6 @@ import {
   Plus,
   Search,
   Share2,
-  Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -321,7 +319,13 @@ function LegislacaoPage() {
 
       {categoria === "legislacao" && (
         <section className="mb-5 sm:mb-6">
-          <AssistenteLegislacaoCard />
+          <AssistenteIACard
+            titulo="Assistente da Legislação (IA)"
+            descricao="Pergunte sobre os regulamentos e atos cadastrados nesta pasta. As respostas citam o documento usado e não substituem a orientação da Secretaria ou da Diretoria."
+            placeholder="Ex.: quantas faltas justificam a perda do direito de voto?"
+            perguntar={(pergunta) => perguntarAssistenteLegislacao({ data: { pergunta } })}
+          />
+          {can.isSecretario && <PrepararTextosAssistenteBotao />}
         </section>
       )}
 
@@ -672,72 +676,6 @@ function LegislacaoPage() {
         )}
       </Dialog>
     </>
-  );
-}
-
-function AssistenteLegislacaoCard() {
-  const [pergunta, setPergunta] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [resultado, setResultado] = useState<RespostaAssistenteLegislacao | null>(null);
-
-  const perguntar = async () => {
-    const texto = pergunta.trim();
-    if (!texto) return;
-    setEnviando(true);
-    setResultado(null);
-    try {
-      setResultado(await perguntarAssistenteLegislacao({ data: { pergunta: texto } }));
-    } catch (erro) {
-      toast.error(
-        erro instanceof Error ? erro.message : "Não foi possível consultar o assistente.",
-      );
-    } finally {
-      setEnviando(false);
-    }
-  };
-
-  return (
-    <Card className="p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold">Assistente da Legislação (IA)</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Pergunte sobre os regulamentos e atos cadastrados nesta pasta. As respostas citam o
-            documento usado e não substituem a orientação da Secretaria ou da Diretoria.
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <Textarea
-              value={pergunta}
-              onChange={(e) => setPergunta(e.target.value)}
-              placeholder="Ex.: quantas faltas justificam a perda do direito de voto?"
-              rows={2}
-              className="flex-1"
-              aria-label="Pergunta para o assistente da Legislação"
-            />
-            <Button
-              onClick={() => void perguntar()}
-              disabled={enviando || !pergunta.trim()}
-              className="sm:self-end"
-            >
-              {enviando ? "Consultando…" : "Perguntar"}
-            </Button>
-          </div>
-          {resultado && (
-            <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-sm" aria-live="polite">
-              <p className="whitespace-pre-wrap">{resultado.resposta}</p>
-              {resultado.fontes.length > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Fontes: {resultado.fontes.map((fonte) => fonte.titulo).join(", ")}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </Card>
   );
 }
 
