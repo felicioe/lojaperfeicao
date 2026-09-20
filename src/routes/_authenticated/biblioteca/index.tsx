@@ -14,8 +14,11 @@ import {
 } from "@/lib/backend/pecas-arquitetura";
 import { listarIrmaosNomes, obterMeuIrmao } from "@/lib/backend/irmaos";
 import { listarSessoes } from "@/lib/backend/sessoes";
+import { perguntarAssistenteBiblioteca } from "@/lib/backend/assistente-biblioteca";
 import { dataUrlParaBlobUrl, ehUrlCompartilhavel } from "@/lib/data-url";
 import { PageHeader, EmptyState } from "@/components/app/AppShell";
+import { AssistenteIACard } from "@/components/app/AssistenteIACard";
+import { PrepararTextosAssistenteBotao } from "@/components/app/PrepararTextosAssistenteBotao";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -492,6 +495,15 @@ function BibliotecaPage() {
           )
         }
       />
+      <section className="mb-5 sm:mb-6">
+        <AssistenteIACard
+          titulo="Assistente da Biblioteca (IA)"
+          descricao="Pergunte sobre o conteúdo das peças de arquitetura já cadastradas — cita o título e o autor usados. Não é fonte normativa, apenas o conteúdo dos trabalhos apresentados."
+          placeholder="Ex.: o que já foi apresentado sobre simbolismo do avental?"
+          perguntar={(pergunta) => perguntarAssistenteBiblioteca({ data: { pergunta } })}
+        />
+        {podeGerenciarTudo && <PrepararTextosAssistenteBotao />}
+      </section>
       <Card className="mb-4 p-4">
         <Input
           placeholder="Buscar por título, autor ou tema…"
