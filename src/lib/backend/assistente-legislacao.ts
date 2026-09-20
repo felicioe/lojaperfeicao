@@ -4,10 +4,17 @@ import type { RowDataPacket } from "mysql2";
 import { comSessao } from "./authz";
 import { pontuarRelevancia } from "./assistente-ia-util";
 
-// Achado #648 — assistente de IA que responde dúvidas de irmãos citando a
-// Legislação já cadastrada (pasta "legislacao"/"legislacao:<ano>" em
-// documentos.ts), em vez de decorativo. Provedor: Google Gemini (decisão do
-// usuário — GEMINI_API_KEY na Hostinger), não Anthropic.
+// Achado #648 — assistente de IA que responde dúvidas de irmãos citando os
+// documentos já cadastrados no repositório (documentos.ts), em vez de
+// decorativo. Provedor: Google Gemini (decisão do usuário — GEMINI_API_KEY
+// na Hostinger), não Anthropic.
+//
+// Escopo ampliado (pedido do usuário após o merge de #648): pesquisa TODAS
+// as pastas do repositório (Legislação, Documentos da Loja, Tratados,
+// Ensino, Documentos Históricos, Rituais Antigos, Formulários, Tabela de
+// Valores, História do Rito) — não só "legislacao" — daí o pré-filtro por
+// termos abaixo rodar sobre o acervo inteiro da loja, sem filtro de
+// categoria no SQL.
 const LIMITE_CARACTERES_POR_DOCUMENTO = 6000;
 const LIMITE_DOCUMENTOS_CONTEXTO = 6;
 // "-latest" (não uma versão fixa tipo "gemini-2.5-flash"): a Google
@@ -15,7 +22,7 @@ const LIMITE_DOCUMENTOS_CONTEXTO = 6;
 // "latest" evita quebrar o assistente cada vez que isso acontecer.
 const MODELO_GEMINI = "gemini-flash-latest";
 
-type DocumentoLegislacao = {
+type DocumentoParaAssistente = {
   id: string;
   titulo: string;
   conteudo: string;
@@ -29,7 +36,7 @@ type DocumentoLegislacao = {
 // Extração agora só acontece em lote, fora do caminho da pergunta (ver
 // extracao-texto-ia.ts, cron/admin) — aqui só lê o que já está em cache;
 // documento ainda não processado usa o resumo manual (conteudo) mesmo.
-function textoDisponivel(documento: DocumentoLegislacao): string {
+function textoDisponivel(documento: DocumentoParaAssistente): string {
   return documento.texto_extraido || documento.conteudo;
 }
 
@@ -55,13 +62,12 @@ export const perguntarAssistenteLegislacao = createServerFn({ method: "POST" })
 
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT id, titulo, conteudo, texto_extraido FROM documentos
-         WHERE loja_id = @current_loja_id
-           AND (categoria = 'legislacao' OR categoria LIKE 'legislacao:%')`,
+         WHERE loja_id = @current_loja_id`,
       );
-      const documentos = rows as DocumentoLegislacao[];
+      const documentos = rows as DocumentoParaAssistente[];
       if (documentos.length === 0) {
         return {
-          resposta: "Ainda não há documentos cadastrados na pasta Legislação desta Loja.",
+          resposta: "Ainda não há documentos cadastrados no repositório desta Loja.",
           fontes: [],
         };
       }
@@ -101,12 +107,16 @@ export const perguntarAssistenteLegislacao = createServerFn({ method: "POST" })
           ],
           config: {
             systemInstruction:
-              "Você é um assistente que responde dúvidas de irmãos maçons sobre a legislação e os " +
-              "regulamentos cadastrados nesta Loja. Responda SOMENTE com base nos documentos fornecidos " +
-              "abaixo — nunca invente artigo, número ou conteúdo normativo. Sempre cite o título exato do " +
-              "documento usado. Se a resposta não estiver nos documentos fornecidos, diga claramente que " +
-              "não encontrou base na legislação cadastrada e recomende consultar a Secretaria ou a " +
-              "Diretoria da Loja. Responda em português do Brasil, de forma objetiva e direta.",
+              "Você é um assistente que responde dúvidas de irmãos maçons com base no repositório de " +
+              "documentos desta Loja — legislação e regulamentos, mas também documentos administrativos, " +
+              "tratados, material de ensino, documentos históricos, rituais antigos, formulários e " +
+              "tabelas de valores, conforme o que for fornecido abaixo. Responda SOMENTE com base nos " +
+              "documentos fornecidos — nunca invente artigo, número ou conteúdo normativo. Sempre cite o " +
+              "título exato do documento usado e, quando fizer diferença pra resposta, diga de qual pasta " +
+              "ele é (ex.: Legislação, Documentos da Loja). Se a resposta não estiver nos documentos " +
+              "fornecidos, diga claramente que não encontrou base no repositório cadastrado e recomende " +
+              "consultar a Secretaria ou a Diretoria da Loja. Responda em português do Brasil, de forma " +
+              "objetiva e direta.",
           },
         });
       } catch (err) {

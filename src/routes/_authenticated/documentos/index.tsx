@@ -317,17 +317,15 @@ function LegislacaoPage() {
         }
       />
 
-      {categoria === "legislacao" && (
-        <section className="mb-5 sm:mb-6">
-          <AssistenteIACard
-            titulo="Assistente da Legislação (IA)"
-            descricao="Pergunte sobre os regulamentos e atos cadastrados nesta pasta. As respostas citam o documento usado e não substituem a orientação da Secretaria ou da Diretoria."
-            placeholder="Ex.: quantas faltas justificam a perda do direito de voto?"
-            perguntar={(pergunta) => perguntarAssistenteLegislacao({ data: { pergunta } })}
-          />
-          {can.isSecretario && <PrepararTextosAssistenteBotao />}
-        </section>
-      )}
+      <section className="mb-5 sm:mb-6">
+        <AssistenteIACard
+          titulo="Assistente de Documentos (IA)"
+          descricao="Pergunte sobre qualquer documento cadastrado no repositório — busca em todas as pastas (Legislação, Documentos da Loja, Tratados, Ensino e as demais). As respostas citam o documento usado e não substituem a orientação da Secretaria ou da Diretoria."
+          placeholder="Ex.: quantas faltas justificam a perda do direito de voto?"
+          perguntar={(pergunta) => perguntarAssistenteLegislacao({ data: { pergunta } })}
+        />
+        {can.isSecretario && <PrepararTextosAssistenteBotao />}
+      </section>
 
       {!categoria ? (
         <section aria-labelledby="pastas-legislacao">
