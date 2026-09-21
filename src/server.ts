@@ -3,6 +3,8 @@ import "./lib/error-capture";
 import defaultServerEntry, { createServerEntry } from "@tanstack/react-start/server-entry";
 export * from "@tanstack/react-start/server";
 
+import { brotliCompress, gzip, constants as zlibConstants } from "node:zlib";
+import { promisify } from "node:util";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
@@ -12,7 +14,98 @@ type ServerEntry = {
 
 const serverEntry = defaultServerEntry as ServerEntry;
 
-function withSecurityHeaders(response: Response): Response {
+// achado #676 (auditoria de performance mobile) — confirmado que a resposta
+// SSR (o HTML de cada navegação, gerado dinamicamente por requisição) não
+// tinha content-encoding nenhum, mesmo o cliente pedindo — só os assets
+// ESTÁTICOS (.js/.css) já saíam comprimidos (compressPublicAssets no
+// vite.config.ts, pré-computado em build). Aqui é o equivalente pra
+// resposta dinâmica: comprime em runtime, uma vez por requisição.
+//
+// brotli/gzip async (não a variante *Sync): a versão async do zlib do
+// Node roda na threadpool do libuv, não bloqueia o event loop — importante
+// num processo Node único servindo todo mundo na Hostinger compartilhada.
+// Qualidade de brotli moderada (4, não os 11 usados no build estático):
+// comprimir em runtime a cada requisição com qualidade máxima custaria CPU
+// demais por byte ganho a mais; 4 já entrega a maior parte do ganho de
+// tamanho por uma fração do custo.
+const brotliCompressAsync = promisify(brotliCompress);
+const gzipAsync = promisify(gzip);
+
+const TIPOS_COMPRIMIVEIS = [
+  "text/html",
+  "application/json",
+  "text/plain",
+  "text/css",
+  "application/javascript",
+  "image/svg+xml",
+];
+const TAMANHO_MINIMO_COMPRESSAO_BYTES = 1024;
+
+async function comComPressaoSeAplicavel(request: Request, response: Response): Promise<Response> {
+  // Já comprimido (ex.: os endpoints de imagem/anexo de notícia servem
+  // binário puro, sem content-type de texto — nem chegam aqui) ou o
+  // chamador já setou content-encoding por algum motivo — nunca comprime
+  // duas vezes.
+  if (response.headers.has("content-encoding")) return response;
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!TIPOS_COMPRIMIVEIS.some((t) => contentType.includes(t))) return response;
+
+  const aceita = request.headers.get("accept-encoding") ?? "";
+  const podeBrotli = aceita.includes("br");
+  const podeGzip = aceita.includes("gzip");
+  if (!podeBrotli && !podeGzip) return response;
+
+  const original = Buffer.from(await response.arrayBuffer());
+  const headers = new Headers(response.headers);
+  // Corpo pequeno: o cabeçalho de compressão + o overhead do algoritmo
+  // custam mais do que valem — devolve sem comprimir, mas via novo Response
+  // porque o body original já foi consumido pelo arrayBuffer() acima.
+  if (original.byteLength < TAMANHO_MINIMO_COMPRESSAO_BYTES) {
+    return new Response(new Uint8Array(original), {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+
+  try {
+    let comprimido: Buffer;
+    if (podeBrotli) {
+      comprimido = await brotliCompressAsync(original, {
+        params: {
+          [zlibConstants.BROTLI_PARAM_QUALITY]: 4,
+          [zlibConstants.BROTLI_PARAM_SIZE_HINT]: original.byteLength,
+        },
+      });
+      headers.set("content-encoding", "br");
+    } else {
+      comprimido = await gzipAsync(original, { level: 6 });
+      headers.set("content-encoding", "gzip");
+    }
+    headers.set("content-length", String(comprimido.byteLength));
+    // Vary obrigatório: um proxy/CDN na frente não pode servir a versão
+    // comprimida pra quem mandou Accept-Encoding diferente.
+    headers.append("vary", "accept-encoding");
+    return new Response(new Uint8Array(comprimido), {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  } catch (error) {
+    // Falha ao comprimir nunca pode derrubar a resposta em si — devolve sem
+    // comprimir, degradação graciosa (mesma filosofia dos outros handlers
+    // públicos deste arquivo, que caem pra um estado "degradado" em vez de
+    // propagar erro pro visitante).
+    console.error("[compressao] falha ao comprimir resposta:", error);
+    return new Response(new Uint8Array(original), {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  }
+}
+
+async function withSecurityHeaders(request: Request, response: Response): Promise<Response> {
   const headers = new Headers(response.headers);
   // Sem includeSubDomains: este mesmo app serve tanto o subdomínio do sistema
   // quanto o domínio institucional puro (ver SiteInstitucionalLayout.tsx), e a
@@ -45,11 +138,12 @@ function withSecurityHeaders(response: Response): Response {
       "upgrade-insecure-requests",
     ].join("; "),
   );
-  return new Response(response.body, {
+  const comHeaders = new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
     headers,
   });
+  return comComPressaoSeAplicavel(request, comHeaders);
 }
 
 // h3 swallows in-handler throws into a normal 500 Response with body
@@ -559,52 +653,55 @@ export default createServerEntry({
   async fetch(request: Request, opts?: unknown) {
     try {
       const cronResponse = await tratarCronNotificacoes(request);
-      if (cronResponse) return withSecurityHeaders(cronResponse);
+      if (cronResponse) return await withSecurityHeaders(request, cronResponse);
 
       const backupResponse = await tratarCronBackup(request);
-      if (backupResponse) return withSecurityHeaders(backupResponse);
+      if (backupResponse) return await withSecurityHeaders(request, backupResponse);
 
       const lembretesResponse = await tratarCronLembretesEmail(request);
-      if (lembretesResponse) return withSecurityHeaders(lembretesResponse);
+      if (lembretesResponse) return await withSecurityHeaders(request, lembretesResponse);
 
       const filaEmailResponse = await tratarCronFilaEmails(request);
-      if (filaEmailResponse) return withSecurityHeaders(filaEmailResponse);
+      if (filaEmailResponse) return await withSecurityHeaders(request, filaEmailResponse);
 
       const previsoesRecorrentesResponse = await tratarCronPrevisoesRecorrentes(request);
-      if (previsoesRecorrentesResponse) return withSecurityHeaders(previsoesRecorrentesResponse);
+      if (previsoesRecorrentesResponse)
+        return await withSecurityHeaders(request, previsoesRecorrentesResponse);
 
       const extracaoTextoIAResponse = await tratarCronExtracaoTextoIA(request);
-      if (extracaoTextoIAResponse) return withSecurityHeaders(extracaoTextoIAResponse);
+      if (extracaoTextoIAResponse)
+        return await withSecurityHeaders(request, extracaoTextoIAResponse);
 
       const agendaResponse = await tratarAgendaPublica(request);
-      if (agendaResponse) return withSecurityHeaders(agendaResponse);
+      if (agendaResponse) return await withSecurityHeaders(request, agendaResponse);
 
       const noticiasResponse = await tratarNoticiasPublicas(request);
-      if (noticiasResponse) return withSecurityHeaders(noticiasResponse);
+      if (noticiasResponse) return await withSecurityHeaders(request, noticiasResponse);
 
       const imagemNoticiaResponse = await tratarImagemCapaNoticiaPublica(request);
-      if (imagemNoticiaResponse) return withSecurityHeaders(imagemNoticiaResponse);
+      if (imagemNoticiaResponse) return await withSecurityHeaders(request, imagemNoticiaResponse);
 
       const anexoNoticiaResponse = await tratarAnexoNoticiaPublica(request);
-      if (anexoNoticiaResponse) return withSecurityHeaders(anexoNoticiaResponse);
+      if (anexoNoticiaResponse) return await withSecurityHeaders(request, anexoNoticiaResponse);
 
       const paginasSiteResponse = await tratarPaginasSitePublicas(request);
-      if (paginasSiteResponse) return withSecurityHeaders(paginasSiteResponse);
+      if (paginasSiteResponse) return await withSecurityHeaders(request, paginasSiteResponse);
 
       const menuSiteResponse = await tratarMenuSitePublico(request);
-      if (menuSiteResponse) return withSecurityHeaders(menuSiteResponse);
+      if (menuSiteResponse) return await withSecurityHeaders(request, menuSiteResponse);
 
       const healthResponse = await tratarHealthcheck(request);
-      if (healthResponse) return withSecurityHeaders(healthResponse);
+      if (healthResponse) return await withSecurityHeaders(request, healthResponse);
 
       const googleResponse = await tratarCallbackGoogleOuNull(request);
-      if (googleResponse) return withSecurityHeaders(googleResponse);
+      if (googleResponse) return await withSecurityHeaders(request, googleResponse);
 
       const response = await serverEntry.fetch(request, opts);
-      return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
+      return await withSecurityHeaders(request, await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return withSecurityHeaders(
+      return await withSecurityHeaders(
+        request,
         new Response(renderErrorPage(), {
           status: 500,
           headers: { "content-type": "text/html; charset=utf-8" },
