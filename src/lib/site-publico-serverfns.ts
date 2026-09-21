@@ -4,6 +4,10 @@ import { carregarAgendaPublica } from "./agenda-publica";
 import { carregarNoticiaPublicaPorId, listarNoticiasPublicasResumo } from "./noticias-publica";
 import { carregarMenuPublico } from "./menu-site-publica";
 import { listarPaginasPublicas, carregarPaginaPublicaPorSlug } from "./paginas-site-publica";
+import {
+  listarEdicoesJornalPublicas,
+  carregarEdicaoJornalPublicaPorNumero,
+} from "./jornal-publica";
 
 // Wrappers createServerFn em torno dos loaders públicos (agenda-publica.ts,
 // noticias-publica.ts, menu-site-publica.ts, paginas-site-publica.ts) — as
@@ -36,3 +40,11 @@ export const obterPaginasPublicasFn = createServerFn({ method: "GET" }).handler(
 export const obterPaginaPublicaPorSlugFn = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ slug: z.string().min(1) }).parse(d))
   .handler(({ data }) => carregarPaginaPublicaPorSlug(data.slug));
+
+export const obterEdicoesJornalPublicasFn = createServerFn({ method: "GET" }).handler(() =>
+  listarEdicoesJornalPublicas(),
+);
+
+export const obterEdicaoJornalPublicaPorNumeroFn = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ numero: z.number().int().positive() }).parse(d))
+  .handler(({ data }) => carregarEdicaoJornalPublicaPorNumero(data.numero));

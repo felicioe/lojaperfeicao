@@ -215,7 +215,8 @@ async function gravarNaFila(
       | "convite_admin"
       | "interstico_completo"
       | "fatura_aberta_lote"
-      | "noticia_publicada";
+      | "noticia_publicada"
+      | "edicao_jornal";
     destinatarios: string[];
     assunto: string;
     html: string;
@@ -755,16 +756,116 @@ export async function enviarEmailComunicado(
 // algo e mandar de novo, é um novo envio, não um reenvio bloqueado por
 // jaEnviadoComSucesso.
 
-function extensaoDoMime(mime: string): string {
+export function extensaoDoMime(mime: string): string {
   if (mime === "image/png") return ".png";
   if (mime === "image/webp") return ".webp";
   return ".jpg";
 }
 
-function logoImgTag(logo?: LogoInstitucional): string {
+export function logoImgTag(logo?: LogoInstitucional): string {
   return logo
     ? `<img src="${logo.logoUrl}" alt="${logo.nome}" style="height:48px;max-width:160px;object-fit:contain;" />`
     : "";
+}
+
+// achado #665 — titulo/resumo de notícia são campo de texto livre (não
+// passam pelo editor rico, não vão por sanitizarRichTextPublico), mas aqui
+// entram direto num template de HTML montado por concatenação de string —
+// sem isto, um `<` digitado ali viraria marcação de verdade no e-mail e na
+// página pública da edição.
+export function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Prepara uma imagem de capa (data: URL) pra entrar num e-mail: em modo
+ * "previa" usa a própria data: URL (visível de imediato no navegador); em
+ * modo "envio" vira anexo `cid` (necessário pra abrir embutida em clientes
+ * como Outlook/Gmail, que bloqueiam data: URL grande no corpo). Reaproveitado
+ * por montarEmailNoticia (#663) e montarJornal (#665) — mesma regra, mesmo
+ * formato de anexo. */
+export function prepararImagemEmail(
+  dataUrl: string | null,
+  cid: string,
+  modo: "previa" | "envio",
+): {
+  src: string | null;
+  anexo: { filename: string; content: Buffer; contentType: string; cid?: string } | null;
+} {
+  if (!dataUrl) return { src: null, anexo: null };
+  const match = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/.exec(dataUrl);
+  if (!match) return { src: null, anexo: null };
+  const [, mime, base64] = match;
+  if (modo === "previa") return { src: dataUrl, anexo: null };
+  return {
+    src: `cid:${cid}`,
+    anexo: {
+      filename: `${cid}${extensaoDoMime(mime)}`,
+      content: Buffer.from(base64, "base64"),
+      contentType: mime,
+      cid,
+    },
+  };
+}
+
+/** Envio genérico de newsletter (html/assunto já montados por quem chama) —
+ * usa a mesma conexão de quem chama (já dentro de um comPapel/comSessao),
+ * em vez de abrir a sua própria como enviarEmailComunicado/
+ * enviarNoticiaPorEmail fazem: útil pra quem precisa gravar outra coisa
+ * (a edição do jornal, #665) na MESMA transação/conexão antes de enviar. */
+export async function enviarNewsletterGenerica(
+  conn: PoolConnection,
+  params: {
+    lojaId: string;
+    tipo: "edicao_jornal";
+    chave: string;
+    assunto: string;
+    html: string;
+    texto: string;
+    anexos: { filename: string; content: Buffer; contentType: string; cid?: string }[];
+  },
+): Promise<ResultadoEnvioRelatorio> {
+  const [destinatarios] = await conn.query<RowDataPacket[]>(
+    `SELECT email FROM irmaos WHERE situacao = 'ativo' AND email IS NOT NULL AND email != '' AND loja_id = ?`,
+    [params.lojaId],
+  );
+  const listaEmails = destinatarios.map((r) => (r as { email: string }).email);
+  if (listaEmails.length === 0) return [];
+
+  const filaId = await gravarNaFila(conn, {
+    chave: params.chave,
+    tipo: params.tipo,
+    destinatarios: listaEmails,
+    assunto: params.assunto,
+    html: params.html,
+    texto: params.texto,
+    lojaId: params.lojaId,
+    bccMonitoramento: true,
+    anexos: params.anexos.map((a) => ({
+      buffer: a.content,
+      nome: a.filename,
+      mimeType: a.contentType,
+      cid: a.cid,
+    })),
+  });
+
+  const resultado = await tentarEnviarFilaEmail(
+    conn,
+    filaId,
+    listaEmails,
+    params.assunto,
+    params.html,
+    params.texto,
+    params.anexos,
+    params.lojaId,
+    true,
+  );
+
+  return listaEmails.map((email) => ({ destinatario: email, sucesso: resultado.sucesso > 0 }));
 }
 
 type EmailNoticiaMontado = {
@@ -825,6 +926,8 @@ async function montarEmailNoticia(
   }
 
   const link = `${origemPublica()}/noticias/${noticiaId}`;
+  const tituloEscapado = escapeHtml(String(noticia.titulo));
+  const resumoEscapado = noticia.resumo ? escapeHtml(String(noticia.resumo)) : null;
   const assunto = `Nova notícia — ${noticia.titulo}`;
   const conteudoSanitizado = sanitizarRichTextPublico(String(noticia.conteudo));
 
@@ -843,8 +946,8 @@ async function montarEmailNoticia(
     ${imgHtml}
     <tr>
       <td>
-        <h2 style="margin:0 0 8px 0;">${noticia.titulo}</h2>
-        ${noticia.resumo ? `<p style="color:#4b5563;font-style:italic;margin:0 0 16px 0;">${noticia.resumo}</p>` : ""}
+        <h2 style="margin:0 0 8px 0;">${tituloEscapado}</h2>
+        ${resumoEscapado ? `<p style="color:#4b5563;font-style:italic;margin:0 0 16px 0;">${resumoEscapado}</p>` : ""}
         <div>${conteudoSanitizado}</div>
         <p style="margin-top:24px;"><a href="${link}" style="color:#1d4ed8;">Ler no site</a></p>
       </td>
