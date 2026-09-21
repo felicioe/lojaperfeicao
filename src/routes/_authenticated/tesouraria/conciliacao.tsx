@@ -77,6 +77,7 @@ import { CATEGORIA_LABEL } from "@/components/app/movimentos-filtros";
 import { extrairPossivelNome, normalizarTexto } from "@/lib/conciliacao-match";
 import { AlocacaoParcialTable } from "@/components/app/AlocacaoParcial";
 import { sugerirAlocacao, somaAlocacao } from "@/lib/alocacao-parcial";
+import { HISTORICO_TRONCO_ANONIMO } from "@/lib/backend/tesouraria-tronco";
 
 // Parâmetros opcionais na URL (issue #474) — permite chegar aqui já com a
 // conta e a transferência marcadas, a partir do atalho "Conciliar" da
@@ -1321,7 +1322,17 @@ function CriarLancamentoDialog({
             {isEntrada && (
               <div>
                 <Label htmlFor="conciliacao-categoria">Categoria</Label>
-                <Select value={categoria} onValueChange={setCategoria}>
+                <Select
+                  value={categoria}
+                  onValueChange={(v) => {
+                    setCategoria(v);
+                    // achado #678 — tronco é doação confidencial por
+                    // natureza (sem Irmão vinculado); sem isto, a descrição
+                    // ficava com o texto cru do extrato bancário, que
+                    // normalmente inclui o nome de quem pagou via Pix.
+                    if (v === "tronco" && !irmaoId) setDescricao(HISTORICO_TRONCO_ANONIMO);
+                  }}
+                >
                   <SelectTrigger id="conciliacao-categoria">
                     <SelectValue />
                   </SelectTrigger>
@@ -1343,6 +1354,11 @@ function CriarLancamentoDialog({
                   onValueChange={(v) => {
                     setIrmaoId(v === "__nenhum__" ? "" : v);
                     if (v !== "__nenhum__") setTerceiroId("none");
+                    // achado #678 — mesmo raciocínio, pra quem escolhe
+                    // categoria "tronco" antes de confirmar "Nenhum" Irmão.
+                    if (v === "__nenhum__" && categoria === "tronco") {
+                      setDescricao(HISTORICO_TRONCO_ANONIMO);
+                    }
                   }}
                 >
                   <SelectTrigger id="conciliacao-irmao">
@@ -1468,7 +1484,16 @@ function CriarLancamentoDialog({
                       <Label htmlFor={`conciliacao-rateio-categoria-${it.chave}`}>Categoria</Label>
                       <Select
                         value={it.categoria}
-                        onValueChange={(v) => atualizarItem(it.chave, { categoria: v })}
+                        onValueChange={(v) =>
+                          atualizarItem(it.chave, {
+                            categoria: v,
+                            // achado #678 — mesmo raciocínio do lançamento
+                            // simples, aplicado a cada item do rateio.
+                            ...(v === "tronco" && !it.irmaoId
+                              ? { descricao: HISTORICO_TRONCO_ANONIMO }
+                              : {}),
+                          })
+                        }
                       >
                         <SelectTrigger id={`conciliacao-rateio-categoria-${it.chave}`}>
                           <SelectValue />
@@ -1492,6 +1517,10 @@ function CriarLancamentoDialog({
                           atualizarItem(it.chave, {
                             irmaoId: v === "__nenhum__" ? "" : v,
                             ...(v === "__nenhum__" ? {} : { terceiroId: "none" }),
+                            // achado #678
+                            ...(v === "__nenhum__" && it.categoria === "tronco"
+                              ? { descricao: HISTORICO_TRONCO_ANONIMO }
+                              : {}),
                           })
                         }
                       >
@@ -1809,7 +1838,15 @@ function LancarLoteDialog({
                       <Label htmlFor={`lote-categoria-${l.id}`}>Categoria</Label>
                       <Select
                         value={it.categoria}
-                        onValueChange={(v) => atualizarItem(l.id, { categoria: v })}
+                        onValueChange={(v) =>
+                          atualizarItem(l.id, {
+                            categoria: v,
+                            // achado #678
+                            ...(v === "tronco" && !it.irmaoId
+                              ? { descricao: HISTORICO_TRONCO_ANONIMO }
+                              : {}),
+                          })
+                        }
                       >
                         <SelectTrigger id={`lote-categoria-${l.id}`}>
                           <SelectValue />
@@ -1833,6 +1870,10 @@ function LancarLoteDialog({
                           atualizarItem(l.id, {
                             irmaoId: v === "__nenhum__" ? "" : v,
                             ...(v === "__nenhum__" ? {} : { terceiroId: "none" }),
+                            // achado #678
+                            ...(v === "__nenhum__" && it.categoria === "tronco"
+                              ? { descricao: HISTORICO_TRONCO_ANONIMO }
+                              : {}),
                           })
                         }
                       >
