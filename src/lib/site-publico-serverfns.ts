@@ -18,9 +18,14 @@ import {
 // de fazer isso sem vazar código server-only (mysql2 etc.) pro bundle do
 // cliente — mesmo motivo por trás de cada outro createServerFn do backend.
 
-export const obterAgendaPublicaFn = createServerFn({ method: "GET" }).handler(() =>
-  carregarAgendaPublica(),
-);
+// issue #691 — Agenda mostra tipo de sessão, grau e títulos de trabalhos,
+// dado interno demais pra ficar público. Gate aqui (não só na UI da rota
+// /agenda) é defesa em profundidade: quem chamar este serverFn direto,
+// sem sessão, recebe lista vazia — nunca o conteúdo real.
+export const obterAgendaPublicaFn = createServerFn({ method: "GET" }).handler(async () => {
+  const autenticado = !!(await usuarioIdDaSessao());
+  return autenticado ? carregarAgendaPublica() : [];
+});
 
 // issue #690 — notícia com visibilidade='restrita' só aparece pra quem tem
 // sessão ativa (qualquer Irmão autenticado, não importa o papel). Visitante
