@@ -21,6 +21,8 @@ import { Route as AuthenticatedAdminSaasRouteRouteImport } from './routes/_authe
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as ConviteTokenRouteImport } from './routes/convite.$token'
+import { Route as JornalIndexRouteImport } from './routes/jornal/index'
+import { Route as JornalNumeroRouteImport } from './routes/jornal/$numero'
 import { Route as NoticiasIndexRouteImport } from './routes/noticias/index'
 import { Route as NoticiasIdRouteImport } from './routes/noticias/$id'
 import { Route as PaginasSlugRouteImport } from './routes/paginas/$slug'
@@ -179,6 +181,16 @@ const AuthenticatedPainelRouteRoute =
 const ConviteTokenRoute = ConviteTokenRouteImport.update({
   id: '/convite/$token',
   path: '/convite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JornalIndexRoute = JornalIndexRouteImport.update({
+  id: '/jornal/',
+  path: '/jornal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JornalNumeroRoute = JornalNumeroRouteImport.update({
+  id: '/jornal/$numero',
+  path: '/jornal/$numero',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NoticiasIndexRoute = NoticiasIndexRouteImport.update({
@@ -772,9 +784,11 @@ export interface FileRoutesByFullPath {
   '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/jornal/$numero': typeof JornalNumeroRoute
   '/noticias/$id': typeof NoticiasIdRoute
   '/paginas/$slug': typeof PaginasSlugRoute
   '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/jornal/': typeof JornalIndexRoute
   '/noticias/': typeof NoticiasIndexRoute
   '/recuperar-senha/': typeof RecuperarSenhaIndexRoute
   '/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
@@ -881,9 +895,11 @@ export interface FileRoutesByTo {
   '/trocar-senha': typeof TrocarSenhaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/jornal/$numero': typeof JornalNumeroRoute
   '/noticias/$id': typeof NoticiasIdRoute
   '/paginas/$slug': typeof PaginasSlugRoute
   '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/jornal': typeof JornalIndexRoute
   '/noticias': typeof NoticiasIndexRoute
   '/recuperar-senha': typeof RecuperarSenhaIndexRoute
   '/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
@@ -994,9 +1010,11 @@ export interface FileRoutesById {
   '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/convite/$token': typeof ConviteTokenRoute
+  '/jornal/$numero': typeof JornalNumeroRoute
   '/noticias/$id': typeof NoticiasIdRoute
   '/paginas/$slug': typeof PaginasSlugRoute
   '/recuperar-senha/$token': typeof RecuperarSenhaTokenRoute
+  '/jornal/': typeof JornalIndexRoute
   '/noticias/': typeof NoticiasIndexRoute
   '/recuperar-senha/': typeof RecuperarSenhaIndexRoute
   '/_authenticated/admin-saas/configuracoes': typeof AuthenticatedAdminSaasConfiguracoesRoute
@@ -1107,9 +1125,11 @@ export interface FileRouteTypes {
     | '/painel'
     | '/dashboard'
     | '/convite/$token'
+    | '/jornal/$numero'
     | '/noticias/$id'
     | '/paginas/$slug'
     | '/recuperar-senha/$token'
+    | '/jornal/'
     | '/noticias/'
     | '/recuperar-senha/'
     | '/admin-saas/configuracoes'
@@ -1216,9 +1236,11 @@ export interface FileRouteTypes {
     | '/trocar-senha'
     | '/dashboard'
     | '/convite/$token'
+    | '/jornal/$numero'
     | '/noticias/$id'
     | '/paginas/$slug'
     | '/recuperar-senha/$token'
+    | '/jornal'
     | '/noticias'
     | '/recuperar-senha'
     | '/admin-saas/configuracoes'
@@ -1328,9 +1350,11 @@ export interface FileRouteTypes {
     | '/_authenticated/painel'
     | '/_authenticated/dashboard'
     | '/convite/$token'
+    | '/jornal/$numero'
     | '/noticias/$id'
     | '/paginas/$slug'
     | '/recuperar-senha/$token'
+    | '/jornal/'
     | '/noticias/'
     | '/recuperar-senha/'
     | '/_authenticated/admin-saas/configuracoes'
@@ -1438,9 +1462,11 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   TrocarSenhaRoute: typeof TrocarSenhaRoute
   ConviteTokenRoute: typeof ConviteTokenRoute
+  JornalNumeroRoute: typeof JornalNumeroRoute
   NoticiasIdRoute: typeof NoticiasIdRoute
   PaginasSlugRoute: typeof PaginasSlugRoute
   RecuperarSenhaTokenRoute: typeof RecuperarSenhaTokenRoute
+  JornalIndexRoute: typeof JornalIndexRoute
   NoticiasIndexRoute: typeof NoticiasIndexRoute
   RecuperarSenhaIndexRoute: typeof RecuperarSenhaIndexRoute
 }
@@ -1529,6 +1555,20 @@ declare module '@tanstack/react-router' {
       path: '/convite/$token'
       fullPath: '/convite/$token'
       preLoaderRoute: typeof ConviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jornal/': {
+      id: '/jornal/'
+      path: '/jornal'
+      fullPath: '/jornal/'
+      preLoaderRoute: typeof JornalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jornal/$numero': {
+      id: '/jornal/$numero'
+      path: '/jornal/$numero'
+      fullPath: '/jornal/$numero'
+      preLoaderRoute: typeof JornalNumeroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/noticias/': {
@@ -2497,9 +2537,11 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   TrocarSenhaRoute: TrocarSenhaRoute,
   ConviteTokenRoute: ConviteTokenRoute,
+  JornalNumeroRoute: JornalNumeroRoute,
   NoticiasIdRoute: NoticiasIdRoute,
   PaginasSlugRoute: PaginasSlugRoute,
   RecuperarSenhaTokenRoute: RecuperarSenhaTokenRoute,
+  JornalIndexRoute: JornalIndexRoute,
   NoticiasIndexRoute: NoticiasIndexRoute,
   RecuperarSenhaIndexRoute: RecuperarSenhaIndexRoute,
 }

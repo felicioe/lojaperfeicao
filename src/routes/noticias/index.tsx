@@ -47,7 +47,12 @@ function NoticiasPublicasPage() {
 
   return (
     <SiteInstitucionalLayout menuInicial={menu}>
-      <h1 className="mb-6 text-3xl font-bold tracking-tight">Notícias</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Notícias</h1>
+        <Link to="/jornal" className="text-sm text-primary hover:underline">
+          Edições do jornal →
+        </Link>
+      </div>
       {noticias.length === 0 && (
         <p className="text-muted-foreground">Nenhuma notícia publicada no momento.</p>
       )}

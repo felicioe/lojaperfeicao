@@ -18,6 +18,7 @@ import {
   enviarNoticiaPorEmail,
   type Noticia,
 } from "@/lib/backend/noticias";
+import { obterPreviaJornal, publicarEEnviarJornal } from "@/lib/backend/jornal";
 import { PageHeader } from "@/components/app/AppShell";
 import { TabelaPaginacao } from "@/components/app/TabelaPaginacao";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Fragment } from "react";
 import {
   ChevronDown,
@@ -75,6 +77,7 @@ import {
   FileText,
   Image as ImageIcon,
   Mail,
+  Newspaper,
 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
@@ -142,6 +145,18 @@ function NoticiasPage() {
   } | null>(null);
   const [carregandoPrevia, setCarregandoPrevia] = useState(false);
   const [enviandoEmail, setEnviandoEmail] = useState(false);
+
+  // achado #665 — seleção pra agrupar num "jornalzinho"; guarda a ORDEM do
+  // clique (não é um Set) porque a primeira notícia marcada vira a manchete
+  // sugerida por padrão, e o editor pode trocar depois no diálogo.
+  const [selecaoJornal, setSelecaoJornal] = useState<string[]>([]);
+  const [jornalDialog, setJornalDialog] = useState<{
+    titulo: string;
+    mancheteId: string;
+    previa: { assunto: string; html: string } | null;
+  } | null>(null);
+  const [carregandoPreviaJornal, setCarregandoPreviaJornal] = useState(false);
+  const [publicandoJornal, setPublicandoJornal] = useState(false);
 
   // editor_cms nunca publica direto e aprovador_cms nunca escreve conteúdo —
   // só super_admin e editor_cms têm o que fazer com o formulário abaixo.
@@ -346,6 +361,63 @@ function NoticiasPage() {
     }
   };
 
+  const alternarSelecaoJornal = (id: string) => {
+    setSelecaoJornal((atual) =>
+      atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id],
+    );
+  };
+
+  const abrirDialogoJornal = () => {
+    if (selecaoJornal.length < 2) return;
+    setJornalDialog({ titulo: "", mancheteId: selecaoJornal[0], previa: null });
+  };
+
+  const gerarPreviaJornal = async () => {
+    if (!jornalDialog || !jornalDialog.titulo.trim()) {
+      toast.error("Dê um título pra edição antes de gerar a prévia.");
+      return;
+    }
+    setCarregandoPreviaJornal(true);
+    try {
+      const previa = await obterPreviaJornal({
+        data: {
+          titulo: jornalDialog.titulo.trim(),
+          noticiaIds: selecaoJornal,
+          mancheteId: jornalDialog.mancheteId,
+        },
+      });
+      setJornalDialog((d) => (d ? { ...d, previa } : d));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao gerar a prévia do jornal.");
+    } finally {
+      setCarregandoPreviaJornal(false);
+    }
+  };
+
+  const confirmarPublicacaoJornal = async () => {
+    if (!jornalDialog || !jornalDialog.previa) return;
+    setPublicandoJornal(true);
+    try {
+      const { numero, resultado } = await publicarEEnviarJornal({
+        data: {
+          titulo: jornalDialog.titulo.trim(),
+          noticiaIds: selecaoJornal,
+          mancheteId: jornalDialog.mancheteId,
+        },
+      });
+      const sucessos = resultado.filter((r) => r.sucesso).length;
+      toast.success(
+        `Edição nº ${numero} publicada — e-mail enviado a ${sucessos} de ${resultado.length} Irmãos.`,
+      );
+      setJornalDialog(null);
+      setSelecaoJornal([]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao publicar/enviar o jornal.");
+    } finally {
+      setPublicandoJornal(false);
+    }
+  };
+
   const ord = useOrdenacao(noticias, {
     titulo: (n) => n.titulo,
     status: (n) => n.status,
@@ -499,11 +571,29 @@ function NoticiasPage() {
         </Card>
       )}
 
+      {podeEscrever && selecaoJornal.length > 2 && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border bg-muted/30 p-3">
+          <p className="text-sm">
+            <strong>{selecaoJornal.length} notícias selecionadas.</strong> Deseja enviar no formato
+            jornal, agrupando todas num único envio?
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelecaoJornal([])}>
+              Limpar seleção
+            </Button>
+            <Button size="sm" onClick={abrirDialogoJornal}>
+              <Newspaper className="mr-1.5 h-4 w-4" /> Montar edição
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead></TableHead>
+              {podeEscrever && <TableHead></TableHead>}
               <TableHeadOrdenavel campo="titulo" ord={ord}>
                 Título
               </TableHeadOrdenavel>
@@ -520,7 +610,10 @@ function NoticiasPage() {
           <TableBody>
             {itensPagina.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={podeEscrever ? 7 : 6}
+                  className="py-6 text-center text-muted-foreground"
+                >
                   Nenhuma notícia cadastrada.
                 </TableCell>
               </TableRow>
@@ -549,6 +642,17 @@ function NoticiasPage() {
                         )}
                       </Button>
                     </TableCell>
+                    {podeEscrever && (
+                      <TableCell>
+                        {n.status === "publicado" && (
+                          <Checkbox
+                            checked={selecaoJornal.includes(n.id)}
+                            onCheckedChange={() => alternarSelecaoJornal(n.id)}
+                            aria-label={`Selecionar "${n.titulo}" para o jornal`}
+                          />
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">{n.titulo}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {n.coluna_nome ?? "—"}
@@ -636,7 +740,7 @@ function NoticiasPage() {
                   </TableRow>
                   {expandido === n.id && (
                     <TableRow>
-                      <TableCell colSpan={6} className="bg-muted/30">
+                      <TableCell colSpan={podeEscrever ? 7 : 6} className="bg-muted/30">
                         <RichTextView html={n.conteudo} />
                       </TableCell>
                     </TableRow>
@@ -714,6 +818,87 @@ function NoticiasPage() {
             <Button onClick={() => void confirmarEnvioEmail()} disabled={enviandoEmail}>
               <Mail className="mr-1.5 h-4 w-4" />
               {enviandoEmail ? "Enviando…" : "Confirmar envio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!jornalDialog} onOpenChange={(v) => !v && setJornalDialog(null)}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Montar edição do jornal</DialogTitle>
+            <DialogDescription>
+              {selecaoJornal.length} notícias selecionadas. Dê um título pra edição, escolha a
+              manchete e revise a prévia antes de publicar e enviar por e-mail.
+            </DialogDescription>
+          </DialogHeader>
+          {jornalDialog && (
+            <div className="grid gap-3">
+              <div>
+                <Label htmlFor="jornal-titulo">Título da edição</Label>
+                <Input
+                  id="jornal-titulo"
+                  maxLength={200}
+                  placeholder='Ex.: "Edição nº 3 — Setembro/2026"'
+                  value={jornalDialog.titulo}
+                  onChange={(e) =>
+                    setJornalDialog((d) => (d ? { ...d, titulo: e.target.value, previa: null } : d))
+                  }
+                />
+              </div>
+              <div>
+                <Label>Manchete (destaque principal)</Label>
+                <div className="mt-1 space-y-1.5 rounded-md border p-2">
+                  {selecaoJornal.map((id) => {
+                    const noticia = noticias.find((n) => n.id === id);
+                    if (!noticia) return null;
+                    return (
+                      <label key={id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="radio"
+                          name="jornal-manchete"
+                          checked={jornalDialog.mancheteId === id}
+                          onChange={() =>
+                            setJornalDialog((d) => (d ? { ...d, mancheteId: id, previa: null } : d))
+                          }
+                        />
+                        {noticia.titulo}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => void gerarPreviaJornal()}
+                disabled={carregandoPreviaJornal || !jornalDialog.titulo.trim()}
+              >
+                {carregandoPreviaJornal ? "Gerando prévia…" : "Gerar prévia"}
+              </Button>
+              {jornalDialog.previa && (
+                <div className="rounded-md border">
+                  <div className="border-b bg-muted/30 px-3 py-2 text-sm">
+                    <span className="font-medium">Assunto: </span>
+                    {jornalDialog.previa.assunto}
+                  </div>
+                  <div
+                    className="max-h-[40vh] overflow-y-auto p-4"
+                    dangerouslySetInnerHTML={{ __html: jornalDialog.previa.html }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setJornalDialog(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => void confirmarPublicacaoJornal()}
+              disabled={!jornalDialog?.previa || publicandoJornal}
+            >
+              <Newspaper className="mr-1.5 h-4 w-4" />
+              {publicandoJornal ? "Publicando…" : "Publicar e enviar"}
             </Button>
           </DialogFooter>
         </DialogContent>
