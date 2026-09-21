@@ -23,6 +23,21 @@ function origemPublica(): string {
   return process.env.PUBLIC_ORIGIN || "http://localhost:5173";
 }
 
+// achado #677 (auditoria de segurança) — LIMITE_DIARIO_EMAIL_POR_LOJA só era
+// checado dentro do CRON de retry (processarFilaEmails), nunca nos envios
+// manuais/síncronos (comunicado, notícia avulsa, edição de jornal) — cada
+// um desses dispara pra TODOS os irmãos ativos da loja de uma vez, sem
+// limite nenhum nesse caminho. Reaproveita o mesmo contarEnviosHoje/
+// LIMITE_DIARIO_EMAIL_POR_LOJA do CRON, chamado antes de gravar na fila.
+async function verificarLimiteDiarioEmail(conn: PoolConnection, lojaId: string): Promise<void> {
+  const jaEnviadosHoje = await contarEnviosHoje(conn, "filas_email", "enviado_em", lojaId);
+  if (jaEnviadosHoje >= LIMITE_DIARIO_EMAIL_POR_LOJA) {
+    throw new Error(
+      `Esta Loja já atingiu o limite de ${LIMITE_DIARIO_EMAIL_POR_LOJA} e-mails hoje. Tente novamente amanhã.`,
+    );
+  }
+}
+
 // Cópia oculta de monitoramento (pedido do usuário, início de operação do
 // sistema): toda comunicação que chega a um irmão — fatura, cobrança,
 // lembrete, comunicado, recibo/relatório enviado manualmente — também cai
@@ -715,6 +730,7 @@ export async function enviarEmailComunicado(
       [comunicadoId, lojaId],
     );
     if (!comunicado) return [];
+    await verificarLimiteDiarioEmail(conn, lojaId);
 
     const [destinatarios] = await conn.query<RowDataPacket[]>(
       comunicado.publico === "org"
@@ -855,6 +871,7 @@ export async function enviarNewsletterGenerica(
   );
   const listaEmails = destinatarios.map((r) => (r as { email: string }).email);
   if (listaEmails.length === 0) return [];
+  await verificarLimiteDiarioEmail(conn, params.lojaId);
 
   const filaId = await gravarNaFila(conn, {
     chave: params.chave,
@@ -1006,6 +1023,7 @@ export async function enviarNoticiaPorEmail(
     );
     const listaEmails = destinatarios.map((r) => (r as { email: string }).email);
     if (listaEmails.length === 0) return [];
+    await verificarLimiteDiarioEmail(conn, lojaId);
 
     const filaId = await gravarNaFila(conn, {
       chave: `noticia:${noticiaId}:${Date.now()}`,
