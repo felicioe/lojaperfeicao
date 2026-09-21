@@ -1,16 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { obterAgendaPublicaFn, obterMenuPublicoFn } from "@/lib/site-publico-serverfns";
+import { getSessao } from "@/lib/backend/auth";
 import { SiteInstitucionalLayout } from "@/components/app/SiteInstitucionalLayout";
 import { ConteudoPublicoHtml } from "@/components/app/ConteudoPublicoHtml";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Link } from "@tanstack/react-router";
+import { Lock } from "lucide-react";
 
+// issue #691 — Agenda mostra tipo de sessão, grau e títulos de trabalhos:
+// dado interno demais pra ficar público (o gate real, contra chamada direta
+// do serverFn, está em obterAgendaPublicaFn — aqui só decide o que
+// RENDERIZAR). `autenticado` é resolvido no loader (SSR), não só no
+// componente, pra não piscar o conteúdo antes de checar sessão.
 export const Route = createFileRoute("/agenda")({
   loader: async () => {
-    const [agenda, menu] = await Promise.allSettled([obterAgendaPublicaFn(), obterMenuPublicoFn()]);
+    const [agenda, menu, sessao] = await Promise.allSettled([
+      obterAgendaPublicaFn(),
+      obterMenuPublicoFn(),
+      getSessao(),
+    ]);
     return {
       agenda: agenda.status === "fulfilled" ? agenda.value : [],
       menu: menu.status === "fulfilled" ? menu.value : [],
+      autenticado: sessao.status === "fulfilled" && !!sessao.value,
     };
   },
   head: () => ({
@@ -20,7 +34,6 @@ export const Route = createFileRoute("/agenda")({
         name: "description",
         content: "Próximas sessões e atividades da Associação Adonhiramita.",
       },
-      { name: "robots", content: "index, follow" },
     ],
   }),
   component: AgendaPublicaPage,
@@ -32,7 +45,7 @@ const fmtData = (d: string) =>
   );
 
 function AgendaPublicaPage() {
-  const { agenda: agendaInicial, menu } = Route.useLoaderData();
+  const { agenda: agendaInicial, menu, autenticado } = Route.useLoaderData();
   const { data: agenda = agendaInicial } = useQuery({
     queryKey: ["agenda_publica_site"],
     queryFn: async () => {
@@ -43,7 +56,29 @@ function AgendaPublicaPage() {
       }
     },
     initialData: agendaInicial,
+    enabled: autenticado,
   });
+
+  if (!autenticado) {
+    return (
+      <SiteInstitucionalLayout menuInicial={menu}>
+        <h1 className="mb-6 text-3xl font-bold tracking-tight">Agenda</h1>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <Lock className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+            <p className="text-sm text-muted-foreground">
+              A agenda é uma área restrita a Irmãos. Faça login para ver as próximas sessões.
+            </p>
+            <Button asChild>
+              <Link to="/auth" search={{ redirect: "/agenda" }}>
+                Entrar
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </SiteInstitucionalLayout>
+    );
+  }
 
   return (
     <SiteInstitucionalLayout menuInicial={menu}>

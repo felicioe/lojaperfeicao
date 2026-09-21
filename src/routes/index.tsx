@@ -1,14 +1,11 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getSessao } from "@/lib/backend/auth";
-import {
-  obterAgendaPublicaFn,
-  obterNoticiasPublicasResumoFn,
-  obterMenuPublicoFn,
-} from "@/lib/site-publico-serverfns";
+import { obterNoticiasPublicasResumoFn, obterMenuPublicoFn } from "@/lib/site-publico-serverfns";
 import { SiteInstitucionalLayout } from "@/components/app/SiteInstitucionalLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Lock } from "lucide-react";
 
 // Antes desta issue (#382), "/" sempre redirecionava pro dashboard interno —
 // fazia sentido quando só existia o sistema logado. Agora "/" é a home
@@ -28,13 +25,11 @@ export const Route = createFileRoute("/")({
     }
   },
   loader: async () => {
-    const [agenda, noticias, menu] = await Promise.allSettled([
-      obterAgendaPublicaFn(),
+    const [noticias, menu] = await Promise.allSettled([
       obterNoticiasPublicasResumoFn(),
       obterMenuPublicoFn(),
     ]);
     return {
-      agenda: agenda.status === "fulfilled" ? agenda.value.slice(0, 3) : [],
       noticias: noticias.status === "fulfilled" ? noticias.value.slice(0, 3) : [],
       menu: menu.status === "fulfilled" ? menu.value : [],
     };
@@ -63,21 +58,14 @@ const fmtData = (d: string) =>
   new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(d.replace(" ", "T")));
 
 function HomePublica() {
-  const { agenda, noticias, menu } = Route.useLoaderData();
+  const { noticias, menu } = Route.useLoaderData();
   const { data } = useQuery({
     queryKey: ["home_publica_site"],
     queryFn: async () => {
-      const [agendaAtual, noticiasAtuais] = await Promise.allSettled([
-        obterAgendaPublicaFn(),
-        obterNoticiasPublicasResumoFn(),
-      ]);
-      return {
-        agenda: agendaAtual.status === "fulfilled" ? agendaAtual.value.slice(0, 3) : agenda,
-        noticias:
-          noticiasAtuais.status === "fulfilled" ? noticiasAtuais.value.slice(0, 3) : noticias,
-      };
+      const noticiasAtuais = await obterNoticiasPublicasResumoFn().catch(() => noticias);
+      return { noticias: noticiasAtuais.slice(0, 3) };
     },
-    initialData: { agenda, noticias },
+    initialData: { noticias },
   });
 
   return (
@@ -90,28 +78,27 @@ function HomePublica() {
       </section>
 
       <div className="grid gap-8 sm:grid-cols-2">
+        {/* issue #691 — a agenda (tipo de sessão, grau, trabalhos) é área
+            restrita a Irmãos; quem chega nesta home pública é sempre
+            visitante anônimo (beforeLoad acima redireciona qualquer sessão
+            ativa pra /dashboard antes de renderizar isto), então o preview
+            que existia aqui SEMPRE vazava esse dado pra anônimo. Vira só um
+            convite pra entrar — sem nenhum dado de sessão. */}
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Próxima agenda</h2>
-            <Button variant="link" size="sm" asChild>
-              <Link to="/agenda">Ver tudo</Link>
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {data.agenda.length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhuma atividade programada.</p>
-            )}
-            {data.agenda.map((item) => (
-              <Card key={item.id}>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {item.tipo} {item.nome_grau ? `— ${item.nome_grau}` : ""}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">{fmtData(item.data)}</p>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
+          <h2 className="mb-3 text-xl font-semibold">Área do Irmão</h2>
+          <Card>
+            <CardContent className="flex flex-col items-start gap-3 py-6">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
+                Agenda de sessões e conteúdo restrito ficam disponíveis depois do login.
+              </div>
+              <Button size="sm" asChild>
+                <Link to="/auth" search={{ redirect: "/agenda" }}>
+                  Entrar
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
         </section>
 
         <section>
