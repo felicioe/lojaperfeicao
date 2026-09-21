@@ -218,3 +218,39 @@ Cuidados para continuar:
 - Issues #649 (Pix Automático) e #650 (Open Finance), do mesmo brainstorm
   original, ficaram de fora de propósito — bloqueadas por decisão de
   negócio, não implementadas nesta sessão.
+
+### Migrações 0161–0162 aplicadas em 2026-09-21 (área autenticada do site)
+
+- Contexto: brainstorm "área restrita do site" (issues #689–#692) — login
+  do site com redirect de volta (#689, sem migração), notícia restrita a
+  Irmãos (#690), Agenda pública passa a exigir login (#691, sem migração)
+  e página do CMS (a começar pela "Publicações") pode ser marcada restrita
+  (#692). Uma PR por issue, seguindo a forma de trabalho padrão do
+  projeto.
+- Migrações aplicadas em produção via phpMyAdmin (banco `u630316951_ado`,
+  host `srv1898.hstgr.io`), nesta ordem:
+  1. `0161_noticias_visibilidade.sql` (#690, PR #694) — `noticias` ganha
+     `visibilidade ENUM('publica','restrita')`, default `'publica'`.
+  2. `0162_paginas_site_restrita.sql` (#692, PR #696) — `paginas_site`
+     ganha `restrita BOOLEAN`, default `FALSE`, com `UPDATE` marcando a
+     página de slug `publicacoes` como restrita (idempotente — não erra
+     se essa página ainda não existisse em produção nesse momento).
+- Código correspondente já estava publicado em `main` antes da aplicação
+  das migrações (PRs #693–#696 mesclados primeiro), mesma ordem sempre
+  seguida neste projeto pra evitar o incidente das migrações 0123–0125
+  (código publicado esperando schema que ainda não existe).
+- Validação local antes da publicação de cada PR: `npx tsc --noEmit`,
+  `npx eslint`, `rm -rf .output && npx vite build` (com checagem manual de
+  que `.output/public/assets/` não carrega `mysql2`/`withLojaConnection`/
+  `SESSION_SECRET`), mais teste ao vivo contra
+  `node .output/server/index.mjs` pra confirmar o comportamento de rotas
+  que não dependem de banco (redirect de login, gate de sessão nas rotas
+  `/agenda` e `/`). Sem banco local nesta sessão — o fluxo completo com
+  dado real (criar notícia/página restrita, ver sumir/pedir login) não foi
+  testado ao vivo antes do merge.
+- Pendente: validar ao vivo em produção depois do próximo deploy — marcar
+  uma notícia como restrita e conferir que some da listagem/link direto
+  pra visitante anônimo; marcar/desmarcar a página "Publicações" e
+  conferir a tela de login; conferir que `/agenda` pede login e que, ao
+  entrar por `/auth?redirect=...`, o Irmão volta pra página que queria ver
+  em vez de cair no dashboard.
