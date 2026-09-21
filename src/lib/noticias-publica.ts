@@ -13,16 +13,24 @@ export type NoticiaPublica = {
 
 export type NoticiaPublicaResumo = Omit<NoticiaPublica, "conteudo">;
 
-// achado #662 — imagem/anexo só entram no detalhe de UMA notícia (esta
-// consulta busca uma linha só, é seguro trazer junto); a listagem/resumo
-// acima NÃO traz isso, mesma lição do achado #655 (arquivo binário nunca
-// numa lista de várias linhas).
+// achado #676 (auditoria de performance mobile) — imagem/anexo NÃO entram
+// mais no detalhe da notícia como data: URL embutida no HTML/loader da
+// página: uma imagem de até 8MB (ou anexo de até 30MB) vira ~33% maior em
+// base64 e, sem compressão dinâmica do SSR (achado confirmado — ver PR da
+// issue #676), esse peso ia inteiro, sem compressão, em toda visita/
+// compartilhamento da página. Agora só um booleano ("tem_imagem_capa"/
+// "tem_anexo", mesma lição do achado #655/#662 — nunca trazer o binário
+// numa resposta que não seja sob demanda) e o conteúdo real é servido por
+// rota própria (/api/publico/noticias/:id/imagem|anexo, em server.ts), com
+// Cache-Control e sem duplicar o payload da página.
 export type NoticiaPublicaDetalhe = NoticiaPublica & {
-  imagem_capa_url: string | null;
-  anexo_url: string | null;
-  anexo_nome_original: string | null;
-  anexo_mime: string | null;
+  temImagemCapa: boolean;
+  temAnexo: boolean;
+  anexoNomeOriginal: string | null;
 };
+
+const MIME_IMAGEM_PUBLICA = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/;
+const MIME_ANEXO_PUBLICO = /^data:(image\/(?:png|jpeg|webp)|application\/pdf);base64,(.+)$/;
 
 // Filtro de títulos placeholder aplicado no próprio SQL (WHERE), não depois de
 // carregar as linhas: aplicar em JS depois do LIMIT 100 fazia notícias-teste
@@ -80,8 +88,9 @@ export async function carregarNoticiaPublicaPorId(
 ): Promise<NoticiaPublicaDetalhe | null> {
   return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [[row]] = await conn.query<RowDataPacket[]>(
-      `SELECT id, titulo, resumo, conteudo, publicado_em,
-              imagem_capa_url, anexo_url, anexo_nome_original, anexo_mime
+      `SELECT id, titulo, resumo, conteudo, publicado_em, anexo_nome_original,
+              (imagem_capa_url IS NOT NULL AND imagem_capa_url <> '') AS tem_imagem_capa,
+              (anexo_url IS NOT NULL AND anexo_url <> '') AS tem_anexo
        FROM noticias
        WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ? AND ${CONDICAO_TITULO_APTO}`,
       [id],
@@ -93,10 +102,53 @@ export async function carregarNoticiaPublicaPorId(
       resumo: row.resumo,
       conteudo: sanitizarRichTextPublico(row.conteudo),
       publicado_em: row.publicado_em,
-      imagem_capa_url: row.imagem_capa_url || null,
-      anexo_url: row.anexo_url || null,
-      anexo_nome_original: row.anexo_nome_original,
-      anexo_mime: row.anexo_mime,
+      temImagemCapa: !!row.tem_imagem_capa,
+      temAnexo: !!row.tem_anexo,
+      anexoNomeOriginal: row.anexo_nome_original,
+    };
+  });
+}
+
+/** Conteúdo binário da imagem de capa, sob demanda — servido por
+ * /api/publico/noticias/:id/imagem (server.ts). Mesmo raciocínio de
+ * obterImagemEAnexoNoticia (noticias.ts): busca de UMA linha só, nunca
+ * numa lista. */
+export async function carregarImagemCapaNoticiaPublica(
+  id: string,
+): Promise<{ mime: string; buffer: Buffer } | null> {
+  return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
+    const [[row]] = await conn.query<RowDataPacket[]>(
+      `SELECT imagem_capa_url FROM noticias
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ?`,
+      [id],
+    );
+    const dataUrl = row?.imagem_capa_url as string | undefined;
+    if (!dataUrl) return null;
+    const match = MIME_IMAGEM_PUBLICA.exec(dataUrl);
+    if (!match) return null;
+    return { mime: match[1], buffer: Buffer.from(match[2], "base64") };
+  });
+}
+
+/** Conteúdo binário do anexo (PDF ou imagem), sob demanda — servido por
+ * /api/publico/noticias/:id/anexo (server.ts). */
+export async function carregarAnexoNoticiaPublica(
+  id: string,
+): Promise<{ mime: string; buffer: Buffer; nomeOriginal: string | null } | null> {
+  return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
+    const [[row]] = await conn.query<RowDataPacket[]>(
+      `SELECT anexo_url, anexo_nome_original FROM noticias
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ?`,
+      [id],
+    );
+    const dataUrl = row?.anexo_url as string | undefined;
+    if (!dataUrl) return null;
+    const match = MIME_ANEXO_PUBLICO.exec(dataUrl);
+    if (!match) return null;
+    return {
+      mime: match[1],
+      buffer: Buffer.from(match[2], "base64"),
+      nomeOriginal: (row?.anexo_nome_original as string | null) ?? null,
     };
   });
 }
