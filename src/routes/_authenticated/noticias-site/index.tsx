@@ -11,6 +11,9 @@ import {
   aprovarNoticia,
   rejeitarNoticia,
   excluirNoticia,
+  obterImagemEAnexoNoticia,
+  uploadImagemCapaNoticia,
+  uploadAnexoNoticia,
   type Noticia,
 } from "@/lib/backend/noticias";
 import { PageHeader } from "@/components/app/AppShell";
@@ -58,7 +61,18 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Fragment } from "react";
-import { ChevronDown, ChevronRight, Pencil, Trash2, X, Send, Check, Ban } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Pencil,
+  Trash2,
+  X,
+  Send,
+  Check,
+  Ban,
+  FileText,
+  Image as ImageIcon,
+} from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
 import { useOrdenacao } from "@/lib/use-ordenacao";
@@ -92,7 +106,21 @@ const FORM_VAZIO = {
   resumo: "",
   conteudo: "",
   colunaId: null as string | null,
+  imagemCapaUrl: null as string | null,
+  imagemCapaNomeOriginal: null as string | null,
+  anexoUrl: null as string | null,
+  anexoNomeOriginal: null as string | null,
+  anexoMime: null as string | null,
 };
+
+function arquivoParaDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function NoticiasPage() {
   const can = useCan();
@@ -100,6 +128,8 @@ function NoticiasPage() {
   const [form, setForm] = useState(FORM_VAZIO);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [rejeicao, setRejeicao] = useState<{ id: string; motivo: string } | null>(null);
+  const [enviandoImagem, setEnviandoImagem] = useState(false);
+  const [enviandoAnexo, setEnviandoAnexo] = useState(false);
   const formularioRef = useRef<HTMLDivElement>(null);
 
   // editor_cms nunca publica direto e aprovador_cms nunca escreve conteúdo —
@@ -134,6 +164,11 @@ function NoticiasPage() {
           resumo: form.resumo.trim() || null,
           conteudo: form.conteudo,
           colunaId: form.colunaId,
+          imagemCapaUrl: form.imagemCapaUrl,
+          imagemCapaNomeOriginal: form.imagemCapaNomeOriginal,
+          anexoUrl: form.anexoUrl,
+          anexoNomeOriginal: form.anexoNomeOriginal,
+          anexoMime: form.anexoMime,
         },
       });
       toast.success(form.id ? "Notícia atualizada." : "Notícia criada.");
@@ -144,13 +179,18 @@ function NoticiasPage() {
     }
   };
 
-  const editar = (n: Noticia) => {
+  const editar = async (n: Noticia) => {
     setForm({
       id: n.id,
       titulo: n.titulo,
       resumo: n.resumo ?? "",
       conteudo: n.conteudo,
       colunaId: n.coluna_id,
+      imagemCapaUrl: null,
+      imagemCapaNomeOriginal: null,
+      anexoUrl: null,
+      anexoNomeOriginal: null,
+      anexoMime: null,
     });
     // Sem isso, editar uma notícia mais abaixo na lista atualiza o
     // formulário fora da área visível e parece que o clique não fez nada
@@ -158,6 +198,55 @@ function NoticiasPage() {
     requestAnimationFrame(() => {
       formularioRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+    // achado #662 — imagem/anexo não vêm na listagem (payload grande, mesma
+    // lição do achado #655); busca sob demanda só ao abrir "editar".
+    if (n.tem_imagem_capa || n.tem_anexo) {
+      try {
+        const dados = await obterImagemEAnexoNoticia({ data: { id: n.id } });
+        setForm((f) => (f.id === n.id ? { ...f, ...dados } : f));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Falha ao carregar imagem/anexo.");
+      }
+    }
+  };
+
+  const selecionarImagem = async (file: File) => {
+    if (file.size > 8 * 1024 * 1024) return toast.error("Imagem maior que 8 MB.");
+    setEnviandoImagem(true);
+    try {
+      const dataUrl = await arquivoParaDataUrl(file);
+      const resultado = await uploadImagemCapaNoticia({
+        data: { nomeArquivo: file.name, dataUrl },
+      });
+      setForm((f) => ({
+        ...f,
+        imagemCapaUrl: resultado.url,
+        imagemCapaNomeOriginal: resultado.nomeOriginal,
+      }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar a imagem.");
+    } finally {
+      setEnviandoImagem(false);
+    }
+  };
+
+  const selecionarAnexo = async (file: File) => {
+    if (file.size > 30 * 1024 * 1024) return toast.error("Arquivo maior que 30 MB.");
+    setEnviandoAnexo(true);
+    try {
+      const dataUrl = await arquivoParaDataUrl(file);
+      const resultado = await uploadAnexoNoticia({ data: { nomeArquivo: file.name, dataUrl } });
+      setForm((f) => ({
+        ...f,
+        anexoUrl: resultado.url,
+        anexoNomeOriginal: resultado.nomeOriginal,
+        anexoMime: resultado.mime,
+      }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar o anexo.");
+    } finally {
+      setEnviandoAnexo(false);
+    }
   };
 
   const alternarStatus = async (n: Noticia) => {
@@ -293,6 +382,49 @@ function NoticiasPage() {
                     onChange={(e) => setForm({ ...form, resumo: e.target.value })}
                   />
                 </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="noticia-imagem-capa">Imagem de capa (opcional)</Label>
+                    <Input
+                      id="noticia-imagem-capa"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      disabled={enviandoImagem}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void selecionarImagem(file);
+                      }}
+                    />
+                    {form.imagemCapaNomeOriginal && (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <ImageIcon className="h-3 w-3" /> {form.imagemCapaNomeOriginal}
+                        {enviandoImagem && " — enviando…"}
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Exibida no site e embutida no e-mail da newsletter.
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="noticia-anexo">Anexo (opcional — PDF ou imagem)</Label>
+                    <Input
+                      id="noticia-anexo"
+                      type="file"
+                      accept=".pdf,application/pdf,image/png,image/jpeg,image/webp"
+                      disabled={enviandoAnexo}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void selecionarAnexo(file);
+                      }}
+                    />
+                    {form.anexoNomeOriginal && (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        <FileText className="h-3 w-3" /> {form.anexoNomeOriginal}
+                        {enviandoAnexo && " — enviando…"}
+                      </p>
+                    )}
+                  </div>
+                </div>
                 <div>
                   <Label id="noticia-conteudo-label">Conteúdo</Label>
                   <LazyRichTextEditor
@@ -417,7 +549,7 @@ function NoticiasPage() {
                         </>
                       )}
                       {podeEditarEsta && (
-                        <Button variant="ghost" size="sm" onClick={() => editar(n)}>
+                        <Button variant="ghost" size="sm" onClick={() => void editar(n)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
