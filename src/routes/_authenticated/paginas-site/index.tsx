@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { LazyRichTextEditor } from "@/components/app/LazyRichTextEditor";
 import { RichTextView } from "@/components/app/RichTextView";
@@ -93,6 +94,7 @@ const FORM_VAZIO = {
   titulo: "",
   slug: "",
   conteudo: "",
+  restrita: false,
 };
 
 function PaginasSitePage() {
@@ -121,6 +123,7 @@ function PaginasSitePage() {
           titulo: form.titulo.trim(),
           slug: form.slug.trim(),
           conteudo: form.conteudo,
+          restrita: form.restrita,
         },
       });
       toast.success(form.id ? "Página atualizada." : "Página criada.");
@@ -133,7 +136,13 @@ function PaginasSitePage() {
   };
 
   const editar = (p: PaginaSite) => {
-    setForm({ id: p.id, titulo: p.titulo, slug: p.slug, conteudo: p.conteudo });
+    setForm({
+      id: p.id,
+      titulo: p.titulo,
+      slug: p.slug,
+      conteudo: p.conteudo,
+      restrita: p.restrita,
+    });
     setSlugEditadoManualmente(true);
     requestAnimationFrame(() => {
       formularioRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -267,6 +276,18 @@ function PaginasSitePage() {
                 onChange={(html) => setForm({ ...form, conteudo: html })}
               />
             </div>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="pagina-restrita"
+                checked={form.restrita}
+                onCheckedChange={(v) => setForm({ ...form, restrita: v === true })}
+                className="mt-0.5"
+              />
+              <Label htmlFor="pagina-restrita" className="font-normal text-muted-foreground">
+                Restrita a Irmãos — visitante sem login vê uma tela pedindo pra entrar em vez do
+                conteúdo.
+              </Label>
+            </div>
             <div className="flex gap-2">
               <Button
                 onClick={salvar}
@@ -347,6 +368,11 @@ function PaginasSitePage() {
                     <TableCell className="text-sm text-muted-foreground">/{p.slug}</TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[p.status]}>{STATUS_LABEL[p.status]}</Badge>
+                      {p.restrita && (
+                        <Badge variant="outline" className="ml-1">
+                          Restrita
+                        </Badge>
+                      )}
                       {p.motivo_rejeicao && (
                         <p className="mt-1 max-w-[220px] text-xs text-destructive">
                           Rejeitada: {p.motivo_rejeicao}
