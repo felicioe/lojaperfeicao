@@ -161,3 +161,60 @@ Cuidados para continuar:
   deploy por concluído — `npm run build` + HTTP 200 na home não garantem
   schema em dia, porque o erro só aparece depois do login em rotas que usam
   a tabela/coluna nova.
+
+### Migrações 0157–0160 aplicadas em 2026-09-21 (newsletter/jornal/comentários de notícias)
+
+- Contexto: conjunto de funcionalidades autorizado numa única sessão (issues
+  #662–#665, brainstorm de comunicação por e-mail/jornal/comentários em
+  notícias), implementado uma PR por issue, seguindo a forma de trabalho
+  padrão deste projeto.
+- Migrações aplicadas em produção via phpMyAdmin (banco `u630316951_ado`,
+  host `srv1898.hstgr.io`), nesta ordem:
+  1. `0157_noticias_imagem_anexo.sql` (#662, PR #667) — imagem de capa e
+     anexo (PDF/imagem) em `noticias`.
+  2. `0158_edicoes_jornal.sql` (#665, PR #669) — cria `edicoes_jornal`
+     (snapshot imutável de cada edição do "jornalzinho").
+  3. `0159_filas_email_tipo_noticia_jornal.sql` (#663/#665, PR #669) —
+     amplia o ENUM `filas_email.tipo` com `noticia_publicada` e
+     `edicao_jornal`; também corrige `interstico_completo`, que já estava em
+     uso no código (`enviarEmailIntersticioCompleto`) sem nunca ter passado
+     por uma migração de ENUM — achado durante esta mesma sessão, não um
+     incidente à parte.
+  4. `0160_noticias_comentarios.sql` (#664, PR #670) — cria
+     `noticias_comentarios`.
+- Código correspondente já estava publicado em `main` antes da aplicação das
+  migrações (PRs #667/#668/#669/#670 mesclados primeiro) — mesma ordem
+  seguida no handoff de 2026-08-30/31, evitando o incidente das migrações
+  0123–0125 (código publicado esperando schema que ainda não existia).
+- Validação local antes da publicação de cada PR: `npx tsc --noEmit`,
+  `npx eslint`, `rm -rf .output && npx vite build` (com checagem manual de
+  que `.output/client/` não carrega `nodemailer` nem nenhuma função
+  server-only nova). Sem banco local disponível nesta sessão — nenhum dos
+  fluxos foi testado ao vivo no navegador antes do merge; ver cada PR
+  (#667–#670) para o roteiro de verificação manual recomendado.
+- Pendente: validar ao vivo em produção depois do próximo deploy —
+  publicar notícia com imagem, enviar por e-mail (prévia + confirmação),
+  montar e publicar uma edição do jornal (`/jornal`, `/jornal/:numero`),
+  comentar como Irmão logado e testar moderação (ocultar/reexibir) como
+  editor_cms/super_admin.
+
+### Upgrades de dependência com CVE em 2026-09-21
+
+- `@tiptap/*` (core/starter-kit/react/pm/extension-link) `2.27.2` → `3.31.3`
+  (issue #642, PR #671) — corrige poluição de protótipo em
+  `mergeAttributes()`. Duas breaking changes tratadas em
+  `RichTextEditor.tsx`: `setContent(html, false)` virou
+  `setContent(html, { emitUpdate: false })`; o `StarterKit` da v3 passou a
+  registrar `link` e `underline` por padrão (não existiam na v2) — ambos
+  desativados explicitamente (`link: false`, `underline: false`) pra não
+  duplicar a extensão de link própria nem introduzir uma formatação
+  (sublinhado) que não está na allowlist de `sanitizarRichTextPublico`.
+- `uuid` forçado para `^11.1.1` via `overrides` do npm, só dentro da árvore
+  do `exceljs` (issue #643, PR #672) — `exceljs@4.4.0` é a versão mais
+  recente publicada e ainda depende de `uuid@^8.3.0` (vulnerável); não há
+  update do `exceljs` que resolva isso sozinho. `npm audit` confirma 0
+  vulnerabilidades depois da mudança; testado com geração real de uma
+  planilha `.xlsx` via `ExcelJS.Workbook`.
+- Issues #649 (Pix Automático) e #650 (Open Finance), do mesmo brainstorm
+  original, ficaram de fora de propósito — bloqueadas por decisão de
+  negócio, não implementadas nesta sessão.
