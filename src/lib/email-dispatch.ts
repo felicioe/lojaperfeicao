@@ -326,11 +326,15 @@ export async function enviarEmailFaturaEmitida(
     );
     if (!fatura || !fatura.email) return;
 
+    // achado #674 (auditoria de segurança) — nome_civil/descricao são texto
+    // livre (cadastro de irmão, descrição de lançamento), interpolados aqui
+    // por concatenação de string: sem escapeHtml, um `<` digitado num desses
+    // campos vira marcação de verdade no e-mail enviado ao próprio irmão.
     const html = `
-      <p>Olá, ${fatura.nome_civil}!</p>
+      <p>Olá, ${escapeHtml(fatura.nome_civil)}!</p>
       <p>Uma nova fatura foi emitida em seu nome:</p>
       <ul>
-        <li><strong>Descrição:</strong> ${fatura.descricao}</li>
+        <li><strong>Descrição:</strong> ${escapeHtml(fatura.descricao)}</li>
         <li><strong>Valor:</strong> ${brl(fatura.valor)}</li>
         <li><strong>Vencimento:</strong> ${fmtDate(fatura.data_vencimento)}</li>
       </ul>
@@ -386,10 +390,13 @@ export async function enviarEmailIntersticioCompleto(
     );
     if (!irmao || !irmao.email) return;
 
+    // achado #674 — mesmo raciocínio de enviarEmailFaturaEmitida.
+    const nomeCivilEscapado = escapeHtml(irmao.nome_civil);
+    const nomeGrauEscapado = escapeHtml(irmao.nome_grau);
     const assunto = `Interstício completo — ${irmao.nome_grau}`;
     const html = `
-      <p>Olá, ${irmao.nome_civil}!</p>
-      <p>Você completou o interstício mínimo do grau <strong>${irmao.grau_atual} (${irmao.nome_grau})</strong> — já pode ser elevado ao próximo grau.</p>
+      <p>Olá, ${nomeCivilEscapado}!</p>
+      <p>Você completou o interstício mínimo do grau <strong>${irmao.grau_atual} (${nomeGrauEscapado})</strong> — já pode ser elevado ao próximo grau.</p>
       <p>Fale com a secretaria da loja para os próximos passos.</p>
     `;
     const texto = `Olá, ${irmao.nome_civil}! Você completou o interstício mínimo do grau ${irmao.grau_atual} (${irmao.nome_grau}) — já pode ser elevado. Fale com a secretaria da loja para os próximos passos.`;
@@ -438,12 +445,14 @@ export async function enviarEmailBoasVindas(
     if (!dados || !dados.email_contato) return false;
 
     const linkAcesso = `${origemPublica()}/auth`;
+    // achado #674 — mesmo raciocínio de enviarEmailFaturaEmitida.
+    const nomeCivilEscapado = escapeHtml(dados.nome_civil);
     const html = `
-      <p>Olá, ${dados.nome_civil}!</p>
+      <p>Olá, ${nomeCivilEscapado}!</p>
       <p>Seu acesso ao sistema de gestão da loja foi criado. Use os dados abaixo para o primeiro acesso:</p>
       <ul>
-        <li><strong>Login:</strong> ${dados.login}</li>
-        <li><strong>Senha:</strong> ${senha}</li>
+        <li><strong>Login:</strong> ${escapeHtml(dados.login)}</li>
+        <li><strong>Senha:</strong> ${escapeHtml(senha)}</li>
       </ul>
       <p>Acesse em <a href="${linkAcesso}">${linkAcesso}</a>.</p>
     `;
@@ -497,7 +506,8 @@ export async function enviarEmailRecuperacaoSenha(
     const emailDestino = await emailContatoDoUsuario(conn, usuarioId);
     if (!emailDestino) return false;
 
-    const saudacao = dados?.nome_civil ? `Olá, ${dados.nome_civil}!` : "Olá!";
+    // achado #674 — mesmo raciocínio de enviarEmailFaturaEmitida.
+    const saudacao = dados?.nome_civil ? `Olá, ${escapeHtml(dados.nome_civil)}!` : "Olá!";
     const assunto = "Redefinição de senha";
     const html = `
       <p>${saudacao}</p>
@@ -555,10 +565,14 @@ export async function enviarEmailConviteAdminLoja(params: {
       dateStyle: "short",
       timeStyle: "short",
     }).format(new Date(params.expiraEm));
+    // achado #674 — nomeCompleto/lojaNome vêm de quem preenche o convite
+    // (texto livre), interpolados aqui por concatenação de string.
+    const nomeCompletoEscapado = escapeHtml(params.nomeCompleto);
+    const lojaNomeEscapado = escapeHtml(params.lojaNome);
     const assunto = `Convite para administrar ${params.lojaNome}`;
     const html = `
-      <p>Olá, ${params.nomeCompleto}!</p>
-      <p>Você foi convidado(a) para administrar <strong>${params.lojaNome}</strong> no sistema de gestão.</p>
+      <p>Olá, ${nomeCompletoEscapado}!</p>
+      <p>Você foi convidado(a) para administrar <strong>${lojaNomeEscapado}</strong> no sistema de gestão.</p>
       <p>Para criar seu acesso e definir sua senha, abra o link abaixo:</p>
       <p><a href="${params.link}">${params.link}</a></p>
       <p>O link vale até <strong>${validade}</strong> e só pode ser usado uma vez.</p>
@@ -633,10 +647,13 @@ export async function enviarEmailBoasVindasAdminLoja(params: {
 }): Promise<{ enviado: boolean; erro: string | null }> {
   return withUserConnection(null, async (conn) => {
     const link = `${origemPublica()}/administracao/configuracao-inicial`;
+    // achado #674 — mesmo raciocínio de enviarEmailConviteAdminLoja.
+    const nomeCompletoEscapado = escapeHtml(params.nomeCompleto);
+    const lojaNomeEscapado = escapeHtml(params.lojaNome);
     const assunto = `Bem-vindo(a) — configure ${params.lojaNome}`;
     const html = `
-      <p>Olá, ${params.nomeCompleto}!</p>
-      <p>Seu acesso como administrador(a) de <strong>${params.lojaNome}</strong> foi criado com sucesso.</p>
+      <p>Olá, ${nomeCompletoEscapado}!</p>
+      <p>Seu acesso como administrador(a) de <strong>${lojaNomeEscapado}</strong> foi criado com sucesso.</p>
       <p>Já deixamos um plano de contas e alguns parâmetros pré-configurados — falta só conferir os dados institucionais, cadastrar a conta financeira/chave Pix e revisar o que foi preenchido automaticamente.</p>
       <p><a href="${link}">${link}</a></p>
     `;
@@ -709,8 +726,11 @@ export async function enviarEmailComunicado(
       comunicado.publico === "org" ? [lojaId, comunicado.org_id] : [lojaId],
     );
 
-    const corpoHtml = String(comunicado.corpo).replace(/\n/g, "<br>");
-    const html = `<h3>${comunicado.titulo}</h3><p>${corpoHtml}</p>`;
+    // achado #674 — titulo/corpo do comunicado são texto livre definido por
+    // um usuário autorizado a criar comunicados; escapar ANTES de trocar
+    // quebra de linha por <br>, senão a própria tag <br> seria escapada.
+    const corpoHtml = escapeHtml(String(comunicado.corpo)).replace(/\n/g, "<br>");
+    const html = `<h3>${escapeHtml(String(comunicado.titulo))}</h3><p>${corpoHtml}</p>`;
     const texto = `${comunicado.titulo}\n\n${comunicado.corpo}`;
     const chave = `comunicado:${comunicadoId}`;
     const listaEmails = destinatarios.map((r) => (r as { email: string }).email);
@@ -764,7 +784,7 @@ export function extensaoDoMime(mime: string): string {
 
 export function logoImgTag(logo?: LogoInstitucional): string {
   return logo
-    ? `<img src="${logo.logoUrl}" alt="${logo.nome}" style="height:48px;max-width:160px;object-fit:contain;" />`
+    ? `<img src="${logo.logoUrl}" alt="${escapeHtml(logo.nome)}" style="height:48px;max-width:160px;object-fit:contain;" />`
     : "";
 }
 
@@ -1063,11 +1083,14 @@ function montarLembreteFatura(
     saldo.multa > 0 ? `<li><strong>Multa:</strong> ${brl(saldo.multa)}</li>` : "",
     saldo.juros > 0 ? `<li><strong>Juros:</strong> ${brl(saldo.juros)}</li>` : "",
   ].join("");
+  // achado #674 — mesmo raciocínio de enviarEmailFaturaEmitida.
+  const nomeCivilEscapado = escapeHtml(fatura.nome_civil);
+  const descricaoEscapada = escapeHtml(fatura.descricao);
   const html = `
-    <p>Olá, ${fatura.nome_civil}!</p>
+    <p>Olá, ${nomeCivilEscapado}!</p>
     <p>${vencida ? "Você tem uma fatura vencida" : "Sua fatura está próxima do vencimento"}:</p>
     <ul>
-      <li><strong>Descrição:</strong> ${fatura.descricao}</li>
+      <li><strong>Descrição:</strong> ${descricaoEscapada}</li>
       <li><strong>Valor original:</strong> ${brl(fatura.valor_original)}</li>
       ${linhasExtra}
       <li><strong>Vencimento:</strong> ${fmtDate(fatura.data_vencimento)}</li>
@@ -1374,7 +1397,9 @@ export async function enviarArquivoPorEmail(params: {
   tipo?: "relatorio_manual" | "fatura_aberta_lote";
 }): Promise<ResultadoEnvioRelatorio> {
   return withLojaConnection(params.lojaId, async (conn) => {
-    const html = `<p>${params.corpoTexto}</p>`;
+    // achado #674 — corpoTexto é texto livre digitado por quem envia o
+    // relatório manualmente.
+    const html = `<p>${escapeHtml(params.corpoTexto)}</p>`;
     const tipo = params.tipo ?? "relatorio_manual";
     const chave = `${tipo}:${randomUUID()}`;
 
@@ -1522,10 +1547,15 @@ export async function enviarEmailChamadoAberto(chamadoId: string, lojaId: string
     const linkLoja = `${origemPublica()}/painel/chamados/${chamadoId}`;
     const linkPlataforma = `${origemPublica()}/admin-saas/chamados/${chamadoId}`;
 
+    // achado #674 — assunto/loja_nome são texto livre (título do chamado
+    // digitado pelo próprio usuário que abriu, nome da loja).
+    const assuntoEscapado = escapeHtml(chamado.assunto);
+    const lojaNomeEscapada = escapeHtml(chamado.loja_nome);
+
     const emailOpener = await emailContatoDoUsuario(conn, chamado.aberto_por);
     if (emailOpener) {
       const assunto = `Chamado aberto — ${chamado.assunto}`;
-      const html = `<p>Recebemos seu chamado de suporte.</p><p><strong>Assunto:</strong> ${chamado.assunto}</p><p>Acompanhe em <a href="${linkLoja}">${linkLoja}</a>.</p>`;
+      const html = `<p>Recebemos seu chamado de suporte.</p><p><strong>Assunto:</strong> ${assuntoEscapado}</p><p>Acompanhe em <a href="${linkLoja}">${linkLoja}</a>.</p>`;
       const texto = `Recebemos seu chamado de suporte. Assunto: ${chamado.assunto}. Acompanhe em ${linkLoja}.`;
       const filaId = await gravarNaFila(conn, {
         chave: `chamado_aberto:${chamadoId}`,
@@ -1551,7 +1581,7 @@ export async function enviarEmailChamadoAberto(chamadoId: string, lojaId: string
     const emailsSuperAdmins = await emailsDosSuperAdmins(conn);
     if (emailsSuperAdmins.length > 0) {
       const assunto = `Novo chamado — ${chamado.loja_nome}`;
-      const html = `<p>Novo chamado de suporte de <strong>${chamado.loja_nome}</strong>.</p><p><strong>Assunto:</strong> ${chamado.assunto}</p><p><strong>Prioridade:</strong> ${chamado.prioridade}</p><p>Acesse em <a href="${linkPlataforma}">${linkPlataforma}</a>.</p>`;
+      const html = `<p>Novo chamado de suporte de <strong>${lojaNomeEscapada}</strong>.</p><p><strong>Assunto:</strong> ${assuntoEscapado}</p><p><strong>Prioridade:</strong> ${escapeHtml(chamado.prioridade)}</p><p>Acesse em <a href="${linkPlataforma}">${linkPlataforma}</a>.</p>`;
       const texto = `Novo chamado de suporte de ${chamado.loja_nome}. Assunto: ${chamado.assunto}. Prioridade: ${chamado.prioridade}. Acesse ${linkPlataforma}.`;
       const filaId = await gravarNaFila(conn, {
         chave: `chamado_aberto_super_admin:${chamadoId}:${randomUUID()}`,
