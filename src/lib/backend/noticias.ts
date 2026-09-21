@@ -24,6 +24,7 @@ export type Noticia = {
   coluna_id: string | null;
   coluna_nome: string | null;
   status: "rascunho" | "aguardando_aprovacao" | "publicado";
+  visibilidade: "publica" | "restrita";
   motivo_rejeicao: string | null;
   publicado_em: string | null;
   autor_id: string;
@@ -96,7 +97,7 @@ export const listarNoticias = createServerFn({ method: "GET" }).handler(
       const params = somenteColunaPropria ? [usuarioId] : [];
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT n.id, n.titulo, n.resumo, n.conteudo, n.coluna_id, c.nome AS coluna_nome,
-                n.status, n.motivo_rejeicao, n.publicado_em,
+                n.status, n.visibilidade, n.motivo_rejeicao, n.publicado_em,
                 (n.imagem_capa_url IS NOT NULL AND n.imagem_capa_url <> '') AS tem_imagem_capa,
                 (n.anexo_url IS NOT NULL AND n.anexo_url <> '') AS tem_anexo,
                 n.autor_id, u.email AS autor_nome, n.criado_em, n.atualizado_em
@@ -175,6 +176,7 @@ const noticiaSchema = z.object({
   resumo: z.string().nullable(),
   conteudo: z.string().min(1),
   colunaId: z.string().uuid().nullable(),
+  visibilidade: z.enum(["publica", "restrita"]),
   imagemCapaUrl: z.string().nullable().optional(),
   imagemCapaNomeOriginal: z.string().nullable().optional(),
   anexoUrl: z.string().nullable().optional(),
@@ -222,7 +224,7 @@ export const salvarNoticia = createServerFn({ method: "POST" })
         if (editorRestrito) await exigirColunaPropria(conn, usuarioIdAtual, data.colunaId);
         await conn.query(
           `UPDATE noticias
-           SET titulo=?, resumo=?, conteudo=?, coluna_id=?, motivo_rejeicao=NULL,
+           SET titulo=?, resumo=?, conteudo=?, coluna_id=?, visibilidade=?, motivo_rejeicao=NULL,
                imagem_capa_url=?, imagem_capa_nome_original=?,
                anexo_url=?, anexo_nome_original=?, anexo_mime=?
            WHERE id=? AND loja_id = @current_loja_id`,
@@ -231,6 +233,7 @@ export const salvarNoticia = createServerFn({ method: "POST" })
             data.resumo,
             data.conteudo,
             data.colunaId,
+            data.visibilidade,
             data.imagemCapaUrl || null,
             data.imagemCapaNomeOriginal || null,
             data.anexoUrl || null,
@@ -246,15 +249,16 @@ export const salvarNoticia = createServerFn({ method: "POST" })
         if (editorRestrito) await exigirColunaPropria(conn, usuarioIdAtual, data.colunaId);
         await conn.query(
           `INSERT INTO noticias
-             (loja_id, titulo, resumo, conteudo, coluna_id, autor_id,
+             (loja_id, titulo, resumo, conteudo, coluna_id, visibilidade, autor_id,
               imagem_capa_url, imagem_capa_nome_original, anexo_url, anexo_nome_original, anexo_mime)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             lojaId,
             data.titulo,
             data.resumo,
             data.conteudo,
             data.colunaId,
+            data.visibilidade,
             usuarioIdAtual,
             data.imagemCapaUrl || null,
             data.imagemCapaNomeOriginal || null,

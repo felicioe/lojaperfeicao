@@ -3,6 +3,7 @@ import { z } from "zod";
 import { carregarAgendaPublica } from "./agenda-publica";
 import { carregarNoticiaPublicaPorId, listarNoticiasPublicasResumo } from "./noticias-publica";
 import { carregarMenuPublico } from "./menu-site-publica";
+import { usuarioIdDaSessao } from "./backend/session";
 import { listarPaginasPublicas, carregarPaginaPublicaPorSlug } from "./paginas-site-publica";
 import {
   listarEdicoesJornalPublicas,
@@ -21,13 +22,16 @@ export const obterAgendaPublicaFn = createServerFn({ method: "GET" }).handler(()
   carregarAgendaPublica(),
 );
 
-export const obterNoticiasPublicasResumoFn = createServerFn({ method: "GET" }).handler(() =>
-  listarNoticiasPublicasResumo(),
+// issue #690 — notícia com visibilidade='restrita' só aparece pra quem tem
+// sessão ativa (qualquer Irmão autenticado, não importa o papel). Visitante
+// anônimo do site continua vendo só as públicas, exatamente como antes.
+export const obterNoticiasPublicasResumoFn = createServerFn({ method: "GET" }).handler(async () =>
+  listarNoticiasPublicasResumo(!!(await usuarioIdDaSessao())),
 );
 
 export const obterNoticiaPublicaPorIdFn = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(({ data }) => carregarNoticiaPublicaPorId(data.id));
+  .handler(async ({ data }) => carregarNoticiaPublicaPorId(data.id, !!(await usuarioIdDaSessao())));
 
 export const obterMenuPublicoFn = createServerFn({ method: "GET" }).handler(() =>
   carregarMenuPublico(),
