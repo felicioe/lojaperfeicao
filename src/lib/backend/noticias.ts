@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { registrarAuditoria } from "./auditoria";
+import { comSessao } from "./authz";
 import {
   comPapelEditorialCms,
   papeisEditorialCms,
@@ -29,6 +30,20 @@ export type Noticia = {
   autor_nome: string | null;
   criado_em: string;
   atualizado_em: string;
+  // achado #662 — a lista NÃO traz imagem_capa_url/anexo_url (podem ser
+  // grandes, LONGTEXT): mesma lição do achado #655 (listarDocumentos), que
+  // travou em produção trazendo o binário de todo documento numa lista só.
+  // Conteúdo real vem sob demanda de obterImagemEAnexoNoticia.
+  tem_imagem_capa: boolean;
+  tem_anexo: boolean;
+};
+
+export type ImagemEAnexoNoticia = {
+  imagemCapaUrl: string | null;
+  imagemCapaNomeOriginal: string | null;
+  anexoUrl: string | null;
+  anexoNomeOriginal: string | null;
+  anexoMime: string | null;
 };
 
 async function exigirColunaPropria(
@@ -82,6 +97,8 @@ export const listarNoticias = createServerFn({ method: "GET" }).handler(
       const [rows] = await conn.query<RowDataPacket[]>(
         `SELECT n.id, n.titulo, n.resumo, n.conteudo, n.coluna_id, c.nome AS coluna_nome,
                 n.status, n.motivo_rejeicao, n.publicado_em,
+                (n.imagem_capa_url IS NOT NULL AND n.imagem_capa_url <> '') AS tem_imagem_capa,
+                (n.anexo_url IS NOT NULL AND n.anexo_url <> '') AS tem_anexo,
                 n.autor_id, u.email AS autor_nome, n.criado_em, n.atualizado_em
          FROM noticias n
          LEFT JOIN usuarios u ON u.id = n.autor_id AND u.loja_id = @current_loja_id
@@ -90,10 +107,37 @@ export const listarNoticias = createServerFn({ method: "GET" }).handler(
          ORDER BY n.criado_em DESC`,
         params,
       );
-      return rows as Noticia[];
+      return rows.map((row) => ({
+        ...row,
+        tem_imagem_capa: !!row.tem_imagem_capa,
+        tem_anexo: !!row.tem_anexo,
+      })) as Noticia[];
     });
   },
 );
+
+/** Conteúdo binário (imagem de capa + anexo) de UMA notícia, sob demanda —
+ * ver nota em Noticia sobre por que a lista não traz isso. Chamado ao abrir
+ * "editar" no CMS. */
+export const obterImagemEAnexoNoticia = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<ImagemEAnexoNoticia> => {
+    return comPapelEditorialCms(async (conn) => {
+      const [[row]] = await conn.query<RowDataPacket[]>(
+        `SELECT imagem_capa_url, imagem_capa_nome_original, anexo_url, anexo_nome_original, anexo_mime
+         FROM noticias WHERE id = ? AND loja_id = @current_loja_id`,
+        [data.id],
+      );
+      if (!row) throw new Error("Notícia não encontrada.");
+      return {
+        imagemCapaUrl: row.imagem_capa_url || null,
+        imagemCapaNomeOriginal: row.imagem_capa_nome_original,
+        anexoUrl: row.anexo_url || null,
+        anexoNomeOriginal: row.anexo_nome_original,
+        anexoMime: row.anexo_mime,
+      };
+    });
+  });
 
 const noticiaSchema = z.object({
   id: z.string().uuid().nullable(),
@@ -104,6 +148,11 @@ const noticiaSchema = z.object({
   resumo: z.string().nullable(),
   conteudo: z.string().min(1),
   colunaId: z.string().uuid().nullable(),
+  imagemCapaUrl: z.string().nullable().optional(),
+  imagemCapaNomeOriginal: z.string().nullable().optional(),
+  anexoUrl: z.string().nullable().optional(),
+  anexoNomeOriginal: z.string().nullable().optional(),
+  anexoMime: z.string().nullable().optional(),
 });
 
 async function exigirRascunhoProprio(
@@ -143,9 +192,23 @@ export const salvarNoticia = createServerFn({ method: "POST" })
         if (editorRestrito) await exigirRascunhoProprio(conn, usuarioIdAtual, data.id, papeis);
         if (editorRestrito) await exigirColunaPropria(conn, usuarioIdAtual, data.colunaId);
         await conn.query(
-          `UPDATE noticias SET titulo=?, resumo=?, conteudo=?, coluna_id=?, motivo_rejeicao=NULL
+          `UPDATE noticias
+           SET titulo=?, resumo=?, conteudo=?, coluna_id=?, motivo_rejeicao=NULL,
+               imagem_capa_url=?, imagem_capa_nome_original=?,
+               anexo_url=?, anexo_nome_original=?, anexo_mime=?
            WHERE id=? AND loja_id = @current_loja_id`,
-          [data.titulo, data.resumo, data.conteudo, data.colunaId, data.id],
+          [
+            data.titulo,
+            data.resumo,
+            data.conteudo,
+            data.colunaId,
+            data.imagemCapaUrl || null,
+            data.imagemCapaNomeOriginal || null,
+            data.anexoUrl || null,
+            data.anexoNomeOriginal || null,
+            data.anexoMime || null,
+            data.id,
+          ],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "atualizar", "noticia", data.id, null, {
           ...data,
@@ -153,9 +216,23 @@ export const salvarNoticia = createServerFn({ method: "POST" })
       } else {
         if (editorRestrito) await exigirColunaPropria(conn, usuarioIdAtual, data.colunaId);
         await conn.query(
-          `INSERT INTO noticias (loja_id, titulo, resumo, conteudo, coluna_id, autor_id)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [lojaId, data.titulo, data.resumo, data.conteudo, data.colunaId, usuarioIdAtual],
+          `INSERT INTO noticias
+             (loja_id, titulo, resumo, conteudo, coluna_id, autor_id,
+              imagem_capa_url, imagem_capa_nome_original, anexo_url, anexo_nome_original, anexo_mime)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            lojaId,
+            data.titulo,
+            data.resumo,
+            data.conteudo,
+            data.colunaId,
+            usuarioIdAtual,
+            data.imagemCapaUrl || null,
+            data.imagemCapaNomeOriginal || null,
+            data.anexoUrl || null,
+            data.anexoNomeOriginal || null,
+            data.anexoMime || null,
+          ],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "criar", "noticia", null, null, {
           ...data,
@@ -291,5 +368,63 @@ export const excluirNoticia = createServerFn({ method: "POST" })
         data.id,
       ]);
       await registrarAuditoria(conn, usuarioIdAtual, "excluir", "noticia", data.id, null, null);
+    });
+  });
+
+// Upload da imagem de capa — mesmo padrão de allowlist estrita usada em
+// uploadFotoIrmao (achado #639 da auditoria de segurança): só imagem,
+// nunca qualquer tipo de arquivo.
+const uploadImagemSchema = z.object({
+  nomeArquivo: z.string().min(1),
+  dataUrl: z.string().startsWith("data:"),
+});
+
+const MIME_IMAGEM = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/;
+const TAMANHO_MAXIMO_IMAGEM_BYTES = 8 * 1024 * 1024; // 8 MB — imagem de capa, não anexo
+
+export const uploadImagemCapaNoticia = createServerFn({ method: "POST" })
+  .validator((d: unknown) => uploadImagemSchema.parse(d))
+  .handler(async ({ data }): Promise<{ url: string; nomeOriginal: string }> => {
+    return comPapelEditorialCms(async () => {
+      const match = data.dataUrl.match(MIME_IMAGEM);
+      if (!match) throw new Error("Envie uma imagem PNG, JPG ou WebP.");
+      const buffer = Buffer.from(match[2], "base64");
+      if (buffer.byteLength > TAMANHO_MAXIMO_IMAGEM_BYTES) {
+        throw new Error("Imagem maior que 8 MB.");
+      }
+      return { url: data.dataUrl, nomeOriginal: data.nomeArquivo };
+    });
+  });
+
+// Anexo (PDF ou imagem) — decisão registrada na issue #662: sem conversão
+// automática pra PDF (LibreOffice headless indisponível na Hostinger, mesma
+// limitação de pecas-arquitetura.ts/fatura-pdf.ts). Mesmo allowlist de
+// chamados.ts (validarAnexos).
+const MIME_ANEXO = /^data:(image\/(?:png|jpeg|webp)|application\/pdf);base64,(.+)$/;
+const TAMANHO_MAXIMO_ANEXO_BYTES = 30 * 1024 * 1024; // 30 MB
+
+export const uploadAnexoNoticia = createServerFn({ method: "POST" })
+  .validator((d: unknown) => uploadImagemSchema.parse(d))
+  .handler(async ({ data }): Promise<{ url: string; nomeOriginal: string; mime: string }> => {
+    return comPapelEditorialCms(async () => {
+      const match = data.dataUrl.match(MIME_ANEXO);
+      if (!match) throw new Error("Envie um PDF, PNG, JPG ou WebP.");
+      const mime = match[1];
+      const buffer = Buffer.from(match[2], "base64");
+      if (buffer.byteLength > TAMANHO_MAXIMO_ANEXO_BYTES) {
+        throw new Error("Arquivo maior que 30 MB.");
+      }
+      return { url: data.dataUrl, nomeOriginal: data.nomeArquivo, mime };
+    });
+  });
+
+// Registrado quando um irmão logado baixa a foto de uma notícia no site
+// (achado #662) — só o log; o navegador já tem a imagem em mãos (veio no
+// carregamento da notícia), não precisa buscar de novo aqui.
+export const registrarDownloadImagemNoticia = createServerFn({ method: "POST" })
+  .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    return comSessao(async (conn, usuarioId) => {
+      await registrarAuditoria(conn, usuarioId, "baixar_imagem", "noticia", data.id, null, null);
     });
   });
