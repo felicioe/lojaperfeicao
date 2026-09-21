@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import { login, signup, contarUsuarios, getSessao } from "@/lib/backend/auth";
@@ -40,7 +41,22 @@ function destinoPosLogin(papeis: readonly string[]): string {
   return papeis.includes("super_admin") ? "/admin-saas" : "/dashboard";
 }
 
+// issue #689 — Irmão que veio de uma área restrita do site (Agenda,
+// notícia restrita, página "Publicações") precisa voltar pra lá depois de
+// logar, não cair no dashboard interno. Só aceita caminho relativo começando
+// com uma única barra ("/agenda", não "//evil.com" nem "https://evil.com") —
+// sem essa checagem, `redirect` vira um open redirect: qualquer link externo
+// poderia mandar `/auth?redirect=` pra um domínio malicioso depois do login.
+function redirectSeguro(redirect: string | undefined): string | null {
+  if (!redirect) return null;
+  if (!redirect.startsWith("/") || redirect.startsWith("//")) return null;
+  return redirect;
+}
+
+const authSearchSchema = z.object({ redirect: z.string().optional() });
+
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search) => authSearchSchema.parse(search),
   head: () => ({
     meta: [
       { title: "Entrar | SGLFM" },
@@ -53,6 +69,8 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { redirect } = Route.useSearch();
+  const destinoRedirect = redirectSeguro(redirect);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
@@ -71,7 +89,7 @@ function AuthPage() {
   useEffect(() => {
     contarUsuarios().then((total) => setFirstUser(total === 0));
     getSessao().then((usuario) => {
-      if (usuario) navigate({ to: destinoPosLogin(usuario.papeis) });
+      if (usuario) navigate({ to: destinoRedirect ?? destinoPosLogin(usuario.papeis) });
     });
     setWebauthnDisponivel(browserSupportsWebAuthn());
 
@@ -86,7 +104,7 @@ function AuthPage() {
     if (params.get("totpPendente") === "1") {
       setAguardando2FA(true);
     }
-  }, [navigate]);
+  }, [navigate, destinoRedirect]);
 
   const handleGoogleLogin = async () => {
     setAuthError(null);
@@ -112,7 +130,7 @@ function AuthPage() {
       }
       queryClient.setQueryData(SESSAO_QUERY_KEY, resultado);
       toast.success("Bem-vindo!");
-      navigate({ to: destinoPosLogin(resultado.papeis) });
+      navigate({ to: destinoRedirect ?? destinoPosLogin(resultado.papeis) });
     } catch (err) {
       setAuthError(
         err instanceof Error ? err.message : "Não foi possível entrar. Tente novamente.",
@@ -130,7 +148,7 @@ function AuthPage() {
       const usuario = await confirmarLogin2FA({ data: { codigo: codigo2FA } });
       queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
       toast.success("Bem-vindo!");
-      navigate({ to: destinoPosLogin(usuario.papeis) });
+      navigate({ to: destinoRedirect ?? destinoPosLogin(usuario.papeis) });
     } catch (err) {
       setAuthError(
         err instanceof Error ? err.message : "Código inválido. Confira e tente novamente.",
@@ -154,7 +172,7 @@ function AuthPage() {
       const usuario = await confirmarLoginPasskey({ data: { response } });
       queryClient.setQueryData(SESSAO_QUERY_KEY, usuario);
       toast.success("Bem-vindo!");
-      navigate({ to: destinoPosLogin(usuario.papeis) });
+      navigate({ to: destinoRedirect ?? destinoPosLogin(usuario.papeis) });
     } catch (err) {
       // startAuthentication rejeita com DOMException (cancelou o prompt,
       // sem biometria cadastrada no dispositivo etc.) — não é erro do
@@ -419,6 +437,13 @@ function AuthPage() {
               Acesso restrito aos irmãos da Loja. Seus dados são protegidos e não são compartilhados
               com terceiros.
             </p>
+            {destinoRedirect && (
+              <p className="mt-2 text-center text-xs">
+                <Link to="/" className="text-muted-foreground underline underline-offset-2">
+                  Voltar ao site
+                </Link>
+              </p>
+            )}
           </CardContent>
         </Card>
         <InstallPwaCard />
