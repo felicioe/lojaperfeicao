@@ -139,6 +139,33 @@ export const obterImagemEAnexoNoticia = createServerFn({ method: "GET" })
     });
   });
 
+// achado #673 (auditoria de segurança) — imagemCapaUrl/anexoUrl precisam do
+// MESMO regex de MIME/tamanho usado nos endpoints de upload (mais abaixo
+// neste arquivo) reaplicado AQUI, no momento de gravar. Antes disso, o
+// allowlist só existia em uploadImagemCapaNoticia/uploadAnexoNoticia, que
+// apenas devolvem a data: URL validada — quem grava de fato é salvarNoticia,
+// e nada garantia que o valor recebido tivesse passado por aquele endpoint.
+// Um usuário com papel editorial podia chamar salvarNoticia diretamente com
+// `anexoUrl: "javascript:..."`, que ia parar sem escapo nenhum num <a href>
+// na página pública da notícia (XSS armazenado contra visitante anônimo).
+function validarImagemCapaUrl(url: string | null | undefined): void {
+  if (!url) return;
+  const match = MIME_IMAGEM.exec(url);
+  if (!match) throw new Error("Imagem de capa inválida — envie PNG, JPG ou WebP.");
+  if (Buffer.from(match[2], "base64").byteLength > TAMANHO_MAXIMO_IMAGEM_BYTES) {
+    throw new Error("Imagem de capa maior que 8 MB.");
+  }
+}
+
+function validarAnexoUrl(url: string | null | undefined): void {
+  if (!url) return;
+  const match = MIME_ANEXO.exec(url);
+  if (!match) throw new Error("Anexo inválido — envie PDF, PNG, JPG ou WebP.");
+  if (Buffer.from(match[2], "base64").byteLength > TAMANHO_MAXIMO_ANEXO_BYTES) {
+    throw new Error("Anexo maior que 30 MB.");
+  }
+}
+
 const noticiaSchema = z.object({
   id: z.string().uuid().nullable(),
   // VARCHAR(200) na tabela noticias (migração 0113) — sem o .max() aqui, um
@@ -182,6 +209,8 @@ export const salvarNoticia = createServerFn({ method: "POST" })
   .validator((d: unknown) => noticiaSchema.parse(d))
   .handler(async ({ data }) => {
     return comPapelEditorialCms(async (conn, usuarioIdAtual, lojaId) => {
+      validarImagemCapaUrl(data.imagemCapaUrl);
+      validarAnexoUrl(data.anexoUrl);
       const papeis = await papeisEditorialCms(conn, usuarioIdAtual);
       if (papeis.aprovador && !papeis.superAdmin) {
         throw new Error("aprovador_cms só aprova ou rejeita — não edita conteúdo.");
@@ -386,12 +415,7 @@ export const uploadImagemCapaNoticia = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadImagemSchema.parse(d))
   .handler(async ({ data }): Promise<{ url: string; nomeOriginal: string }> => {
     return comPapelEditorialCms(async () => {
-      const match = data.dataUrl.match(MIME_IMAGEM);
-      if (!match) throw new Error("Envie uma imagem PNG, JPG ou WebP.");
-      const buffer = Buffer.from(match[2], "base64");
-      if (buffer.byteLength > TAMANHO_MAXIMO_IMAGEM_BYTES) {
-        throw new Error("Imagem maior que 8 MB.");
-      }
+      validarImagemCapaUrl(data.dataUrl);
       return { url: data.dataUrl, nomeOriginal: data.nomeArquivo };
     });
   });
