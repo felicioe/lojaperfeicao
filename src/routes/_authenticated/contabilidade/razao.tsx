@@ -224,15 +224,32 @@ function Razao() {
     enabled: modo === "grupo",
     queryFn: () => listarItensRazaoVariasContas({ data: { contaIds: null, de, ate } }),
   });
-  const buscaNormalizada = buscaConta.trim().toLowerCase();
-  const contasFiltradas = contasComRazao.filter((c) => {
-    if (!classesSelecionadas.has(c.tipo)) return false;
-    if (!buscaNormalizada) return true;
-    return (
-      c.codigo.toLowerCase().includes(buscaNormalizada) ||
-      c.nome.toLowerCase().includes(buscaNormalizada)
-    );
-  });
+  // Achado #547 da auditoria de performance: cada tecla digitada em "buscar
+  // conta" refazia linhaComSaldo (percorre TODOS os lançamentos da conta,
+  // somando o saldo corrido) pra CADA conta do grupo inteiro, só pra depois
+  // descartar a maioria no filtro de texto. linhaComSaldo agora roda uma
+  // única vez por conta (memoizado em contasComRazao, que só muda quando o
+  // período/modo mudam) — filtrar por classe/texto depois é O(nº de contas),
+  // não O(nº de lançamentos), e pode rodar a cada tecla sem custo.
+  const contasComRazaoComSaldo = useMemo(
+    () =>
+      contasComRazao.map((c) => ({
+        ...c,
+        linhasComSaldo: linhaComSaldo(c.itens, c.saldoAnterior),
+      })),
+    [contasComRazao],
+  );
+  const contasFiltradas = useMemo(() => {
+    const buscaNormalizada = buscaConta.trim().toLowerCase();
+    return contasComRazaoComSaldo.filter((c) => {
+      if (!classesSelecionadas.has(c.tipo)) return false;
+      if (!buscaNormalizada) return true;
+      return (
+        c.codigo.toLowerCase().includes(buscaNormalizada) ||
+        c.nome.toLowerCase().includes(buscaNormalizada)
+      );
+    });
+  }, [contasComRazaoComSaldo, classesSelecionadas, buscaConta]);
   const toggleClasse = (classe: string) => {
     setClassesSelecionadas((atual) => {
       const novo = new Set(atual);
@@ -271,7 +288,7 @@ function Razao() {
       }));
     }
     return contasFiltradas.flatMap((c) =>
-      linhaComSaldo(c.itens, c.saldoAnterior).map((l) => ({
+      c.linhasComSaldo.map((l) => ({
         conta: `${c.codigo} — ${c.nome}`,
         data: fmtDate(l.lancamentos_contabeis.data),
         descricao: l.descricao ?? l.lancamentos_contabeis.descricao,
@@ -422,19 +439,16 @@ function Razao() {
             </Card>
           )}
 
-          {contasFiltradas.map((c) => {
-            const linhasConta = linhaComSaldo(c.itens, c.saldoAnterior);
-            return (
-              <Card key={c.contaId} className="mb-4">
-                <div className="p-3 border-b flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-sm text-muted-foreground">{c.codigo}</span>
-                  <span className="font-medium">{c.nome}</span>
-                  <span className="text-xs text-muted-foreground">({CLASSE_LABEL[c.tipo]})</span>
-                </div>
-                <TabelaItensRazao linhas={linhasConta} saldoAnterior={c.saldoAnterior} />
-              </Card>
-            );
-          })}
+          {contasFiltradas.map((c) => (
+            <Card key={c.contaId} className="mb-4">
+              <div className="p-3 border-b flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm text-muted-foreground">{c.codigo}</span>
+                <span className="font-medium">{c.nome}</span>
+                <span className="text-xs text-muted-foreground">({CLASSE_LABEL[c.tipo]})</span>
+              </div>
+              <TabelaItensRazao linhas={c.linhasComSaldo} saldoAnterior={c.saldoAnterior} />
+            </Card>
+          ))}
         </>
       )}
     </>
