@@ -14,6 +14,8 @@ import {
   obterImagemEAnexoNoticia,
   uploadImagemCapaNoticia,
   uploadAnexoNoticia,
+  obterPreviaEmailNoticia,
+  enviarNoticiaPorEmail,
   type Noticia,
 } from "@/lib/backend/noticias";
 import { PageHeader } from "@/components/app/AppShell";
@@ -72,6 +74,7 @@ import {
   Ban,
   FileText,
   Image as ImageIcon,
+  Mail,
 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { usePaginacao } from "@/lib/use-paginacao";
@@ -131,6 +134,14 @@ function NoticiasPage() {
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const [enviandoAnexo, setEnviandoAnexo] = useState(false);
   const formularioRef = useRef<HTMLDivElement>(null);
+  const [previaEmail, setPreviaEmail] = useState<{
+    id: string;
+    titulo: string;
+    assunto: string;
+    html: string;
+  } | null>(null);
+  const [carregandoPrevia, setCarregandoPrevia] = useState(false);
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
 
   // editor_cms nunca publica direto e aprovador_cms nunca escreve conteúdo —
   // só super_admin e editor_cms têm o que fazer com o formulário abaixo.
@@ -298,6 +309,40 @@ function NoticiasPage() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
+    }
+  };
+
+  // achado #663 — prévia sempre antes de enviar (pedido explícito do
+  // usuário); o botão só aparece pra notícia já publicada, porque o e-mail
+  // aponta pro link público /noticias/:id, que só existe nesse status.
+  const abrirPreviaEmail = async (n: Noticia) => {
+    setCarregandoPrevia(true);
+    try {
+      const previa = await obterPreviaEmailNoticia({ data: { id: n.id } });
+      setPreviaEmail({ id: n.id, titulo: n.titulo, ...previa });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao gerar a prévia do e-mail.");
+    } finally {
+      setCarregandoPrevia(false);
+    }
+  };
+
+  const confirmarEnvioEmail = async () => {
+    if (!previaEmail) return;
+    setEnviandoEmail(true);
+    try {
+      const resultado = await enviarNoticiaPorEmail({ data: { id: previaEmail.id } });
+      const sucessos = resultado.filter((r) => r.sucesso).length;
+      if (resultado.length === 0) {
+        toast.warning("Nenhum Irmão ativo com e-mail cadastrado — nada foi enviado.");
+      } else {
+        toast.success(`E-mail enviado a ${sucessos} de ${resultado.length} Irmãos.`);
+      }
+      setPreviaEmail(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao enviar o e-mail.");
+    } finally {
+      setEnviandoEmail(false);
     }
   };
 
@@ -525,6 +570,16 @@ function NoticiasPage() {
                           {n.status === "publicado" ? "Despublicar" : "Publicar"}
                         </Button>
                       )}
+                      {podeEscrever && n.status === "publicado" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={carregandoPrevia}
+                          onClick={() => void abrirPreviaEmail(n)}
+                        >
+                          <Mail className="mr-1 h-3.5 w-3.5" /> Enviar por e-mail
+                        </Button>
+                      )}
                       {podeEnviar && (
                         <Button
                           variant="outline"
@@ -625,6 +680,40 @@ function NoticiasPage() {
               variant="destructive"
             >
               Rejeitar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!previaEmail} onOpenChange={(v) => !v && setPreviaEmail(null)}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Enviar "{previaEmail?.titulo}" por e-mail</DialogTitle>
+            <DialogDescription>
+              Prévia do e-mail que será enviado a todos os Irmãos ativos com e-mail cadastrado.
+              Confira antes de confirmar o envio.
+            </DialogDescription>
+          </DialogHeader>
+          {previaEmail && (
+            <div className="rounded-md border">
+              <div className="border-b bg-muted/30 px-3 py-2 text-sm">
+                <span className="font-medium">Assunto: </span>
+                {previaEmail.assunto}
+              </div>
+              {/* HTML já sanitizado no servidor (sanitizarRichTextPublico), mesma fonte do e-mail real. */}
+              <div
+                className="max-h-[50vh] overflow-y-auto p-4"
+                dangerouslySetInnerHTML={{ __html: previaEmail.html }}
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviaEmail(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => void confirmarEnvioEmail()} disabled={enviandoEmail}>
+              <Mail className="mr-1.5 h-4 w-4" />
+              {enviandoEmail ? "Enviando…" : "Confirmar envio"}
             </Button>
           </DialogFooter>
         </DialogContent>
