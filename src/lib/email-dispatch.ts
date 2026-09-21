@@ -6,6 +6,8 @@ import { randomUUID } from "node:crypto";
 import { withUserConnection, withLojaConnection } from "./backend/db";
 import { decifrar } from "./backend/cripto";
 import { contarEnviosHoje, LIMITE_DIARIO_EMAIL_POR_LOJA } from "./rate-limit";
+import { obterLogosInstitucionais, type LogoInstitucional } from "./backend/orgs";
+import { sanitizarRichTextPublico } from "./rich-text-server";
 
 // Envio de e-mail com fila (issue #103 + issue #XXX) — SMTP da própria
 // Hostinger via nodemailer. Isolado aqui e importado via import() dinâmico
@@ -145,7 +147,11 @@ async function tentarEnviarFilaEmail(
   assunto: string,
   html: string,
   texto: string,
-  anexos?: { filename: string; content: Buffer; contentType: string }[],
+  // cid opcional (achado #663): quando presente, o anexo vira imagem embutida
+  // no corpo do e-mail via <img src="cid:...">, em vez de só um arquivo
+  // anexado — nodemailer resolve isso nativamente, sem precisar de outro
+  // parâmetro.
+  anexos?: { filename: string; content: Buffer; contentType: string; cid?: string }[],
   lojaId?: string | null,
   bccMonitoramento?: boolean,
 ): Promise<{ sucesso: number; falhas: number; ultimoErro: string | null }> {
@@ -208,7 +214,8 @@ async function gravarNaFila(
       | "lembrete_vencida"
       | "convite_admin"
       | "interstico_completo"
-      | "fatura_aberta_lote";
+      | "fatura_aberta_lote"
+      | "noticia_publicada";
     destinatarios: string[];
     assunto: string;
     html: string;
@@ -217,7 +224,7 @@ async function gravarNaFila(
     // de cada fatura em aberto dele). Guardado em anexos_json (0128) como
     // base64: os arquivos são pequenos o bastante (PDFs de poucos KB) pra
     // não valer a complexidade de uma tabela filha.
-    anexos?: { buffer: Buffer; nome: string; mimeType: string }[];
+    anexos?: { buffer: Buffer; nome: string; mimeType: string; cid?: string }[];
     // Cópia oculta de monitoramento (0133) — decidido explicitamente por
     // quem chama, nunca inferido de `tipo` (que "comunicado" reaproveita
     // tanto pra broadcast de irmão quanto pra recuperação de senha, um
@@ -269,6 +276,7 @@ async function gravarNaFila(
               nome: a.nome,
               mimeType: a.mimeType,
               bufferBase64: a.buffer.toString("base64"),
+              cid: a.cid,
             })),
           )
         : null,
@@ -739,6 +747,176 @@ export async function enviarEmailComunicado(
   });
 }
 
+// ---------- Notícia publicada — newsletter (issue #663) ----------
+// Diferente de enviarEmailComunicado (que pode ser opt-in no ato de salvar):
+// aqui o envio é SEMPRE uma ação manual e explícita do editor, feita depois
+// de revisar a prévia (obterPreviaEmailNoticia) — nunca dispara sozinho ao
+// publicar. Por isso a chave da fila carrega Date.now(): se o editor corrigir
+// algo e mandar de novo, é um novo envio, não um reenvio bloqueado por
+// jaEnviadoComSucesso.
+
+function extensaoDoMime(mime: string): string {
+  if (mime === "image/png") return ".png";
+  if (mime === "image/webp") return ".webp";
+  return ".jpg";
+}
+
+function logoImgTag(logo?: LogoInstitucional): string {
+  return logo
+    ? `<img src="${logo.logoUrl}" alt="${logo.nome}" style="height:48px;max-width:160px;object-fit:contain;" />`
+    : "";
+}
+
+type EmailNoticiaMontado = {
+  assunto: string;
+  html: string;
+  texto: string;
+  anexos: { filename: string; content: Buffer; contentType: string; cid?: string }[];
+};
+
+async function montarEmailNoticia(
+  conn: PoolConnection,
+  noticiaId: string,
+  lojaId: string,
+  // Prévia no navegador não recebe anexo cid (isso só existe depois que o
+  // nodemailer monta o e-mail de verdade) — sem isto a imagem apareceria
+  // quebrada na tela de revisão. Só a prévia usa a própria data: URL direto
+  // no <img>; o envio real usa cid (obrigatório pra abrir embutida em
+  // clientes como Outlook/Gmail, que bloqueiam data: URL grande no corpo).
+  modo: "previa" | "envio" = "envio",
+): Promise<EmailNoticiaMontado | null> {
+  const [[noticia]] = await conn.query<RowDataPacket[]>(
+    `SELECT titulo, resumo, conteudo, imagem_capa_url
+       FROM noticias WHERE id = ? AND loja_id = ? AND status = 'publicado'`,
+    [noticiaId, lojaId],
+  );
+  if (!noticia) return null;
+
+  // achado #663 — as duas logos institucionais (Loja de Perfeição e
+  // Capítulo Ayres Gevaerd) vêm de obterLogosInstitucionais, já usada nos
+  // PDFs (fatura-pdf.ts); aqui vão uma em cada canto do cabeçalho, na ordem
+  // em que o cadastro retorna.
+  const logos = await obterLogosInstitucionais(conn);
+
+  const anexos: EmailNoticiaMontado["anexos"] = [];
+  let imgHtml = "";
+  const capa = noticia.imagem_capa_url as string | null;
+  if (capa) {
+    const match = /^data:(image\/(?:png|jpeg|webp));base64,(.+)$/.exec(capa);
+    if (match) {
+      const [, mime, base64] = match;
+      const src =
+        modo === "previa"
+          ? capa
+          : (() => {
+              anexos.push({
+                filename: `capa${extensaoDoMime(mime)}`,
+                content: Buffer.from(base64, "base64"),
+                contentType: mime,
+                // cid embutido (não anexo solto): a foto precisa aparecer
+                // aberta no corpo do e-mail, não só como anexo baixável —
+                // pedido explícito do usuário na issue #663.
+                cid: "capa-noticia",
+              });
+              return "cid:capa-noticia";
+            })();
+      imgHtml = `<tr><td style="padding:0 0 16px 0;"><img src="${src}" alt="" width="600" style="width:100%;max-width:600px;border-radius:8px;display:block;" /></td></tr>`;
+    }
+  }
+
+  const link = `${origemPublica()}/noticias/${noticiaId}`;
+  const assunto = `Nova notícia — ${noticia.titulo}`;
+  const conteudoSanitizado = sanitizarRichTextPublico(String(noticia.conteudo));
+
+  // Layout em <table> (não flexbox/grid): é o único subconjunto de HTML/CSS
+  // com suporte confiável em clientes de e-mail como Outlook desktop.
+  const html = `
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+    <tr>
+      <td style="padding:16px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td align="left">${logoImgTag(logos[0])}</td>
+          <td align="right">${logoImgTag(logos[1])}</td>
+        </tr></table>
+      </td>
+    </tr>
+    ${imgHtml}
+    <tr>
+      <td>
+        <h2 style="margin:0 0 8px 0;">${noticia.titulo}</h2>
+        ${noticia.resumo ? `<p style="color:#4b5563;font-style:italic;margin:0 0 16px 0;">${noticia.resumo}</p>` : ""}
+        <div>${conteudoSanitizado}</div>
+        <p style="margin-top:24px;"><a href="${link}" style="color:#1d4ed8;">Ler no site</a></p>
+      </td>
+    </tr>
+  </table>`;
+  const texto = `${noticia.titulo}\n\n${noticia.resumo ?? ""}\n\nLeia no site: ${link}`;
+
+  return { assunto, html, texto, anexos };
+}
+
+/** Prévia sem efeito colateral (item 3 do pedido, issue #663) — usada pelo
+ * editor pra revisar o e-mail antes de confirmar o envio. Não grava fila,
+ * não envia nada. */
+export async function obterPreviaEmailNoticia(
+  noticiaId: string,
+  lojaId: string,
+): Promise<{ assunto: string; html: string } | null> {
+  return withLojaConnection(lojaId, async (conn) => {
+    const montado = await montarEmailNoticia(conn, noticiaId, lojaId, "previa");
+    if (!montado) return null;
+    return { assunto: montado.assunto, html: montado.html };
+  });
+}
+
+export async function enviarNoticiaPorEmail(
+  noticiaId: string,
+  lojaId: string,
+): Promise<ResultadoEnvioRelatorio> {
+  return withLojaConnection(lojaId, async (conn) => {
+    const montado = await montarEmailNoticia(conn, noticiaId, lojaId);
+    if (!montado) return [];
+
+    const [destinatarios] = await conn.query<RowDataPacket[]>(
+      `SELECT email FROM irmaos WHERE situacao = 'ativo' AND email IS NOT NULL AND email != '' AND loja_id = ?`,
+      [lojaId],
+    );
+    const listaEmails = destinatarios.map((r) => (r as { email: string }).email);
+    if (listaEmails.length === 0) return [];
+
+    const filaId = await gravarNaFila(conn, {
+      chave: `noticia:${noticiaId}:${Date.now()}`,
+      tipo: "noticia_publicada",
+      destinatarios: listaEmails,
+      assunto: montado.assunto,
+      html: montado.html,
+      texto: montado.texto,
+      lojaId,
+      bccMonitoramento: true,
+      anexos: montado.anexos.map((a) => ({
+        buffer: a.content,
+        nome: a.filename,
+        mimeType: a.contentType,
+        cid: a.cid,
+      })),
+    });
+
+    const resultado = await tentarEnviarFilaEmail(
+      conn,
+      filaId,
+      listaEmails,
+      montado.assunto,
+      montado.html,
+      montado.texto,
+      montado.anexos,
+      lojaId,
+      true,
+    );
+
+    return listaEmails.map((email) => ({ destinatario: email, sucesso: resultado.sucesso > 0 }));
+  });
+}
+
 // ---------- Lembrete de fatura em aberto (cron + manual) ----------
 
 type FaturaLembrete = {
@@ -857,6 +1035,7 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
             nome: string;
             mimeType: string;
             bufferBase64: string;
+            cid?: string;
           }[])
         : [];
       const anexos =
@@ -865,6 +1044,7 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
               filename: a.nome,
               content: Buffer.from(a.bufferBase64, "base64"),
               contentType: a.mimeType,
+              cid: a.cid,
             }))
           : undefined;
 

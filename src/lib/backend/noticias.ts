@@ -428,3 +428,35 @@ export const registrarDownloadImagemNoticia = createServerFn({ method: "POST" })
       await registrarAuditoria(conn, usuarioId, "baixar_imagem", "noticia", data.id, null, null);
     });
   });
+
+// ---------- Newsletter por e-mail ao publicar (issue #663) ----------
+// Import dinâmico de email-dispatch (mesmo motivo de comunicacoes.ts): esse
+// módulo usa nodemailer e outras libs server-only, que não podem vazar pro
+// bundle do cliente.
+
+const idNoticiaSchema = z.object({ id: z.string().uuid() });
+
+export const obterPreviaEmailNoticia = createServerFn({ method: "GET" })
+  .validator((d: unknown) => idNoticiaSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapelEditorialCms(async (_conn, _usuarioId, lojaId) => {
+      const { obterPreviaEmailNoticia: obterPrevia } = await import("../email-dispatch");
+      const previa = await obterPrevia(data.id, lojaId);
+      if (!previa) throw new Error("Notícia não encontrada ou ainda não publicada.");
+      return previa;
+    });
+  });
+
+export const enviarNoticiaPorEmail = createServerFn({ method: "POST" })
+  .validator((d: unknown) => idNoticiaSchema.parse(d))
+  .handler(async ({ data }) => {
+    return comPapelEditorialCms(async (conn, usuarioId, lojaId) => {
+      const { enviarNoticiaPorEmail: enviarPorEmail } = await import("../email-dispatch");
+      const resultado = await enviarPorEmail(data.id, lojaId);
+      await registrarAuditoria(conn, usuarioId, "enviar_newsletter", "noticia", data.id, null, {
+        destinatarios: resultado.length,
+        sucessos: resultado.filter((r) => r.sucesso).length,
+      });
+      return resultado;
+    });
+  });
