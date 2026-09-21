@@ -48,7 +48,9 @@ export const obterPaginasPublicasFn = createServerFn({ method: "GET" }).handler(
 
 export const obterPaginaPublicaPorSlugFn = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ slug: z.string().min(1) }).parse(d))
-  .handler(({ data }) => carregarPaginaPublicaPorSlug(data.slug));
+  .handler(async ({ data }) =>
+    carregarPaginaPublicaPorSlug(data.slug, !!(await usuarioIdDaSessao())),
+  );
 
 export const obterEdicoesJornalPublicasFn = createServerFn({ method: "GET" }).handler(() =>
   listarEdicoesJornalPublicas(),

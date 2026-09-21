@@ -26,6 +26,7 @@ export type PaginaSite = {
   slug: string;
   conteudo: string;
   status: "rascunho" | "aguardando_aprovacao" | "publicado";
+  restrita: boolean;
   motivo_rejeicao: string | null;
   publicado_em: string | null;
   autor_id: string;
@@ -44,15 +45,15 @@ export const listarPaginasSite = createServerFn({ method: "GET" }).handler(
         : "";
       const params = somentePropria ? [usuarioId] : [];
       const [rows] = await conn.query<RowDataPacket[]>(
-        `SELECT p.id, p.titulo, p.slug, p.conteudo, p.status, p.motivo_rejeicao, p.publicado_em,
-                p.autor_id, u.email AS autor_nome, p.criado_em, p.atualizado_em
+        `SELECT p.id, p.titulo, p.slug, p.conteudo, p.status, p.restrita, p.motivo_rejeicao,
+                p.publicado_em, p.autor_id, u.email AS autor_nome, p.criado_em, p.atualizado_em
          FROM paginas_site p
          LEFT JOIN usuarios u ON u.id = p.autor_id AND u.loja_id = @current_loja_id
          WHERE p.loja_id = @current_loja_id ${filtro}
          ORDER BY p.criado_em DESC`,
         params,
       );
-      return rows as PaginaSite[];
+      return rows.map((row) => ({ ...row, restrita: !!row.restrita })) as PaginaSite[];
     });
   },
 );
@@ -68,6 +69,7 @@ const paginaSchema = z.object({
     .max(200)
     .regex(SLUG_REGEX, "Use só letras minúsculas, números e hífen (ex.: quem-somos)."),
   conteudo: z.string().min(1),
+  restrita: z.boolean(),
 });
 
 async function exigirPaginaPropriaEmRascunho(
@@ -121,18 +123,18 @@ export const salvarPaginaSite = createServerFn({ method: "POST" })
 
       if (data.id) {
         await conn.query(
-          `UPDATE paginas_site SET titulo=?, slug=?, conteudo=?, motivo_rejeicao=NULL
+          `UPDATE paginas_site SET titulo=?, slug=?, conteudo=?, restrita=?, motivo_rejeicao=NULL
            WHERE id=? AND loja_id = @current_loja_id`,
-          [data.titulo, data.slug, data.conteudo, data.id],
+          [data.titulo, data.slug, data.conteudo, data.restrita, data.id],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "atualizar", "pagina_site", data.id, null, {
           ...data,
         });
       } else {
         await conn.query(
-          `INSERT INTO paginas_site (loja_id, titulo, slug, conteudo, autor_id)
-           VALUES (?, ?, ?, ?, ?)`,
-          [lojaId, data.titulo, data.slug, data.conteudo, usuarioIdAtual],
+          `INSERT INTO paginas_site (loja_id, titulo, slug, conteudo, restrita, autor_id)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [lojaId, data.titulo, data.slug, data.conteudo, data.restrita, usuarioIdAtual],
         );
         await registrarAuditoria(conn, usuarioIdAtual, "criar", "pagina_site", null, null, {
           ...data,
