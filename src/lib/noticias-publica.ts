@@ -38,18 +38,33 @@ const MIME_ANEXO_PUBLICO = /^data:(image\/(?:png|jpeg|webp)|application\/pdf);ba
 // listagem (achado do review automático).
 const CONDICAO_TITULO_APTO = `LOWER(TRIM(titulo)) NOT IN ('teste', 'test')`;
 
+// issue #690 — notícia com visibilidade='restrita' só entra na consulta
+// quando `incluirRestritas` é true (visitante autenticado no site). Quem
+// decide isso é o chamador: site-publico-serverfns.ts (rotas /noticias e
+// /noticias/:id, dentro do pipeline normal de request, onde dá pra checar
+// usuarioIdDaSessao()) passa o resultado dessa checagem; o endpoint legado
+// /api/publico/noticias (server.ts, fora do pipeline — mesma limitação já
+// documentada em google-oauth-callback.ts) nunca passa nada, então usa o
+// default `false` e continua sempre anônimo, como já era antes desta issue.
+function condicaoVisibilidade(incluirRestritas: boolean): string {
+  return incluirRestritas ? "" : `AND visibilidade = 'publica'`;
+}
+
 /** Versão leve de carregarNoticiasPublicas(), sem `conteudo` — usada pela
  * listagem pública /noticias (issue #382), que só mostra título/resumo/data;
  * carregar o corpo inteiro (MEDIUMTEXT) de até 100 notícias só pra listá-las
  * inflava a resposta do loader à toa (achado do review automático da PR
  * #386). O endpoint /api/publico/noticias (consumido pelo site externo
  * antigo) continua usando a versão completa abaixo, que ele de fato precisa. */
-export async function listarNoticiasPublicasResumo(): Promise<NoticiaPublicaResumo[]> {
+export async function listarNoticiasPublicasResumo(
+  incluirRestritas = false,
+): Promise<NoticiaPublicaResumo[]> {
   return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [rows] = await conn.query<RowDataPacket[]>(
       `SELECT id, titulo, resumo, publicado_em
        FROM noticias
        WHERE loja_id = @current_loja_id AND status = 'publicado' AND ${CONDICAO_TITULO_APTO}
+         ${condicaoVisibilidade(incluirRestritas)}
        ORDER BY publicado_em DESC
        LIMIT 100`,
     );
@@ -62,12 +77,15 @@ export async function listarNoticiasPublicasResumo(): Promise<NoticiaPublicaResu
   });
 }
 
-export async function carregarNoticiasPublicas(): Promise<NoticiaPublica[]> {
+export async function carregarNoticiasPublicas(
+  incluirRestritas = false,
+): Promise<NoticiaPublica[]> {
   return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [rows] = await conn.query<RowDataPacket[]>(
       `SELECT id, titulo, resumo, conteudo, publicado_em
        FROM noticias
        WHERE loja_id = @current_loja_id AND status = 'publicado' AND ${CONDICAO_TITULO_APTO}
+         ${condicaoVisibilidade(incluirRestritas)}
        ORDER BY publicado_em DESC
        LIMIT 100`,
     );
@@ -85,6 +103,7 @@ export async function carregarNoticiasPublicas(): Promise<NoticiaPublica[]> {
  * (issue #382). Mesma regra de status das demais: rascunho nunca sai daqui. */
 export async function carregarNoticiaPublicaPorId(
   id: string,
+  incluirRestritas = false,
 ): Promise<NoticiaPublicaDetalhe | null> {
   return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [[row]] = await conn.query<RowDataPacket[]>(
@@ -92,7 +111,8 @@ export async function carregarNoticiaPublicaPorId(
               (imagem_capa_url IS NOT NULL AND imagem_capa_url <> '') AS tem_imagem_capa,
               (anexo_url IS NOT NULL AND anexo_url <> '') AS tem_anexo
        FROM noticias
-       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ? AND ${CONDICAO_TITULO_APTO}`,
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ? AND ${CONDICAO_TITULO_APTO}
+         ${condicaoVisibilidade(incluirRestritas)}`,
       [id],
     );
     if (!row) return null;

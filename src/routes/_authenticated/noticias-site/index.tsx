@@ -112,6 +112,7 @@ const FORM_VAZIO = {
   resumo: "",
   conteudo: "",
   colunaId: null as string | null,
+  visibilidade: "publica" as Noticia["visibilidade"],
   imagemCapaUrl: null as string | null,
   imagemCapaNomeOriginal: null as string | null,
   anexoUrl: null as string | null,
@@ -190,6 +191,7 @@ function NoticiasPage() {
           resumo: form.resumo.trim() || null,
           conteudo: form.conteudo,
           colunaId: form.colunaId,
+          visibilidade: form.visibilidade,
           imagemCapaUrl: form.imagemCapaUrl,
           imagemCapaNomeOriginal: form.imagemCapaNomeOriginal,
           anexoUrl: form.anexoUrl,
@@ -212,6 +214,7 @@ function NoticiasPage() {
       resumo: n.resumo ?? "",
       conteudo: n.conteudo,
       colunaId: n.coluna_id,
+      visibilidade: n.visibilidade,
       imagemCapaUrl: null,
       imagemCapaNomeOriginal: null,
       anexoUrl: null,
@@ -488,6 +491,23 @@ function NoticiasPage() {
                   </Select>
                 </div>
                 <div>
+                  <Label>Visibilidade</Label>
+                  <Select
+                    value={form.visibilidade}
+                    onValueChange={(v) =>
+                      setForm({ ...form, visibilidade: v as Noticia["visibilidade"] })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="publica">Pública (qualquer visitante do site)</SelectItem>
+                      <SelectItem value="restrita">Restrita (só Irmão autenticado)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label htmlFor="noticia-resumo">
                     Resumo (opcional, exibido em listagens no site)
                   </Label>
@@ -659,6 +679,11 @@ function NoticiasPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[n.status]}>{STATUS_LABEL[n.status]}</Badge>
+                      {n.visibilidade === "restrita" && (
+                        <Badge variant="outline" className="ml-1">
+                          Restrita
+                        </Badge>
+                      )}
                       {n.motivo_rejeicao && (
                         <p className="mt-1 max-w-[220px] text-xs text-destructive">
                           Rejeitada: {n.motivo_rejeicao}
