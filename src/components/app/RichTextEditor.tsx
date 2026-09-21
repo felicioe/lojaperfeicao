@@ -51,7 +51,15 @@ function ToolbarButton({
 export function RichTextEditor({ value, onChange, disabled, ariaLabelledBy }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: false }),
+      // achado #642 (upgrade Tiptap 2→3) — o StarterKit passou a incluir
+      // `link` e `underline` por padrão, que não existiam no StarterKit da
+      // v2: `link: false` evita registrar a extensão duas vezes (a
+      // configuração própria, com autolink, já está abaixo); `underline:
+      // false` mantém o mesmo conjunto de formatação de antes — sublinhado
+      // não tem botão na barra de ferramentas e a tag `<u>` não está na
+      // allowlist de sanitizarRichTextPublico (rich-text-server.ts), então
+      // deixá-lo ativo só criaria uma formatação que desaparece ao publicar.
+      StarterKit.configure({ heading: false, link: false, underline: false }),
       Link.configure({ openOnClick: false, autolink: true }),
     ],
     content: normalizarRichText(value),
@@ -72,7 +80,7 @@ export function RichTextEditor({ value, onChange, disabled, ariaLabelledBy }: Ri
   useEffect(() => {
     const normalizado = normalizarRichText(value);
     if (editor && normalizado !== editor.getHTML()) {
-      editor.commands.setContent(normalizado, false);
+      editor.commands.setContent(normalizado, { emitUpdate: false });
     }
   }, [value, editor]);
 
