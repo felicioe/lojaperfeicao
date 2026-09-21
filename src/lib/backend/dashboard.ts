@@ -387,7 +387,7 @@ export const listarIrmaosRiscoInadimplencia = createServerFn({ method: "GET" }).
            FROM lancamentos l
            WHERE l.loja_id = @current_loja_id
              AND l.tipo = 'entrada'
-             AND l.categoria = 'mensalidade'
+             AND l.is_mensalidade = TRUE
              AND l.irmao_id IS NOT NULL
              AND l.data_vencimento <= CURRENT_DATE
          )
