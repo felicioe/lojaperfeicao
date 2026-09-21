@@ -105,15 +105,21 @@ function NoticiaPublicaPage() {
     }
   };
 
+  // achado #676 — imagem/anexo não vêm mais embutidos como data: URL no
+  // loader da página (inflava o HTML sem compressão dinâmica no SSR); agora
+  // são servidos sob demanda por rota própria, com Cache-Control (server.ts).
+  const urlImagemCapa = noticia ? `/api/publico/noticias/${noticia.id}/imagem` : null;
+  const urlAnexo = noticia ? `/api/publico/noticias/${noticia.id}/anexo` : null;
+
   const baixarImagem = async () => {
-    if (!noticia?.imagem_capa_url) return;
+    if (!noticia?.temImagemCapa || !urlImagemCapa) return;
     try {
       await registrarDownloadImagemNoticia({ data: { id: noticia.id } });
     } catch {
       // Log é best-effort — não trava o download por causa disso.
     }
     const link = document.createElement("a");
-    link.href = noticia.imagem_capa_url;
+    link.href = urlImagemCapa;
     link.download = `${noticia.titulo}.jpg`;
     link.click();
   };
@@ -133,10 +139,10 @@ function NoticiaPublicaPage() {
         <>
           <h1 className="mb-1 text-3xl font-bold tracking-tight">{noticia.titulo}</h1>
           <p className="mb-6 text-sm text-muted-foreground">{fmtData(noticia.publicado_em)}</p>
-          {noticia.imagem_capa_url && (
+          {noticia.temImagemCapa && urlImagemCapa && (
             <div className="mb-6">
               <img
-                src={noticia.imagem_capa_url}
+                src={urlImagemCapa}
                 alt={noticia.titulo}
                 className="w-full rounded-xl border object-cover"
               />
@@ -153,13 +159,13 @@ function NoticiaPublicaPage() {
             </div>
           )}
           <ConteudoPublicoHtml html={noticia.conteudo} />
-          {noticia.anexo_url && (
+          {noticia.temAnexo && urlAnexo && (
             <div className="mt-6">
               <Button variant="outline" size="sm" asChild>
-                <a href={noticia.anexo_url} download={noticia.anexo_nome_original ?? undefined}>
+                <a href={urlAnexo} download={noticia.anexoNomeOriginal ?? undefined}>
                   <FileText className="mr-1.5 h-4 w-4" />
                   Baixar anexo
-                  {noticia.anexo_nome_original ? `: ${noticia.anexo_nome_original}` : ""}
+                  {noticia.anexoNomeOriginal ? `: ${noticia.anexoNomeOriginal}` : ""}
                 </a>
               </Button>
             </div>

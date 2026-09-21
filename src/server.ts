@@ -331,6 +331,67 @@ async function tratarNoticiasPublicas(request: Request): Promise<Response | null
   }
 }
 
+// achado #676 (auditoria de performance mobile) — imagem de capa/anexo de
+// notícia deixaram de ir embutidos como data: URL no HTML/loader de
+// /noticias/:id (podiam chegar a ~11MB em base64 pra uma imagem de 8MB, sem
+// nenhuma compressão dinâmica do SSR — confirmado testando localmente que
+// a resposta HTML não tem content-encoding nenhum, ao contrário dos assets
+// estáticos). Servidos por rota própria, binário puro, com Cache-Control:
+// cacheável pelo navegador entre visitas (o data: URL embutido nunca era) e
+// fora do payload de toda navegação/compartilhamento da página.
+const CACHE_CONTROL_IMAGEM_NOTICIA = "public, max-age=3600, stale-while-revalidate=86400";
+
+async function tratarImagemCapaNoticiaPublica(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  const match = /^\/api\/publico\/noticias\/([0-9a-f-]{36})\/imagem$/i.exec(url.pathname);
+  if (!match) return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    const { carregarImagemCapaNoticiaPublica } = await import("./lib/noticias-publica");
+    const imagem = await carregarImagemCapaNoticiaPublica(match[1]);
+    if (!imagem) return new Response("Not Found", { status: 404 });
+    return new Response(new Uint8Array(imagem.buffer), {
+      headers: {
+        "content-type": imagem.mime,
+        "cache-control": CACHE_CONTROL_IMAGEM_NOTICIA,
+        "x-content-type-options": "nosniff",
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return new Response("Erro ao carregar imagem.", { status: 500 });
+  }
+}
+
+async function tratarAnexoNoticiaPublica(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  const match = /^\/api\/publico\/noticias\/([0-9a-f-]{36})\/anexo$/i.exec(url.pathname);
+  if (!match) return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    const { carregarAnexoNoticiaPublica } = await import("./lib/noticias-publica");
+    const anexo = await carregarAnexoNoticiaPublica(match[1]);
+    if (!anexo) return new Response("Not Found", { status: 404 });
+    const headers: Record<string, string> = {
+      "content-type": anexo.mime,
+      "cache-control": CACHE_CONTROL_IMAGEM_NOTICIA,
+      "x-content-type-options": "nosniff",
+    };
+    if (anexo.nomeOriginal) {
+      // Nome do arquivo pode ter aspas/acentos — encodeURIComponent com
+      // filename* (RFC 5987) evita quebrar o header com caractere especial.
+      headers["content-disposition"] =
+        `attachment; filename*=UTF-8''${encodeURIComponent(anexo.nomeOriginal)}`;
+    }
+    return new Response(new Uint8Array(anexo.buffer), { headers });
+  } catch (error) {
+    console.error(error);
+    return new Response("Erro ao carregar anexo.", { status: 500 });
+  }
+}
+
 const CORS_HEADERS_PORTAL_PUBLICO = {
   "cache-control": "public, max-age=300, stale-while-revalidate=900",
   "access-control-allow-origin": "https://associacaoadonhiramita.org",
@@ -520,6 +581,12 @@ export default createServerEntry({
 
       const noticiasResponse = await tratarNoticiasPublicas(request);
       if (noticiasResponse) return withSecurityHeaders(noticiasResponse);
+
+      const imagemNoticiaResponse = await tratarImagemCapaNoticiaPublica(request);
+      if (imagemNoticiaResponse) return withSecurityHeaders(imagemNoticiaResponse);
+
+      const anexoNoticiaResponse = await tratarAnexoNoticiaPublica(request);
+      if (anexoNoticiaResponse) return withSecurityHeaders(anexoNoticiaResponse);
 
       const paginasSiteResponse = await tratarPaginasSitePublicas(request);
       if (paginasSiteResponse) return withSecurityHeaders(paginasSiteResponse);
