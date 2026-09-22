@@ -141,10 +141,19 @@ function NoticiaPublicaPage() {
           <p className="mb-6 text-sm text-muted-foreground">{fmtData(noticia.publicado_em)}</p>
           {noticia.temImagemCapa && urlImagemCapa && (
             <div className="mb-6">
+              {/* issue #700 — capa é normalmente a maior imagem "acima da
+                  dobra" da página (o próprio LCP), então NÃO leva
+                  loading="lazy" (seria contraproducente) e ganha
+                  fetchPriority="high". Como o tamanho do upload varia (não
+                  há redimensionamento no backend), reserva o espaço via
+                  aspect-video em vez de width/height fixos — evita o CLS
+                  sem cravar uma proporção que não bate com a imagem real. */}
               <img
                 src={urlImagemCapa}
                 alt={noticia.titulo}
-                className="w-full rounded-xl border object-cover"
+                className="aspect-video w-full rounded-xl border object-cover"
+                loading="eager"
+                fetchPriority="high"
               />
               {user && (
                 <Button
