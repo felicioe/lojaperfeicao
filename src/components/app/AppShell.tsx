@@ -1,8 +1,7 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { logout } from "@/lib/backend/auth";
+import { Link, useLocation } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { CabecalhoInstitucional } from "./CabecalhoInstitucional";
-import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
+import { useShellSessao } from "@/lib/use-shell-sessao";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -448,10 +447,7 @@ function NavTree({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user } = useSession();
-  const can = useCan();
-  const nav = useNavigate();
-  const loc = useLocation();
+  const { user, can, nav, loc, signOut } = useShellSessao();
 
   // Contagens de pendências pro badge do menu (issue #455) — mesmo
   // intervalo de polling do NotificationBell, sem competir com ele por
@@ -473,7 +469,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const exibirCabecalhoRelatorio =
     loc.pathname.startsWith("/relatorios/") ||
     rotasRelatorioContabil.some((rota) => loc.pathname.startsWith(rota));
-  const queryClient = useQueryClient();
   const isDesktop = useIsDesktop();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(
@@ -1065,12 +1060,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const expandGroup = (groupId: string) => {
     setCollapsed(false);
     setOpen((prev) => (prev.includes(groupId) ? prev : [...prev, groupId]));
-  };
-
-  const signOut = async () => {
-    await logout();
-    queryClient.setQueryData(SESSAO_QUERY_KEY, null);
-    nav({ to: "/auth" });
   };
 
   const primaryRole = can.roles[0] ?? "irmao";

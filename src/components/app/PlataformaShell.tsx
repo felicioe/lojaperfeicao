@@ -1,8 +1,6 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
-import { logout } from "@/lib/backend/auth";
-import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
+import { useShellSessao } from "@/lib/use-shell-sessao";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -51,11 +49,7 @@ function PlataformaBrand() {
 }
 
 export function PlataformaShell({ children }: { children: ReactNode }) {
-  const { user } = useSession();
-  const can = useCan();
-  const nav = useNavigate();
-  const loc = useLocation();
-  const queryClient = useQueryClient();
+  const { user, can, loc, signOut } = useShellSessao();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { dark, toggle: toggleDark } = useTheme();
 
@@ -67,12 +61,6 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
   // administrativo ou painel de irmão comum).
   const minhaLojaTo =
     can.isAdmin || can.isTesoureiro || can.isSecretario ? "/dashboard" : "/painel";
-
-  const signOut = async () => {
-    await logout();
-    queryClient.setQueryData(SESSAO_QUERY_KEY, null);
-    nav({ to: "/auth" });
-  };
 
   const navList = (onNavigate?: () => void) => (
     <nav className="flex-1 space-y-1 overflow-y-auto p-3">
