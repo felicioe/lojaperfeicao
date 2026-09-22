@@ -1,10 +1,9 @@
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { logout } from "@/lib/backend/auth";
 import { contarComunicadosNaoLidos } from "@/lib/backend/comunicacoes";
-import { useSession, useCan, SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
+import { useShellSessao } from "@/lib/use-shell-sessao";
 import {
   resolverItensMobileIrmao,
   ITEM_SEGURANCA_IRMAO,
@@ -49,11 +48,7 @@ function iniciais(nome: string | null | undefined) {
 }
 
 export function PainelShell({ children }: { children: ReactNode }) {
-  const { user } = useSession();
-  const can = useCan();
-  const nav = useNavigate();
-  const loc = useLocation();
-  const queryClient = useQueryClient();
+  const { user, can, loc, signOut: sair } = useShellSessao();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { dark, toggle: toggleDark } = useTheme();
@@ -115,12 +110,6 @@ export function PainelShell({ children }: { children: ReactNode }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
-
-  const sair = async () => {
-    await logout();
-    queryClient.setQueryData(SESSAO_QUERY_KEY, null);
-    nav({ to: "/auth" });
-  };
 
   return (
     <div className="min-h-screen min-h-dvh bg-muted/30">
