@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Issue #699 — sitemap estático das rotas públicas fixas do site
+  institucional. LIMITAÇÃO CONHECIDA: este arquivo é estático e por isso NÃO
+  lista conteúdo dinâmico publicado pelo CMS (notícias individuais em
+  /noticias/:id, páginas em /paginas/:slug, edições do jornal em
+  /jornal/:numero) — só os índices dessas seções (/noticias, /jornal), que já
+  linkam pra cada item. O projeto não tem hoje nenhum padrão de rota server
+  pra servir conteúdo não-HTML (XML/texto) dinamicamente; gerar um sitemap
+  dinâmico listando cada notícia/página/edição publicada fica como melhoria
+  futura, quando fizer sentido (ex.: junto da issue de robots.txt/sitemap por
+  loja, quando o sistema atender mais de uma loja em produção — ver
+  PRODUCT.md e a seção "Decisões em aberto" da issue #699).
+
+  /agenda fica de fora de propósito: pra visitante anônimo ela só mostra um
+  card pedindo login (conteúdo real é restrito a Irmãos, ver issue #691 e o
+  comentário em src/routes/agenda.tsx), então continua noindex por padrão
+  (não sobrescreve a meta robots do __root.tsx) — listar no sitemap não teria
+  efeito, o crawler só encontraria a página de login.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://sistema.associacaoadonhiramita.org/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://sistema.associacaoadonhiramita.org/noticias</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://sistema.associacaoadonhiramita.org/jornal</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset>
