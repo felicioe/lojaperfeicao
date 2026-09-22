@@ -212,6 +212,19 @@ function Conciliacao() {
           `${resultado.novos} nova(s) linha(s), ${resultado.jaImportados} já importada(s) anteriormente.`,
         );
       }
+      // Vínculo automático (issue #698): baixa manual feita antes do
+      // extrato chegar, casada por valor+data exatos com uma linha nova do
+      // OFX. Aviso separado (não some sozinho) porque é uma ação que o
+      // usuário não pediu explicitamente — ele precisa poder conferir e,
+      // se for coincidência, desfazer em "Conferência do último OFX"
+      // (mesmo botão "Desfazer" dos outros vínculos).
+      if (resultado.vinculosAutomaticos.length > 0) {
+        const qtd = resultado.vinculosAutomaticos.length;
+        toast.warning(
+          `${qtd} baixa(s) manual(is) vinculada(s) automaticamente a linha(s) do extrato (mesmo valor e mesma data). Confira em "Conferência do último OFX" — dá pra desfazer ali se for coincidência.`,
+          { duration: 15000 },
+        );
+      }
       if (fileRef.current) fileRef.current.value = "";
       invalidate();
     } catch (err) {
