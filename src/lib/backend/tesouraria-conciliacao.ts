@@ -920,11 +920,151 @@ const importarOfxSchema = z.object({
   arquivoBase64: z.string().min(1),
 });
 
+// Vínculo automático (issue #698): baixa manual de fatura/conta a pagar
+// feita fora da tela de Conciliação (Faturas, Contas a Pagar) antes do
+// extrato chegar. Quando a linha do OFX importada bate por valor E data
+// EXATAMENTE iguais com uma dessas baixas ainda sem lastro bancário, o
+// usuário não deveria precisar clicar em nada — mas só quando o casamento é
+// inequívoco, senão cai no fluxo manual de sempre (mesmo princípio de
+// conciliacao-pareamento.ts: não inventar vínculo quando ambíguo).
+export type VinculoAutomaticoOfx = {
+  ofxId: string;
+  lancamentoId: string;
+  data: string;
+  valor: number;
+  descricao: string;
+};
+
+// Chave de casamento: data + valor absoluto + direção (entrada/saída). A
+// direção entra na chave porque `ofx_lancamentos.valor` é assinado (crédito
+// positivo, débito negativo) enquanto `lancamentos.valor` é sempre positivo
+// com `tipo` separado — sem checar a direção, uma entrada e uma saída do
+// mesmo valor no mesmo dia poderiam ser confundidas.
+function chaveCasamentoOfx(data: string, valor: number): string {
+  const tipo = valor >= 0 ? "entrada" : "saida";
+  return `${data}|${Math.abs(valor).toFixed(2)}|${tipo}`;
+}
+
+// Roda depois que as linhas novas do extrato já estão gravadas em
+// `ofx_lancamentos`. Busca as baixas manuais do "terceiro braço" (mesma
+// consulta de `listarLancamentosParaConciliar`, sem o UNION dos outros dois
+// braços) ainda sem vínculo, agrupa os dois lados pela chave de casamento e
+// só vincula quando cada lado tem exatamente 1 ocorrência da chave — duas
+// baixas manuais (ou duas linhas novas do OFX) com o mesmo valor+data são
+// ambíguas e ficam para o usuário resolver na tela, como já acontecia antes
+// desta issue.
+async function autoVincularBaixasManuais(
+  conn: import("mysql2/promise").PoolConnection,
+  usuarioId: string,
+  contaFinanceiraId: string,
+  linhasNovas: { chaveDedupe: string }[],
+): Promise<VinculoAutomaticoOfx[]> {
+  if (linhasNovas.length === 0) return [];
+
+  const [ofxRows] = await conn.query<RowDataPacket[]>(
+    `SELECT id, data, valor, descricao FROM ofx_lancamentos
+     WHERE loja_id = @current_loja_id AND conta_financeira_id = ? AND chave_dedupe IN (?)`,
+    [contaFinanceiraId, linhasNovas.map((l) => l.chaveDedupe)],
+  );
+  if (ofxRows.length === 0) return [];
+
+  // Mesmo filtro do "terceiro braço" de listarLancamentosParaConciliar:
+  // baixa manual (pago=TRUE, entrada/saída, nunca transferência) desta
+  // conta ainda sem linha de extrato nem conciliação em lote ativa.
+  let baixas: RowDataPacket[];
+  try {
+    [baixas] = await conn.query<RowDataPacket[]>(
+      `SELECT l.id, l.data, l.valor, l.tipo, l.recorrente_id, l.valor_efetivo_confirmado
+       FROM lancamentos l
+       WHERE l.loja_id = @current_loja_id AND l.pago = TRUE AND l.tipo IN ('entrada', 'saida')
+         AND l.conta_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM ofx_lancamentos o
+            WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM conciliacao_lancamentos cl
+             JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+            WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id AND c.status = 'ativa'
+         )`,
+      [contaFinanceiraId],
+    );
+  } catch (erro) {
+    if ((erro as { code?: string }).code !== "ER_BAD_FIELD_ERROR") throw erro;
+    // Loja ainda sem a coluna de despesa recorrente (migração mais nova) —
+    // refaz sem ela; sem recorrente_id não há confirmação de valor efetivo
+    // pra checar.
+    [baixas] = await conn.query<RowDataPacket[]>(
+      `SELECT l.id, l.data, l.valor, l.tipo, NULL AS recorrente_id, NULL AS valor_efetivo_confirmado
+       FROM lancamentos l
+       WHERE l.loja_id = @current_loja_id AND l.pago = TRUE AND l.tipo IN ('entrada', 'saida')
+         AND l.conta_id = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM ofx_lancamentos o
+            WHERE o.loja_id = l.loja_id AND o.lancamento_id = l.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM conciliacao_lancamentos cl
+             JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+            WHERE cl.lancamento_id = l.id AND cl.loja_id = l.loja_id AND c.status = 'ativa'
+         )`,
+      [contaFinanceiraId],
+    );
+  }
+  if (baixas.length === 0) return [];
+
+  const baixasPorChave = new Map<string, RowDataPacket[]>();
+  for (const baixa of baixas) {
+    const sinal = baixa.tipo === "saida" ? -1 : 1;
+    const chave = chaveCasamentoOfx(String(baixa.data), sinal * Number(baixa.valor));
+    baixasPorChave.set(chave, [...(baixasPorChave.get(chave) ?? []), baixa]);
+  }
+  const ofxPorChave = new Map<string, RowDataPacket[]>();
+  for (const ofx of ofxRows) {
+    const chave = chaveCasamentoOfx(String(ofx.data), Number(ofx.valor));
+    ofxPorChave.set(chave, [...(ofxPorChave.get(chave) ?? []), ofx]);
+  }
+
+  const vinculos: VinculoAutomaticoOfx[] = [];
+  for (const [chave, ofxDaChave] of ofxPorChave) {
+    if (ofxDaChave.length !== 1) continue; // 2+ linhas novas com mesmo valor+data: ambíguo
+    const baixasDaChave = baixasPorChave.get(chave);
+    if (!baixasDaChave || baixasDaChave.length !== 1) continue; // 0 ou 2+ baixas: sem match seguro
+    const ofx = ofxDaChave[0];
+    const baixa = baixasDaChave[0];
+    if (baixa.recorrente_id && !baixa.valor_efetivo_confirmado) {
+      // Mesma trava do vínculo manual (conciliarOfxExistente): despesa
+      // recorrente sem valor efetivo confirmado não pode ser conciliada
+      // ainda — deixa pro fluxo manual depois da confirmação.
+      continue;
+    }
+    await conn.query("CALL conciliar_ofx_existente(?, ?)", [ofx.id, baixa.id]);
+    await registrarAuditoria(
+      conn,
+      usuarioId,
+      "conciliar_automatico",
+      "ofx_lancamento",
+      ofx.id as string,
+      null,
+      { ofxId: ofx.id, lancamentoId: baixa.id, motivo: "valor e data exatamente iguais" },
+    );
+    vinculos.push({
+      ofxId: ofx.id as string,
+      lancamentoId: baixa.id as string,
+      data: String(ofx.data),
+      valor: Number(ofx.valor),
+      descricao: String(ofx.descricao ?? ""),
+    });
+  }
+  return vinculos;
+}
+
 export type ResultadoImportacaoOfx = {
   total: number;
   novos: number;
   jaImportados: number;
   erros: string[];
+  vinculosAutomaticos: VinculoAutomaticoOfx[];
 };
 
 export const importarOfx = createServerFn({ method: "POST" })
@@ -1148,7 +1288,14 @@ export const importarOfx = createServerFn({ method: "POST" })
         }
       }
 
-      return { total: blocos.length, novos, jaImportados, erros };
+      const vinculosAutomaticos = await autoVincularBaixasManuais(
+        conn,
+        usuarioId,
+        data.contaFinanceiraId,
+        paraInserir,
+      );
+
+      return { total: blocos.length, novos, jaImportados, erros, vinculosAutomaticos };
     });
   });
 

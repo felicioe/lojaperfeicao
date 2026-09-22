@@ -64,9 +64,13 @@ function principal() {
   const soNaProducao = [...aplicadas].filter((nome) => !doRepositorio.includes(nome));
 
   if (pendentes.length === 0) {
-    console.log(`OK: as ${doRepositorio.length} migrações do repositório já constam como aplicadas.`);
+    console.log(
+      `OK: as ${doRepositorio.length} migrações do repositório já constam como aplicadas.`,
+    );
   } else {
-    console.error(`\nATENÇÃO: ${pendentes.length} migração(ões) no repositório sem registro de aplicação:\n`);
+    console.error(
+      `\nATENÇÃO: ${pendentes.length} migração(ões) no repositório sem registro de aplicação:\n`,
+    );
     for (const nome of pendentes) console.error(`  ✗ ${nome}`);
     console.error(
       "\nAplique cada uma via phpMyAdmin (na ordem acima) antes de considerar o deploy concluído.",

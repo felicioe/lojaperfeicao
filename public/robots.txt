@@ -1,2 +1,29 @@
+# Issue #699 — o Disallow: / original (commit 33bb2a8) bloqueava rastreamento
+# de TODO o domínio, inclusive as rotas públicas do site institucional
+# (index, agenda, notícias, páginas, jornal) que existem pra serem a vitrine
+# pública da loja. robots.txt tem precedência sobre a meta tag <robots> por
+# página (ver src/routes/__root.tsx e cada rota pública): se o crawler nem
+# rastreia a página, a meta "index, follow" dela nunca é lida.
+#
+# Estratégia: nega tudo por padrão e libera só as rotas públicas conhecidas
+# hoje. Isso cobre automaticamente qualquer rota administrativa/autenticada
+# futura (_authenticated/*, hoje servidas sem prefixo na URL — ex.: /dashboard,
+# /irmaos, /contabilidade) sem precisar listar cada uma explicitamente; elas
+# já exigem login e, quando renderizadas, usam noindex/nofollow por padrão
+# (ver __root.tsx).
+#
+# Atenção (SaaS multi-loja, ver PRODUCT.md): este arquivo é estático e vale
+# pra qualquer subdomínio que sirva o build — hoje só há uma loja em produção
+# (associacaoadonhiramita.org). Quando existir mais de uma loja com conteúdo
+# público distinto, isto precisa virar rota server dinâmica por subdomínio.
 User-agent: *
 Disallow: /
+Allow: /$
+Allow: /agenda
+Allow: /noticias
+Allow: /noticias/
+Allow: /paginas/
+Allow: /jornal
+Allow: /jornal/
+
+Sitemap: https://sistema.associacaoadonhiramita.org/sitemap.xml

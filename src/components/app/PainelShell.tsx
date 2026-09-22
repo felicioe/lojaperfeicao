@@ -13,8 +13,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Home, Menu, LogOut, Moon, Sun, Globe, HelpCircle } from "lucide-react";
+import { Home, Menu, LogOut, Moon, Sun, Globe, HelpCircle, Search } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
+import { MenuSearch, type MenuSearchGroup } from "@/components/app/MenuSearch";
 
 const TITULOS: Record<string, string> = {
   "/painel": "Início",
@@ -49,6 +50,7 @@ function iniciais(nome: string | null | undefined) {
 export function PainelShell({ children }: { children: ReactNode }) {
   const { user, can, loc, signOut: sair } = useShellSessao();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { dark, toggle: toggleDark } = useTheme();
   const { data: naoLidos = 0 } = useQuery({
     queryKey: ["painel", "comunicadosNaoLidos"],
@@ -69,6 +71,23 @@ export function PainelShell({ children }: { children: ReactNode }) {
     ...itensResolvidos.slice(0, MAX_ITENS_FIXOS_IRMAO),
   ];
   const itensGaveta = itensResolvidos.slice(MAX_ITENS_FIXOS_IRMAO);
+
+  // Base pesquisável da busca de menu (issue #697): exatamente os mesmos
+  // itens que já aparecem neste shell (abas + gaveta + Conta), montada a
+  // partir das mesmas fontes já filtradas por papel/ocultos acima — nunca
+  // itens a mais.
+  const menuSearchGroups: MenuSearchGroup[] = [
+    { id: "menu", label: "Menu", items: [...abas, ...itensGaveta] },
+    {
+      id: "conta",
+      label: "Conta",
+      items: [
+        ITEM_SEGURANCA_IRMAO,
+        { to: "/painel/ajuda", label: "Ajuda", icon: HelpCircle },
+        ...(can.isSuperAdmin ? [{ to: "/admin-saas", label: "Plataforma", icon: Globe }] : []),
+      ],
+    },
+  ];
 
   useEffect(() => {
     if (!user || typeof window === "undefined") return;
@@ -107,19 +126,31 @@ export function PainelShell({ children }: { children: ReactNode }) {
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
             )}
           </button>
-          <h1 className="text-lg font-bold text-primary">{titulo}</h1>
-          <Link
-            to="/painel/dados"
-            className="flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Meus dados"
-          >
-            <Avatar className="h-9 w-9 border">
-              <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
-                {iniciais(user?.nomeCompleto)}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
+          <h1 className="truncate text-lg font-bold text-primary">{titulo}</h1>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              aria-label="Buscar no menu"
+              onClick={() => setSearchOpen(true)}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+            <Link
+              to="/painel/dados"
+              className="flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              aria-label="Meus dados"
+            >
+              <Avatar className="h-9 w-9 border">
+                <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+                  {iniciais(user?.nomeCompleto)}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          </div>
         </header>
+
+        <MenuSearch open={searchOpen} onOpenChange={setSearchOpen} groups={menuSearchGroups} />
 
         <main className="flex-1 overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4">
           {children}

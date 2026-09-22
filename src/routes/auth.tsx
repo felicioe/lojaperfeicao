@@ -220,9 +220,14 @@ function AuthPage() {
                 nem bloqueia o formulário, que já fica interativo desde o
                 primeiro quadro. animate-in/fade-in/zoom-in (tw-animate-css)
                 já respeitam prefers-reduced-motion globalmente (styles.css). */}
+            {/* issue #700 — width/height fixos (SVG estático, sempre h-24
+                w-20) reservam o espaço e evitam CLS; sem loading="lazy" —
+                é a primeira coisa visível na tela de login. */}
             <img
               src="/brand/sglfm-mark.svg"
               alt=""
+              width={80}
+              height={96}
               className="mx-auto mb-2 h-24 w-20 animate-in fade-in zoom-in-95 object-contain duration-1000"
             />
             <h1 className="animate-in fade-in slide-in-from-bottom-2 font-serif text-2xl font-semibold leading-snug tracking-wide delay-500 duration-1000 fill-mode-both">

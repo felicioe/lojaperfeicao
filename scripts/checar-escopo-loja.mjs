@@ -83,10 +83,18 @@ const EXCECOES = [
   },
   {
     arquivo: "src/lib/backend/totp.ts",
-    contem: "SELECT secret FROM usuario_totp WHERE usuario_id = ? AND ativado_em IS NOT NULL",
+    contem:
+      "SELECT secret, ultimo_step_usado FROM usuario_totp WHERE usuario_id = ? AND ativado_em IS NOT NULL",
     motivo:
       "validarCodigoTotpOuBackup é compartilhado entre o login (sem sessão) e as telas " +
       "autenticadas. Escopar quebraria o segundo fator no login.",
+  },
+  {
+    arquivo: "src/lib/backend/totp.ts",
+    contem: "UPDATE usuario_totp SET ultimo_step_usado = ? WHERE usuario_id = ?",
+    motivo:
+      "Mesmo helper compartilhado (validarCodigoTotpOuBackup): grava o step usado pra " +
+      "bloquear replay de código TOTP, ainda no login, sem loja no contexto.",
   },
   {
     arquivo: "src/lib/backend/totp.ts",
