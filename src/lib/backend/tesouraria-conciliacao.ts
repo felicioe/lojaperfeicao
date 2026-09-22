@@ -376,6 +376,18 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
              -- #476): credita quando o vínculo é da conta de destino,
              -- debita quando é da conta de origem. Entrada/saída seguem a
              -- regra original (uma conta só).
+             --
+             -- Achado do usuário (2026-09-22): faltava aqui a mesma trava
+             -- de recibo_itens que os dois braços "avulso" logo abaixo já
+             -- têm. Uma fatura baixada pela tela de Faturas (baixar_faturas)
+             -- já entra na soma via recibos.valor_total (primeira UNION);
+             -- se essa mesma baixa for depois vinculada a uma linha do OFX
+             -- (conciliar_ofx_existente, manual ou automático — issue
+             -- #698), ela também passa a satisfazer esta condição e o valor
+             -- era somado de novo aqui — dobrando o lançamento no saldo do
+             -- sistema. Sem o vínculo OFX o problema não aparecia porque o
+             -- braço "avulso" já excluía quem tem recibo; só o braço
+             -- "conciliado" (este) estava sem a mesma exclusão.
              SELECT o.conta_financeira_id,
                     CASE
                       WHEN l.tipo = 'entrada' THEN l.valor
@@ -387,6 +399,10 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
              JOIN lancamentos l ON l.id = o.lancamento_id AND l.loja_id = o.loja_id
              WHERE o.loja_id = @current_loja_id
                AND o.conciliado = TRUE AND o.conciliacao_id IS NULL AND o.data <= ?
+               AND NOT EXISTS (
+                 SELECT 1 FROM recibo_itens ri
+                 WHERE ri.loja_id = l.loja_id AND ri.lancamento_id = l.id
+               )
              UNION ALL
              -- "Avulso origem" — exclusão escopada à conta de origem
              -- (o.conta_financeira_id = l.conta_id), não a qualquer vínculo
