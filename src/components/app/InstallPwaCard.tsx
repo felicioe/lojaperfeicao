@@ -86,7 +86,17 @@ export function InstallPwaCard() {
         <X className="h-4 w-4" />
       </Button>
       <div className="flex items-start gap-3 pr-10">
-        <img src="/icons/sglfm-app-v2-192.png" alt="" className="h-12 w-12 rounded-xl" />
+        {/* issue #700 — width/height fixos evitam CLS; loading="lazy" pois
+            este cartão só aparece depois do formulário de login/promoção
+            de instalação, nunca é o elemento acima da dobra. */}
+        <img
+          src="/icons/sglfm-app-v2-192.png"
+          alt=""
+          width={48}
+          height={48}
+          loading="lazy"
+          className="h-12 w-12 rounded-xl"
+        />
         <div className="min-w-0">
           <h2 className="font-semibold">Instale o SGLFM neste aparelho</h2>
           <p className="mt-1 text-sm text-muted-foreground">

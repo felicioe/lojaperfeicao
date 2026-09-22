@@ -26,6 +26,11 @@ export function CabecalhoInstitucional({ compacto = false }: { compacto?: boolea
   if (logos.length === 0 && !loja) return null;
 
   const tamanho = compacto ? "h-12 w-12" : "h-16 w-16";
+  // issue #700 — sempre quadrado (h-X w-X acima), então width/height fixos
+  // batem com o tamanho real exibido e eliminam o CLS. Sem loading="lazy":
+  // o cabeçalho é a primeira coisa renderizada na página, então "acima da
+  // dobra" — marcar como lazy adiaria a decisão do navegador sem ganho.
+  const tamanhoPx = compacto ? 48 : 64;
 
   return (
     <header
@@ -42,6 +47,8 @@ export function CabecalhoInstitucional({ compacto = false }: { compacto?: boolea
               src={logo.logoUrl}
               alt={logo.nome}
               className={`${tamanho} object-contain`}
+              width={tamanhoPx}
+              height={tamanhoPx}
               onError={() => setQuebrados((atual) => new Set(atual).add(logo.logoUrl))}
             />
           ))}
