@@ -89,19 +89,12 @@ import { ROLE_LABEL } from "@/lib/format";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { useTheme } from "@/lib/use-theme";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { encontrarItemDoCatalogo } from "@/lib/menu-catalogo";
 import { obterContagensMenu } from "@/lib/backend/menu-pendencias";
 import { NotificationBell } from "@/components/app/NotificationBell";
 import { PainelShell } from "@/components/app/PainelShell";
 import { PlataformaShell } from "@/components/app/PlataformaShell";
+import { MenuSearch, type MenuSearchGroup } from "@/components/app/MenuSearch";
 
 type NavItem = {
   to: string;
@@ -1040,10 +1033,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const goTo = (to: string) => {
-    setPaletteOpen(false);
-    nav({ to });
-  };
+  // Grupos pesquisáveis na paleta de comando (issue #697: extraído pro
+  // componente compartilhado MenuSearch, reusado também por PainelShell e
+  // PlataformaShell) — dashboard/Início como grupo próprio, seguido dos
+  // mesmos `visibleGroups` já filtrados por papel/ocultos/menu-mobile acima.
+  const menuSearchGroups: MenuSearchGroup[] = [
+    { id: "dashboard", label: dashboard.label, items: [dashboard] },
+    ...visibleGroups,
+  ];
 
   // fecha o drawer sempre que a rota muda
   useEffect(() => {
@@ -1363,32 +1360,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </SheetContent>
         </Sheet>
 
-        <CommandDialog open={paletteOpen} onOpenChange={setPaletteOpen}>
-          <CommandInput placeholder="Buscar no menu..." />
-          <CommandList>
-            <CommandEmpty>Nada encontrado.</CommandEmpty>
-            <CommandGroup heading={dashboard.label}>
-              <CommandItem value={dashboard.label} onSelect={() => goTo(dashboard.to)}>
-                <dashboard.icon className="h-4 w-4" />
-                {dashboard.label}
-              </CommandItem>
-            </CommandGroup>
-            {visibleGroups.map((g) => (
-              <CommandGroup key={g.id} heading={g.label}>
-                {g.items.map((i) => (
-                  <CommandItem
-                    key={i.to}
-                    value={`${g.label} ${i.label}`}
-                    onSelect={() => goTo(i.to)}
-                  >
-                    <i.icon className={cn("h-4 w-4", i.destructive && "text-destructive")} />
-                    <span className={cn(i.destructive && "text-destructive")}>{i.label}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ))}
-          </CommandList>
-        </CommandDialog>
+        <MenuSearch open={paletteOpen} onOpenChange={setPaletteOpen} groups={menuSearchGroups} />
 
         <main className="min-w-0 flex-1">
           <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
