@@ -91,10 +91,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Nome curto embaixo do ícone na tela de início do iOS — sem isto,
       // usa o <title> da página (que muda por rota) em vez do nome do app.
       { name: "apple-mobile-web-app-title", content: "SGLFM" },
-      // "black-translucent" deixa a barra de status por cima do conteúdo
-      // (mesmo visual escuro do resto do app, ver theme_color/background_color
-      // acima) em vez da barra cinza padrão do Safari.
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      // "black-translucent" (usado antes) deixava a barra de status por cima
+      // do conteúdo da página, sem nenhuma garantia de contraste — o iOS só
+      // aplica um escurecimento/blur próprio por cima do que estiver
+      // desenhado ali, e cabeçalhos com fundo claro/gradiente ficavam
+      // parcialmente escondidos atrás da barra (achado do usuário, várias
+      // telas). "black" reserva uma barra de status opaca e sólida (ícones
+      // brancos, combina com o tema escuro do app) — o conteúdo nunca mais
+      // desenha por trás dela, então não depende de cada tela acertar o
+      // padding de safe-area-inset-top pra não ficar coberta.
+      { name: "apple-mobile-web-app-status-bar-style", content: "black" },
       // Sistema privado atrás de login (dados financeiros/pessoais de
       // associados) — não deveria estar indexável em lugar nenhum. Fica
       // aqui, no root, pra valer em toda rota sem cada uma precisar
