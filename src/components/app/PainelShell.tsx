@@ -232,7 +232,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
             className="flex h-dvh w-[86vw] max-w-80 flex-col gap-0 overflow-hidden p-0"
           >
             <SheetTitle className="sr-only">Menu</SheetTitle>
-            <div className="border-b p-4">
+            <div className="border-b p-4 pt-[max(1rem,env(safe-area-inset-top))]">
               <div className="truncate text-sm font-semibold">
                 {user?.nomeCompleto ?? user?.email}
               </div>
