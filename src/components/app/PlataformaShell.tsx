@@ -128,7 +128,7 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
   );
 
   const footer = (onNavigate?: () => void) => (
-    <div className="border-t border-white/10 p-3">
+    <div className="border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="mb-2 text-xs">
         <div className="truncate font-medium text-slate-100">
           {user?.nomeCompleto ?? user?.email}

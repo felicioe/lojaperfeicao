@@ -1326,7 +1326,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   asButtons={can.isMemberOnly}
                 />
               </nav>
-              <div className="border-t border-sidebar-border p-2.5">
+              <div className="border-t border-sidebar-border p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
                 <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-xs">
                   <div className="min-w-0">
                     <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
