@@ -184,7 +184,7 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
 
       {/* ===== Layout mobile/tablet (< lg) ===== */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-white/10 bg-slate-950 px-3 text-slate-100 print:hidden lg:hidden">
+        <header className="sticky top-0 z-40 flex min-h-14 items-center gap-3 border-b border-white/10 bg-slate-950 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] text-slate-100 print:hidden lg:hidden">
           <button
             type="button"
             aria-label="Abrir menu"
@@ -214,7 +214,7 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
             className="flex w-[86vw] max-w-[320px] flex-col gap-0 border-white/10 bg-slate-950 p-0 text-slate-100 lg:hidden"
           >
             <SheetTitle className="sr-only">Menu de navegação da Plataforma</SheetTitle>
-            <div className="border-b border-white/10 p-4 pr-12">
+            <div className="border-b border-white/10 p-4 pr-12 pt-[max(1rem,env(safe-area-inset-top))]">
               <PlataformaBrand />
             </div>
             <div className="border-b border-white/10 p-3">
