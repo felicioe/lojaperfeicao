@@ -1279,7 +1279,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* ===== Layout mobile/tablet (< lg) ===== */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex min-h-14 items-center gap-3 border-b bg-sidebar px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-sidebar-foreground print:hidden lg:hidden">
+        {/* bg-slate-950 (quase preto puro) em vez do --sidebar navy da marca:
+            com a barra de status do iOS em "black" (opaca), ela é preto
+            literal — contra o navy mais claro do --sidebar aparecia uma
+            "costura" de cor visível logo abaixo do relógio (achado do
+            usuário). Só nos dois elementos mobile (aqui e na gaveta); o
+            sidebar desktop continua com a cor da marca. */}
+        <header className="sticky top-0 z-40 flex min-h-14 items-center gap-3 border-b bg-slate-950 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-sidebar-foreground print:hidden lg:hidden">
           <button
             type="button"
             aria-label="Abrir menu"
@@ -1302,7 +1308,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetContent
             side="left"
-            className="flex w-[86vw] max-w-[320px] flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground lg:hidden"
+            className="flex w-[86vw] max-w-[320px] flex-col gap-0 bg-slate-950 p-0 text-sidebar-foreground lg:hidden"
           >
             <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
             <div className="border-b border-sidebar-border p-4 pr-12 pt-[max(1rem,env(safe-area-inset-top))]">
