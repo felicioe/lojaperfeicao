@@ -104,7 +104,7 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
     can.isAdmin || can.isTesoureiro || can.isSecretario ? "/dashboard" : "/painel";
 
   const navList = (onNavigate?: () => void) => (
-    <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+    <nav className="space-y-1 p-3">
       {NAV_ITEMS.map((item) => {
         const active = isActive(item.to);
         return (
@@ -178,8 +178,10 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
         <div className="border-b border-white/10 p-3">
           <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
         </div>
-        {navList()}
-        {footer()}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {navList()}
+          {footer()}
+        </div>
       </aside>
 
       {/* ===== Layout mobile/tablet (< lg) ===== */}
@@ -220,8 +222,10 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
             <div className="border-b border-white/10 p-3">
               <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
             </div>
-            {navList(() => setMobileOpen(false))}
-            {footer(() => setMobileOpen(false))}
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              {navList(() => setMobileOpen(false))}
+              {footer(() => setMobileOpen(false))}
+            </div>
           </SheetContent>
         </Sheet>
 
