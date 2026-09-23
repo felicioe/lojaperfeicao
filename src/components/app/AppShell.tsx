@@ -94,6 +94,12 @@ import { NotificationBell } from "@/components/app/NotificationBell";
 import { PainelShell } from "@/components/app/PainelShell";
 import { PlataformaShell } from "@/components/app/PlataformaShell";
 import { MenuSearch, type MenuSearchGroup } from "@/components/app/MenuSearch";
+import {
+  CampoBuscaConteudo,
+  ResultadosBuscaConteudo,
+  TERMO_MINIMO_BUSCA,
+} from "@/components/app/BuscaConteudo";
+import { useDebounce } from "@/lib/use-debounce";
 
 type NavItem = {
   to: string;
@@ -464,6 +470,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     rotasRelatorioContabil.some((rota) => loc.pathname.startsWith(rota));
   const isDesktop = useIsDesktop();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Busca ampla de conteúdo (issue #710) — campo fixo no topo do menu
+  // lateral, SEM atalho de teclado (diferente da paleta Ctrl+K acima, que é
+  // a busca de MENU da issue #697). Debounce de ~300ms antes de trocar a
+  // área principal pela tela de resultados.
+  const [termoBusca, setTermoBusca] = useState("");
+  const termoBuscaDebounced = useDebounce(termoBusca, 300);
+  const buscaAtiva = termoBuscaDebounced.trim().length >= TERMO_MINIMO_BUSCA;
   const [collapsed, setCollapsed] = useState(
     () => typeof window !== "undefined" && localStorage.getItem("sidebarCollapsed") === "1",
   );
@@ -1043,9 +1056,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     ...visibleGroups,
   ];
 
-  // fecha o drawer sempre que a rota muda
+  // fecha o drawer e limpa a busca sempre que a rota muda — navegar pra um
+  // resultado (ou pra qualquer outro lugar) devolve a área principal ao
+  // conteúdo normal da rota, em vez de deixar a tela de resultados "presa".
   useEffect(() => {
     setMobileOpen(false);
+    setTermoBusca("");
   }, [loc.pathname]);
 
   useEffect(() => {
@@ -1128,6 +1144,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
           </div>
+
+          {!collapsed && (
+            <div className="border-b border-sidebar-border p-3">
+              <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
+            </div>
+          )}
 
           <nav
             aria-label="Navegação principal"
@@ -1286,6 +1308,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="border-b border-sidebar-border p-4 pr-12 pt-[max(1rem,env(safe-area-inset-top))]">
               <Brand />
             </div>
+            <div className="border-b border-sidebar-border p-3">
+              <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
+            </div>
             <nav aria-label="Navegação principal" className="flex-1 space-y-1 overflow-y-auto p-3">
               <NavTree
                 dashboard={dashboard}
@@ -1359,8 +1384,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main className="min-w-0 flex-1">
           <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
-            {exibirCabecalhoRelatorio && <CabecalhoInstitucional />}
-            {children}
+            {buscaAtiva ? (
+              <ResultadosBuscaConteudo termo={termoBuscaDebounced} />
+            ) : (
+              <>
+                {exibirCabecalhoRelatorio && <CabecalhoInstitucional />}
+                {children}
+              </>
+            )}
           </div>
         </main>
       </div>

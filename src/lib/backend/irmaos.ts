@@ -26,7 +26,11 @@ import { validarCPF, normalizarCPF } from "../cpf";
 const PAPEIS_PRIVILEGIADOS = ["admin", "secretario", "tesoureiro"];
 const PAPEIS_ESCRITA = ["admin", "secretario"];
 
-async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
+// Exportado para reuso em busca-conteudo.ts (issue #710) — a busca ampla de
+// Irmãos precisa aplicar exatamente esta mesma regra de "privilegiado vê
+// todos, os demais só a si mesmo" que listarIrmaos já usa, em vez de
+// reinventar a checagem.
+export async function ehPrivilegiado(conn: PoolConnection): Promise<boolean> {
   const condicoes = PAPEIS_PRIVILEGIADOS.map(() => "has_role(@current_usuario_id, ?)").join(" OR ");
   const [[row]] = await conn.query<RowDataPacket[]>(
     `SELECT (${condicoes}) AS ok`,

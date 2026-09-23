@@ -16,6 +16,12 @@ import { cn } from "@/lib/utils";
 import { Home, Menu, LogOut, Moon, Sun, Globe, HelpCircle, Search } from "lucide-react";
 import { useTheme } from "@/lib/use-theme";
 import { MenuSearch, type MenuSearchGroup } from "@/components/app/MenuSearch";
+import {
+  CampoBuscaConteudo,
+  ResultadosBuscaConteudo,
+  TERMO_MINIMO_BUSCA,
+} from "@/components/app/BuscaConteudo";
+import { useDebounce } from "@/lib/use-debounce";
 
 const TITULOS: Record<string, string> = {
   "/painel": "Início",
@@ -52,6 +58,13 @@ export function PainelShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { dark, toggle: toggleDark } = useTheme();
+  // Busca ampla de conteúdo (issue #710) — campo fixo no topo do menu
+  // lateral (aqui, a gaveta ☰, já que este shell não tem sidebar
+  // persistente), sem atalho de teclado — diferente da busca de MENU
+  // (ícone de lupa no cabeçalho, issue #697/MenuSearch.tsx).
+  const [termoBusca, setTermoBusca] = useState("");
+  const termoBuscaDebounced = useDebounce(termoBusca, 300);
+  const buscaAtiva = termoBuscaDebounced.trim().length >= TERMO_MINIMO_BUSCA;
   const { data: naoLidos = 0 } = useQuery({
     queryKey: ["painel", "comunicadosNaoLidos"],
     queryFn: () => contarComunicadosNaoLidos(),
@@ -111,6 +124,13 @@ export function PainelShell({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Limpa a busca ao navegar — mesmo raciocínio do AppShell: a área
+  // principal não deve ficar "presa" na tela de resultados depois de
+  // seguir um link (de um resultado ou de qualquer outro lugar).
+  useEffect(() => {
+    setTermoBusca("");
+  }, [loc.pathname]);
+
   return (
     <div className="min-h-screen min-h-dvh bg-muted/30">
       <div className="mx-auto flex min-h-screen min-h-dvh w-full max-w-md flex-col bg-background shadow-sm">
@@ -150,10 +170,17 @@ export function PainelShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
+        {/* Busca ampla de conteúdo (issue #710) — campo fixo, sempre
+            visível, sem atalho de teclado (diferente do botão de lupa
+            acima, que abre a busca de MENU da issue #697). */}
+        <div className="sticky top-16 z-30 border-b bg-background px-4 py-2">
+          <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} />
+        </div>
+
         <MenuSearch open={searchOpen} onOpenChange={setSearchOpen} groups={menuSearchGroups} />
 
         <main className="flex-1 overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-4">
-          {children}
+          {buscaAtiva ? <ResultadosBuscaConteudo termo={termoBuscaDebounced} /> : children}
         </main>
 
         <nav

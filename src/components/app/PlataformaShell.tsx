@@ -22,6 +22,12 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { MenuSearch, type MenuSearchGroup } from "@/components/app/MenuSearch";
+import {
+  CampoBuscaConteudo,
+  ResultadosBuscaConteudo,
+  TERMO_MINIMO_BUSCA,
+} from "@/components/app/BuscaConteudo";
+import { useDebounce } from "@/lib/use-debounce";
 
 // Shell próprio da área de Plataforma (issue #358) — deliberadamente com
 // paleta diferente do shell de Loja (AppShell: navy + dourado). Quem
@@ -55,6 +61,16 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { dark, toggle: toggleDark } = useTheme();
+  // Busca ampla de conteúdo (issue #710) — campo fixo no topo do menu
+  // lateral, sem atalho de teclado (diferente da busca de MENU/Ctrl+K
+  // acima, issue #697).
+  const [termoBusca, setTermoBusca] = useState("");
+  const termoBuscaDebounced = useDebounce(termoBusca, 300);
+  const buscaAtiva = termoBuscaDebounced.trim().length >= TERMO_MINIMO_BUSCA;
+
+  useEffect(() => {
+    setTermoBusca("");
+  }, [loc.pathname]);
 
   // Base pesquisável da busca de menu (issue #697) — mesmos NAV_ITEMS que já
   // aparecem na sidebar/gaveta deste shell (a guarda de acesso à área de
@@ -159,6 +175,9 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
             <Search className="h-4 w-4" />
           </button>
         </div>
+        <div className="border-b border-white/10 p-3">
+          <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
+        </div>
         {navList()}
         {footer()}
       </aside>
@@ -198,13 +217,18 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
             <div className="border-b border-white/10 p-4 pr-12">
               <PlataformaBrand />
             </div>
+            <div className="border-b border-white/10 p-3">
+              <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
+            </div>
             {navList(() => setMobileOpen(false))}
             {footer(() => setMobileOpen(false))}
           </SheetContent>
         </Sheet>
 
         <main className="min-w-0 flex-1">
-          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
+          <div className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">
+            {buscaAtiva ? <ResultadosBuscaConteudo termo={termoBuscaDebounced} /> : children}
+          </div>
         </main>
       </div>
     </div>

@@ -486,6 +486,72 @@ async function tratarAnexoNoticiaPublica(request: Request): Promise<Response | n
   }
 }
 
+// Download autenticado de arquivo — Documentos (Legislação) e Peças de
+// Arquitetura (Biblioteca), issue #710. Diferente das rotas de notícia
+// acima (públicas, sem sessão): estas exigem sessão válida — a mesma regra
+// de leitura que a tela de origem já usa (ver src/lib/backend/downloads-
+// arquivo.ts, que reaproveita comSessao/PODE_VER_CONDICAO via
+// comSessaoCrua). "private, no-store": conteúdo depende de quem pediu
+// (grau/situação da peça, papel do usuário) — não pode ficar em cache
+// compartilhado nem sobreviver a uma mudança de permissão.
+const CACHE_CONTROL_ARQUIVO_AUTENTICADO = "private, no-store";
+
+function respostaArquivoAutenticado(
+  arquivo: { mime: string; buffer: Buffer; nomeOriginal: string | null } | null,
+): Response {
+  if (!arquivo) return new Response("Not Found", { status: 404 });
+  const headers: Record<string, string> = {
+    "content-type": arquivo.mime,
+    "cache-control": CACHE_CONTROL_ARQUIVO_AUTENTICADO,
+    "x-content-type-options": "nosniff",
+  };
+  if (arquivo.nomeOriginal) {
+    headers["content-disposition"] =
+      `attachment; filename*=UTF-8''${encodeURIComponent(arquivo.nomeOriginal)}`;
+  }
+  return new Response(new Uint8Array(arquivo.buffer), { headers });
+}
+
+async function tratarArquivoDocumento(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  const match = /^\/api\/documentos\/([0-9a-f-]{36})\/arquivo$/i.exec(url.pathname);
+  if (!match) return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    const { carregarArquivoDocumentoAutenticado } = await import("./lib/backend/downloads-arquivo");
+    const arquivo = await carregarArquivoDocumentoAutenticado(request, match[1]);
+    return respostaArquivoAutenticado(arquivo);
+  } catch (error) {
+    const { SemPermissaoError } = await import("./lib/backend/authz");
+    if (error instanceof SemPermissaoError) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    console.error(error);
+    return new Response("Erro ao carregar arquivo.", { status: 500 });
+  }
+}
+
+async function tratarArquivoPeca(request: Request): Promise<Response | null> {
+  const url = new URL(request.url);
+  const match = /^\/api\/biblioteca\/([0-9a-f-]{36})\/arquivo$/i.exec(url.pathname);
+  if (!match) return null;
+  if (request.method !== "GET") return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    const { carregarArquivoPecaAutenticado } = await import("./lib/backend/downloads-arquivo");
+    const arquivo = await carregarArquivoPecaAutenticado(request, match[1]);
+    return respostaArquivoAutenticado(arquivo);
+  } catch (error) {
+    const { SemPermissaoError } = await import("./lib/backend/authz");
+    if (error instanceof SemPermissaoError) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    console.error(error);
+    return new Response("Erro ao carregar arquivo.", { status: 500 });
+  }
+}
+
 const CORS_HEADERS_PORTAL_PUBLICO = {
   "cache-control": "public, max-age=300, stale-while-revalidate=900",
   "access-control-allow-origin": "https://associacaoadonhiramita.org",
@@ -683,6 +749,13 @@ export default createServerEntry({
 
       const anexoNoticiaResponse = await tratarAnexoNoticiaPublica(request);
       if (anexoNoticiaResponse) return await withSecurityHeaders(request, anexoNoticiaResponse);
+
+      const arquivoDocumentoResponse = await tratarArquivoDocumento(request);
+      if (arquivoDocumentoResponse)
+        return await withSecurityHeaders(request, arquivoDocumentoResponse);
+
+      const arquivoPecaResponse = await tratarArquivoPeca(request);
+      if (arquivoPecaResponse) return await withSecurityHeaders(request, arquivoPecaResponse);
 
       const paginasSiteResponse = await tratarPaginasSitePublicas(request);
       if (paginasSiteResponse) return await withSecurityHeaders(request, paginasSiteResponse);

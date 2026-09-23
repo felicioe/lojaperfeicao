@@ -1,7 +1,7 @@
 import type { PoolConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { withUserConnection } from "./db";
-import { usuarioIdDaSessao, criadaEmDaSessao } from "./session";
+import { usuarioIdDaSessao, criadaEmDaSessao, dadosSessaoCrua } from "./session";
 
 /**
  * Substitui, na camada de aplicação, as policies de RLS do Postgres
@@ -58,10 +58,16 @@ type OpcoesAutorizacao = {
  *   imprevisível; loja inativa (suspensa pelo super-admin, issue #339)
  *   barra todos os usuários dela na hora, não só no próximo login.
  */
+// `obterCriadaEm` é injetável (default: criadaEmDaSessao, que lê do pipeline
+// normal do TanStack Start) para permitir uma variante desta mesma checagem
+// a partir de um Request cru — ver comSessaoCrua logo abaixo, usada pelas
+// rotas de download autenticado (issue #710). Nenhum chamador existente
+// passa esse argumento, então o comportamento deles não muda.
 async function checarSessaoEResolverLoja(
   conn: PoolConnection,
   usuarioId: string,
   opcoes: OpcoesAutorizacao | undefined,
+  obterCriadaEm: () => Promise<number | null> = criadaEmDaSessao,
 ): Promise<string> {
   const [[row]] = await conn.query<RowDataPacket[]>(
     `SELECT u.deve_trocar_senha, u.senha_alterada_em, l.id AS loja_id, l.ativa AS loja_ativa
@@ -76,7 +82,7 @@ async function checarSessaoEResolverLoja(
     throw new SemPermissaoError("Troque sua senha antes de continuar.");
   }
   if (!opcoes?.ignorarSessaoDesatualizada && row.senha_alterada_em) {
-    const criadaEm = await criadaEmDaSessao();
+    const criadaEm = await obterCriadaEm();
     // Sessão anterior à introdução do campo: tratada como válida até expirar
     // naturalmente pelo maxAge do cookie.
     if (criadaEm && new Date(row.senha_alterada_em).getTime() > criadaEm) {
@@ -104,6 +110,34 @@ export async function comSessao<T>(
   return withUserConnection(usuarioId, async (conn) => {
     const lojaId = await checarSessaoEResolverLoja(conn, usuarioId, opcoes);
     return fn(conn, usuarioId, lojaId);
+  });
+}
+
+/**
+ * Mesma checagem de comSessao, mas para as poucas rotas HTTP cruas (fora do
+ * pipeline de request do TanStack Start — server.ts, issue #710) que
+ * precisam de sessão autenticada antes de servir uma resposta binária, como
+ * as rotas de download de arquivo de Documentos/Peças de Arquitetura
+ * (/api/documentos/:id/arquivo, /api/biblioteca/:id/arquivo). Não reinventa
+ * a regra: reaproveita o mesmo checarSessaoEResolverLoja de comSessao,
+ * só trocando de onde vem o usuário/timestamp de criação da sessão (do
+ * Request cru, via dadosSessaoCrua, em vez do pipeline).
+ */
+export async function comSessaoCrua<T>(
+  request: Request,
+  fn: (conn: PoolConnection, usuarioId: string, lojaId: string) => Promise<T>,
+  opcoes?: OpcoesAutorizacao,
+): Promise<T> {
+  const dados = await dadosSessaoCrua(request);
+  if (!dados) throw new SemPermissaoError("Não autenticado.");
+  return withUserConnection(dados.usuarioId, async (conn) => {
+    const lojaId = await checarSessaoEResolverLoja(
+      conn,
+      dados.usuarioId,
+      opcoes,
+      async () => dados.criadaEm,
+    );
+    return fn(conn, dados.usuarioId, lojaId);
   });
 }
 
