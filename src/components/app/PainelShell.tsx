@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { contarComunicadosNaoLidos } from "@/lib/backend/comunicacoes";
 import { useShellSessao } from "@/lib/use-shell-sessao";
 import {
@@ -38,14 +37,6 @@ const TITULOS: Record<string, string> = {
   "/conta/seguranca": "Segurança da conta",
   "/painel/ajuda": "Ajuda",
 };
-
-// Achado da auditoria de UX (issue #467, P0): quando a ordem configurada
-// muda e um item conhecido sai da barra de abas, quem tinha o hábito motor
-// de tocar naquela posição acha que o app quebrou. Aviso único (localStorage,
-// não repete depois que a pessoa já viu) — não é uma solução genérica pra
-// toda mudança futura de config, é o mínimo pra esta mudança específica não
-// pegar ninguém de surpresa.
-const CHAVE_AVISO_FREQUENCIA = "sglfm-aviso-frequencia-fora-da-aba-v1";
 
 function iniciais(nome: string | null | undefined) {
   if (!nome) return "?";
@@ -101,28 +92,6 @@ export function PainelShell({ children }: { children: ReactNode }) {
       ],
     },
   ];
-
-  useEffect(() => {
-    if (!user || typeof window === "undefined") return;
-    if (localStorage.getItem(CHAVE_AVISO_FREQUENCIA)) return;
-    localStorage.setItem(CHAVE_AVISO_FREQUENCIA, "1");
-    const frequenciaNaGaveta = itensGaveta.some((i) => i.to === "/painel/frequencia");
-    const frequenciaAusente = !itensResolvidos.some((i) => i.to === "/painel/frequencia");
-    if (frequenciaNaGaveta) {
-      toast.info(
-        "Frequência não está mais entre as abas de baixo — toque no ☰ no topo pra encontrá-la.",
-        { duration: 9000 },
-      );
-    } else if (frequenciaAusente) {
-      toast.info(
-        "Frequência não está mais disponível no seu perfil. Fale com a secretaria da loja se precisar dela.",
-        {
-          duration: 9000,
-        },
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
 
   // Limpa a busca ao navegar — mesmo raciocínio do AppShell: a área
   // principal não deve ficar "presa" na tela de resultados depois de
