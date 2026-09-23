@@ -4,6 +4,23 @@ import {
   clearSession,
   type SessionConfig,
 } from "@tanstack/react-start/server";
+// h3-v2 é a mesma versão do h3 que @tanstack/start-server-core usa por baixo
+// dos panos pra ler/decifrar o cookie de sessão (getSession acima só
+// funciona DENTRO do pipeline de request do TanStack Start — precisa de um
+// H3Event já publicado no AsyncLocalStorage interno, ver getH3Event() em
+// @tanstack/start-server-core/request-response.js). As rotas de download
+// autenticado de arquivo (issue #710, /api/documentos/:id/arquivo e
+// /api/biblioteca/:id/arquivo, em server.ts) rodam FORA desse pipeline —
+// mesma limitação já documentada em google-oauth-callback.ts — mas,
+// diferente do callback do Google, aqui precisamos mesmo da identidade do
+// usuário pra checar permissão antes de servir o binário. H3Event pode ser
+// construído diretamente a partir do Request cru (é exatamente o que o
+// requestHandler do TanStack faz internamente), e a própria função
+// getSession do h3 aceita esse evento — não precisa do wrapper do
+// TanStack. "h3-v2" é dependência direta de @tanstack/start-server-core
+// (fixada como alias pro pacote "h3"); fixamos a mesma versão em
+// package.json para não depender só do hoisting do npm.
+import { H3Event, getSession as getSessaoH3 } from "h3-v2";
 
 type SessaoData = {
   usuarioId?: string;
@@ -60,6 +77,24 @@ export async function usuarioIdDaSessao(): Promise<string | null> {
 export async function criadaEmDaSessao(): Promise<number | null> {
   const session = await getSession<SessaoData>(sessionConfig());
   return session.data.criadaEm ?? null;
+}
+
+/** Equivalente a usuarioIdDaSessao()+criadaEmDaSessao(), mas lendo o cookie
+ * direto de um Request cru — para as poucas rotas HTTP (fora do pipeline do
+ * TanStack Start, ver comentário no topo do arquivo) que precisam checar
+ * sessão antes de servir uma resposta binária (issue #710). Nunca lança —
+ * cookie ausente/corrompido/expirado vira null, igual a "não autenticado". */
+export async function dadosSessaoCrua(
+  request: Request,
+): Promise<{ usuarioId: string; criadaEm: number | null } | null> {
+  try {
+    const event = new H3Event(request);
+    const session = await getSessaoH3<SessaoData>(event, sessionConfig());
+    if (!session.data.usuarioId) return null;
+    return { usuarioId: session.data.usuarioId, criadaEm: session.data.criadaEm ?? null };
+  } catch {
+    return null;
+  }
 }
 
 export async function criarSessao(usuarioId: string, criadaEm: number = Date.now()): Promise<void> {
