@@ -161,8 +161,11 @@ export function PainelShell({ children }: { children: ReactNode }) {
           // conhecido de `overflow-x: clip` no html/body (ver comentário em
           // styles.css) somado a `position: fixed`: o WebKit ocasionalmente
           // recalcula a posição do elemento fixo contra o layout antigo
-          // durante o scroll com momentum, até o gesto terminar.
-          className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-md transform-gpu border-t bg-primary pb-[env(safe-area-inset-bottom)] text-primary-foreground"
+          // durante o scroll com momentum, até o gesto terminar. Mantido
+          // mesmo no visual "flutuante" (achado do usuário) — só a
+          // aparência mudou (afastada das bordas, cantos arredondados),
+          // o travamento de camada continua necessário.
+          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto w-auto max-w-md transform-gpu overflow-hidden rounded-2xl bg-primary text-primary-foreground shadow-lg"
         >
           <div className="flex">
             {abas.map((aba) => {
