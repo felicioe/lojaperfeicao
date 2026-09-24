@@ -1317,72 +1317,77 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="border-b border-sidebar-border p-3">
               <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              <nav aria-label="Navegação principal" className="space-y-1 p-3">
-                <NavTree
-                  dashboard={dashboard}
-                  groups={navGroups}
-                  isActive={isActive}
-                  open={open}
-                  setOpen={setOpen}
-                  openSections={openSections}
-                  setOpenSections={setOpenSections}
-                  onNavigate={() => setMobileOpen(false)}
-                  size="mobile"
-                  asButtons={can.isMemberOnly}
-                />
-              </nav>
-              <div className="border-t border-sidebar-border p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-                <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-xs">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
-                    {user?.nomeCompleto && (
-                      <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
-                    )}
-                  </div>
-                  <Link
-                    to="/privacidade"
-                    target="_blank"
-                    className="shrink-0 text-sidebar-foreground/55 underline"
-                  >
-                    Privacidade
+            <nav
+              aria-label="Navegação principal"
+              className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3"
+            >
+              <NavTree
+                dashboard={dashboard}
+                groups={navGroups}
+                isActive={isActive}
+                open={open}
+                setOpen={setOpen}
+                openSections={openSections}
+                setOpenSections={setOpenSections}
+                onNavigate={() => setMobileOpen(false)}
+                size="mobile"
+                asButtons={can.isMemberOnly}
+              />
+            </nav>
+            {/* Rodapé flutuante (achado do usuário) — cartão destacado do
+                fundo quase-preto da gaveta, sempre colado ao final visível
+                (mb pela área segura), em vez de simplesmente seguir o menu
+                com espaço sobrando embaixo dele. */}
+            <div className="mx-3 mb-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-2.5 shadow-lg">
+              <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5 text-xs">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
+                  {user?.nomeCompleto && (
+                    <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
+                  )}
+                </div>
+                <Link
+                  to="/privacidade"
+                  target="_blank"
+                  className="shrink-0 text-sidebar-foreground/55 underline"
+                >
+                  Privacidade
+                </Link>
+              </div>
+              {can.isSuperAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mb-2 h-11 w-full text-foreground sm:h-11"
+                  asChild
+                >
+                  <Link to="/admin-saas">
+                    <Globe className="mr-1.5 h-3.5 w-3.5" /> Plataforma
                   </Link>
-                </div>
-                {can.isSuperAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mb-2 h-11 w-full text-foreground sm:h-11"
-                    asChild
-                  >
-                    <Link to="/admin-saas">
-                      <Globe className="mr-1.5 h-3.5 w-3.5" /> Plataforma
-                    </Link>
-                  </Button>
-                )}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-11 text-foreground sm:h-11"
-                    onClick={toggleDark}
-                  >
-                    {dark ? (
-                      <Sun className="mr-1.5 h-3.5 w-3.5" />
-                    ) : (
-                      <Moon className="mr-1.5 h-3.5 w-3.5" />
-                    )}
-                    {dark ? "Claro" : "Escuro"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-11 text-foreground sm:h-11"
-                    onClick={signOut}
-                  >
-                    <LogOut className="mr-1.5 h-3.5 w-3.5" /> Sair
-                  </Button>
-                </div>
+                </Button>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-11 text-foreground sm:h-11"
+                  onClick={toggleDark}
+                >
+                  {dark ? (
+                    <Sun className="mr-1.5 h-3.5 w-3.5" />
+                  ) : (
+                    <Moon className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {dark ? "Claro" : "Escuro"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-11 text-foreground sm:h-11"
+                  onClick={signOut}
+                >
+                  <LogOut className="mr-1.5 h-3.5 w-3.5" /> Sair
+                </Button>
               </div>
             </div>
           </SheetContent>

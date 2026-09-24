@@ -104,7 +104,7 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
     can.isAdmin || can.isTesoureiro || can.isSecretario ? "/dashboard" : "/painel";
 
   const navList = (onNavigate?: () => void) => (
-    <nav className="space-y-1 p-3">
+    <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
       {NAV_ITEMS.map((item) => {
         const active = isActive(item.to);
         return (
@@ -128,7 +128,10 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
   );
 
   const footer = (onNavigate?: () => void) => (
-    <div className="border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    // Rodapé flutuante (achado do usuário) — cartão destacado do fundo
+    // quase-preto, colado ao final visível (mb pela área segura), em vez de
+    // simplesmente seguir o menu com espaço sobrando embaixo.
+    <div className="mx-3 mb-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border border-white/10 bg-white/5 p-3 shadow-lg">
       <div className="mb-2 text-xs">
         <div className="truncate font-medium text-slate-100">
           {user?.nomeCompleto ?? user?.email}
@@ -178,10 +181,8 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
         <div className="border-b border-white/10 p-3">
           <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {navList()}
-          {footer()}
-        </div>
+        {navList()}
+        {footer()}
       </aside>
 
       {/* ===== Layout mobile/tablet (< lg) ===== */}
@@ -222,10 +223,8 @@ export function PlataformaShell({ children }: { children: ReactNode }) {
             <div className="border-b border-white/10 p-3">
               <CampoBuscaConteudo value={termoBusca} onChange={setTermoBusca} dark />
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              {navList(() => setMobileOpen(false))}
-              {footer(() => setMobileOpen(false))}
-            </div>
+            {navList(() => setMobileOpen(false))}
+            {footer(() => setMobileOpen(false))}
           </SheetContent>
         </Sheet>
 
