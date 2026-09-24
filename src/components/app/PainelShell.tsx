@@ -210,120 +210,120 @@ export function PainelShell({ children }: { children: ReactNode }) {
               </div>
               <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-              <nav aria-label="Menu do usuário" className="space-y-4 p-3">
-                <div className="space-y-1">
+            <nav
+              aria-label="Menu do usuário"
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3"
+            >
+              <div className="space-y-1">
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  asChild
+                >
+                  <Link to="/painel" onClick={() => setMenuOpen(false)}>
+                    <Home className="mr-1.5 h-5 w-5" /> Início
+                  </Link>
+                </Button>
+                {can.isSuperAdmin && (
                   <Button
                     variant="outline"
                     className="min-h-11 w-full justify-start text-base"
                     asChild
                   >
-                    <Link to="/painel" onClick={() => setMenuOpen(false)}>
-                      <Home className="mr-1.5 h-5 w-5" /> Início
+                    <Link to="/admin-saas" onClick={() => setMenuOpen(false)}>
+                      <Globe className="mr-1.5 h-5 w-5" /> Plataforma
                     </Link>
                   </Button>
-                  {can.isSuperAdmin && (
+                )}
+              </div>
+
+              {itensGaveta.length > 0 && (
+                <div className="space-y-1">
+                  <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Mais opções
+                  </p>
+                  {itensGaveta.map((item) => (
                     <Button
+                      key={item.to}
                       variant="outline"
                       className="min-h-11 w-full justify-start text-base"
                       asChild
                     >
-                      <Link to="/admin-saas" onClick={() => setMenuOpen(false)}>
-                        <Globe className="mr-1.5 h-5 w-5" /> Plataforma
+                      <Link to={item.to} onClick={() => setMenuOpen(false)}>
+                        <span
+                          className={cn(
+                            "mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                            item.tint,
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                        </span>
+                        {item.label}
                       </Link>
                     </Button>
-                  )}
+                  ))}
                 </div>
+              )}
 
-                {itensGaveta.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Mais opções
-                    </p>
-                    {itensGaveta.map((item) => (
-                      <Button
-                        key={item.to}
-                        variant="outline"
-                        className="min-h-11 w-full justify-start text-base"
-                        asChild
-                      >
-                        <Link to={item.to} onClick={() => setMenuOpen(false)}>
-                          <span
-                            className={cn(
-                              "mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-                              item.tint,
-                            )}
-                          >
-                            <item.icon className="h-4 w-4" />
-                          </span>
-                          {item.label}
-                        </Link>
-                      </Button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Conta
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="min-h-11 w-full justify-start text-base"
-                    asChild
-                  >
-                    <Link to="/conta/seguranca" onClick={() => setMenuOpen(false)}>
-                      <span
-                        className={cn(
-                          "mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-                          ITEM_SEGURANCA_IRMAO.tint,
-                        )}
-                      >
-                        <ITEM_SEGURANCA_IRMAO.icon className="h-4 w-4" />
-                      </span>
-                      Segurança da conta
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="min-h-11 w-full justify-start text-base"
-                    asChild
-                  >
-                    <Link to="/painel/ajuda" onClick={() => setMenuOpen(false)}>
-                      <span className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
-                        <HelpCircle className="h-4 w-4" />
-                      </span>
-                      Ajuda
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="min-h-11 w-full justify-start text-base"
-                    asChild
-                  >
-                    <a href="/privacidade" target="_blank" rel="noreferrer">
-                      Política de Privacidade
-                    </a>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="min-h-11 w-full justify-start text-base"
-                    onClick={toggleDark}
-                  >
-                    {dark ? (
-                      <Sun className="mr-1.5 h-5 w-5" />
-                    ) : (
-                      <Moon className="mr-1.5 h-5 w-5" />
-                    )}
-                    {dark ? "Modo claro" : "Modo escuro"}
-                  </Button>
-                </div>
-              </nav>
-              <div className="border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-                <Button variant="outline" className="min-h-11 w-full text-base" onClick={sair}>
-                  <LogOut className="mr-1.5 h-5 w-5" /> Sair
+              <div className="space-y-1">
+                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Conta
+                </p>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  asChild
+                >
+                  <Link to="/conta/seguranca" onClick={() => setMenuOpen(false)}>
+                    <span
+                      className={cn(
+                        "mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                        ITEM_SEGURANCA_IRMAO.tint,
+                      )}
+                    >
+                      <ITEM_SEGURANCA_IRMAO.icon className="h-4 w-4" />
+                    </span>
+                    Segurança da conta
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  asChild
+                >
+                  <Link to="/painel/ajuda" onClick={() => setMenuOpen(false)}>
+                    <span className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+                      <HelpCircle className="h-4 w-4" />
+                    </span>
+                    Ajuda
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  asChild
+                >
+                  <a href="/privacidade" target="_blank" rel="noreferrer">
+                    Política de Privacidade
+                  </a>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11 w-full justify-start text-base"
+                  onClick={toggleDark}
+                >
+                  {dark ? <Sun className="mr-1.5 h-5 w-5" /> : <Moon className="mr-1.5 h-5 w-5" />}
+                  {dark ? "Modo claro" : "Modo escuro"}
                 </Button>
               </div>
+            </nav>
+            {/* Rodapé flutuante (achado do usuário) — cartão destacado,
+                colado ao final visível (mb pela área segura), em vez de
+                simplesmente seguir o menu com espaço sobrando embaixo. */}
+            <div className="mx-3 mb-[max(0.75rem,env(safe-area-inset-bottom))] rounded-2xl border bg-card p-3 shadow-lg">
+              <Button variant="outline" className="min-h-11 w-full text-base" onClick={sair}>
+                <LogOut className="mr-1.5 h-5 w-5" /> Sair
+              </Button>
             </div>
           </SheetContent>
         </Sheet>
