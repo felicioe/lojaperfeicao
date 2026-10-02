@@ -42,6 +42,25 @@ const respostaIaSchema = z.discriminatedUnion("reconhecido", [
   z.object({ reconhecido: z.literal(false) }),
 ]);
 
+// "gemini-flash-latest" devolve 503/UNAVAILABLE com alguma frequência em
+// hora de pico ("high demand") — erro transitório do lado do Google, não
+// do PDF em si. Duas tentativas extras com espera curta evitam fazer o
+// usuário clicar de novo manualmente pra algo que resolve sozinho em
+// segundos; qualquer outro erro (ex.: chave inválida) falha na hora.
+async function gerarConteudoComRetentativa<T>(chamar: () => Promise<T>): Promise<T> {
+  const MAX_TENTATIVAS = 3;
+  for (let tentativa = 1; ; tentativa++) {
+    try {
+      return await chamar();
+    } catch (err) {
+      const mensagem = err instanceof Error ? err.message : String(err);
+      const temporario = /"code":\s*503|UNAVAILABLE|overloaded|high demand/i.test(mensagem);
+      if (!temporario || tentativa >= MAX_TENTATIVAS) throw err;
+      await new Promise((resolve) => setTimeout(resolve, tentativa * 1500));
+    }
+  }
+}
+
 export async function extrairSaldoPdfViaIA(bytes: Buffer): Promise<SaldoExtraidoPdf> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -51,19 +70,29 @@ export async function extrairSaldoPdfViaIA(bytes: Buffer): Promise<SaldoExtraido
   }
   const { GoogleGenAI } = await import("@google/genai");
   const ai = new GoogleGenAI({ apiKey });
-  const resposta = await ai.models.generateContent({
-    model: MODELO_GEMINI,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { inlineData: { mimeType: "application/pdf", data: bytes.toString("base64") } },
-          { text: PROMPT_EXTRACAO },
+  let resposta;
+  try {
+    resposta = await gerarConteudoComRetentativa(() =>
+      ai.models.generateContent({
+        model: MODELO_GEMINI,
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inlineData: { mimeType: "application/pdf", data: bytes.toString("base64") } },
+              { text: PROMPT_EXTRACAO },
+            ],
+          },
         ],
-      },
-    ],
-    config: { responseMimeType: "application/json" },
-  });
+        config: { responseMimeType: "application/json" },
+      }),
+    );
+  } catch (err) {
+    console.error("[conciliacao-pdf] falha ao chamar a API do Gemini:", err);
+    throw new Error(
+      "O serviço de IA está indisponível no momento (alta demanda). Tente novamente em alguns instantes.",
+    );
+  }
 
   const erroFormato =
     "Formato de PDF não reconhecido. Suportado hoje: extrato de apropriação diária (aplicação/RDC) e extrato da Conta Capital, ambos da Sicoob.";
