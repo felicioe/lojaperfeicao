@@ -75,7 +75,6 @@ import {
   Plus,
   Upload,
   Ban,
-  FileText,
 } from "lucide-react";
 import { useCan } from "@/lib/auth-hooks";
 import { brl, fmtDate } from "@/lib/format";
@@ -198,41 +197,72 @@ function Conciliacao() {
       return proximo;
     });
 
+  // Ponto de entrada único (achado do usuário — issue #720): um PDF e um
+  // OFX da mesma conta cumprem o mesmo papel pro usuário ("confira o
+  // extrato desta conta") mesmo sendo processados de formas bem
+  // diferentes por baixo do pano — por isso ficam no mesmo campo de
+  // arquivo e no mesmo botão aqui, roteados pela extensão. Os resultados
+  // continuam em painéis separados abaixo (Fechamento do extrato pro OFX,
+  // Conferência de saldo por PDF) porque representam coisas diferentes:
+  // o OFX tem lançamento a lançamento pra conciliar, o PDF só o saldo.
   const importar = async () => {
     const file = fileRef.current?.files?.[0];
-    if (!file || !contaId) return toast.error("Selecione a conta e o arquivo OFX.");
+    if (!file || !contaId) return toast.error("Selecione a conta e o arquivo (OFX ou PDF).");
+    const ehPdf = file.name.toLowerCase().endsWith(".pdf");
     setImportando(true);
     try {
       const buffer = await file.arrayBuffer();
       const base64 = btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ""));
-      const resultado = await importarOfx({
-        data: { contaFinanceiraId: contaId, arquivoBase64: base64 },
-      });
-      if (resultado.erros.length > 0) {
-        toast.error(
-          `${resultado.erros.length} de ${resultado.total} linha(s) do extrato não puderam ser lidas — ${resultado.erros[0]}${resultado.erros.length > 1 ? ` (e mais ${resultado.erros.length - 1})` : ""}`,
-        );
-      }
-      if (resultado.novos > 0 || resultado.jaImportados > 0) {
-        toast.success(
-          `${resultado.novos} nova(s) linha(s), ${resultado.jaImportados} já importada(s) anteriormente.`,
-        );
-      }
-      // Vínculo automático (issue #698): baixa manual feita antes do
-      // extrato chegar, casada por valor+data exatos com uma linha nova do
-      // OFX. Aviso separado (não some sozinho) porque é uma ação que o
-      // usuário não pediu explicitamente — ele precisa poder conferir e,
-      // se for coincidência, desfazer em "Conferência do último OFX"
-      // (mesmo botão "Desfazer" dos outros vínculos).
-      if (resultado.vinculosAutomaticos.length > 0) {
-        const qtd = resultado.vinculosAutomaticos.length;
-        toast.warning(
-          `${qtd} baixa(s) manual(is) vinculada(s) automaticamente a linha(s) do extrato (mesmo valor e mesma data). Confira em "Conferência do último OFX" — dá pra desfazer ali se for coincidência.`,
-          { duration: 15000 },
-        );
+
+      if (ehPdf) {
+        const resultado = await conferirSaldoPdf({
+          data: { contaId, arquivoBase64: base64, nomeArquivo: file.name },
+        });
+        if (resultado.diferenca == null) {
+          toast.warning(
+            `Saldo do PDF em ${fmtDate(resultado.dataReferencia)}: ${brl(resultado.saldoPdf)}. Não foi possível calcular o saldo do sistema para comparação.`,
+          );
+        } else if (resultado.diferenca === 0) {
+          toast.success(
+            `Saldo confere em ${fmtDate(resultado.dataReferencia)}: ${brl(resultado.saldoPdf)}.`,
+          );
+        } else {
+          toast.warning(
+            `Diferença de ${brl(resultado.diferenca)} em ${fmtDate(resultado.dataReferencia)} (PDF: ${brl(resultado.saldoPdf)} · Sistema: ${brl(resultado.saldoSistema ?? 0)}).`,
+            { duration: 15000 },
+          );
+        }
+        qc.invalidateQueries({ queryKey: ["conferencia_saldo_pdf", contaId] });
+      } else {
+        const resultado = await importarOfx({
+          data: { contaFinanceiraId: contaId, arquivoBase64: base64 },
+        });
+        if (resultado.erros.length > 0) {
+          toast.error(
+            `${resultado.erros.length} de ${resultado.total} linha(s) do extrato não puderam ser lidas — ${resultado.erros[0]}${resultado.erros.length > 1 ? ` (e mais ${resultado.erros.length - 1})` : ""}`,
+          );
+        }
+        if (resultado.novos > 0 || resultado.jaImportados > 0) {
+          toast.success(
+            `${resultado.novos} nova(s) linha(s), ${resultado.jaImportados} já importada(s) anteriormente.`,
+          );
+        }
+        // Vínculo automático (issue #698): baixa manual feita antes do
+        // extrato chegar, casada por valor+data exatos com uma linha nova do
+        // OFX. Aviso separado (não some sozinho) porque é uma ação que o
+        // usuário não pediu explicitamente — ele precisa poder conferir e,
+        // se for coincidência, desfazer em "Conferência do último OFX"
+        // (mesmo botão "Desfazer" dos outros vínculos).
+        if (resultado.vinculosAutomaticos.length > 0) {
+          const qtd = resultado.vinculosAutomaticos.length;
+          toast.warning(
+            `${qtd} baixa(s) manual(is) vinculada(s) automaticamente a linha(s) do extrato (mesmo valor e mesma data). Confira em "Conferência do último OFX" — dá pra desfazer ali se for coincidência.`,
+            { duration: 15000 },
+          );
+        }
+        invalidate();
       }
       if (fileRef.current) fileRef.current.value = "";
-      invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Falha na importação.");
     } finally {
@@ -480,8 +510,13 @@ function Conciliacao() {
         {podeEditar && (
           <>
             <div>
-              <Label htmlFor="conciliacao-arquivo-ofx">Arquivo OFX</Label>
-              <Input id="conciliacao-arquivo-ofx" ref={fileRef} type="file" accept=".ofx,.qfx" />
+              <Label htmlFor="conciliacao-arquivo-ofx">Extrato (OFX ou PDF)</Label>
+              <Input
+                id="conciliacao-arquivo-ofx"
+                ref={fileRef}
+                type="file"
+                accept=".ofx,.qfx,.pdf"
+              />
             </div>
             <div>
               <Button onClick={importar} disabled={importando || !contaId}>
@@ -499,7 +534,7 @@ function Conciliacao() {
 
       {contaId && resumo && <PainelFechamento resumo={resumo} />}
 
-      {contaId && <PainelConferenciaSaldoPdf contaId={contaId} podeEditar={podeEditar} />}
+      {contaId && <PainelConferenciaSaldoPdf contaId={contaId} />}
 
       {contaId && saldoContas.length > 0 && (
         <PainelSaldoOutrasAplicacoes contas={saldoContas} contaEmConciliacaoId={contaId} />
@@ -1175,56 +1210,18 @@ function PainelSaldoOutrasAplicacoes({
 // do fluxo OFX acima, aqui não há lançamento nenhum pra vincular: só compara
 // o saldo que o PDF informa com o saldo que o sistema calculava pra mesma
 // data, e guarda histórico de cada conferência.
-function PainelConferenciaSaldoPdf({
-  contaId,
-  podeEditar,
-}: {
-  contaId: string;
-  podeEditar: boolean;
-}) {
-  const qc = useQueryClient();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [enviando, setEnviando] = useState(false);
-
+function PainelConferenciaSaldoPdf({ contaId }: { contaId: string }) {
   const { data: historico = [] } = useQuery({
     queryKey: ["conferencia_saldo_pdf", contaId],
     queryFn: () => listarConferenciasSaldoPdf({ data: { contaId } }),
   });
 
-  const conferir = async () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file) return toast.error("Selecione o arquivo PDF do extrato.");
-    setEnviando(true);
-    try {
-      const buffer = await file.arrayBuffer();
-      const base64 = btoa(new Uint8Array(buffer).reduce((s, b) => s + String.fromCharCode(b), ""));
-      const resultado = await conferirSaldoPdf({
-        data: { contaId, arquivoBase64: base64, nomeArquivo: file.name },
-      });
-      if (resultado.diferenca == null) {
-        toast.warning(
-          `Saldo do PDF em ${fmtDate(resultado.dataReferencia)}: ${brl(resultado.saldoPdf)}. Não foi possível calcular o saldo do sistema para comparação.`,
-        );
-      } else if (resultado.diferenca === 0) {
-        toast.success(
-          `Saldo confere em ${fmtDate(resultado.dataReferencia)}: ${brl(resultado.saldoPdf)}.`,
-        );
-      } else {
-        toast.warning(
-          `Diferença de ${brl(resultado.diferenca)} em ${fmtDate(resultado.dataReferencia)} (PDF: ${brl(resultado.saldoPdf)} · Sistema: ${brl(resultado.saldoSistema ?? 0)}).`,
-          { duration: 15000 },
-        );
-      }
-      if (fileRef.current) fileRef.current.value = "";
-      qc.invalidateQueries({ queryKey: ["conferencia_saldo_pdf", contaId] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Falha ao conferir o saldo do PDF.");
-    } finally {
-      setEnviando(false);
-    }
-  };
-
   const ultima: ConferenciaSaldoPdfHistorico | undefined = historico[0];
+
+  // Sem conferência nenhuma ainda e a conta nunca precisou disso (fluxo de
+  // sempre é o OFX) — não ocupa espaço na tela até o primeiro PDF subido
+  // pelo campo único lá em cima.
+  if (historico.length === 0) return null;
 
   return (
     <section
@@ -1245,23 +1242,6 @@ function PainelConferenciaSaldoPdf({
           Suportado: Sicoob (apropriação diária e Conta Capital)
         </Badge>
       </div>
-
-      {podeEditar && (
-        <div className="grid gap-3 border-b p-5 md:grid-cols-[1fr_auto] md:items-end">
-          <div>
-            <Label htmlFor="conciliacao-arquivo-pdf">Arquivo PDF</Label>
-            <Input id="conciliacao-arquivo-pdf" ref={fileRef} type="file" accept=".pdf" />
-          </div>
-          <Button onClick={conferir} disabled={enviando}>
-            {enviando ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <FileText className="h-4 w-4 mr-1" />
-            )}{" "}
-            Conferir saldo por PDF
-          </Button>
-        </div>
-      )}
 
       {ultima && (
         <div className="grid grid-cols-2 gap-4 border-b bg-muted/30 px-5 py-4 text-sm sm:grid-cols-4">
@@ -1290,34 +1270,26 @@ function PainelConferenciaSaldoPdf({
         </div>
       )}
 
-      {historico.length > 0 && (
-        <div className="divide-y">
-          {historico.map((h) => (
-            <div key={h.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-              <div className="min-w-0">
-                <p className="truncate font-medium">{h.nomeArquivo}</p>
-                <p className="text-xs text-muted-foreground">
-                  {fmtDate(h.dataReferencia)} · conferido em {fmtDate(h.criadoEm)}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="font-semibold tabular-nums">{brl(h.saldoPdf)}</p>
-                <p
-                  className={`text-xs tabular-nums ${h.diferenca && h.diferenca !== 0 ? "text-destructive" : "text-muted-foreground"}`}
-                >
-                  {h.diferenca == null ? "sem comparação" : `dif. ${brl(h.diferenca)}`}
-                </p>
-              </div>
+      <div className="divide-y">
+        {historico.map((h) => (
+          <div key={h.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+            <div className="min-w-0">
+              <p className="truncate font-medium">{h.nomeArquivo}</p>
+              <p className="text-xs text-muted-foreground">
+                {fmtDate(h.dataReferencia)} · conferido em {fmtDate(h.criadoEm)}
+              </p>
             </div>
-          ))}
-        </div>
-      )}
-
-      {historico.length === 0 && (
-        <p className="px-5 py-4 text-sm text-muted-foreground">
-          Nenhuma conferência registrada para esta conta ainda.
-        </p>
-      )}
+            <div className="shrink-0 text-right">
+              <p className="font-semibold tabular-nums">{brl(h.saldoPdf)}</p>
+              <p
+                className={`text-xs tabular-nums ${h.diferenca && h.diferenca !== 0 ? "text-destructive" : "text-muted-foreground"}`}
+              >
+                {h.diferenca == null ? "sem comparação" : `dif. ${brl(h.diferenca)}`}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

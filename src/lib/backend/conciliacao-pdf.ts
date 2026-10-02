@@ -3,70 +3,80 @@ import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
-import { carregarPdfParse } from "./importacao-pdf-sessoes";
 
 // Conferência de saldo por PDF (issue #720) — a Conciliação Bancária hoje só
 // confere o extrato OFX linha a linha. Várias contas (aplicações/RDC, Conta
 // Capital na Sicoob) não têm exportação OFX, só PDF — e o PDF deles não traz
-// lançamento nenhum, só o saldo numa data (ver comentário em cada parser
-// abaixo). Por isso este fluxo é deliberadamente mais simples que o OFX: lê
-// o saldo do PDF, calcula o saldo que o sistema tem pra mesma data e mostra
-// a diferença — sem tentar vincular/baixar nada.
+// lançamento nenhum, só o saldo numa data. Por isso este fluxo é
+// deliberadamente mais simples que o OFX: lê o saldo do PDF, calcula o saldo
+// que o sistema tem pra mesma data e mostra a diferença — sem tentar
+// vincular/baixar nada.
 const PAPEIS = ["admin", "tesoureiro"];
-
-function parseValorBr(s: string): number {
-  return Number(s.replace(/\./g, "").replace(",", "."));
-}
 
 export type SaldoExtraidoPdf = { data: string; saldo: number };
 
-// Dois formatos de extrato Sicoob identificados nos PDFs de exemplo do
-// usuário — nenhum dos dois lista lançamentos individuais, só o saldo
-// consolidado:
-//
-// 1) "Extrato de Apropriação Diária" (contas de aplicação/RDC Automático ou
-//    Flexível) — a linha que importa é "Saldo disponível em DD/MM/AAAA:
-//    VALOR" (há também "Saldo bruto", que ainda inclui IR a descontar —
-//    "disponível" é o valor líquido comparável ao saldo do sistema).
-// 2) "Extrato da Conta Capital" (subscrição/integralização de capital) — não
-//    tem uma linha "em DD/MM/AAAA" explícita pro saldo atual; a data de
-//    referência usada é a primeira data DD/MM/AAAA do documento, que nos
-//    exemplos é sempre a data de emissão do extrato (cabeçalho, junto do
-//    horário) — a mesma data em que "SALDO ATUAL"/"SALDO TOTAL" foram
-//    apurados.
-//
-// Qualquer outro formato (ex.: extrato de conta corrente comum, que já tem
-// caminho próprio via OFX) não é reconhecido aqui de propósito — falha com
-// mensagem clara em vez de arriscar extrair um número errado.
-export function extrairSaldoPdfSicoob(textoBruto: string): SaldoExtraidoPdf {
-  if (/EXTRATO DE APROPRIA[ÇC][ÃA]O DI[ÁA]RIA/i.test(textoBruto)) {
-    const m = textoBruto.match(
-      /Saldo dispon[íi]vel em\s*(\d{2})\/(\d{2})\/(\d{4})\s*:?\s*([\d.,]+)/i,
+// Achado (testado com os PDFs reais do usuário): os extratos da Sicoob
+// (apropriação diária e Conta Capital) são impressos por uma impressora
+// virtual (Foxit) direto no internet banking — não têm camada de texto
+// nenhuma, só a imagem da página. O `pdf-parse`/pdfjs (usado no resto do
+// projeto, ex.: importacao-pdf-sessoes.ts) devolve string vazia nesses
+// arquivos — um parser por regex nunca funcionaria aqui. Por isso a
+// extração roda via IA (Gemini, já usado nos assistentes de Legislação e
+// Biblioteca — mesma GEMINI_API_KEY), mandando o PDF inteiro como
+// `inlineData` e pedindo de volta só o JSON estrito abaixo.
+const MODELO_GEMINI = "gemini-flash-latest";
+
+const PROMPT_EXTRACAO = `Este arquivo é (ou deveria ser) um extrato bancário da Sicoob, em um dos dois formatos abaixo. Nenhum dos dois lista lançamentos individuais — o que importa é só o saldo consolidado:
+
+1) "Extrato de Apropriação Diária" (conta de aplicação financeira / RDC Automático ou Flexível) — extraia a data e o valor da linha "Saldo disponível em DD/MM/AAAA" (não a linha "Saldo bruto", que ainda inclui IR a descontar).
+2) "Extrato da Conta Capital" (subscrição/integralização de capital) — extraia o valor de "SALDO TOTAL"; como data, use a data de emissão do extrato (aparece no cabeçalho, geralmente junto da hora, no formato DD/MM/AAAA).
+
+Responda SOMENTE com um JSON, sem nenhum texto antes ou depois, no formato exato:
+{"reconhecido": true, "dataReferencia": "AAAA-MM-DD", "saldo": 1234.56}
+
+Se o arquivo não for nenhum desses dois formatos, ou se você não conseguir identificar os dois campos (data e saldo) com certeza, responda exatamente:
+{"reconhecido": false}`;
+
+const respostaIaSchema = z.discriminatedUnion("reconhecido", [
+  z.object({ reconhecido: z.literal(true), dataReferencia: z.string(), saldo: z.number() }),
+  z.object({ reconhecido: z.literal(false) }),
+]);
+
+export async function extrairSaldoPdfViaIA(bytes: Buffer): Promise<SaldoExtraidoPdf> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Conferência de saldo por PDF requer GEMINI_API_KEY configurada nesta instalação.",
     );
-    if (!m) {
-      throw new Error(
-        "Não foi possível localizar 'Saldo disponível em DD/MM/AAAA' no PDF de apropriação diária.",
-      );
-    }
-    const [, d, mo, a, valorStr] = m;
-    return { data: `${a}-${mo}-${d}`, saldo: parseValorBr(valorStr) };
   }
+  const { GoogleGenAI } = await import("@google/genai");
+  const ai = new GoogleGenAI({ apiKey });
+  const resposta = await ai.models.generateContent({
+    model: MODELO_GEMINI,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: "application/pdf", data: bytes.toString("base64") } },
+          { text: PROMPT_EXTRACAO },
+        ],
+      },
+    ],
+    config: { responseMimeType: "application/json" },
+  });
 
-  if (/EXTRATO DA CONTA CAPITAL/i.test(textoBruto)) {
-    const saldoMatch = textoBruto.match(/SALDO TOTAL\s*:?\s*R?\$?\s*([\d.,]+)/i);
-    const dataMatch = textoBruto.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    if (!saldoMatch || !dataMatch) {
-      throw new Error(
-        "Não foi possível localizar 'SALDO TOTAL' e a data de emissão no PDF da Conta Capital.",
-      );
-    }
-    const [, d, mo, a] = dataMatch;
-    return { data: `${a}-${mo}-${d}`, saldo: parseValorBr(saldoMatch[1]) };
+  const erroFormato =
+    "Formato de PDF não reconhecido. Suportado hoje: extrato de apropriação diária (aplicação/RDC) e extrato da Conta Capital, ambos da Sicoob.";
+  let json: unknown;
+  try {
+    json = JSON.parse((resposta.text ?? "").trim());
+  } catch {
+    throw new Error(erroFormato);
   }
-
-  throw new Error(
-    "Formato de PDF não reconhecido. Suportado hoje: extrato de apropriação diária (aplicação/RDC) e extrato da Conta Capital, ambos da Sicoob.",
-  );
+  const parsed = respostaIaSchema.safeParse(json);
+  if (!parsed.success || !parsed.data.reconhecido) throw new Error(erroFormato);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(parsed.data.dataReferencia)) throw new Error(erroFormato);
+  return { data: parsed.data.dataReferencia, saldo: parsed.data.saldo };
 }
 
 // Saldo que o sistema tem pra uma conta numa data — mesma base de cálculo
@@ -148,10 +158,7 @@ export const conferirSaldoPdf = createServerFn({ method: "POST" })
       } catch {
         throw new Error("Arquivo inválido.");
       }
-      const PDFParse = await carregarPdfParse();
-      const parser = new PDFParse({ data: bytes });
-      const resultado = await parser.getText();
-      const { data: dataReferencia, saldo: saldoPdf } = extrairSaldoPdfSicoob(resultado.text);
+      const { data: dataReferencia, saldo: saldoPdf } = await extrairSaldoPdfViaIA(bytes);
 
       const saldoSistema = await calcularSaldoSistemaNaData(conn, data.contaId, dataReferencia);
       const diferenca =
