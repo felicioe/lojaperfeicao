@@ -676,12 +676,16 @@ export const definirFormaCobranca = createServerFn({ method: "POST" })
     });
   });
 
-// Estorno = exclusão de um lançamento ainda em aberto (fatura errada,
-// duplicada, lançamento manual incorreto etc.) — junto com a contrapartida
-// contábil de partida dobrada (lancamentos_contabeis/itens), se existir,
-// pra não deixar rastro órfão na contabilidade. Só em aberto: um lançamento
-// pago já moveu dinheiro de verdade, apagar destruiria o histórico de
-// caixa — desfaça a baixa antes, se for o caso.
+// Estorno = exclusão de um lançamento (fatura errada, duplicada, lançamento
+// manual incorreto etc.) — junto com a contrapartida contábil de partida
+// dobrada (lancamentos_contabeis/itens), se existir, pra não deixar rastro
+// órfão na contabilidade. Transferência não entra aqui — tem fluxo próprio
+// (estornar_transferencia), que mexe nas duas contas. Pago só é permitido
+// quando não há vínculo (recibo/conciliação/OFX/baixa de conta a pagar) que
+// o estorno direto deixaria órfão — mesmas checagens de desmarcarLancamentoPago,
+// porque aqui a diferença é que o lançamento contábil "próprio" (nascido na
+// criação, não na baixa) é removido junto, não deixado pendurado (issue do
+// usuário: duplicata de "REND. APLIC. FINANCEIRA" paga, sem botão de exclusão).
 export const estornarLancamento = createServerFn({ method: "POST" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
@@ -691,13 +695,53 @@ export const estornarLancamento = createServerFn({ method: "POST" })
         [data.id],
       );
       if (!lancamento) throw new Error("Lançamento não encontrado.");
-      if (lancamento.pago) {
-        throw new Error("Não é possível estornar um lançamento já pago. Desfaça a baixa primeiro.");
+      if (lancamento.tipo === "transferencia") {
+        throw new Error(
+          'Transferência entre contas tem exclusão própria — use o botão "Excluir" da transferência, não este.',
+        );
       }
-      if (Number(lancamento.valor_pago) > 0) {
+      if (!lancamento.pago && Number(lancamento.valor_pago) > 0) {
         throw new Error(
           "Esta fatura já recebeu pagamento parcial — não é possível estorná-la sem reverter o pagamento primeiro.",
         );
+      }
+      if (lancamento.pago) {
+        const [[vinculo]] = await conn.query<RowDataPacket[]>(
+          `SELECT
+             EXISTS(SELECT 1 FROM recibo_itens
+                    WHERE loja_id = @current_loja_id AND lancamento_id = ?) AS tem_recibo,
+             EXISTS(SELECT 1 FROM conciliacao_lancamentos
+                    WHERE loja_id = @current_loja_id AND lancamento_id = ?) AS tem_conciliacao,
+             EXISTS(SELECT 1 FROM ofx_lancamentos
+                    WHERE loja_id = @current_loja_id AND lancamento_id = ? AND conciliado = TRUE)
+               AS tem_ofx_legado,
+             EXISTS(
+               SELECT 1 FROM lancamentos_contabeis
+               WHERE loja_id = @current_loja_id
+                 AND origem_tipo = 'conta_pagar_baixa' AND origem_id = ?
+             ) AS tem_baixa_conta_pagar`,
+          [data.id, data.id, data.id, data.id],
+        );
+        if (vinculo.tem_recibo) {
+          throw new Error(
+            "Este lançamento foi baixado com recibo — excluir por aqui não desfaz o recibo. Desfaça o recibo primeiro.",
+          );
+        }
+        if (vinculo.tem_conciliacao || vinculo.tem_ofx_legado) {
+          throw new Error(
+            'Este lançamento foi quitado por conciliação bancária — use "Desfazer conciliação" antes de excluir.',
+          );
+        }
+        if (vinculo.tem_baixa_conta_pagar) {
+          throw new Error(
+            "Esta conta a pagar foi baixada — excluir por aqui deixaria a baixa inconsistente. Desfaça a baixa primeiro.",
+          );
+        }
+        if (lancamento.parcelado) {
+          throw new Error(
+            "Esta fatura foi absorvida por um acordo de parcelamento — não é possível excluir isoladamente.",
+          );
+        }
       }
       // Mesma trava de INSERT/UPDATE em `lancamentos` (trg_lancamentos_bloqueia_
       // periodo_fechado_*, migração 0045) — um DELETE puro não dispara gatilho
@@ -714,14 +758,15 @@ export const estornarLancamento = createServerFn({ method: "POST" })
       }
 
       // Qualquer lançamento contábil vinculado a este id fica órfão se o
-      // lançamento for apagado — e só chega até aqui com pago=false e
-      // valor_pago=0 (checado acima), então nenhuma origem legítima ainda
-      // "precisa" dessa contrapartida viva. Antes a lista de origem_tipo era
-      // fixa (fatura_provisao, recebimento_avulso, conta_pagar_provisao,
-      // conciliacao_baixa, conta_pagar_baixa, conciliacao_estorno) e não
-      // cobria tronco_saida/recibo_avulso, deixando lançamento contábil
-      // órfão pra essas origens (achado #524 da auditoria de integridade
-      // entre módulos) — por isso o filtro agora é só por origem_id.
+      // lançamento for apagado — e as checagens acima (recibo/conciliação/
+      // OFX/baixa de conta a pagar/parcelamento, quando pago) já garantem
+      // que nenhuma origem legítima ainda "precisa" dessa contrapartida
+      // viva. Antes a lista de origem_tipo era fixa (fatura_provisao,
+      // recebimento_avulso, conta_pagar_provisao, conciliacao_baixa,
+      // conta_pagar_baixa, conciliacao_estorno) e não cobria
+      // tronco_saida/recibo_avulso, deixando lançamento contábil órfão pra
+      // essas origens (achado #524 da auditoria de integridade entre
+      // módulos) — por isso o filtro agora é só por origem_id.
       const [contabeis] = await conn.query<RowDataPacket[]>(
         `SELECT id FROM lancamentos_contabeis
          WHERE loja_id = @current_loja_id

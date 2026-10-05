@@ -805,6 +805,43 @@ export function AcoesLancamento({
               </AlertDialogContent>
             </AlertDialog>
           )}
+          {lancamento.pago && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" aria-label="Excluir" title="Excluir">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir "{lancamento.descricao}"?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Remove definitivamente este lançamento já pago ({brl(lancamento.valor)}) e a
+                    contrapartida contábil própria dele, se existir. Use pra corrigir um lançamento
+                    duplicado ou feito por engano. Se este lançamento tiver recibo, conciliação
+                    bancária, OFX ou baixa de conta a pagar vinculados, a exclusão será recusada —
+                    desfaça o vínculo primeiro pela tela correspondente. Não pode ser desfeito.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      try {
+                        await estornarLancamento({ data: { id: lancamento.id } });
+                        toast.success("Lançamento excluído.");
+                        onDone();
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
+                      }
+                    }}
+                  >
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </>
       )}
     </div>
