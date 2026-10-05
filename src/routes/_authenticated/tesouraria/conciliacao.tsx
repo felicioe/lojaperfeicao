@@ -16,10 +16,13 @@ import {
   obterResumoConciliacaoOfx,
   lancarLoteDeOfx,
   listarHistoricoClassificacoesOfx,
+  informarSaldoBanco,
+  listarSaldosBancoInformados,
   type OfxLancamento,
   type OfxConferencia,
   type ResumoConciliacaoOfx,
   type ItemHistoricoOfx,
+  type SaldoBancoInformadoHistorico,
 } from "@/lib/backend/tesouraria-conciliacao";
 import {
   listarContasFinanceiras,
@@ -118,6 +121,7 @@ function Conciliacao() {
   const [openAnular, setOpenAnular] = useState(false);
   const [openLote, setOpenLote] = useState(false);
   const [openTransferencia, setOpenTransferencia] = useState(false);
+  const [openSaldoManual, setOpenSaldoManual] = useState(false);
   const [alocacaoParcial, setAlocacaoParcial] = useState<Record<string, number>>({});
 
   const { data: contas = [] } = useQuery({
@@ -532,9 +536,35 @@ function Conciliacao() {
         )}
       </Card>
 
+      {podeEditar && contaId && (
+        <div className="-mt-2 mb-4">
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0 text-xs text-muted-foreground"
+            onClick={() => setOpenSaldoManual(true)}
+          >
+            Sem OFX nem PDF disponível? Informar saldo manualmente
+          </Button>
+        </div>
+      )}
+
+      <DialogSaldoManual
+        open={openSaldoManual}
+        onOpenChange={setOpenSaldoManual}
+        contaId={contaId}
+        onDone={() => {
+          setOpenSaldoManual(false);
+          qc.invalidateQueries({ queryKey: ["conciliacao_resumo", contaId] });
+          qc.invalidateQueries({ queryKey: ["saldo_manual_historico", contaId] });
+        }}
+      />
+
       {contaId && resumo && <PainelFechamento resumo={resumo} />}
 
       {contaId && <PainelConferenciaSaldoPdf contaId={contaId} />}
+
+      {contaId && <PainelSaldoManualHistorico contaId={contaId} />}
 
       {contaId && saldoContas.length > 0 && (
         <PainelSaldoOutrasAplicacoes contas={saldoContas} contaEmConciliacaoId={contaId} />
@@ -1028,10 +1058,13 @@ function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
       ? Math.round((resumo.valorConciliado / resumo.totalMovimentado) * 100)
       : 100;
   const fechado = resumo.itensPendentes === 0 && resumo.diferencaBancoSistema === 0;
+  const manual = resumo.origemSaldoBanco === "manual";
   const periodo =
     resumo.dataInicial && resumo.dataFinal
       ? `${fmtDate(resumo.dataInicial)} a ${fmtDate(resumo.dataFinal)}`
-      : "Nenhum período importado";
+      : manual && resumo.dataFinal
+        ? fmtDate(resumo.dataFinal)
+        : "Nenhum período importado";
 
   return (
     <section
@@ -1043,7 +1076,9 @@ function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
           <h2 id="fechamento-ofx" className="font-semibold">
             Fechamento do extrato
           </h2>
-          <p className="text-sm text-muted-foreground">Último OFX importado · {periodo}</p>
+          <p className="text-sm text-muted-foreground">
+            {manual ? "Saldo informado manualmente" : "Último OFX importado"} · {periodo}
+          </p>
         </div>
         <Badge variant={fechado ? "default" : "secondary"} className="w-fit">
           {fechado ? "Fechado sem diferenças" : `${resumo.itensPendentes} item(ns) pendente(s)`}
@@ -1063,12 +1098,14 @@ function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
               label="Saldo final do banco"
               valor={resumo.saldoFinalBanco}
               icon={CircleDollarSign}
-              indisponivel="Importe novo OFX"
+              indisponivel="Sem saldo informado"
               destaque
             />
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            O saldo final é lido diretamente do arquivo do banco; não é estimado pelo sistema.
+            {manual
+              ? "O saldo final foi informado manualmente; não é estimado pelo sistema."
+              : "O saldo final é lido diretamente do arquivo do banco; não é estimado pelo sistema."}
           </p>
         </div>
         <div className="space-y-4 p-5">
@@ -1139,8 +1176,10 @@ function PainelFechamento({ resumo }: { resumo: ResumoConciliacaoOfx }) {
               {fechado
                 ? "Todos os itens foram conciliados e o saldo do sistema confere com o banco."
                 : resumo.saldoFinalBanco == null
-                  ? "Importe novamente o OFX para capturar o saldo bancário e concluir a conferência."
-                  : "A conciliação ainda não pode ser fechada. Resolva os itens pendentes e a diferença indicada."}
+                  ? "Importe o OFX, confira por PDF ou informe o saldo manualmente para concluir a conferência."
+                  : manual
+                    ? "Lance os ajustes necessários até a diferença zerar — o fechamento considera o saldo informado manualmente."
+                    : "A conciliação ainda não pode ser fechada. Resolva os itens pendentes e a diferença indicada."}
             </span>
           </div>
         </div>
@@ -1210,6 +1249,135 @@ function PainelSaldoOutrasAplicacoes({
 // do fluxo OFX acima, aqui não há lançamento nenhum pra vincular: só compara
 // o saldo que o PDF informa com o saldo que o sistema calculava pra mesma
 // data, e guarda histórico de cada conferência.
+// Saldo informado manualmente (achado do usuário) — pra contas sem OFX
+// nem PDF disponível, informa o saldo final numa data direto na mão.
+// Esse valor passa a alimentar o "Fechamento do extrato" (ver
+// origemSaldoBanco em obterResumoConciliacaoOfx) como se fosse o saldo
+// final de um extrato, até que um OFX de verdade seja importado.
+function DialogSaldoManual({
+  open,
+  onOpenChange,
+  contaId,
+  onDone,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  contaId: string;
+  onDone: () => void;
+}) {
+  const [dataSaldo, setDataSaldo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [saldoTexto, setSaldoTexto] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setDataSaldo(new Date().toISOString().slice(0, 10));
+      setSaldoTexto("");
+    }
+  }, [open]);
+
+  const salvar = async () => {
+    const saldo = Number(saldoTexto.replace(",", "."));
+    if (!contaId) return toast.error("Selecione a conta bancária primeiro.");
+    if (!dataSaldo) return toast.error("Informe a data do saldo.");
+    if (saldoTexto.trim() === "" || Number.isNaN(saldo))
+      return toast.error("Informe um saldo válido.");
+    setSalvando(true);
+    try {
+      await informarSaldoBanco({ data: { contaId, dataSaldo, saldo } });
+      toast.success(`Saldo de ${brl(saldo)} em ${fmtDate(dataSaldo)} registrado.`);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao informar o saldo.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Informar saldo manualmente</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Use quando não há OFX nem PDF disponível pra esta conta. O saldo informado passa a valer
+          como o saldo final do banco no "Fechamento do extrato" — lance o que for preciso até a
+          diferença zerar.
+        </p>
+        <div className="grid gap-3">
+          <div>
+            <Label htmlFor="saldo-manual-data">Data do saldo</Label>
+            <Input
+              id="saldo-manual-data"
+              type="date"
+              value={dataSaldo}
+              onChange={(e) => setDataSaldo(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="saldo-manual-valor">Saldo final do banco nessa data</Label>
+            <Input
+              id="saldo-manual-valor"
+              type="number"
+              step="0.01"
+              placeholder="0,00"
+              value={saldoTexto}
+              onChange={(e) => setSaldoTexto(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline" disabled={salvando}>
+              Cancelar
+            </Button>
+          </DialogClose>
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PainelSaldoManualHistorico({ contaId }: { contaId: string }) {
+  const { data: historico = [] } = useQuery({
+    queryKey: ["saldo_manual_historico", contaId],
+    queryFn: () => listarSaldosBancoInformados({ data: { contaId } }),
+  });
+
+  // Sem conta que já tenha usado isso, não ocupa espaço — mesmo padrão do
+  // painel de conferência por PDF.
+  if (historico.length === 0) return null;
+
+  return (
+    <section
+      className="mb-6 overflow-hidden rounded-xl border bg-card"
+      aria-labelledby="saldo-manual-historico"
+    >
+      <div className="border-b px-5 py-4">
+        <h2 id="saldo-manual-historico" className="font-semibold">
+          Histórico de saldos informados manualmente
+        </h2>
+      </div>
+      <div className="divide-y">
+        {historico.map((h: SaldoBancoInformadoHistorico) => (
+          <div key={h.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+            <span className="text-muted-foreground">{fmtDate(h.dataSaldo)}</span>
+            <span className="font-semibold tabular-nums">{brl(h.saldo)}</span>
+            <span className="text-xs text-muted-foreground">
+              informado em {fmtDate(h.informadoEm)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PainelConferenciaSaldoPdf({ contaId }: { contaId: string }) {
   const { data: historico = [] } = useQuery({
     queryKey: ["conferencia_saldo_pdf", contaId],
