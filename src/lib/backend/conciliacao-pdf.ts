@@ -26,14 +26,20 @@ export type SaldoExtraidoPdf = { data: string; saldo: number };
 // `inlineData` e pedindo de volta só o JSON estrito abaixo.
 // Achado (produção, 2026-10-02 a 2026-10-05): "gemini-flash-latest" vem
 // devolvendo 503/UNAVAILABLE ("high demand") de forma persistente, não só
-// em picos passageiros — a retentativa sozinha (ver
-// gerarConteudoComRetentativa) não é suficiente. Por isso, depois de
-// esgotar as tentativas no modelo principal, cai pra um modelo fixo como
-// segunda tentativa — mesmo correndo o risco de descontinuação pontual
-// que o comentário em assistente-legislacao.ts evita, um resultado via
-// modelo B é melhor que nenhum resultado.
-const MODELO_GEMINI = "gemini-flash-latest";
-const MODELO_GEMINI_FALLBACK = "gemini-2.5-flash";
+// em picos passageiros. A conta usada aqui é gratuita (decisão do
+// usuário — não vale a pena habilitar faturamento só pra isso), então não
+// dá pra resolver a causa raiz (cota maior). Mas cada modelo do Gemini
+// tem cota gratuita PRÓPRIA — tentar vários em sequência multiplica as
+// chances de pelo menos um estar disponível no momento, sem custo nenhum.
+// Mesmo correndo o risco pontual de descontinuação que o alias "-latest"
+// evita (ver comentário em assistente-legislacao.ts), um resultado por
+// qualquer um desses modelos é melhor que nenhum resultado.
+const MODELOS_GEMINI = [
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-flash-lite-latest",
+];
 
 const PROMPT_EXTRACAO = `Este arquivo é (ou deveria ser) um extrato bancário da Sicoob, em um dos dois formatos abaixo. Nenhum dos dois lista lançamentos individuais — o que importa é só o saldo consolidado:
 
@@ -56,18 +62,19 @@ function ehErroTemporario(err: unknown): boolean {
   return /"code":\s*503|UNAVAILABLE|overloaded|high demand/i.test(mensagem);
 }
 
-// Sobrecarga transitória do lado do Google — não do PDF em si. Algumas
-// tentativas extras com espera crescente evitam fazer o usuário clicar de
-// novo na mão pra algo que normalmente se resolve sozinho; qualquer outro
-// erro (ex.: chave inválida) falha na hora, sem retentativa.
+// Sobrecarga transitória do lado do Google — não do PDF em si. Só uma
+// retentativa curta por modelo: com vários modelos na lista (cada um com
+// cota própria), vale mais trocar de modelo do que insistir várias vezes
+// no mesmo que já respondeu sobrecarregado. Qualquer outro erro (ex.:
+// chave inválida) falha na hora, sem retentativa nem troca de modelo.
 async function gerarConteudoComRetentativa<T>(chamar: () => Promise<T>): Promise<T> {
-  const MAX_TENTATIVAS = 4;
+  const MAX_TENTATIVAS = 2;
   for (let tentativa = 1; ; tentativa++) {
     try {
       return await chamar();
     } catch (err) {
       if (!ehErroTemporario(err) || tentativa >= MAX_TENTATIVAS) throw err;
-      await new Promise((resolve) => setTimeout(resolve, tentativa * 2500));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
 }
@@ -97,28 +104,27 @@ export async function extrairSaldoPdfViaIA(bytes: Buffer): Promise<SaldoExtraido
         config: { responseMimeType: "application/json" },
       }),
     );
-  let resposta;
-  try {
-    resposta = await gerarComModelo(MODELO_GEMINI);
-  } catch (errPrincipal) {
-    if (!ehErroTemporario(errPrincipal)) {
-      console.error("[conciliacao-pdf] falha ao chamar a API do Gemini:", errPrincipal);
-      throw new Error(
-        "O serviço de IA está indisponível no momento (alta demanda). Tente novamente em alguns instantes.",
-      );
-    }
+  let resposta: Awaited<ReturnType<typeof gerarComModelo>> | undefined;
+  let ultimoErro: unknown;
+  for (const modelo of MODELOS_GEMINI) {
     try {
-      resposta = await gerarComModelo(MODELO_GEMINI_FALLBACK);
-    } catch (errFallback) {
-      console.error(
-        "[conciliacao-pdf] falha ao chamar a API do Gemini (modelo principal e fallback):",
-        errPrincipal,
-        errFallback,
-      );
-      throw new Error(
-        "O serviço de IA está indisponível no momento (alta demanda). Tente novamente em alguns instantes.",
-      );
+      resposta = await gerarComModelo(modelo);
+      break;
+    } catch (err) {
+      ultimoErro = err;
+      // Erro real (ex.: chave inválida) não melhora trocando de modelo —
+      // só sobrecarga transitória justifica seguir tentando o próximo.
+      if (!ehErroTemporario(err)) break;
     }
+  }
+  if (!resposta) {
+    console.error(
+      "[conciliacao-pdf] falha ao chamar a API do Gemini em todos os modelos:",
+      ultimoErro,
+    );
+    throw new Error(
+      "O serviço de IA está indisponível no momento (alta demanda). Tente novamente em alguns instantes.",
+    );
   }
 
   const erroFormato =
