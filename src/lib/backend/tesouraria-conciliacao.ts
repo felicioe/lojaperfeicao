@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
 import { reconstruirDataPagamentoLote } from "./conciliacao-pareamento";
+import { calcularSaldoSistemaNaData } from "./conciliacao-pdf";
 
 // RLS original: SELECT admin/tesoureiro. Sem policy de escrita: a
 // importação roda nesta própria rota server-side; a conciliação roda
@@ -314,6 +315,9 @@ export type ResumoConciliacaoOfx = {
   valorFinanceiroSemOfx: number;
   itensFinanceirosSemOfx: number;
   diferencaBancoSistema: number | null;
+  // De onde veio o saldo final do banco — tela usa isto pra decidir a
+  // mensagem certa ("importe OFX" vs "informado manualmente em DD/MM").
+  origemSaldoBanco: "ofx" | "manual" | null;
 };
 
 export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
@@ -331,6 +335,25 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
         extrato = extratos[0];
       } catch (erro) {
         if ((erro as { code?: string }).code !== "ER_NO_SUCH_TABLE") throw erro;
+      }
+
+      // Saldo informado manualmente (achado do usuário — contas sem OFX e
+      // sem PDF disponível) só entra em jogo quando não há OFX nenhum
+      // importado pra esta conta — OFX de verdade sempre tem prioridade,
+      // mesmo que o saldo manual seja mais recente.
+      let saldoManual: RowDataPacket | undefined;
+      if (!extrato) {
+        try {
+          const [manuais] = await conn.query<RowDataPacket[]>(
+            `SELECT data_saldo, saldo FROM saldos_banco_informados
+             WHERE loja_id = @current_loja_id AND conta_financeira_id = ?
+             ORDER BY data_saldo DESC, informado_em DESC, id DESC LIMIT 1`,
+            [data.contaId],
+          );
+          saldoManual = manuais[0];
+        } catch (erro) {
+          if ((erro as { code?: string }).code !== "ER_NO_SUCH_TABLE") throw erro;
+        }
       }
 
       const periodoSql = extrato ? "AND o.data BETWEEN ? AND ?" : "";
@@ -520,6 +543,15 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
         }
 
         saldoSistema = saldoNaData?.saldo == null ? null : Number(saldoNaData.saldo) + loteSaldo;
+      } else if (saldoManual) {
+        // Mesma base de cálculo da conferência por PDF (issue #720) — sem
+        // linha de OFX pra reconstruir, o saldo do sistema numa data é só
+        // saldo inicial + recibos + lançamentos pagos até ela.
+        saldoSistema = await calcularSaldoSistemaNaData(
+          conn,
+          data.contaId,
+          String(saldoManual.data_saldo),
+        );
       } else {
         // O contaId vem do request: sem o filtro de loja, dava pra ler o
         // saldo da conta bancária de outra Loja passando o id (#349).
@@ -561,14 +593,23 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
            )`,
         paramsFinanceiro,
       );
-      const saldoFinalBanco = extrato?.saldo_final == null ? null : Number(extrato.saldo_final);
+      const saldoFinalBanco =
+        extrato?.saldo_final != null
+          ? Number(extrato.saldo_final)
+          : saldoManual
+            ? Number(saldoManual.saldo)
+            : null;
 
       return {
         dataInicial: extrato?.data_inicial ?? movimentos.data_inicial ?? null,
-        dataFinal: extrato?.data_final ?? movimentos.data_final ?? null,
+        dataFinal:
+          extrato?.data_final ??
+          (saldoManual ? String(saldoManual.data_saldo) : movimentos.data_final) ??
+          null,
         saldoInicialBanco: extrato?.saldo_inicial == null ? null : Number(extrato.saldo_inicial),
         saldoFinalBanco,
         saldoSistema,
+        origemSaldoBanco: extrato ? "ofx" : saldoManual ? "manual" : null,
         entradas: Number(movimentos.entradas),
         saidas: Number(movimentos.saidas),
         totalMovimentado: Number(movimentos.total_movimentado),
@@ -583,6 +624,73 @@ export const obterResumoConciliacaoOfx = createServerFn({ method: "GET" })
             ? null
             : Math.round((saldoFinalBanco - saldoSistema) * 100) / 100,
       };
+    });
+  });
+
+// Saldo informado manualmente (achado do usuário) — pra contas sem OFX
+// nem PDF disponível, o usuário informa o saldo final numa data e o
+// sistema passa a usar isso no "Fechamento do extrato" (obterResumoConciliacaoOfx
+// acima), como se fosse o saldo final de um extrato, até que um OFX de
+// verdade seja importado (que sempre tem prioridade).
+const informarSaldoBancoSchema = z.object({
+  contaId: z.string().uuid(),
+  dataSaldo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  saldo: z.number(),
+});
+
+export const informarSaldoBanco = createServerFn({ method: "POST" })
+  .validator((d: unknown) => informarSaldoBancoSchema.parse(d))
+  .handler(async ({ data }): Promise<{ id: string }> => {
+    return comPapel(PAPEIS, async (conn, usuarioIdAtual, lojaId) => {
+      const [contas] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM contas_financeiras WHERE id = ? AND loja_id = @current_loja_id",
+        [data.contaId],
+      );
+      if (!contas.length) throw new Error("Conta financeira não encontrada nesta Loja.");
+
+      const id = crypto.randomUUID();
+      await conn.query(
+        `INSERT INTO saldos_banco_informados
+           (id, loja_id, conta_financeira_id, data_saldo, saldo, informado_por)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, lojaId, data.contaId, data.dataSaldo, data.saldo, usuarioIdAtual],
+      );
+      await registrarAuditoria(
+        conn,
+        usuarioIdAtual,
+        "informar_saldo_banco",
+        "saldo_banco_informado",
+        id,
+        null,
+        { contaId: data.contaId, dataSaldo: data.dataSaldo, saldo: data.saldo },
+      );
+      return { id };
+    });
+  });
+
+export type SaldoBancoInformadoHistorico = {
+  id: string;
+  dataSaldo: string;
+  saldo: number;
+  informadoEm: string;
+};
+
+export const listarSaldosBancoInformados = createServerFn({ method: "GET" })
+  .validator((d: unknown) => z.object({ contaId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }): Promise<SaldoBancoInformadoHistorico[]> => {
+    return comPapel(PAPEIS, async (conn) => {
+      const [rows] = await conn.query<RowDataPacket[]>(
+        `SELECT id, data_saldo, saldo, informado_em FROM saldos_banco_informados
+         WHERE loja_id = @current_loja_id AND conta_financeira_id = ?
+         ORDER BY data_saldo DESC, informado_em DESC LIMIT 20`,
+        [data.contaId],
+      );
+      return rows.map((r) => ({
+        id: r.id,
+        dataSaldo: String(r.data_saldo),
+        saldo: Number(r.saldo),
+        informadoEm: String(r.informado_em),
+      }));
     });
   });
 
