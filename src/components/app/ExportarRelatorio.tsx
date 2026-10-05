@@ -43,6 +43,7 @@ import type {
   ColunaRelatorio,
   FormatoRelatorio,
   GrupoRelatorio,
+  GrupoRazaoRelatorio,
   LinhaRelatorio,
   TotalRelatorio,
 } from "@/lib/relatorio-export";
@@ -81,6 +82,7 @@ export function ExportarRelatorio({
   grupos,
   resultado,
   subtitulo,
+  gruposRazao,
 }: {
   titulo: string;
   colunas: ColunaRelatorio[];
@@ -95,6 +97,11 @@ export function ExportarRelatorio({
   grupos?: GrupoRelatorio[];
   resultado?: TotalRelatorio | null;
   subtitulo?: string | null;
+  // Razão Contábil agrupado (pedido do usuário): só o PDF usa — conta vira
+  // título de seção em vez de coluna repetida por linha. `colunas`/`linhas`
+  // continuam obrigatórios pro XLSX/CSV/TXT/e-mail, que ficam na tabela
+  // plana de sempre.
+  gruposRazao?: GrupoRazaoRelatorio[];
 }) {
   const { user } = useSession();
   const [exportando, setExportando] = useState<FormatoRelatorio | null>(null);
@@ -125,7 +132,17 @@ export function ExportarRelatorio({
     setExportando(formato);
     try {
       const arquivo = await gerarArquivoRelatorio({
-        data: { formato, titulo, colunas, linhas, totais, grupos, resultado, subtitulo },
+        data: {
+          formato,
+          titulo,
+          colunas,
+          linhas,
+          totais,
+          grupos,
+          resultado,
+          subtitulo,
+          gruposRazao,
+        },
       });
       const blob = base64ParaBlob(arquivo.base64, arquivo.mimeType);
       if (formato === "pdf") {
@@ -190,6 +207,7 @@ export function ExportarRelatorio({
           grupos,
           resultado,
           subtitulo,
+          gruposRazao,
           destinatarios: lista,
         },
       });

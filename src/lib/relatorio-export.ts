@@ -35,6 +35,31 @@ export type GrupoRelatorio = {
 };
 export type OrientacaoRelatorio = "paisagem" | "retrato";
 
+// Razão Contábil agrupado por conta (achado do usuário): a tabela plana
+// repetia a conta em toda linha — correto pra XLSX/CSV (filtro, tabela
+// dinâmica), errado pra PDF, onde a conta é o título da seção, não um
+// dado de cada lançamento. Formato próprio (não reaproveita
+// GrupoRelatorio/ItemGrupoRelatorio, que são o item único "nome + valor"
+// do DRE) porque aqui cada item é um lançamento de verdade, com as
+// mesmas colunas da tabela plana (data/descrição/contraparte/
+// contrapartida/débito/crédito/saldo corrido) menos a própria conta.
+// Só o PDF usa isto — XLSX/CSV/TXT continuam vindo de `colunas`/`linhas`.
+export type ItemRazaoRelatorio = {
+  data: string;
+  descricao: string;
+  contraparte: string;
+  contrapartida: string;
+  debito: number | null;
+  credito: number | null;
+  saldo: number;
+};
+export type GrupoRazaoRelatorio = {
+  titulo: string;
+  saldoAnterior: number;
+  itens: ItemRazaoRelatorio[];
+  saldoFinal: number;
+};
+
 // Nenhum relatório exportado deve ser só uma tabela genérica (pedido do
 // usuário) — todo PDF/XLSX ganha um resumo de totais (quando o chamador
 // informa) e um rodapé com data de geração + quem gerou. CSV/TXT ficam de
@@ -666,6 +691,365 @@ export async function gerarPdfBufferAgrupado(
   return pdf.finalizar();
 }
 
+// Razão Contábil agrupado por conta (pedido do usuário — opção 1 do
+// levantamento: gerador dedicado, sem mexer no modo agrupado do DRE).
+// Paisagem (diferente do DRE, que é retrato): mesmo sem a coluna Conta, a
+// mini-tabela de lançamentos ainda tem 7 colunas (Data/Descrição/
+// Contraparte/Contrapartida/Débito/Crédito/Saldo) — um razão de verdade,
+// impresso, sempre sai deitado por causa disso. Mesma paleta navy/dourado
+// do DRE (gerarPdfBufferAgrupado) pra manter a identidade visual entre os
+// relatórios contábeis do sistema.
+export async function gerarPdfBufferRazao(
+  titulo: string,
+  subtitulo: string | null,
+  grupos: GrupoRazaoRelatorio[],
+  logos: LogoRelatorio[] = [],
+  geradoPor: string | null = null,
+): Promise<Buffer> {
+  const pdf = new PdfSimplesPaisagem("paisagem");
+  const logosPreparados = logos
+    .map((logo) => pdf.prepararImagem(logo.logoUrl))
+    .filter((r): r is { indice: number; largura: number; altura: number } => r !== null);
+
+  const dataGeracao = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date());
+
+  const NAVY = "#213a5f";
+  const NAVY_DEEP = "#16283f";
+  const GOLD = "#a9812f";
+  const INK = "#1c2430";
+  const MUTED = "#5b6472";
+  const ZEBRA = "#f7f9fc";
+  const GOLD_CLARO = "#f4e3b8";
+
+  const xEsq = pdf.margem;
+  const xDir = pdf.larguraPagina - pdf.margem;
+  const larguraUtil = xDir - xEsq;
+
+  // Larguras fixas (não proporcionais ao conteúdo, diferente da tabela
+  // plana): o conjunto de colunas é sempre o mesmo 7, então dá pra
+  // reservar espaço generoso pras três colunas de texto livre — é
+  // justamente a folga que remover a coluna Conta abriu.
+  const L_DATA = 52;
+  const L_DEBITO = 70;
+  const L_CREDITO = 70;
+  const L_SALDO = 78;
+  const larguraTextoTotal = larguraUtil - L_DATA - L_DEBITO - L_CREDITO - L_SALDO;
+  const L_DESCRICAO = Math.round(larguraTextoTotal * 0.46);
+  const L_CONTRAPARTE = Math.round(larguraTextoTotal * 0.27);
+  const L_CONTRAPARTIDA = larguraTextoTotal - L_DESCRICAO - L_CONTRAPARTE;
+
+  const xData = xEsq;
+  const xDescricao = xData + L_DATA;
+  const xContraparte = xDescricao + L_DESCRICAO;
+  const xContrapartida = xContraparte + L_CONTRAPARTE;
+  const xDebito = xContrapartida + L_CONTRAPARTIDA;
+  const xCredito = xDebito + L_DEBITO;
+  const xSaldo = xCredito + L_CREDITO;
+
+  const PADDING_CELULA = 4;
+  const TAMANHO_TEXTO = 7.6;
+  const ALTURA_LINHA_TEXTO = 9.5;
+  const PADDING_VERTICAL = 5;
+
+  const escreverDireita = (
+    texto: string,
+    xFinal: number,
+    yTopo: number,
+    opcoes: { fonte?: FontePdf; tamanho?: number; cor?: string } = {},
+  ) => {
+    const tamanho = opcoes.tamanho ?? TAMANHO_TEXTO;
+    const largura = larguraTextoNumerico(texto, tamanho);
+    pdf.escreverTexto(texto, xFinal - largura, yTopo, opcoes);
+  };
+
+  let cursorY = pdf.margem;
+
+  const desenharLetterhead = () => {
+    const ALTURA_LOGO = 28;
+    if (logosPreparados.length > 0) {
+      let xLogo = xEsq;
+      for (const logo of logosPreparados) {
+        const larguraLogo = (logo.largura / logo.altura) * ALTURA_LOGO;
+        pdf.desenharImagem(logo.indice, xLogo, cursorY, larguraLogo, ALTURA_LOGO);
+        xLogo += larguraLogo + 8;
+      }
+      if (logos[0]?.nome) {
+        pdf.escreverTexto(logos[0].nome, xLogo, cursorY + 9, {
+          fonte: "bold",
+          tamanho: 10.5,
+          cor: NAVY_DEEP,
+        });
+      }
+      cursorY += ALTURA_LOGO + 10;
+    } else if (logos[0]?.nome) {
+      pdf.escreverTexto(logos[0].nome, xEsq, cursorY + 8, {
+        fonte: "bold",
+        tamanho: 10.5,
+        cor: NAVY_DEEP,
+      });
+      cursorY += 22;
+    }
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1.6, NAVY);
+    cursorY += 16;
+    pdf.escreverTexto(titulo, xEsq, cursorY, { fonte: "bold", tamanho: 14, cor: INK });
+    cursorY += 16;
+    if (subtitulo) {
+      pdf.escreverTexto(subtitulo, xEsq, cursorY, { tamanho: 8.5, cor: MUTED });
+      cursorY += 14;
+    }
+    cursorY += 4;
+  };
+
+  const desenharCabecalhoColunas = () => {
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 16, "#e8edf5");
+    const y = cursorY + 4;
+    pdf.escreverTexto("Data", xData + PADDING_CELULA, y, {
+      fonte: "bold",
+      tamanho: 7.4,
+      cor: NAVY_DEEP,
+    });
+    pdf.escreverTexto("Descrição", xDescricao + PADDING_CELULA, y, {
+      fonte: "bold",
+      tamanho: 7.4,
+      cor: NAVY_DEEP,
+    });
+    pdf.escreverTexto("Contraparte", xContraparte + PADDING_CELULA, y, {
+      fonte: "bold",
+      tamanho: 7.4,
+      cor: NAVY_DEEP,
+    });
+    pdf.escreverTexto("Contrapartida", xContrapartida + PADDING_CELULA, y, {
+      fonte: "bold",
+      tamanho: 7.4,
+      cor: NAVY_DEEP,
+    });
+    escreverDireita("Débito", xDebito + L_DEBITO - PADDING_CELULA - 2, y, {
+      fonte: "bold",
+      tamanho: 7.4,
+      cor: NAVY_DEEP,
+    });
+    escreverDireita("Crédito", xCredito + L_CREDITO - PADDING_CELULA - 2, y, {
+      fonte: "bold",
+      tamanho: 7.4,
+      cor: NAVY_DEEP,
+    });
+    escreverDireita("Saldo", xSaldo + L_SALDO - PADDING_CELULA - 2, y, {
+      fonte: "bold",
+      tamanho: 7.4,
+      cor: NAVY_DEEP,
+    });
+    cursorY += 20;
+  };
+
+  const desenharCabecalhoContinuacao = (tituloConta: string) => {
+    pdf.escreverTexto(titulo, xEsq, cursorY, { fonte: "bold", tamanho: 11, cor: INK });
+    pdf.escreverTexto("(continuação)", xEsq + 150, cursorY + 1, { tamanho: 8, cor: MUTED });
+    cursorY += 18;
+    pdf.escreverTexto(tituloConta.toUpperCase(), xEsq, cursorY, {
+      fonte: "bold",
+      tamanho: 8.6,
+      cor: NAVY,
+    });
+    cursorY += 11;
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, NAVY);
+    cursorY += 8;
+    desenharCabecalhoColunas();
+  };
+
+  const garantirEspaco = (alturaNecessaria: number, tituloConta: string) => {
+    if (cursorY + alturaNecessaria <= pdf.alturaPagina - 40) return;
+    pdf.novaPagina();
+    cursorY = pdf.margem;
+    desenharCabecalhoContinuacao(tituloConta);
+  };
+
+  desenharLetterhead();
+
+  let totalDebitoGeral = 0;
+  let totalCreditoGeral = 0;
+  let zebraIndice = 0;
+
+  grupos.forEach((grupo) => {
+    // Cabeçalho da conta + linha de "Saldo anterior" sempre juntos — nunca
+    // deixa o título da seção sozinho no fim de uma página, separado dos
+    // lançamentos que ele introduz.
+    garantirEspaco(11 + 1 + 8 + 20 + ALTURA_LINHA_TEXTO + PADDING_VERTICAL * 2, grupo.titulo);
+    pdf.escreverTexto(grupo.titulo.toUpperCase(), xEsq, cursorY, {
+      fonte: "bold",
+      tamanho: 8.6,
+      cor: NAVY,
+    });
+    cursorY += 11;
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, NAVY);
+    cursorY += 8;
+    desenharCabecalhoColunas();
+    zebraIndice = 0;
+
+    const desenharLinha = (opcoes: {
+      data: string;
+      descricao: string;
+      contraparte: string;
+      contrapartida: string;
+      debito: number | null;
+      credito: number | null;
+      saldo: number;
+      italico?: boolean;
+    }) => {
+      const corTexto = opcoes.italico ? MUTED : INK;
+      const larguraDescricao = L_DESCRICAO - PADDING_CELULA * 2;
+      const larguraContraparte = L_CONTRAPARTE - PADDING_CELULA * 2;
+      const larguraContrapartida = L_CONTRAPARTIDA - PADDING_CELULA * 2;
+      const linhasDescricao = quebrarEmLinhas(opcoes.descricao, larguraDescricao, TAMANHO_TEXTO);
+      const linhasContraparte = quebrarEmLinhas(
+        opcoes.contraparte,
+        larguraContraparte,
+        TAMANHO_TEXTO,
+      );
+      const linhasContrapartida = quebrarEmLinhas(
+        opcoes.contrapartida,
+        larguraContrapartida,
+        TAMANHO_TEXTO,
+      );
+      const numLinhas = Math.max(
+        1,
+        linhasDescricao.length,
+        linhasContraparte.length,
+        linhasContrapartida.length,
+      );
+      const alturaLinha = numLinhas * ALTURA_LINHA_TEXTO + PADDING_VERTICAL;
+
+      garantirEspaco(alturaLinha, grupo.titulo);
+      if (zebraIndice % 2 === 1) {
+        pdf.desenharRetangulo(xEsq, cursorY - 2, larguraUtil, alturaLinha, ZEBRA);
+      }
+      zebraIndice += 1;
+
+      const yTopo = cursorY + 1;
+      if (opcoes.data) {
+        pdf.escreverTexto(opcoes.data, xData + PADDING_CELULA, yTopo, {
+          tamanho: TAMANHO_TEXTO,
+          cor: corTexto,
+        });
+      }
+      linhasDescricao.forEach((linha, i) => {
+        pdf.escreverTexto(linha, xDescricao + PADDING_CELULA, yTopo + i * ALTURA_LINHA_TEXTO, {
+          tamanho: TAMANHO_TEXTO,
+          cor: corTexto,
+          fonte: opcoes.italico ? "bold" : undefined,
+        });
+      });
+      linhasContraparte.forEach((linha, i) => {
+        pdf.escreverTexto(linha, xContraparte + PADDING_CELULA, yTopo + i * ALTURA_LINHA_TEXTO, {
+          tamanho: TAMANHO_TEXTO,
+          cor: corTexto,
+        });
+      });
+      linhasContrapartida.forEach((linha, i) => {
+        pdf.escreverTexto(linha, xContrapartida + PADDING_CELULA, yTopo + i * ALTURA_LINHA_TEXTO, {
+          tamanho: TAMANHO_TEXTO,
+          cor: corTexto,
+        });
+      });
+      if (opcoes.debito != null) {
+        escreverDireita(
+          formatarMoedaSemSimbolo(opcoes.debito),
+          xDebito + L_DEBITO - PADDING_CELULA - 2,
+          yTopo,
+          { tamanho: TAMANHO_TEXTO, cor: corTexto },
+        );
+      }
+      if (opcoes.credito != null) {
+        escreverDireita(
+          formatarMoedaSemSimbolo(opcoes.credito),
+          xCredito + L_CREDITO - PADDING_CELULA - 2,
+          yTopo,
+          { tamanho: TAMANHO_TEXTO, cor: corTexto },
+        );
+      }
+      escreverDireita(
+        formatarMoedaSemSimbolo(opcoes.saldo),
+        xSaldo + L_SALDO - PADDING_CELULA - 2,
+        yTopo,
+        { tamanho: TAMANHO_TEXTO, cor: corTexto, fonte: opcoes.italico ? "bold" : undefined },
+      );
+      cursorY += alturaLinha;
+    };
+
+    desenharLinha({
+      data: "",
+      descricao: "Saldo anterior",
+      contraparte: "",
+      contrapartida: "",
+      debito: null,
+      credito: null,
+      saldo: grupo.saldoAnterior,
+      italico: true,
+    });
+
+    grupo.itens.forEach((item) => {
+      desenharLinha(item);
+      if (item.debito != null) totalDebitoGeral += item.debito;
+      if (item.credito != null) totalCreditoGeral += item.credito;
+    });
+
+    garantirEspaco(ALTURA_LINHA_TEXTO + PADDING_VERTICAL + 10, grupo.titulo);
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, 1, GOLD);
+    cursorY += 6;
+    pdf.escreverTexto("Saldo final", xDescricao + PADDING_CELULA, cursorY, {
+      fonte: "bold",
+      tamanho: 8,
+      cor: NAVY_DEEP,
+    });
+    escreverDireita(
+      formatarMoedaSemSimbolo(grupo.saldoFinal),
+      xSaldo + L_SALDO - PADDING_CELULA - 2,
+      cursorY,
+      { fonte: "bold", tamanho: 8, cor: NAVY_DEEP },
+    );
+    cursorY += 20;
+  });
+
+  // Fechamento geral — soma de débitos/créditos de TODAS as contas do
+  // relatório. Diferente do "Saldo final" por conta (que é sempre
+  // significativo), somar saldo entre contas heterogêneas não faria
+  // sentido contábil; débito/crédito total, sim — é o fechamento clássico
+  // de um razão com várias contas (total bate = partidas dobradas OK).
+  if (grupos.length > 1) {
+    garantirEspaco(26, "Totais");
+    const ALTURA_FAIXA = 24;
+    pdf.desenharRetangulo(xEsq, cursorY, larguraUtil, ALTURA_FAIXA, NAVY_DEEP);
+    pdf.escreverTexto("TOTAL GERAL (TODAS AS CONTAS)", xEsq + 10, cursorY + 8, {
+      fonte: "bold",
+      tamanho: 8,
+      cor: "#cfd9e6",
+    });
+    escreverDireita(
+      `Débito ${formatarMoedaSemSimbolo(totalDebitoGeral)}`,
+      xCredito - 14,
+      cursorY + 7,
+      { fonte: "bold", tamanho: 8.5, cor: GOLD_CLARO },
+    );
+    escreverDireita(
+      `Crédito ${formatarMoedaSemSimbolo(totalCreditoGeral)}`,
+      xSaldo + L_SALDO - PADDING_CELULA - 2,
+      cursorY + 7,
+      { fonte: "bold", tamanho: 8.5, cor: GOLD_CLARO },
+    );
+  }
+
+  pdf.escreverTextoEmTodasPaginas(
+    `Gerado em ${dataGeracao}${geradoPor ? ` por ${geradoPor}` : ""}`,
+    36,
+    pdf.alturaPagina - 22,
+    { tamanho: 7, cor: "#8b95a5" },
+  );
+
+  return pdf.finalizar();
+}
+
 function formatarValor(v: string | number | null, formato?: "moeda"): string {
   if (v === null || v === undefined) return "";
   if (formato === "moeda" && typeof v === "number") return formatarMoedaSemSimbolo(v);
@@ -686,6 +1070,274 @@ function truncarTexto(texto: string, maxCaracteres: number): string {
   if (texto.length <= maxCaracteres) return texto;
   if (maxCaracteres <= 1) return texto.slice(0, maxCaracteres);
   return `${texto.slice(0, Math.max(0, maxCaracteres - 1))}…`;
+}
+
+// Métrica oficial Adobe (AFM) de Helvetica/Helvetica-Bold, em milésimos do
+// corpo da fonte — mesma base de LARGURA_HELVETICA_NUMERICA acima, agora
+// para o alfabeto inteiro. Usada pra quebrar texto em linhas pela largura
+// REAL de cada caractere (gerarPdfBufferRazao), em vez da contagem de
+// caracteres aproximada (largura/4.2) que o resto do gerador usa e que
+// cortava Descrição/Contraparte no meio da palavra com "…".
+const LARGURA_HELVETICA: Record<string, number> = {
+  " ": 278,
+  "!": 278,
+  '"': 355,
+  "#": 556,
+  $: 556,
+  "%": 889,
+  "&": 667,
+  "'": 191,
+  "(": 333,
+  ")": 333,
+  "*": 389,
+  "+": 584,
+  ",": 278,
+  "-": 333,
+  ".": 278,
+  "/": 278,
+  "0": 556,
+  "1": 556,
+  "2": 556,
+  "3": 556,
+  "4": 556,
+  "5": 556,
+  "6": 556,
+  "7": 556,
+  "8": 556,
+  "9": 556,
+  ":": 278,
+  ";": 278,
+  "<": 584,
+  "=": 584,
+  ">": 584,
+  "?": 556,
+  "@": 1015,
+  A: 667,
+  B: 667,
+  C: 722,
+  D: 722,
+  E: 667,
+  F: 611,
+  G: 778,
+  H: 722,
+  I: 278,
+  J: 500,
+  K: 667,
+  L: 556,
+  M: 833,
+  N: 722,
+  O: 778,
+  P: 667,
+  Q: 778,
+  R: 722,
+  S: 667,
+  T: 611,
+  U: 722,
+  V: 667,
+  W: 944,
+  X: 667,
+  Y: 667,
+  Z: 611,
+  "[": 278,
+  "\\": 278,
+  "]": 278,
+  "^": 469,
+  _: 556,
+  "`": 333,
+  a: 556,
+  b: 556,
+  c: 500,
+  d: 556,
+  e: 556,
+  f: 278,
+  g: 556,
+  h: 556,
+  i: 222,
+  j: 222,
+  k: 500,
+  l: 222,
+  m: 833,
+  n: 556,
+  o: 556,
+  p: 556,
+  q: 556,
+  r: 333,
+  s: 500,
+  t: 278,
+  u: 556,
+  v: 500,
+  w: 722,
+  x: 500,
+  y: 500,
+  z: 500,
+  "{": 334,
+  "|": 260,
+  "}": 334,
+  "~": 584,
+};
+const LARGURA_HELVETICA_BOLD: Record<string, number> = {
+  " ": 278,
+  "!": 333,
+  '"': 474,
+  "#": 556,
+  $: 556,
+  "%": 889,
+  "&": 722,
+  "'": 238,
+  "(": 333,
+  ")": 333,
+  "*": 389,
+  "+": 584,
+  ",": 278,
+  "-": 333,
+  ".": 278,
+  "/": 278,
+  "0": 556,
+  "1": 556,
+  "2": 556,
+  "3": 556,
+  "4": 556,
+  "5": 556,
+  "6": 556,
+  "7": 556,
+  "8": 556,
+  "9": 556,
+  ":": 333,
+  ";": 333,
+  "<": 584,
+  "=": 584,
+  ">": 584,
+  "?": 611,
+  "@": 975,
+  A: 722,
+  B: 722,
+  C: 722,
+  D: 722,
+  E: 667,
+  F: 611,
+  G: 778,
+  H: 722,
+  I: 278,
+  J: 556,
+  K: 722,
+  L: 611,
+  M: 833,
+  N: 722,
+  O: 778,
+  P: 667,
+  Q: 778,
+  R: 722,
+  S: 667,
+  T: 611,
+  U: 722,
+  V: 667,
+  W: 944,
+  X: 667,
+  Y: 667,
+  Z: 611,
+  "[": 333,
+  "\\": 278,
+  "]": 333,
+  "^": 584,
+  _: 556,
+  "`": 333,
+  a: 556,
+  b: 611,
+  c: 556,
+  d: 611,
+  e: 556,
+  f: 333,
+  g: 611,
+  h: 611,
+  i: 278,
+  j: 278,
+  k: 556,
+  l: 278,
+  m: 889,
+  n: 611,
+  o: 611,
+  p: 611,
+  q: 611,
+  r: 389,
+  s: 556,
+  t: 333,
+  u: 611,
+  v: 556,
+  w: 778,
+  x: 556,
+  y: 556,
+  z: 500,
+  "{": 389,
+  "|": 280,
+  "}": 389,
+  "~": 584,
+};
+
+function larguraTextoReal(texto: string, tamanho: number, negrito = false): number {
+  const tabela = negrito ? LARGURA_HELVETICA_BOLD : LARGURA_HELVETICA;
+  let total = 0;
+  for (const ch of texto) total += ((tabela[ch] ?? 556) / 1000) * tamanho;
+  return total;
+}
+
+// Quebra uma única "palavra" (sem espaço) mais larga que a coluna inteira
+// em pedaços que cabem — nunca deixa a palavra vazar pra fora da coluna
+// nem corta com "…"; só quebra em mais pedaços do que o ideal (ex.: um
+// e-mail ou texto colado sem espaço).
+function quebrarPalavraLonga(
+  palavra: string,
+  larguraMax: number,
+  tamanho: number,
+  negrito: boolean,
+): string[] {
+  const partes: string[] = [];
+  let atual = "";
+  for (const ch of palavra) {
+    const candidato = atual + ch;
+    if (atual === "" || larguraTextoReal(candidato, tamanho, negrito) <= larguraMax) {
+      atual = candidato;
+    } else {
+      partes.push(atual);
+      atual = ch;
+    }
+  }
+  if (atual) partes.push(atual);
+  return partes;
+}
+
+// Quebra de linha "de verdade" (largura real dos glifos, não contagem de
+// caracteres) — usada pelas colunas de texto do Razão agrupado pra nunca
+// truncar: Descrição/Contraparte/Contrapartida crescem em altura (mais
+// linhas) em vez de cortar. Normaliza antes de medir (mesma normalização
+// que `textoPdf` aplica na hora de desenhar — acentos viram sem-acento,
+// travessão vira hífen etc.) pra medir exatamente o que vai ser renderizado.
+function quebrarEmLinhas(
+  textoBruto: string,
+  larguraMax: number,
+  tamanho: number,
+  negrito = false,
+): string[] {
+  const texto = normalizarTextoPdf(textoBruto).trim();
+  if (!texto) return [""];
+  const linhas: string[] = [];
+  let linhaAtual = "";
+  for (const palavra of texto.split(/\s+/)) {
+    const partes =
+      larguraTextoReal(palavra, tamanho, negrito) <= larguraMax
+        ? [palavra]
+        : quebrarPalavraLonga(palavra, larguraMax, tamanho, negrito);
+    for (const parte of partes) {
+      const candidato = linhaAtual ? `${linhaAtual} ${parte}` : parte;
+      if (linhaAtual === "" || larguraTextoReal(candidato, tamanho, negrito) <= larguraMax) {
+        linhaAtual = candidato;
+      } else {
+        linhas.push(linhaAtual);
+        linhaAtual = parte;
+      }
+    }
+  }
+  if (linhaAtual) linhas.push(linhaAtual);
+  return linhas.length > 0 ? linhas : [""];
 }
 
 type FontePdf = "regular" | "bold";
@@ -1087,6 +1739,12 @@ export async function gerarArquivo(
   grupos: GrupoRelatorio[] = [],
   resultado: TotalRelatorio | null = null,
   subtitulo: string | null = null,
+  // Razão Contábil agrupado (pedido do usuário — opção 1 do levantamento):
+  // só o PDF tem desenho dedicado (gerarPdfBufferRazao) — XLSX/CSV/TXT
+  // continuam vindo de `colunas`/`linhas` (tabela plana com a conta
+  // repetida por linha, que é justamente o formato certo pra filtrar numa
+  // planilha).
+  gruposRazao: GrupoRazaoRelatorio[] = [],
 ): Promise<Buffer> {
   // CSV/TXT ficam sem logo/totais/rodapé de propósito — são formato de
   // texto puro pra importar em outro sistema, não pra leitura humana
@@ -1098,6 +1756,9 @@ export async function gerarArquivo(
     return gerarXlsxBuffer(titulo, colunas, linhas, logos, totais, geradoPor);
   }
   if (formato === "pdf") {
+    if (gruposRazao.length > 0) {
+      return gerarPdfBufferRazao(titulo, subtitulo, gruposRazao, logos, geradoPor);
+    }
     if (grupos.length > 0) {
       return gerarPdfBufferAgrupado(titulo, subtitulo, grupos, resultado, logos, geradoPor);
     }
