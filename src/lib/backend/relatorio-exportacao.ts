@@ -29,6 +29,23 @@ const grupoSchema = z.object({
   itens: z.array(itemGrupoSchema),
   subtotal: totalSchema,
 });
+// Razão Contábil agrupado (issue do usuário — conta vira título de seção
+// em vez de coluna repetida por linha, só no PDF).
+const itemRazaoSchema = z.object({
+  data: z.string(),
+  descricao: z.string(),
+  contraparte: z.string(),
+  contrapartida: z.string(),
+  debito: z.number().nullable(),
+  credito: z.number().nullable(),
+  saldo: z.number(),
+});
+const grupoRazaoSchema = z.object({
+  titulo: z.string(),
+  saldoAnterior: z.number(),
+  itens: z.array(itemRazaoSchema),
+  saldoFinal: z.number(),
+});
 
 const baseSchema = z.object({
   formato: z.enum(["xlsx", "pdf", "csv", "txt"]),
@@ -39,6 +56,7 @@ const baseSchema = z.object({
   grupos: z.array(grupoSchema).max(10).optional(),
   resultado: totalSchema.nullable().optional(),
   subtitulo: z.string().max(200).nullable().optional(),
+  gruposRazao: z.array(grupoRazaoSchema).max(500).optional(),
 });
 
 // Nome de quem gerou, pro rodapé (issue #377) — nome completo se tiver
@@ -74,6 +92,7 @@ export const gerarArquivoRelatorio = createServerFn({ method: "POST" })
         data.grupos ?? [],
         data.resultado ?? null,
         data.subtitulo ?? null,
+        data.gruposRazao ?? [],
       );
       return {
         base64: buffer.toString("base64"),
@@ -112,6 +131,7 @@ export const enviarRelatorioPorEmail = createServerFn({ method: "POST" })
           data.grupos ?? [],
           data.resultado ?? null,
           data.subtitulo ?? null,
+          data.gruposRazao ?? [],
         );
         return enviarArquivoPorEmail({
           lojaId,

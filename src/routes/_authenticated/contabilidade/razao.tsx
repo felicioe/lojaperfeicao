@@ -35,7 +35,11 @@ import {
 import { useMemo, useRef, useState } from "react";
 import { brl, fmtDate, toISODate } from "@/lib/format";
 import { usePaginacao } from "@/lib/use-paginacao";
-import type { ColunaRelatorio } from "@/lib/relatorio-export";
+import type {
+  ColunaRelatorio,
+  GrupoRazaoRelatorio,
+  ItemRazaoRelatorio,
+} from "@/lib/relatorio-export";
 
 // Parâmetros opcionais na URL (issue #405) — permite chegar aqui já filtrado
 // a partir de outra tela (DRE: clicar numa conta abre o Razão dela no mesmo
@@ -301,13 +305,56 @@ function Razao() {
     );
   }, [modo, linhasIndividual, contasFiltradas, contas, contaId]);
 
+  // Razão agrupado por conta (achado do usuário — issue da conta repetida
+  // por linha no PDF): mesma fonte de dados de linhasExportacao, só que a
+  // conta vira título da seção (GrupoRazaoRelatorio) em vez de coluna.
+  // Usado só pelo PDF — ExportarRelatorio continua recebendo
+  // colunas/linhas também, pro XLSX/CSV/TXT/e-mail.
+  const gruposRazao = useMemo<GrupoRazaoRelatorio[]>(() => {
+    const itemDe = (l: (typeof linhasIndividual)[number]): ItemRazaoRelatorio => ({
+      data: fmtDate(l.lancamentos_contabeis.data),
+      descricao: l.descricao ?? l.lancamentos_contabeis.descricao,
+      contraparte: l.contraparte ?? "",
+      contrapartida: l.contrapartida ?? "",
+      debito: l.tipo === "debito" ? Number(l.valor) : null,
+      credito: l.tipo === "credito" ? Number(l.valor) : null,
+      saldo: l.saldo,
+    });
+    if (modo === "individual") {
+      const conta = contas.find((c) => c.id === contaId);
+      if (!conta) return [];
+      return [
+        {
+          titulo: `${conta.codigo} — ${conta.nome}`,
+          saldoAnterior,
+          itens: linhasIndividual.map(itemDe),
+          saldoFinal: linhasIndividual.at(-1)?.saldo ?? saldoAnterior,
+        },
+      ];
+    }
+    return contasFiltradas.map((c) => ({
+      titulo: `${c.codigo} — ${c.nome}`,
+      saldoAnterior: c.saldoAnterior,
+      itens: c.linhasComSaldo.map(itemDe),
+      saldoFinal: c.linhasComSaldo.at(-1)?.saldo ?? c.saldoAnterior,
+    }));
+  }, [modo, linhasIndividual, contasFiltradas, contas, contaId, saldoAnterior]);
+
+  const subtituloExportacao = `Período: ${fmtDate(de)} a ${fmtDate(ate)}`;
+
   return (
     <>
       <PageHeader
         title="Razão Contábil"
         description="Movimentação pelo regime de caixa, com saldo acumulado — de uma conta, de um grupo, ou de todas."
         actions={
-          <ExportarRelatorio titulo="Razão Contábil" colunas={COLUNAS} linhas={linhasExportacao} />
+          <ExportarRelatorio
+            titulo="Razão Contábil"
+            colunas={COLUNAS}
+            linhas={linhasExportacao}
+            gruposRazao={gruposRazao}
+            subtitulo={subtituloExportacao}
+          />
         }
       />
 
