@@ -92,7 +92,7 @@ function HomePublica() {
                 <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
                 Agenda de sessões e conteúdo restrito ficam disponíveis depois do login.
               </div>
-              <Button size="sm" asChild>
+              <Button size="sm" className="h-11 sm:h-11" asChild>
                 <Link to="/auth" search={{ redirect: "/agenda" }}>
                   Entrar
                 </Link>
