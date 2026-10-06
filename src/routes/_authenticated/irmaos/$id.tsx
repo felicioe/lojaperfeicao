@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/table";
 import { TableHeadOrdenavel } from "@/components/app/TableHeadOrdenavel";
 import { Badge } from "@/components/ui/badge";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCan } from "@/lib/auth-hooks";
 import { useOrdenacao } from "@/lib/use-ordenacao";
 import { redimensionarImagemParaDataUrl } from "@/lib/data-url";
@@ -133,6 +133,22 @@ function IrmaoDetail() {
     queryKey: ["irmao", id],
     queryFn: () => obterIrmao({ data: { id } }),
   });
+
+  // `perfil` é um rascunho local editável, inicializado uma vez a partir de
+  // `data` (o guard `!perfil` evita que um refetch em background — ex. após
+  // salvar — apague edições em andamento). Mas a rota reaproveita o mesmo
+  // componente ao navegar entre dois perfis (ex. botão "voltar" do
+  // navegador entre /irmaos/A e /irmaos/B já visitados) — só o parâmetro
+  // `id` muda, sem desmontar. Sem resetar `perfil` quando `id` muda, a tela
+  // continuava mostrando (e podia salvar) os dados do irmão anterior sob o
+  // `id` do novo (achado crítico da revisão de frontend, 2026-10-06).
+  const idAnteriorRef = useRef(id);
+  useEffect(() => {
+    if (idAnteriorRef.current !== id) {
+      idAnteriorRef.current = id;
+      setPerfil(null);
+    }
+  }, [id]);
 
   useEffect(() => {
     if (data && !perfil) setPerfil(data);
