@@ -223,3 +223,38 @@ export const togglePresenca = createServerFn({ method: "POST" })
       );
     });
   });
+
+// Marca/desmarca uma falta como justificada — a coluna `justificado` existe
+// desde a 0002 e já era exibida em listarFrequenciaIrmao/painel de
+// frequência, mas nunca tinha um caminho de escrita (achado da revisão do
+// módulo Irmãos/SGCAB): toda ausência aparecia como "não justificada" pro
+// próprio irmão, mesmo quando avisou com antecedência. INSERT...ON
+// DUPLICATE KEY sem tocar em `presente` preserva o valor atual (cria a
+// linha com presente=FALSE só se ainda não existir nenhum registro pra
+// este irmão nesta sessão).
+export const definirJustificativaPresenca = createServerFn({ method: "POST" })
+  .validator((d: unknown) =>
+    z
+      .object({ sessaoId: z.string().uuid(), irmaoId: z.string().uuid(), justificado: z.boolean() })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    return comPapel(PAPEIS_ESCRITA, async (conn, _usuarioId, lojaId) => {
+      const [[irmao]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM irmaos WHERE id = ? AND loja_id = @current_loja_id",
+        [data.irmaoId],
+      );
+      if (!irmao) throw new Error("Irmão não encontrado nesta Loja.");
+      const [[sessao]] = await conn.query<RowDataPacket[]>(
+        "SELECT id FROM sessoes WHERE id = ? AND loja_id = @current_loja_id",
+        [data.sessaoId],
+      );
+      if (!sessao) throw new Error("Sessão não encontrada nesta Loja.");
+      await conn.query(
+        `INSERT INTO presencas (loja_id, sessao_id, irmao_id, presente, justificado)
+         VALUES (?, ?, ?, FALSE, ?)
+         ON DUPLICATE KEY UPDATE justificado = VALUES(justificado)`,
+        [lojaId, data.sessaoId, data.irmaoId, data.justificado],
+      );
+    });
+  });
