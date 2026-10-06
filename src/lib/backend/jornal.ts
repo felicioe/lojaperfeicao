@@ -58,10 +58,19 @@ async function montarJornal(
 ): Promise<JornalMontado | null> {
   if (!noticiaIds.includes(mancheteId)) return null;
 
+  // visibilidade = 'publica': a edição do jornal vira página pública sem
+  // login nenhum (/jornal/:numero) e o HTML é gravado permanentemente em
+  // edicoes_jornal.html — uma notícia 'restrita' (issue #690) selecionada
+  // aqui contornaria essa restrição de forma definitiva, sem gate algum.
+  // Como rows.length só bate com noticiaIds.length se TODAS as notícias
+  // selecionadas forem públicas, uma restrita entre elas faz a função
+  // devolver null (mesmo caminho de "notícia inválida" de antes) — achado
+  // da revisão do módulo CMS, 2026-10-06.
   const placeholders = noticiaIds.map(() => "?").join(",");
   const [rows] = await conn.query<RowDataPacket[]>(
     `SELECT id, titulo, resumo, imagem_capa_url FROM noticias
-     WHERE loja_id = ? AND status = 'publicado' AND id IN (${placeholders})`,
+     WHERE loja_id = ? AND status = 'publicado' AND visibilidade = 'publica'
+       AND id IN (${placeholders})`,
     [lojaId, ...noticiaIds],
   );
   if (rows.length !== noticiaIds.length) return null;
@@ -172,7 +181,7 @@ export const obterPreviaJornal = createServerFn({ method: "GET" })
       );
       if (!montado) {
         throw new Error(
-          "Alguma notícia selecionada não existe, não está publicada, ou a manchete não está entre as selecionadas.",
+          "Alguma notícia selecionada não existe, não está publicada, é restrita a Irmãos, ou a manchete não está entre as selecionadas.",
         );
       }
       return { assunto: montado.assunto, html: montado.html };
@@ -198,7 +207,7 @@ export const publicarEEnviarJornal = createServerFn({ method: "POST" })
       );
       if (!web) {
         throw new Error(
-          "Alguma notícia selecionada não existe, não está publicada, ou a manchete não está entre as selecionadas.",
+          "Alguma notícia selecionada não existe, não está publicada, é restrita a Irmãos, ou a manchete não está entre as selecionadas.",
         );
       }
 

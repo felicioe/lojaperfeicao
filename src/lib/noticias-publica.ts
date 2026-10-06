@@ -132,14 +132,22 @@ export async function carregarNoticiaPublicaPorId(
 /** Conteúdo binário da imagem de capa, sob demanda — servido por
  * /api/publico/noticias/:id/imagem (server.ts). Mesmo raciocínio de
  * obterImagemEAnexoNoticia (noticias.ts): busca de UMA linha só, nunca
- * numa lista. */
+ * numa lista.
+ *
+ * `incluirRestritas` (achado da revisão do módulo CMS, 2026-10-06): sem
+ * isso, a imagem de uma notícia `visibilidade='restrita'` ficava acessível
+ * por UUID a qualquer visitante anônimo — carregarNoticiaPublicaPorId já
+ * escondia texto/título (issue #690), mas esta rota de binário não checava
+ * a mesma coluna, então quem soubesse o UUID baixava a imagem sem login. */
 export async function carregarImagemCapaNoticiaPublica(
   id: string,
+  incluirRestritas = false,
 ): Promise<{ mime: string; buffer: Buffer } | null> {
   return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [[row]] = await conn.query<RowDataPacket[]>(
       `SELECT imagem_capa_url FROM noticias
-       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ?`,
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ?
+         ${condicaoVisibilidade(incluirRestritas)}`,
       [id],
     );
     const dataUrl = row?.imagem_capa_url as string | undefined;
@@ -151,14 +159,17 @@ export async function carregarImagemCapaNoticiaPublica(
 }
 
 /** Conteúdo binário do anexo (PDF ou imagem), sob demanda — servido por
- * /api/publico/noticias/:id/anexo (server.ts). */
+ * /api/publico/noticias/:id/anexo (server.ts). Mesmo `incluirRestritas` da
+ * imagem de capa acima, pelo mesmo motivo. */
 export async function carregarAnexoNoticiaPublica(
   id: string,
+  incluirRestritas = false,
 ): Promise<{ mime: string; buffer: Buffer; nomeOriginal: string | null } | null> {
   return withLojaConnection(LOJA_PORTAL_PUBLICO, async (conn) => {
     const [[row]] = await conn.query<RowDataPacket[]>(
       `SELECT anexo_url, anexo_nome_original FROM noticias
-       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ?`,
+       WHERE loja_id = @current_loja_id AND status = 'publicado' AND id = ?
+         ${condicaoVisibilidade(incluirRestritas)}`,
       [id],
     );
     const dataUrl = row?.anexo_url as string | undefined;
