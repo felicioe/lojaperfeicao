@@ -76,7 +76,7 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
 
   return (
     <Card className="mx-auto max-w-2xl overflow-hidden print:border-none print:shadow-none">
-      <div className="bg-primary px-8 py-1.5 text-center text-xs font-medium text-primary-foreground print:bg-primary">
+      <div className="bg-primary px-8 py-1.5 text-center text-sm font-medium text-primary-foreground print:bg-primary">
         {fatura.pago
           ? "Fatura quitada"
           : "Documento gerado eletronicamente pelo sistema — pagamento exclusivo via Pix"}
@@ -92,7 +92,7 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
           <div className="flex shrink-0 flex-col items-end gap-1">
             <span
               className={
-                "rounded-full px-3 py-1 text-xs font-medium " +
+                "rounded-full px-3 py-1 text-sm font-medium " +
                 (fatura.pago
                   ? "bg-success-muted text-success-foreground"
                   : "bg-warning-muted text-warning-foreground")
@@ -100,38 +100,38 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
             >
               {fatura.pago ? "Pago" : fatura.valor_pago > 0 ? "Parcial" : "Em aberto"}
             </span>
-            <span className="text-xs text-muted-foreground">Emitida em {hoje}</span>
+            <span className="text-sm text-muted-foreground">Emitida em {hoje}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Favorecido
             </div>
             <div className="font-medium">
               {(loja?.razaoSocial || loja?.nome || "").toUpperCase()}
             </div>
-            {loja?.cnpj && <div className="text-xs text-muted-foreground">CNPJ {loja.cnpj}</div>}
+            {loja?.cnpj && <div className="text-sm text-muted-foreground">CNPJ {loja.cnpj}</div>}
           </div>
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Pagador
             </div>
             <div className="font-medium">{fatura.irmao_nome ?? "—"}</div>
             {fatura.irmao_cim && (
-              <div className="text-xs text-muted-foreground">CIM {fatura.irmao_cim}</div>
+              <div className="text-sm text-muted-foreground">CIM {fatura.irmao_cim}</div>
             )}
           </div>
         </div>
 
         <div className="text-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Referente a
           </div>
           <div className="font-medium">{fatura.descricao}</div>
           {fatura.competencia_mes && (
-            <div className="text-xs text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               Competência {fmtMesAno(fatura.competencia_mes)} · Emissão {fmtDate(fatura.data)}
             </div>
           )}
@@ -139,26 +139,26 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
 
         <div className="grid grid-cols-3 divide-x rounded-md border bg-muted/40">
           <div className="p-3">
-            <div className="text-xs text-muted-foreground">Vencimento</div>
+            <div className="text-sm text-muted-foreground">Vencimento</div>
             <div className="font-semibold">
               {fatura.data_vencimento ? fmtDate(fatura.data_vencimento) : "—"}
             </div>
           </div>
           <div className="p-3">
-            <div className="text-xs text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               {fatura.valor_pago > 0 && !fatura.pago ? "Saldo restante" : "Valor"}
             </div>
             <div className="text-lg font-semibold">
               {brl(Number(fatura.valor) - Number(fatura.valor_pago))}
             </div>
             {fatura.valor_pago > 0 && !fatura.pago && (
-              <div className="text-xs text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 {brl(fatura.valor_pago)} já pago de {brl(fatura.valor)}
               </div>
             )}
           </div>
           <div className="p-3">
-            <div className="text-xs text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               {fatura.pago ? "Pago em" : "Forma de pagamento"}
             </div>
             <div className="font-semibold">
@@ -173,25 +173,25 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
               <div className="flex flex-col items-center gap-4 bg-muted/30 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-2 text-center sm:text-left">
                   <div className="text-sm font-semibold">Pague com Pix</div>
-                  <p className="max-w-xs text-xs text-muted-foreground">
+                  <p className="max-w-xs text-sm text-muted-foreground">
                     Abra o app do seu banco, escaneie o QR Code ou copie o código Pix Copia e Cola
                     abaixo.
                   </p>
                   {fatura.pix_chave && (
-                    <div className="text-xs">
+                    <div className="text-sm">
                       <span className="font-semibold">Chave PIX:</span> {fatura.pix_chave}
                     </div>
                   )}
-                  <div className="text-xs">
+                  <div className="text-sm">
                     <span className="font-semibold">Favorecido:</span>{" "}
                     {fatura.pix_nome_beneficiario || loja?.razaoSocial || loja?.nome}
                   </div>
-                  <div className="text-xs font-semibold">PIX Copia e Cola</div>
+                  <div className="text-sm font-semibold">PIX Copia e Cola</div>
                   <div className="flex w-full max-w-xs items-start gap-2 sm:max-w-none">
                     <code
                       tabIndex={0}
                       aria-label="Código PIX Copia e Cola completo"
-                      className="min-w-0 flex-1 select-all whitespace-normal break-all rounded border bg-background px-3 py-2 font-mono text-xs leading-relaxed text-foreground sm:text-xs print:border-foreground print:text-xs"
+                      className="min-w-0 flex-1 select-all whitespace-normal break-all rounded border bg-background px-3 py-2 font-mono text-sm leading-relaxed text-foreground sm:text-sm print:border-foreground print:text-sm"
                     >
                       {copiaCola}
                     </code>
