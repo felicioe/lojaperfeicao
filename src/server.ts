@@ -443,7 +443,9 @@ async function tratarImagemCapaNoticiaPublica(request: Request): Promise<Respons
 
   try {
     const { carregarImagemCapaNoticiaPublica } = await import("./lib/noticias-publica");
-    const imagem = await carregarImagemCapaNoticiaPublica(match[1]);
+    const { dadosSessaoCrua } = await import("./lib/backend/session");
+    const incluirRestritas = !!(await dadosSessaoCrua(request));
+    const imagem = await carregarImagemCapaNoticiaPublica(match[1], incluirRestritas);
     if (!imagem) return new Response("Not Found", { status: 404 });
     return new Response(new Uint8Array(imagem.buffer), {
       headers: {
@@ -466,7 +468,9 @@ async function tratarAnexoNoticiaPublica(request: Request): Promise<Response | n
 
   try {
     const { carregarAnexoNoticiaPublica } = await import("./lib/noticias-publica");
-    const anexo = await carregarAnexoNoticiaPublica(match[1]);
+    const { dadosSessaoCrua } = await import("./lib/backend/session");
+    const incluirRestritas = !!(await dadosSessaoCrua(request));
+    const anexo = await carregarAnexoNoticiaPublica(match[1], incluirRestritas);
     if (!anexo) return new Response("Not Found", { status: 404 });
     const headers: Record<string, string> = {
       "content-type": anexo.mime,
