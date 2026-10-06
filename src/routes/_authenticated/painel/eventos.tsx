@@ -122,7 +122,7 @@ function EventoCard({ evento, onDone }: { evento: Evento; onDone: () => void }) 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-medium">{evento.titulo}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {fmtDate(evento.data)}
               {evento.hora ? ` às ${evento.hora.slice(0, 5)}` : ""}
               {evento.org_nome ? ` · ${evento.org_nome}` : ""}
@@ -159,7 +159,7 @@ function EventoCard({ evento, onDone }: { evento: Evento; onDone: () => void }) 
           </div>
         )}
         {evento.minha_participacao && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Sua resposta: <strong>{PARTICIPA_LABEL[evento.minha_participacao]}</strong>
             {evento.tem_agape && evento.meu_agape ? " · vai ao ágape" : ""}
           </p>

@@ -117,7 +117,7 @@ function PainelFinanceiro() {
           <div>
             <p className="text-sm text-muted-foreground">Em aberto</p>
             <p className="text-2xl font-semibold">{brl(totalEmAberto)}</p>
-            <p className="text-xs text-muted-foreground">{emAberto.length} lançamento(s)</p>
+            <p className="text-sm text-muted-foreground">{emAberto.length} lançamento(s)</p>
           </div>
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
             <Wallet className="h-5 w-5" />
@@ -175,7 +175,7 @@ function PainelFinanceiro() {
                 <CardContent className="flex items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{l.descricao}</p>
-                    <p className="text-xs text-muted-foreground">{fmtDate(l.data)}</p>
+                    <p className="text-sm text-muted-foreground">{fmtDate(l.data)}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-sm font-semibold">

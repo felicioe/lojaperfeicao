@@ -125,7 +125,7 @@ function MeuChamadoDetalhe() {
         {chamado.mensagens.map((m) => (
           <Card key={m.id} className={m.eh_super_admin ? "border-primary/40" : undefined}>
             <CardContent className="pt-4 space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">
                   {m.eh_super_admin ? "Suporte da plataforma" : "Você"}
                 </span>
@@ -137,7 +137,7 @@ function MeuChamadoDetalhe() {
                   {m.anexos.map((a) => (
                     <li
                       key={a.id}
-                      className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground"
+                      className="flex items-center gap-1 rounded-md border px-2 py-1 text-sm text-muted-foreground"
                     >
                       <Paperclip className="h-3 w-3" /> {a.nome_arquivo}
                     </li>
@@ -170,7 +170,7 @@ function MeuChamadoDetalhe() {
                 {anexos.map((a, i) => (
                   <li
                     key={`${a.nomeArquivo}-${i}`}
-                    className="flex items-center justify-between rounded-md border px-2 py-1 text-xs"
+                    className="flex items-center justify-between rounded-md border px-2 py-1 text-sm"
                   >
                     <span className="flex items-center gap-1.5 truncate">
                       <Paperclip className="h-3 w-3 shrink-0" /> {a.nomeArquivo}

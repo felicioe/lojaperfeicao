@@ -58,7 +58,7 @@ function PainelFrequencia() {
           <div>
             <p className="text-sm text-muted-foreground">Frequência</p>
             <p className="text-2xl font-semibold">{percentual}%</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {presencas} de {itens.length} sessão(ões)
             </p>
           </div>
@@ -98,7 +98,7 @@ function PainelFrequencia() {
                 <CardContent className="flex items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{fmtDate(f.data)}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       {TIPO_SESSAO_LABEL[f.tipo] ?? f.tipo}
                     </p>
                   </div>
