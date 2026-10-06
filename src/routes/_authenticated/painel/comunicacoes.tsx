@@ -68,7 +68,7 @@ function PainelComunicacoes() {
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">{fmtDate(c.criado_em)}</p>
+            <p className="text-sm text-muted-foreground">{fmtDate(c.criado_em)}</p>
             <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{c.corpo}</p>
           </CardContent>
         </Card>

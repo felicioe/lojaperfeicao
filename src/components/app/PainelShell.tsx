@@ -131,7 +131,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
               aria-label="Meus dados"
             >
               <Avatar className="h-9 w-9 border">
-                <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+                <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
                   {iniciais(user?.nomeCompleto)}
                 </AvatarFallback>
               </Avatar>
@@ -177,7 +177,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
                   to={aba.to}
                   aria-current={ativo ? "page" : undefined}
                   className={cn(
-                    "flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 py-2 text-xs transition-[opacity,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-foreground",
+                    "flex min-h-[4.5rem] flex-1 flex-col items-center justify-center gap-1 py-2 text-sm transition-[opacity,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-foreground",
                     ativo
                       ? "opacity-100 bg-white/10"
                       : "opacity-60 hover:opacity-85 hover:bg-white/5",
@@ -208,7 +208,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
               <div className="truncate text-sm font-semibold">
                 {user?.nomeCompleto ?? user?.email}
               </div>
-              <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
+              <div className="truncate text-sm text-muted-foreground">{user?.email}</div>
             </div>
             <nav
               aria-label="Menu do usuário"
@@ -239,7 +239,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
 
               {itensGaveta.length > 0 && (
                 <div className="space-y-1">
-                  <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="px-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                     Mais opções
                   </p>
                   {itensGaveta.map((item) => (
@@ -266,7 +266,7 @@ export function PainelShell({ children }: { children: ReactNode }) {
               )}
 
               <div className="space-y-1">
-                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="px-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   Conta
                 </p>
                 <Button

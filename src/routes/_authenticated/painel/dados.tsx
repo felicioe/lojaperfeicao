@@ -209,7 +209,7 @@ function FichaCard({ irmao }: { irmao: Irmao }) {
               {irmao.nome_simbolico && (
                 <p className="truncate text-sm text-muted-foreground">{irmao.nome_simbolico}</p>
               )}
-              <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
                 <CalendarDays className="h-3.5 w-3.5" />
                 <span>Iniciado em {fmtDate(irmao.data_iniciacao)}</span>
               </div>
@@ -233,12 +233,12 @@ function FichaCard({ irmao }: { irmao: Irmao }) {
       </CardContent>
       <Separator />
       <CardFooter className="grid grid-cols-2 gap-2 p-3">
-        <Button variant="ghost" size="sm" asChild className="justify-center gap-1.5 text-xs">
+        <Button variant="ghost" size="sm" asChild className="justify-center gap-1.5 text-sm">
           <Link to="/painel/financeiro">
             <Wallet className="h-3.5 w-3.5" /> Situação financeira
           </Link>
         </Button>
-        <Button variant="ghost" size="sm" asChild className="justify-center gap-1.5 text-xs">
+        <Button variant="ghost" size="sm" asChild className="justify-center gap-1.5 text-sm">
           <Link to="/painel/quitacao">
             <ScrollText className="h-3.5 w-3.5" /> Certificado de quitação
           </Link>
@@ -251,7 +251,7 @@ function FichaCard({ irmao }: { irmao: Irmao }) {
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="min-w-0">
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-sm text-muted-foreground">{label}</div>
       <div className="truncate text-sm font-medium">{value || "—"}</div>
     </div>
   );

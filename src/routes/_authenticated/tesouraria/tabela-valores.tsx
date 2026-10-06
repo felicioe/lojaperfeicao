@@ -792,7 +792,12 @@ function TaxasPotenciaPanel() {
                     {form.id ? "Salvar" : "Adicionar"}
                   </Button>
                   {form.id && (
-                    <Button variant="outline" size="icon" onClick={() => setForm(FORM_VAZIO_TAXA)}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="Cancelar edição"
+                      onClick={() => setForm(FORM_VAZIO_TAXA)}
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   )}

@@ -67,7 +67,7 @@ function PainelSessoes() {
             <CardContent className="flex items-center justify-between gap-3 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">{fmtDate(s.data)}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {TIPO_SESSAO_LABEL[s.tipo] ?? s.tipo}
                   {s.org_nome ? ` · ${s.org_nome}` : ""} · Grau {s.grau}
                   {s.nome_grau ? ` (${s.nome_grau})` : ""}

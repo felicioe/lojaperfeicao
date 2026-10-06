@@ -198,7 +198,7 @@ function MeusChamados() {
                     {anexos.map((a, i) => (
                       <li
                         key={`${a.nomeArquivo}-${i}`}
-                        className="flex items-center justify-between rounded-md border px-2 py-1 text-xs"
+                        className="flex items-center justify-between rounded-md border px-2 py-1 text-sm"
                       >
                         <span className="flex items-center gap-1.5 truncate">
                           <Paperclip className="h-3 w-3 shrink-0" /> {a.nomeArquivo}
@@ -275,7 +275,7 @@ function MeusChamados() {
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[c.status]}>{STATUS_LABEL[c.status]}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs">{dataHora(c.atualizado_em)}</TableCell>
+                    <TableCell className="text-sm">{dataHora(c.atualizado_em)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" asChild>
                         <Link to="/painel/chamados/$id" params={{ id: c.id }}>

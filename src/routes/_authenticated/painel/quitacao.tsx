@@ -80,7 +80,7 @@ function PainelQuitacao() {
             , encontra-se <strong className="text-foreground">quite</strong> com suas obrigações
             financeiras junto a esta Loja até a presente data, não havendo mensalidades em aberto.
           </p>
-          <p className="text-xs text-muted-foreground">Emitido em {hoje}.</p>
+          <p className="text-sm text-muted-foreground">Emitido em {hoje}.</p>
         </CardContent>
       </Card>
     </div>

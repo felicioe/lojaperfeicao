@@ -213,7 +213,7 @@ function PainelInicio() {
           </div>
           <Link
             to="/painel/dados"
-            className="flex shrink-0 items-center gap-2 rounded-full bg-background px-3 py-2 text-xs font-medium shadow-sm"
+            className="flex shrink-0 items-center gap-2 rounded-full bg-background px-3 py-2 text-sm font-medium shadow-sm"
           >
             <UserRound className="h-4 w-4" />
             Meus Dados
@@ -271,7 +271,7 @@ function GradeTiles({ itens }: { itens: ItemMobileIrmao[] }) {
           >
             <t.icon className="h-10 w-10" />
           </div>
-          <span className="text-xs leading-tight text-foreground">{t.label}</span>
+          <span className="text-sm leading-tight text-foreground">{t.label}</span>
         </Link>
       ))}
     </div>
@@ -306,7 +306,7 @@ function MetricCard({
           <div className="min-w-0">
             <p className="text-sm text-muted-foreground">{label}</p>
             <p className="text-2xl font-semibold mt-1">{value}</p>
-            {hint && <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p>}
+            {hint && <p className="mt-1 truncate text-sm text-muted-foreground">{hint}</p>}
           </div>
           <div className={`shrink-0 rounded-md p-2 ${toneClass}`}>
             <Icon className="h-5 w-5" />
