@@ -51,7 +51,13 @@ export function useMovimentosFiltrados(filtrosIniciais?: {
           categoria: categoria !== "todas" ? categoria : null,
           irmaoId: irmaoId !== "todos" ? irmaoId : null,
           pago: status === "pago" ? true : status === "todos" ? null : false,
-          limite: 500,
+          // Teto real do backend (listarLancamentos trava em 1000) — subido
+          // de 500 pra reduzir o caso (ainda possível sem filtro de data
+          // numa Loja com histórico muito longo) em que os filtros
+          // client-side de status "Vencido"/"A vencer" escondem lançamentos
+          // reais que ficaram fora do corte (achado da revisão de
+          // frontend, 2026-10-06).
+          limite: 1000,
         },
       }),
   });

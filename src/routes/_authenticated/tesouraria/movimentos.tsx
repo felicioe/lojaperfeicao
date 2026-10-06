@@ -83,6 +83,15 @@ function Movimentos() {
   // aberto como se fosse o total movimentado — mesmo problema já
   // corrigido nos cards de Cobranças SGCAB). Busca à parte, com os
   // mesmos filtros de data/conta/tipo/categoria/irmão mas sem status.
+  // LIMITE_TOTAIS = o máximo aceito pelo backend (listarLancamentos trava em
+  // 1000) — mesmo assim, numa Loja com histórico muito longo sem filtro de
+  // data, ainda pode truncar. Sem aviso, os cards de total pareciam um
+  // número "oficial" quando na real eram só a soma dos N mais recentes
+  // (achado da revisão de frontend, 2026-10-06) — o aviso abaixo não
+  // elimina o truncamento (isso exigiria um endpoint de agregação própria,
+  // fora do escopo desta correção), mas impede que o usuário confie num
+  // total silenciosamente incompleto.
+  const LIMITE_TOTAIS = 1000;
   const { data: movimentosParaTotais = [] } = useQuery({
     queryKey: [
       "movimentos_financeiros_totais",
@@ -103,10 +112,11 @@ function Movimentos() {
           categoria: f.categoria !== "todas" ? f.categoria : null,
           irmaoId: f.irmaoId !== "todos" ? f.irmaoId : null,
           pago: null,
-          limite: 500,
+          limite: LIMITE_TOTAIS,
         },
       }),
   });
+  const totaisTruncados = movimentosParaTotais.length >= LIMITE_TOTAIS;
   const totalEntradas = movimentosParaTotais
     .filter((m) => m.tipo === "entrada")
     .reduce((s, m) => s + Number(m.valor), 0);
@@ -139,6 +149,13 @@ function Movimentos() {
         }
       />
 
+      {totaisTruncados && (
+        <p className="mb-2 text-sm text-amber-600">
+          Mais de {LIMITE_TOTAIS} lançamentos no período filtrado — os totais abaixo consideram só
+          os {LIMITE_TOTAIS} mais recentes e podem estar incompletos. Filtre por data pra ver o
+          total exato de um período menor.
+        </p>
+      )}
       <div className="grid gap-4 md:grid-cols-2 mb-4">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total entradas</div>
