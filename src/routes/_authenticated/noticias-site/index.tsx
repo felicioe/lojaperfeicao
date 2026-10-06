@@ -137,6 +137,7 @@ function NoticiasPage() {
   const [rejeicao, setRejeicao] = useState<{ id: string; motivo: string } | null>(null);
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const [enviandoAnexo, setEnviandoAnexo] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const formularioRef = useRef<HTMLDivElement>(null);
   const [previaEmail, setPreviaEmail] = useState<{
     id: string;
@@ -183,6 +184,12 @@ function NoticiasPage() {
       toast.error("Escolha a coluna desta notícia.");
       return;
     }
+    // Sem este guard, um duplo clique disparava salvarNoticia duas vezes
+    // antes da primeira terminar — com form.id ainda null nas duas, o
+    // backend fazia dois INSERTs e criava notícia duplicada (achado da
+    // revisão de frontend, 2026-10-06).
+    if (salvando) return;
+    setSalvando(true);
     try {
       await salvarNoticia({
         data: {
@@ -204,6 +211,8 @@ function NoticiasPage() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -571,8 +580,11 @@ function NoticiasPage() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={salvar} disabled={!form.titulo.trim() || !form.conteudo.trim()}>
-                    {form.id ? "Salvar alterações" : "Criar notícia"}
+                  <Button
+                    onClick={salvar}
+                    disabled={salvando || !form.titulo.trim() || !form.conteudo.trim()}
+                  >
+                    {salvando ? "Salvando…" : form.id ? "Salvar alterações" : "Criar notícia"}
                   </Button>
                   {form.id && (
                     <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>

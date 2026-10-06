@@ -65,6 +65,7 @@ function ComunicacoesPage() {
   const can = useCan();
   const qc = useQueryClient();
   const [form, setForm] = useState(FORM_VAZIO);
+  const [salvando, setSalvando] = useState(false);
 
   const {
     data: comunicados = [],
@@ -104,6 +105,12 @@ function ComunicacoesPage() {
 
   const salvar = async () => {
     if (!form.titulo.trim() || !form.corpo.trim()) return;
+    // Sem este guard, duplo clique disparava salvarComunicado duas vezes —
+    // dois comunicados idênticos publicados e, se "enviar por e-mail"
+    // estivesse marcado, o e-mail disparado duas vezes pra todo o público
+    // (achado da revisão de frontend, 2026-10-06).
+    if (salvando) return;
+    setSalvando(true);
     try {
       await salvarComunicado({
         data: {
@@ -120,6 +127,8 @@ function ComunicacoesPage() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -221,8 +230,8 @@ function ComunicacoesPage() {
               </label>
             )}
             <div className="flex gap-2">
-              <Button onClick={salvar} disabled={!form.titulo || !form.corpo}>
-                {form.id ? "Salvar alterações" : "Publicar"}
+              <Button onClick={salvar} disabled={salvando || !form.titulo || !form.corpo}>
+                {salvando ? "Salvando…" : form.id ? "Salvar alterações" : "Publicar"}
               </Button>
               {form.id && (
                 <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>
