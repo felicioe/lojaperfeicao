@@ -91,7 +91,14 @@ function Tronco() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["movimentos_financeiros"] }),
       qc.invalidateQueries({ queryKey: ["tronco_resumo"] }),
-      qc.invalidateQueries({ queryKey: ["saldos"] }),
+      // Era "saldos" — chave morta, não usada em nenhum outro lugar do
+      // código. A chave real e compartilhada do saldo das contas
+      // financeiras (contas.tsx, dashboard.tsx, fluxo-caixa.tsx,
+      // conciliacao.tsx, todas com staleTime de 60s) é "saldo_contas" —
+      // sem essa correção, o saldo após um movimento no Tronco ficava
+      // obsoleto por até 60s nas outras telas (achado da revisão de
+      // frontend, 2026-10-06).
+      qc.invalidateQueries({ queryKey: ["saldo_contas"] }),
     ]);
   };
   const ord = useOrdenacao(f.movimentos, {

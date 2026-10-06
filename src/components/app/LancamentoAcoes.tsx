@@ -655,6 +655,13 @@ export function AcoesLancamento({
   receitas: { id: string; codigo: string; nome: string }[];
   onDone: () => void;
 }) {
+  // Guarda de reentrância pros 4 AlertDialogAction abaixo (excluir
+  // transferência, cancelar, desmarcar pago, excluir pago) — nenhum tinha
+  // disabled/estado de carregamento, diferente dos outros diálogos deste
+  // mesmo arquivo. Um duplo clique disparava a chamada duas vezes em
+  // paralelo numa ação descrita como "não pode ser desfeito" (achado da
+  // revisão de frontend, 2026-10-06).
+  const [processando, setProcessando] = useState(false);
   return (
     <div className="flex justify-end gap-1">
       <Link to="/tesouraria/faturas/$id" params={{ id: lancamento.id }}>
@@ -699,13 +706,18 @@ export function AcoesLancamento({
                 <AlertDialogFooter>
                   <AlertDialogCancel>Voltar</AlertDialogCancel>
                   <AlertDialogAction
+                    disabled={processando}
                     onClick={async () => {
+                      if (processando) return;
+                      setProcessando(true);
                       try {
                         await estornarTransferencia({ data: { id: lancamento.id } });
                         toast.success("Transferência excluída.");
                         onDone();
                       } catch (err) {
                         toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
+                      } finally {
+                        setProcessando(false);
                       }
                     }}
                   >
@@ -748,13 +760,18 @@ export function AcoesLancamento({
                     <AlertDialogFooter>
                       <AlertDialogCancel>Voltar</AlertDialogCancel>
                       <AlertDialogAction
+                        disabled={processando}
                         onClick={async () => {
+                          if (processando) return;
+                          setProcessando(true);
                           try {
                             await estornarLancamento({ data: { id: lancamento.id } });
                             toast.success("Lançamento cancelado.");
                             onDone();
                           } catch (err) {
                             toast.error(err instanceof Error ? err.message : "Erro ao cancelar.");
+                          } finally {
+                            setProcessando(false);
                           }
                         }}
                       >
@@ -789,13 +806,18 @@ export function AcoesLancamento({
                 <AlertDialogFooter>
                   <AlertDialogCancel>Voltar</AlertDialogCancel>
                   <AlertDialogAction
+                    disabled={processando}
                     onClick={async () => {
+                      if (processando) return;
+                      setProcessando(true);
                       try {
                         await desmarcarLancamentoPago({ data: { id: lancamento.id } });
                         toast.success("Baixa desfeita.");
                         onDone();
                       } catch (err) {
                         toast.error(err instanceof Error ? err.message : "Erro ao desmarcar.");
+                      } finally {
+                        setProcessando(false);
                       }
                     }}
                   >
@@ -826,13 +848,18 @@ export function AcoesLancamento({
                 <AlertDialogFooter>
                   <AlertDialogCancel>Voltar</AlertDialogCancel>
                   <AlertDialogAction
+                    disabled={processando}
                     onClick={async () => {
+                      if (processando) return;
+                      setProcessando(true);
                       try {
                         await estornarLancamento({ data: { id: lancamento.id } });
                         toast.success("Lançamento excluído.");
                         onDone();
                       } catch (err) {
                         toast.error(err instanceof Error ? err.message : "Erro ao excluir.");
+                      } finally {
+                        setProcessando(false);
                       }
                     }}
                   >

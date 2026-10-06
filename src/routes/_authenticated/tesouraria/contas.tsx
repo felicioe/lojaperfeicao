@@ -86,6 +86,7 @@ function Contas() {
     plano_conta_id: string;
   }>({ nome: "", tipo: "caixa", saldo_inicial: 0, banco: "", plano_conta_id: "" });
   const [editando, setEditando] = useState<SaldoConta | null>(null);
+  const [criando, setCriando] = useState(false);
 
   // queryKey e staleTime iguais aos das demais telas que buscam o mesmo
   // dado (Dashboard, Conciliação, Fluxo de Caixa — achado #550 da auditoria
@@ -112,6 +113,11 @@ function Contas() {
   });
 
   const criar = async () => {
+    // Sem este guard, duplo clique em "Adicionar" criava duas contas
+    // financeiras idênticas — o backend não tem restrição de unicidade em
+    // nome (achado da revisão de frontend, 2026-10-06).
+    if (criando) return;
+    setCriando(true);
     try {
       await criarContaFinanceira({
         data: { ...nova, banco: nova.banco || null, planoContaId: nova.plano_conta_id || null },
@@ -121,6 +127,8 @@ function Contas() {
       qc.invalidateQueries({ queryKey: ["saldo_contas"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar.");
+    } finally {
+      setCriando(false);
     }
   };
 
@@ -207,8 +215,8 @@ function Contas() {
             </p>
           </div>
           <div className="flex items-end">
-            <Button onClick={criar} disabled={!nova.nome}>
-              Adicionar
+            <Button onClick={criar} disabled={criando || !nova.nome}>
+              {criando ? "Adicionando…" : "Adicionar"}
             </Button>
           </div>
         </CardContent>

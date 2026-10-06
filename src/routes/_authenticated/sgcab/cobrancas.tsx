@@ -528,6 +528,7 @@ function AtualizarStatusDialog({ fatura, onDone }: { fatura: SgcabFatura; onDone
   );
   const [observacoes, setObservacoes] = useState(fatura.observacoes ?? "");
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(fatura.comprovante_url);
+  const [enviandoComprovante, setEnviandoComprovante] = useState(false);
   const salvar = async () => {
     try {
       await atualizarFaturaSgcab({
@@ -547,16 +548,29 @@ function AtualizarStatusDialog({ fatura, onDone }: { fatura: SgcabFatura; onDone
     }
   };
   const anexar = async (file: File) => {
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    const r = await uploadComprovanteSgcab({
-      data: { cobrancaId: fatura.id, dataUrl },
-    });
-    setComprovanteUrl(r.url);
+    // Sem try/catch, uma rejeição do backend (tipo de arquivo inválido,
+    // maior que 10MB — validação que só existe no servidor) desaparecia
+    // em silêncio: nenhum toast, comprovanteUrl nunca atualizado, usuário
+    // sem feedback nenhum de que o upload falhou (achado da revisão de
+    // frontend, 2026-10-06).
+    setEnviandoComprovante(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const r = await uploadComprovanteSgcab({
+        data: { cobrancaId: fatura.id, dataUrl },
+      });
+      setComprovanteUrl(r.url);
+      toast.success("Comprovante anexado.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao anexar comprovante.");
+    } finally {
+      setEnviandoComprovante(false);
+    }
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -597,8 +611,12 @@ function AtualizarStatusDialog({ fatura, onDone }: { fatura: SgcabFatura; onDone
                   id="cobrancas-comprovante"
                   type="file"
                   accept="image/*,application/pdf"
+                  disabled={enviandoComprovante}
                   onChange={(e) => e.target.files?.[0] && anexar(e.target.files[0])}
                 />
+                {enviandoComprovante && (
+                  <p className="mt-1 text-xs text-muted-foreground">Enviando…</p>
+                )}
               </div>
             </>
           )}
