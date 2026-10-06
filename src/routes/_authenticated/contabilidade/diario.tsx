@@ -231,8 +231,8 @@ function Diario() {
                         <span
                           className={
                             it.tipo === "debito"
-                              ? "mr-1.5 rounded bg-blue-100 px-1 text-[10px] font-bold text-blue-900 dark:bg-blue-900/40 dark:text-blue-300"
-                              : "mr-1.5 rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-900 dark:bg-amber-900/40 dark:text-amber-300"
+                              ? "mr-1.5 rounded bg-blue-100 px-1 text-xs font-bold text-blue-900 dark:bg-blue-900/40 dark:text-blue-300"
+                              : "mr-1.5 rounded bg-amber-100 px-1 text-xs font-bold text-amber-900 dark:bg-amber-900/40 dark:text-amber-300"
                           }
                         >
                           {it.tipo === "debito" ? "D" : "C"}

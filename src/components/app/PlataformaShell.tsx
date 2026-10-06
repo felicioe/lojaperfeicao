@@ -50,7 +50,7 @@ function PlataformaBrand() {
       </div>
       <div className="min-w-0">
         <div className="text-base font-semibold leading-tight tracking-wide">Plataforma</div>
-        <div className="truncate text-[10px] text-slate-400">Administração SaaS</div>
+        <div className="truncate text-xs text-slate-400">Administração SaaS</div>
       </div>
     </div>
   );

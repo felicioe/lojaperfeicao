@@ -347,14 +347,11 @@ function ImportarPdfSessoesPage() {
                                   </SelectContent>
                                 </Select>
                                 {r.irmaoIdSugerido ? (
-                                  <Badge variant="outline" className="w-fit text-[10px]">
+                                  <Badge variant="outline" className="w-fit text-xs">
                                     sugestão automática
                                   </Badge>
                                 ) : (
-                                  <Badge
-                                    variant="outline"
-                                    className="w-fit text-[10px] text-amber-600"
-                                  >
+                                  <Badge variant="outline" className="w-fit text-xs text-amber-600">
                                     sem sugestão
                                   </Badge>
                                 )}
