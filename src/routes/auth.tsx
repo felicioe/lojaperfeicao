@@ -29,7 +29,7 @@ const ERRO_GOOGLE_LABEL: Record<string, string> = {
     "Este endereço não corresponde a nenhuma loja ativa. Verifique o link de acesso.",
 };
 
-const AUTH_CONTROL_CLASS = "min-h-11 sm:min-h-10";
+const AUTH_CONTROL_CLASS = "min-h-11 sm:min-h-11";
 
 // Quem administra a plataforma (issue #358) cai direto no painel de
 // Plataforma ao entrar, mesmo tendo também papel na própria Loja — "Minha
@@ -275,13 +275,13 @@ function AuthPage() {
                     {authError}
                   </p>
                 )}
-                <Button type="submit" className="min-h-11 w-full sm:min-h-10" disabled={authBusy}>
+                <Button type="submit" className="min-h-11 w-full sm:min-h-11" disabled={authBusy}>
                   {loading ? "Confirmando…" : "Confirmar"}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
-                  className="min-h-11 w-full sm:min-h-10"
+                  className="min-h-11 w-full sm:min-h-11"
                   disabled={loading}
                   onClick={() => {
                     setAguardando2FA(false);
@@ -387,7 +387,7 @@ function AuthPage() {
                     )}
                     <Button
                       type="submit"
-                      className="min-h-11 w-full sm:min-h-10"
+                      className="min-h-11 w-full sm:min-h-11"
                       disabled={authBusy || !aceiteLgpd}
                     >
                       {loading ? "Criando…" : "Criar conta de administrador"}
@@ -565,14 +565,14 @@ function LoginForm({
           {authError}
         </p>
       )}
-      <Button type="submit" className="min-h-11 w-full sm:min-h-10" disabled={authBusy}>
+      <Button type="submit" className="min-h-11 w-full sm:min-h-11" disabled={authBusy}>
         {loading ? "Entrando…" : "Entrar"}
       </Button>
       {webauthnDisponivel && (
         <Button
           type="button"
           variant="outline"
-          className="min-h-11 w-full sm:min-h-10"
+          className="min-h-11 w-full sm:min-h-11"
           disabled={authBusy}
           onClick={handlePasskeyLogin}
         >
@@ -583,7 +583,7 @@ function LoginForm({
       <Button
         type="button"
         variant="outline"
-        className="min-h-11 w-full sm:min-h-10"
+        className="min-h-11 w-full sm:min-h-11"
         disabled={authBusy}
         onClick={handleGoogleLogin}
       >

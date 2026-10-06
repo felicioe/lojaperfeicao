@@ -69,7 +69,7 @@ function AgendaPublicaPage() {
             <p className="text-sm text-muted-foreground">
               A agenda é uma área restrita a Irmãos. Faça login para ver as próximas sessões.
             </p>
-            <Button asChild>
+            <Button className="h-11 sm:h-11" asChild>
               <Link to="/auth" search={{ redirect: "/agenda" }}>
                 Entrar
               </Link>
