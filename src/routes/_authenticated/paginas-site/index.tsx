@@ -104,6 +104,7 @@ function PaginasSitePage() {
   const [slugEditadoManualmente, setSlugEditadoManualmente] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [rejeicao, setRejeicao] = useState<{ id: string; motivo: string } | null>(null);
+  const [salvando, setSalvando] = useState(false);
   const formularioRef = useRef<HTMLDivElement>(null);
 
   const { data: paginas = [] } = useQuery({
@@ -116,6 +117,10 @@ function PaginasSitePage() {
 
   const salvar = async () => {
     if (!form.titulo.trim() || !form.slug.trim() || !form.conteudo.trim()) return;
+    // Mesmo guard de noticias-site/index.tsx: sem isso, duplo clique criava
+    // página duplicada (achado da revisão de frontend, 2026-10-06).
+    if (salvando) return;
+    setSalvando(true);
     try {
       await salvarPaginaSite({
         data: {
@@ -132,6 +137,8 @@ function PaginasSitePage() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -291,9 +298,11 @@ function PaginasSitePage() {
             <div className="flex gap-2">
               <Button
                 onClick={salvar}
-                disabled={!form.titulo.trim() || !form.slug.trim() || !form.conteudo.trim()}
+                disabled={
+                  salvando || !form.titulo.trim() || !form.slug.trim() || !form.conteudo.trim()
+                }
               >
-                {form.id ? "Salvar alterações" : "Criar página"}
+                {salvando ? "Salvando…" : form.id ? "Salvar alterações" : "Criar página"}
               </Button>
               {form.id && (
                 <Button

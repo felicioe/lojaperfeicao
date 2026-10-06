@@ -71,6 +71,7 @@ function MenuSitePage() {
   const can = useCan();
   const qc = useQueryClient();
   const [form, setForm] = useState(FORM_VAZIO);
+  const [salvando, setSalvando] = useState(false);
   const formularioRef = useRef<HTMLDivElement>(null);
 
   const { data: itens = [] } = useQuery({
@@ -98,6 +99,11 @@ function MenuSitePage() {
 
   const salvar = async () => {
     if (!form.label.trim() || !form.destino.trim()) return;
+    // Mesmo guard de noticias-site/paginas-site: sem isso, duplo clique
+    // criava item de menu duplicado (achado da revisão de frontend,
+    // 2026-10-06).
+    if (salvando) return;
+    setSalvando(true);
     try {
       await salvarItemMenuSite({
         data: {
@@ -113,6 +119,8 @@ function MenuSitePage() {
       invalidate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -318,8 +326,11 @@ function MenuSitePage() {
             </p>
           )}
           <div className="flex gap-2">
-            <Button onClick={salvar} disabled={!form.label.trim() || !form.destino.trim()}>
-              {form.id ? "Salvar alterações" : "Criar item"}
+            <Button
+              onClick={salvar}
+              disabled={salvando || !form.label.trim() || !form.destino.trim()}
+            >
+              {salvando ? "Salvando…" : form.id ? "Salvar alterações" : "Criar item"}
             </Button>
             {(form.id || form.parentId) && (
               <Button variant="outline" onClick={() => setForm(FORM_VAZIO)}>

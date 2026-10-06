@@ -55,6 +55,17 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { fmtDate } from "@/lib/format";
 import {
   Fingerprint,
@@ -320,9 +331,30 @@ function PasskeysCard() {
                     {p.usado_em ? fmtDate(p.usado_em) : "Nunca usado"}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => remover(p.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="sm" aria-label="Remover" title="Remover">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Remover "{p.nome_dispositivo ?? "Sem nome"}"?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Este dispositivo não poderá mais entrar sem senha. Se for o único
+                            cadastrado, o login volta a exigir senha (e 2FA, se ativo).
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Voltar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => remover(p.id)}>
+                            Remover
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}
@@ -410,9 +442,21 @@ function Totp2FACard() {
     }
   };
 
-  const copiarCodigos = () => {
-    if (codigosParaMostrar) navigator.clipboard.writeText(codigosParaMostrar.join("\n"));
-    toast.success("Códigos copiados.");
+  const copiarCodigos = async () => {
+    if (!codigosParaMostrar) return;
+    try {
+      await navigator.clipboard.writeText(codigosParaMostrar.join("\n"));
+      toast.success("Códigos copiados.");
+    } catch {
+      // Clipboard API pode falhar silenciosamente (permissão negada,
+      // contexto não seguro, navegador restritivo) — sem aguardar e tratar
+      // o erro, o toast de sucesso aparecia mesmo sem copiar nada, e o
+      // usuário fechava o diálogo achando que tinha salvo os códigos de
+      // recuperação, perdendo-os de vez (eles não são mostrados de novo).
+      toast.error(
+        "Não foi possível copiar automaticamente — selecione e copie os códigos manualmente antes de continuar.",
+      );
+    }
   };
 
   return (
