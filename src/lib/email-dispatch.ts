@@ -1,6 +1,6 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
 import { withUserConnection, withLojaConnection } from "./backend/db";
@@ -1192,6 +1192,24 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
             }))
           : undefined;
 
+      // Reivindica a linha antes de processar (achado da revisão do módulo
+      // Comunicação, 2026-10-06): sem isso, duas execuções concorrentes de
+      // processarFilaEmails (cron atrasado + nova chamada, ou dois crons
+      // configurados) liam a mesma linha com status='erro_permanente' e
+      // mandavam o mesmo e-mail em duplicidade pra todos os destinatários
+      // da fila. UPDATE ... WHERE status='erro_permanente' é atômico por
+      // linha (lock de linha do InnoDB) — só uma das execuções concorrentes
+      // consegue affectedRows=1; a outra vê 0 e pula, sem reenviar nada. O
+      // status 'processando' já existia no ENUM da 0091, mas nunca era
+      // escrito em lugar nenhum.
+      const [resultadoReivindicacao] = await conn.query<ResultSetHeader>(
+        "UPDATE filas_email SET status = 'processando' WHERE id = ? AND status = 'erro_permanente'",
+        [fila.id],
+      );
+      if (resultadoReivindicacao.affectedRows === 0) {
+        continue;
+      }
+
       processadas++;
       try {
         const resultado = await tentarEnviarFilaEmail(
@@ -1216,10 +1234,19 @@ export async function processarFilaEmails(): Promise<ResultadoFilaEmails> {
         }
       } catch (err) {
         // SMTP indisponível/mal configurado numa Loja não pode travar o
-        // retry da fila das demais Lojas atrás dela no mesmo lote.
+        // retry da fila das demais Lojas atrás dela no mesmo lote. A linha
+        // fica em 'processando' até aqui — sem reverter, nenhum próximo
+        // cron (que só busca 'erro_permanente') voltaria a pegá-la.
         console.error(
           `[cron:fila-email] loja ${lojaId ?? "?"}: falha ao processar fila ${fila.id}:`,
           err,
+        );
+        await conn.query(
+          `UPDATE filas_email SET status = 'erro_permanente',
+             ultimo_erro = ?,
+             proxima_tentativa = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 5 MINUTE)
+           WHERE id = ?`,
+          [(err instanceof Error ? err.message : String(err)).slice(0, 500), fila.id],
         );
         falhas++;
       }
