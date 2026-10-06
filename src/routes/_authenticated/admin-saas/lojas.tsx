@@ -427,7 +427,7 @@ function LojasPlataforma() {
                         <Button variant="ghost" size="sm" onClick={() => abrirMenu(l)}>
                           <Menu className="h-4 w-4" />
                           {l.menu_itens_ocultos.length > 0 && (
-                            <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                            <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">
                               {l.menu_itens_ocultos.length}
                             </Badge>
                           )}

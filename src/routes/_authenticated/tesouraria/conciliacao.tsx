@@ -700,22 +700,22 @@ function Conciliacao() {
                           <div className="text-xs text-muted-foreground flex items-center gap-1">
                             {fmtDate(s.data)} · {s.tipo}
                             {!!s.eh_transferencia && (
-                              <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                              <Badge variant="outline" className="h-5 px-1 text-xs">
                                 Transferência
                               </Badge>
                             )}
                             {!s.eh_transferencia && !!s.ja_pago && (
-                              <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                              <Badge variant="outline" className="h-5 px-1 text-xs">
                                 Já pago — aguardando vínculo
                               </Badge>
                             )}
                             {vencida && (
-                              <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                              <Badge variant="destructive" className="h-5 px-1 text-xs">
                                 Vencida
                               </Badge>
                             )}
                             {Number(s.valor_pago) > 0 && (
-                              <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                              <Badge variant="secondary" className="h-5 px-1 text-xs">
                                 Parcial — de {brl(s.valor)}
                               </Badge>
                             )}
@@ -1227,7 +1227,7 @@ function PainelSaldoOutrasAplicacoes({
             <div className="flex items-center gap-2">
               <span className="font-medium">{c.nome}</span>
               {c.id === contaEmConciliacaoId && (
-                <Badge variant="default" className="h-5 px-1.5 text-[10px]">
+                <Badge variant="default" className="h-5 px-1.5 text-xs">
                   Em conciliação
                 </Badge>
               )}

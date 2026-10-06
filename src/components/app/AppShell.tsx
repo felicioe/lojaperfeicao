@@ -151,9 +151,7 @@ function Brand() {
       <img src="/brand/sglfm-mark.svg" alt="SGLFM" className="h-10 w-9 shrink-0 object-contain" />
       <div className="min-w-0">
         <div className="font-serif text-base font-semibold leading-tight tracking-wide">SGLFM</div>
-        <div className="truncate text-[10px] text-sidebar-foreground/60">
-          Gestão de Loja Filosófica
-        </div>
+        <div className="truncate text-xs text-sidebar-foreground/60">Gestão de Loja Filosófica</div>
       </div>
     </div>
   );
@@ -314,7 +312,7 @@ function NavTree({
                   asButtons
                     ? buttonVariants({ variant: "outline", size: "sm" })
                     : "rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
-                  "flex w-full items-center gap-2 border border-transparent px-3 text-[11px] font-semibold uppercase tracking-wider hover:border-sidebar-border hover:bg-sidebar-accent/40",
+                  "flex w-full items-center gap-2 border border-transparent px-3 text-xs font-semibold uppercase tracking-wider hover:border-sidebar-border hover:bg-sidebar-accent/40",
                   asButtons && "h-auto border-sidebar-border",
                   size === "mobile" ? "py-2.5" : "py-2",
                   hasActive
@@ -384,7 +382,7 @@ function NavTree({
                           />
                           <span className="truncate">{i.label}</span>
                           {!!i.badge && (
-                            <span className="ml-auto shrink-0 rounded-full bg-sidebar-primary px-1.5 text-[10px] font-semibold leading-[18px] text-sidebar-primary-foreground">
+                            <span className="ml-auto shrink-0 rounded-full bg-sidebar-primary px-1.5 text-xs font-semibold leading-[18px] text-sidebar-primary-foreground">
                               {i.badge}
                             </span>
                           )}
@@ -1267,7 +1265,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   to="/privacidade"
                   target="_blank"
-                  className="mt-2 block text-center text-[11px] text-sidebar-foreground/55 underline"
+                  className="mt-2 block text-center text-xs text-sidebar-foreground/70 underline"
                 >
                   Política de Privacidade
                 </Link>
@@ -1297,7 +1295,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="min-w-0 flex-1">
             <Brand />
           </div>
-          <div className="hidden min-w-0 max-w-[40%] text-right text-[11px] sm:block">
+          <div className="hidden min-w-0 max-w-[40%] text-right text-xs sm:block">
             <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
             {user?.nomeCompleto && (
               <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
@@ -1349,7 +1347,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   to="/privacidade"
                   target="_blank"
-                  className="shrink-0 text-sidebar-foreground/55 underline"
+                  className="shrink-0 text-sidebar-foreground/70 underline"
                 >
                   Privacidade
                 </Link>

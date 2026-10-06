@@ -191,7 +191,7 @@ export function FaturaCard({ fatura }: { fatura: LancamentoDetalhe }) {
                     <code
                       tabIndex={0}
                       aria-label="Código PIX Copia e Cola completo"
-                      className="min-w-0 flex-1 select-all whitespace-normal break-all rounded border bg-background px-3 py-2 font-mono text-[10px] leading-relaxed text-foreground sm:text-xs print:border-foreground print:text-[9px]"
+                      className="min-w-0 flex-1 select-all whitespace-normal break-all rounded border bg-background px-3 py-2 font-mono text-xs leading-relaxed text-foreground sm:text-xs print:border-foreground print:text-xs"
                     >
                       {copiaCola}
                     </code>

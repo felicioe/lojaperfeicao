@@ -519,9 +519,7 @@ function CalendarioPage() {
                     />
                   ))}
                   {itensDia.length > 4 && (
-                    <span className="text-[10px] text-muted-foreground">
-                      +{itensDia.length - 4}
-                    </span>
+                    <span className="text-xs text-muted-foreground">+{itensDia.length - 4}</span>
                   )}
                 </div>
               </button>

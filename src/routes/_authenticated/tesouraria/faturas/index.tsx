@@ -678,7 +678,7 @@ function EnviarPorEmailTab() {
                 <TableCell>
                   {e.irmao_nome}
                   {!e.tem_email && (
-                    <Badge variant="outline" className="ml-2 h-4 px-1 text-[10px]">
+                    <Badge variant="outline" className="ml-2 h-5 px-1 text-xs">
                       Sem e-mail
                     </Badge>
                   )}
