@@ -108,11 +108,22 @@ export const confirmarAtivacaoTotp = createServerFn({ method: "POST" })
         throw new Error("Nenhuma ativação de 2FA em andamento — comece de novo.");
       }
 
+      // Lockout (achado de auditoria de segurança, 2026-10-06): mesmo
+      // padrão de desativarMeuTotp/regenerarCodigosBackup — sem isso, uma
+      // sessão válida sem 2FA ainda ativo podia bombardear o código de 6
+      // dígitos sem nenhum bloqueio. Chave própria (não totp_self, que é
+      // só pra TOTP já ativo) porque aqui ainda não existe um segredo
+      // "confirmado" — é a ativação em si que precisa de rate limit.
+      const chaveAtivacao = `totp_ativacao:${usuarioId}`;
+      await verificarBloqueio(conn, chaveAtivacao);
+
       const totp = novoTotp(pendente.secret, usuario.email);
       const delta = totp.validate({ token: data.codigo, window: 1 });
       if (delta === null) {
+        await registrarTentativaFalha(conn, chaveAtivacao);
         throw new Error("Código inválido.");
       }
+      await limparTentativas(conn, chaveAtivacao);
 
       // Já grava o step usado na ativação (achado #614) — sem isso, o
       // mesmíssimo código do app ainda poderia ser reaproveitado no
