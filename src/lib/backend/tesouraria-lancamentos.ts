@@ -710,6 +710,8 @@ export const estornarLancamento = createServerFn({ method: "POST" })
           `SELECT
              EXISTS(SELECT 1 FROM recibo_itens
                     WHERE loja_id = @current_loja_id AND lancamento_id = ?) AS tem_recibo,
+             EXISTS(SELECT 1 FROM recibos_avulsos
+                    WHERE loja_id = @current_loja_id AND lancamento_id = ?) AS tem_recibo_avulso,
              EXISTS(SELECT 1 FROM conciliacao_lancamentos
                     WHERE loja_id = @current_loja_id AND lancamento_id = ?) AS tem_conciliacao,
              EXISTS(SELECT 1 FROM ofx_lancamentos
@@ -720,11 +722,20 @@ export const estornarLancamento = createServerFn({ method: "POST" })
                WHERE loja_id = @current_loja_id
                  AND origem_tipo = 'conta_pagar_baixa' AND origem_id = ?
              ) AS tem_baixa_conta_pagar`,
-          [data.id, data.id, data.id, data.id],
+          [data.id, data.id, data.id, data.id, data.id],
         );
         if (vinculo.tem_recibo) {
           throw new Error(
             "Este lançamento foi baixado com recibo — excluir por aqui não desfaz o recibo. Desfaça o recibo primeiro.",
+          );
+        }
+        if (vinculo.tem_recibo_avulso) {
+          // fk_ra_lancamento é ON DELETE RESTRICT — excluir o lançamento sem
+          // antes desfazer o recibo avulso falharia direto na constraint do
+          // banco, com a parte contábil já apagada e sem rollback (achado da
+          // revisão do módulo financeiro/contábil de 2026-10-06).
+          throw new Error(
+            "Este lançamento tem um recibo avulso vinculado — exclua o recibo avulso primeiro.",
           );
         }
         if (vinculo.tem_conciliacao || vinculo.tem_ofx_legado) {
@@ -767,26 +778,38 @@ export const estornarLancamento = createServerFn({ method: "POST" })
       // tronco_saida/recibo_avulso, deixando lançamento contábil órfão pra
       // essas origens (achado #524 da auditoria de integridade entre
       // módulos) — por isso o filtro agora é só por origem_id.
-      const [contabeis] = await conn.query<RowDataPacket[]>(
-        `SELECT id FROM lancamentos_contabeis
-         WHERE loja_id = @current_loja_id
-           AND origem_id = ?`,
-        [data.id],
-      );
-      for (const lc of contabeis) {
-        await conn.query(
-          "DELETE FROM lancamentos_contabeis_itens WHERE loja_id = @current_loja_id AND lancamento_id = ?",
-          [lc.id],
+      // Transação: se o DELETE de `lancamentos` falhar (ex.: uma FK RESTRICT
+      // não coberta pelas checagens de vínculo acima), a contrapartida
+      // contábil já removida precisa voltar — sem isso, o erro deixava a
+      // partida dobrada órfã mesmo com o estorno recusado (achado da revisão
+      // do módulo financeiro/contábil de 2026-10-06).
+      await conn.beginTransaction();
+      try {
+        const [contabeis] = await conn.query<RowDataPacket[]>(
+          `SELECT id FROM lancamentos_contabeis
+           WHERE loja_id = @current_loja_id
+             AND origem_id = ?`,
+          [data.id],
         );
-        await conn.query(
-          "DELETE FROM lancamentos_contabeis WHERE loja_id = @current_loja_id AND id = ?",
-          [lc.id],
-        );
-      }
+        for (const lc of contabeis) {
+          await conn.query(
+            "DELETE FROM lancamentos_contabeis_itens WHERE loja_id = @current_loja_id AND lancamento_id = ?",
+            [lc.id],
+          );
+          await conn.query(
+            "DELETE FROM lancamentos_contabeis WHERE loja_id = @current_loja_id AND id = ?",
+            [lc.id],
+          );
+        }
 
-      await conn.query("DELETE FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?", [
-        data.id,
-      ]);
+        await conn.query("DELETE FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?", [
+          data.id,
+        ]);
+        await conn.commit();
+      } catch (erro) {
+        await conn.rollback();
+        throw erro;
+      }
       await registrarAuditoria(
         conn,
         usuarioIdAtual,
