@@ -7,6 +7,7 @@ import {
   listarMembrosOrg,
   listarResponsaveisSessoes,
   togglePresenca as togglePresencaFn,
+  definirJustificativaPresenca,
   atualizarDetalhesSessao,
 } from "@/lib/backend/sessoes";
 import { PageHeader } from "@/components/app/AppShell";
@@ -94,6 +95,21 @@ function SessaoDetail() {
       qc.invalidateQueries({ queryKey: ["presencas", id] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao atualizar presença.");
+    }
+  };
+
+  const toggleJustificativa = async (
+    e: React.MouseEvent,
+    irmaoId: string,
+    justificado: boolean,
+  ) => {
+    e.stopPropagation();
+    if (!can.isSecretario) return;
+    try {
+      await definirJustificativaPresenca({ data: { sessaoId: id, irmaoId, justificado } });
+      qc.invalidateQueries({ queryKey: ["presencas", id] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar justificativa.");
     }
   };
 
@@ -200,7 +216,9 @@ function SessaoDetail() {
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {elegiveis.map((m) => {
-                const presente = map.get(m.irmao_id)?.presente ?? false;
+                const registro = map.get(m.irmao_id);
+                const presente = registro?.presente ?? false;
+                const justificado = registro?.justificado ?? false;
                 return (
                   <button
                     key={m.irmao_id}
@@ -208,10 +226,12 @@ function SessaoDetail() {
                     disabled={!can.isSecretario}
                     onClick={() => togglePresenca(m.irmao_id, !presente)}
                     className={cn(
-                      "rounded-md p-3 text-left text-sm font-medium text-white transition-colors",
+                      "relative rounded-md p-3 text-left text-sm font-medium text-white transition-colors",
                       presente
                         ? "bg-emerald-600 hover:bg-emerald-700"
-                        : "bg-red-600 hover:bg-red-700",
+                        : justificado
+                          ? "bg-amber-600 hover:bg-amber-700"
+                          : "bg-red-600 hover:bg-red-700",
                       !can.isSecretario && "cursor-default",
                       can.isSecretario && "cursor-pointer",
                     )}
@@ -221,6 +241,26 @@ function SessaoDetail() {
                       <div className="text-xs font-normal uppercase opacity-90">
                         {m.nome_simbolico}
                       </div>
+                    )}
+                    {!presente && can.isSecretario && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => toggleJustificativa(e, m.irmao_id, !justificado)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleJustificativa(
+                              e as unknown as React.MouseEvent,
+                              m.irmao_id,
+                              !justificado,
+                            );
+                          }
+                        }}
+                        className="mt-1 block text-xs font-normal underline decoration-dotted opacity-90 hover:opacity-100"
+                      >
+                        {justificado ? "Justificada ✓" : "Marcar justificada"}
+                      </span>
                     )}
                   </button>
                 );
