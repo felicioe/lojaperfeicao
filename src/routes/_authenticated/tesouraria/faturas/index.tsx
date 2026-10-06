@@ -218,11 +218,19 @@ function Faturas() {
       />
 
       <Tabs defaultValue="lote">
-        <TabsList className="mb-4">
-          <TabsTrigger value="lote">Emissão em lote</TabsTrigger>
-          <TabsTrigger value="individual">Emissão individual</TabsTrigger>
-          <TabsTrigger value="abertas">Em aberto</TabsTrigger>
-          <TabsTrigger value="email">Enviar por e-mail</TabsTrigger>
+        <TabsList className="mb-4 h-auto sm:h-9">
+          <TabsTrigger value="lote" className="min-h-11 sm:min-h-0">
+            Emissão em lote
+          </TabsTrigger>
+          <TabsTrigger value="individual" className="min-h-11 sm:min-h-0">
+            Emissão individual
+          </TabsTrigger>
+          <TabsTrigger value="abertas" className="min-h-11 sm:min-h-0">
+            Em aberto
+          </TabsTrigger>
+          <TabsTrigger value="email" className="min-h-11 sm:min-h-0">
+            Enviar por e-mail
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lote" className="space-y-4">

@@ -499,7 +499,7 @@ function Conciliacao() {
         <div>
           <Label htmlFor="conciliacao-conta">Conta bancária</Label>
           <Select value={contaId} onValueChange={setContaId}>
-            <SelectTrigger id="conciliacao-conta">
+            <SelectTrigger id="conciliacao-conta" className="h-11 sm:h-9">
               <SelectValue placeholder="Selecione…" />
             </SelectTrigger>
             <SelectContent>
@@ -523,7 +523,7 @@ function Conciliacao() {
               />
             </div>
             <div>
-              <Button onClick={importar} disabled={importando || !contaId}>
+              <Button onClick={importar} disabled={importando || !contaId} className="h-11 sm:h-9">
                 {importando ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                 ) : (
