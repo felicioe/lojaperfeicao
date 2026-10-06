@@ -23,6 +23,12 @@ export type ComissaoMembro = {
 
 export const PAPEIS_SUGERIDOS = ["Presidente", "Suplente", "Secretário", "Membro"];
 
+// Só os dois papéis estruturalmente singulares de uma comissão — Suplente e
+// Membro são livremente plurais por natureza (uma comissão pode ter vários
+// suplentes/membros), e `papel` é texto livre (não um enum), então não dá
+// pra impor singularidade genérica sem quebrar esse uso legítimo.
+const PAPEIS_SINGULARES = ["Presidente", "Secretário"];
+
 export const listarComissoes = createServerFn({ method: "GET" }).handler(
   async (): Promise<Comissao[]> => {
     return comSessao(async (conn) => {
@@ -117,6 +123,24 @@ export const criarComissaoMembro = createServerFn({ method: "POST" })
         [data.irmaoId],
       );
       if (!irmao) throw new Error("Irmão não encontrado nesta Loja.");
+      if (PAPEIS_SINGULARES.includes(data.papel)) {
+        // A UNIQUE (comissao_id, papel, irmao_id) só impede duplicar a
+        // MESMA pessoa no mesmo papel — sem esta checagem, dava pra colocar
+        // dois irmãos diferentes como Presidente (ou Secretário) da mesma
+        // comissão ao mesmo tempo (achado da revisão do módulo Irmãos/
+        // SGCAB, mesma classe de bug já corrigida em criarGestaoCargo).
+        const [[jaOcupado]] = await conn.query<RowDataPacket[]>(
+          `SELECT i.nome_civil FROM comissao_membros cm
+             JOIN irmaos i ON i.id = cm.irmao_id AND i.loja_id = @current_loja_id
+            WHERE cm.comissao_id = ? AND cm.papel = ? AND cm.loja_id = @current_loja_id`,
+          [data.comissaoId, data.papel],
+        );
+        if (jaOcupado) {
+          throw new Error(
+            `${data.papel} já está ocupado por ${jaOcupado.nome_civil} nesta comissão.`,
+          );
+        }
+      }
       await conn.query(
         "INSERT INTO comissao_membros (loja_id, comissao_id, papel, irmao_id) VALUES (?, ?, ?, ?)",
         [lojaId, data.comissaoId, data.papel, data.irmaoId],
