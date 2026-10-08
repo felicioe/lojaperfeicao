@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
 import { comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+import { reconstruirDataPagamentoLote } from "./conciliacao-pareamento";
 
 // Conferência de saldo por PDF (issue #720) — a Conciliação Bancária hoje só
 // confere o extrato OFX linha a linha. Várias contas (aplicações/RDC, Conta
@@ -187,7 +188,72 @@ export async function calcularSaldoSistemaNaData(
      GROUP BY cf.id, cf.saldo_inicial`,
     [dataReferencia, dataReferencia, dataReferencia, contaId],
   );
-  return linha?.saldo == null ? null : Number(linha.saldo);
+  if (linha?.saldo == null) return null;
+
+  // Contribuição de conciliação em LOTE (conciliacoes/conciliacao_lancamentos)
+  // — fica de fora da query acima de propósito, igual ao mesmo cálculo em
+  // obterResumoConciliacaoOfx (tesouraria-conciliacao.ts): um lançamento
+  // pago parcialmente num lote (v_fecha=FALSE em conciliar_ofx_lote)
+  // continua com pago=FALSE, então a UNION ALL acima nunca o soma — mas o
+  // dinheiro já bateu na conta de verdade. Sem isto, a Conferência de Saldo
+  // por PDF e o saldo manual (que chamam esta função) subestimavam o saldo
+  // de qualquer conta com pagamento parcial via lote (achado da revisão de
+  // metodologia, 2026-10-08) — o mesmo bug que obterResumoConciliacaoOfx já
+  // resolve no caminho "tem extrato OFX importado", nunca replicado aqui.
+  const [clRows] = await conn.query<RowDataPacket[]>(
+    `SELECT cl.id, cl.conciliacao_id, cl.valor_aplicado AS valor, l.tipo,
+            c.data_conciliacao, COALESCE(l.data_vencimento, l.data) AS ordenacao
+     FROM conciliacao_lancamentos cl
+     JOIN conciliacoes c ON c.id = cl.conciliacao_id AND c.loja_id = cl.loja_id
+                        AND c.status = 'ativa'
+     JOIN lancamentos l ON l.id = cl.lancamento_id AND l.loja_id = cl.loja_id
+     WHERE cl.loja_id = @current_loja_id AND c.conta_financeira_id = ?`,
+    [contaId],
+  );
+  let loteSaldo = 0;
+  if (clRows.length > 0) {
+    const idsConciliacao = [...new Set(clRows.map((r) => r.conciliacao_id as string))];
+    const [ofxRows] = await conn.query<RowDataPacket[]>(
+      `SELECT id, conciliacao_id, data, valor FROM ofx_lancamentos
+       WHERE conciliacao_id IN (?) AND loja_id = @current_loja_id`,
+      [idsConciliacao],
+    );
+    const ofxPorConciliacao = new Map<string, { id: string; data: string; valor: number }[]>();
+    for (const o of ofxRows) {
+      const lista = ofxPorConciliacao.get(o.conciliacao_id) ?? [];
+      lista.push({ id: o.id, data: String(o.data), valor: Number(o.valor) });
+      ofxPorConciliacao.set(o.conciliacao_id, lista);
+    }
+    const clPorConciliacao = new Map<string, RowDataPacket[]>();
+    for (const r of clRows) {
+      const lista = clPorConciliacao.get(r.conciliacao_id) ?? [];
+      lista.push(r);
+      clPorConciliacao.set(r.conciliacao_id, lista);
+    }
+    for (const conciliacaoId of idsConciliacao) {
+      const ofxDoLote = ofxPorConciliacao.get(conciliacaoId) ?? [];
+      const clDoLote = clPorConciliacao.get(conciliacaoId) ?? [];
+      const dataPorClId =
+        ofxDoLote.length > 0
+          ? reconstruirDataPagamentoLote(
+              ofxDoLote,
+              clDoLote.map((r) => ({
+                id: r.id as string,
+                ordenacao: String(r.ordenacao),
+                valor: Number(r.valor),
+              })),
+            )
+          : new Map<string, string>();
+      for (const r of clDoLote) {
+        const dataReal = dataPorClId.get(r.id as string) ?? (r.data_conciliacao as string);
+        if (dataReal <= dataReferencia) {
+          loteSaldo += r.tipo === "entrada" ? Number(r.valor) : -Number(r.valor);
+        }
+      }
+    }
+  }
+
+  return Number(linha.saldo) + loteSaldo;
 }
 
 const conferirSchema = z.object({
