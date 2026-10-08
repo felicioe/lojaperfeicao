@@ -118,12 +118,6 @@ type NavItem = {
 };
 type NavGroup = { id: string; label: string; icon: LucideIcon; items: NavItem[] };
 
-// Id do grupo sintético "Favoritos" (issue #453) — precisa ser a mesma
-// string em AppShell (monta o grupo) e NavTree (trata a exclusividade do
-// accordion), por isso vive no escopo do módulo em vez de dentro de um dos
-// dois.
-const FAVORITOS_GROUP_ID = "favoritos-menu";
-
 type SectionChunk = { key: string; label: string | null; items: NavItem[] };
 
 // Agrupa os itens de um grupo por `section` consecutiva, carregando adiante
@@ -207,6 +201,7 @@ function NavTree({
   collapsed = false,
   onExpandGroup,
   asButtons = false,
+  favoritos = [],
 }: {
   dashboard: NavItem;
   groups: NavGroup[];
@@ -228,6 +223,11 @@ function NavTree({
   // Tesouraria/...), que reusa este mesmo NavTree, ficou de fora do pedido
   // e continua só com hover.
   asButtons?: boolean;
+  // Favoritos (issue #453) — cartão destacado fixo, fora do acordeão de
+  // grupos (achado da revisão de design de 2026-10-08: antes era "mais um
+  // grupo" competindo visualmente com Tesouraria/Contabilidade; virou um
+  // bloco próprio, sempre visível, pra reforçar que é atalho, não seção).
+  favoritos?: NavItem[];
 }) {
   const itemPad = size === "mobile" ? "px-3 py-2.5 text-sm" : "px-2.5 py-1.5 text-[13px]";
 
@@ -284,6 +284,36 @@ function NavTree({
         {dashboard.label}
       </Link>
 
+      {favoritos.length > 0 && (
+        <div className="mt-2 rounded-lg bg-sidebar-accent/40 p-2">
+          <div className="flex items-center gap-1.5 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-primary">
+            <Star className="h-3 w-3 shrink-0 fill-current" />
+            Favoritos
+          </div>
+          {favoritos.map((i) => {
+            const active = isActive(i.to);
+            return (
+              <Link
+                key={i.to}
+                to={i.to}
+                onClick={onNavigate}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex w-full items-center justify-start gap-2.5 rounded-md px-2.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
+                  size === "mobile" ? "py-2" : "py-1.5",
+                  active
+                    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                )}
+              >
+                <i.icon className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")} />
+                <span className="truncate">{i.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
       <div className="space-y-1 pt-2">
         {groups.map((g) => {
           const isOpen = open.includes(g.id);
@@ -299,11 +329,9 @@ function NavTree({
                   // isso dava pra abrir Tesouraria+Contabilidade+Comunicação &
                   // Site ao mesmo tempo, ~50 links visíveis de uma vez). O
                   // menu "Meu Painel" (asButtons) só tem 1 grupo, então manter
-                  // o comportamento aditivo ali é inofensivo. Favoritos (issue
-                  // #453) fica de fora da exclusividade nos dois sentidos —
-                  // é pequeno (≤8 itens), não reintroduz o problema original.
-                  if (asButtons || g.id === FAVORITOS_GROUP_ID) return [...prev, g.id];
-                  return prev.includes(FAVORITOS_GROUP_ID) ? [FAVORITOS_GROUP_ID, g.id] : [g.id];
+                  // o comportamento aditivo ali é inofensivo.
+                  if (asButtons) return [...prev, g.id];
+                  return [g.id];
                 })
               }
             >
@@ -412,10 +440,17 @@ function NavTree({
                         >
                           <CollapsibleTrigger
                             className={cn(
-                              "flex w-full items-center gap-1.5 px-2.5 pb-0.5 pt-2 text-xs font-semibold uppercase tracking-wider first:pt-0 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
+                              // Mais discreto que o rótulo do grupo pai (11px/
+                              // semibold/branco cheio quando ativo) — fonte
+                              // menor, peso médio e opacidade mais baixa, pra
+                              // marcar a hierarquia visual grupo > seção
+                              // (achado da revisão de design de 2026-10-08:
+                              // antes os dois tinham quase o mesmo peso
+                              // visual, a seção competindo com o grupo).
+                              "flex w-full items-center gap-1.5 px-2.5 pb-0.5 pt-2 text-[10px] font-medium uppercase tracking-wider first:pt-0 hover:text-sidebar-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
                               sectionActive
-                                ? "text-sidebar-foreground"
-                                : "text-sidebar-foreground/65",
+                                ? "text-sidebar-foreground/85"
+                                : "text-sidebar-foreground/45",
                             )}
                           >
                             <ChevronDown
@@ -957,21 +992,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     })
     .filter((g) => g.items.length > 0);
 
-  // Grupo sintético "Favoritos" (issue #453): fixa até 8 itens no topo da
-  // sidebar, montado a partir do que já sobrou visível (respeitando papel,
-  // ocultos-pela-loja e ocultos-pessoais). Só existe pro NavTree — a paleta
-  // de comando (Ctrl+K) e activeGroupId continuam usando `visibleGroups` sem
-  // o grupo sintético, pra não duplicar chave/resultado de busca.
+  // Favoritos (issue #453): até 8 itens, montados a partir do que já sobrou
+  // visível (respeitando papel, ocultos-pela-loja e ocultos-pessoais).
+  // Renderizado como cartão fixo próprio no NavTree (prop `favoritos`), não
+  // mais como grupo sintético dentro do acordeão (achado da revisão de
+  // design de 2026-10-08) — por isso não entra em `visibleGroups`, e a
+  // paleta de comando (Ctrl+K) nunca precisou dele mesmo quando era grupo,
+  // então nada muda ali.
   const itensFavoritos = visibleGroups
     .flatMap((g) => g.items)
     .filter((i) => (user?.menuFavoritos ?? []).includes(i.to));
-  const navGroups: NavGroup[] =
-    itensFavoritos.length > 0
-      ? [
-          { id: FAVORITOS_GROUP_ID, label: "Favoritos", icon: Star, items: itensFavoritos },
-          ...visibleGroups,
-        ]
-      : visibleGroups;
 
   const activeGroupId = visibleGroups.find((g) => g.items.some((i) => isActive(i.to)))?.id ?? null;
 
@@ -979,26 +1009,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   // ele nascer fechado esperando uma rota ativa dentro dele pra se abrir
   // (achado do critique automático: irmão pousa em /painel, activeGroupId
   // fica null, e a única seção do menu aparece fechada no primeiro acesso).
-  // Favoritos, quando existe, também nasce aberto — é pequeno (≤8 itens) e é
-  // exatamente o atalho que deveria estar visível sem esforço nenhum.
-  const [open, setOpen] = useState<string[]>(() => {
-    const base = can.isMemberOnly
-      ? visibleGroups.map((g) => g.id)
-      : activeGroupId
-        ? [activeGroupId]
-        : [];
-    return itensFavoritos.length > 0 ? [...base, FAVORITOS_GROUP_ID] : base;
-  });
+  const [open, setOpen] = useState<string[]>(() =>
+    can.isMemberOnly ? visibleGroups.map((g) => g.id) : activeGroupId ? [activeGroupId] : [],
+  );
 
   useEffect(() => {
-    // Exclusivo: navegar pra dentro de um grupo fecha os demais, mas
-    // preserva Favoritos aberto (é pequeno, não reintroduz o problema
-    // original de ~50 links visíveis ao mesmo tempo). Menu "Meu Painel" só
-    // tem 1 grupo real, então isto não muda nada pra ele.
+    // Exclusivo: navegar pra dentro de um grupo fecha os demais. Menu "Meu
+    // Painel" só tem 1 grupo real, então isto não muda nada pra ele.
     if (activeGroupId) {
-      setOpen((prev) =>
-        prev.includes(FAVORITOS_GROUP_ID) ? [FAVORITOS_GROUP_ID, activeGroupId] : [activeGroupId],
-      );
+      setOpen([activeGroupId]);
     }
   }, [activeGroupId]);
 
@@ -1155,7 +1174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <NavTree
               dashboard={dashboard}
-              groups={navGroups}
+              groups={visibleGroups}
               isActive={isActive}
               open={open}
               setOpen={setOpen}
@@ -1164,6 +1183,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               collapsed={collapsed}
               onExpandGroup={expandGroup}
               asButtons={can.isMemberOnly}
+              favoritos={itensFavoritos}
             />
           </nav>
 
@@ -1321,7 +1341,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               <NavTree
                 dashboard={dashboard}
-                groups={navGroups}
+                groups={visibleGroups}
                 isActive={isActive}
                 open={open}
                 setOpen={setOpen}
@@ -1330,6 +1350,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 onNavigate={() => setMobileOpen(false)}
                 size="mobile"
                 asButtons={can.isMemberOnly}
+                favoritos={itensFavoritos}
               />
             </nav>
             {/* Rodapé flutuante (achado do usuário) — cartão destacado do
