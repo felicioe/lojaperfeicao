@@ -465,9 +465,27 @@ export const desmarcarLancamentoPago = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     return comPapel(PAPEIS_ESCRITA, async (conn, usuarioIdAtual) => {
       const [[antes]] = await conn.query<RowDataPacket[]>(
-        "SELECT pago, data_pagamento, parcelado FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
+        "SELECT tipo, pago, data_pagamento, parcelado FROM lancamentos WHERE loja_id = @current_loja_id AND id = ?",
         [data.id],
       );
+      if (antes?.tipo === "transferencia") {
+        // "Desmarcar pago" existe pra reabrir fatura/lançamento simples —
+        // transferência tem reversão própria (estornar_transferencia), que
+        // desfaz as DUAS pontas (origem e destino) e a contabilidade junto.
+        // Sem este guard, nada aqui barrava a chamada: nenhuma das
+        // checagens de vínculo abaixo cobre origem_tipo='transferencia', e
+        // o UPDATE final zeraria pago/data_pagamento/valor_pago sem tocar
+        // em lancamentos_contabeis — reproduzindo, por outro caminho, o
+        // mesmo bug de produção que as migrações 0130/0141/0142 já
+        // documentam e corrigiram (transferência "sumindo" do saldo das
+        // duas contas enquanto o Diário/Balancete continua mostrando o
+        // débito/crédito). A UI já não mostra este botão pra transferência
+        // (LancamentoAcoes.tsx) — a trava aqui fecha o caminho direto pela
+        // server function (achado da revisão de metodologia, 2026-10-08).
+        throw new Error(
+          'Transferência entre contas tem reversão própria — use "Excluir" na própria transferência (desfaz as duas pontas e a contabilidade junto). Não é possível reverter por aqui.',
+        );
+      }
       const [[vinculo]] = await conn.query<RowDataPacket[]>(
         `SELECT
            EXISTS(SELECT 1 FROM recibo_itens
