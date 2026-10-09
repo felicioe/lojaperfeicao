@@ -1,8 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { RowDataPacket } from "mysql2";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { comSessao, comPapel } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+
+const execFileAsync = promisify(execFile);
 
 const PAPEIS_ESCRITA = ["admin", "secretario"];
 const CATEGORIAS_DOCUMENTO = [
@@ -30,6 +37,43 @@ export type Documento = {
   criador_nome: string | null;
   criado_em: string;
 };
+
+// .docx/.doc não têm visualização inline no navegador como PDF — essa
+// tabela mapeia o MIME pra extensão esperada pelo LibreOffice headless na
+// conversão (issue do usuário: upload de DOC/DOCX com prévia em PDF).
+const EXTENSAO_CONVERSIVEL_POR_MIME: Record<string, string> = {
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/msword": "doc",
+};
+
+// Gera uma versão em PDF do arquivo via LibreOffice headless, só pra
+// servir de prévia navegável — o original enviado (arquivo_url) nunca
+// depende disso. Retorna null (nunca lança) quando o binário "soffice"
+// não está disponível no processo Node (não confirmado se a Hostinger,
+// hosting compartilhado, tem LibreOffice instalado), quando a conversão
+// estoura o timeout, ou quando o arquivo está corrompido — nesses casos o
+// upload do original continua funcionando normalmente, só sem prévia.
+async function converterParaPdfSeDisponivel(buffer: Buffer, mime: string): Promise<string | null> {
+  const extensao = EXTENSAO_CONVERSIVEL_POR_MIME[mime];
+  if (!extensao) return null; // já é PDF (ou outro formato sem conversor) — nada a fazer
+  let dir: string | null = null;
+  try {
+    dir = await mkdtemp(path.join(tmpdir(), "doc-pdf-"));
+    const entrada = path.join(dir, `arquivo.${extensao}`);
+    await writeFile(entrada, buffer);
+    await execFileAsync(
+      "soffice",
+      ["--headless", "--convert-to", "pdf", "--outdir", dir, entrada],
+      { timeout: 60_000 },
+    );
+    const pdfBuffer = await readFile(path.join(dir, "arquivo.pdf"));
+    return `data:application/pdf;base64,${pdfBuffer.toString("base64")}`;
+  } catch {
+    return null;
+  } finally {
+    if (dir) await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
 
 // achado: listar documentos trazia arquivo_url (o PDF inteiro em base64,
 // LONGTEXT) de TODOS os documentos da loja em toda visita à página — a
@@ -61,18 +105,25 @@ export const listarDocumentos = createServerFn({ method: "GET" }).handler(
 
 // Busca o arquivo (base64) de UM documento por vez, sob demanda — ver nota
 // em DOCUMENTO_SELECT sobre por que a lista não traz mais isso.
+// arquivoPdfUrl é a prévia convertida (null se o original já é PDF, ou se
+// a conversão não rodou/falhou no upload) — ver converterParaPdfSeDisponivel.
 export const obterArquivoDocumento = createServerFn({ method: "GET" })
   .validator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data }): Promise<{ arquivoUrl: string | null }> => {
-    return comSessao(async (conn) => {
-      const [[row]] = await conn.query<RowDataPacket[]>(
-        "SELECT arquivo_url FROM documentos WHERE id = ? AND loja_id = @current_loja_id",
-        [data.id],
-      );
-      if (!row) throw new Error("Documento não encontrado nesta Loja.");
-      return { arquivoUrl: row.arquivo_url || null };
-    });
-  });
+  .handler(
+    async ({ data }): Promise<{ arquivoUrl: string | null; arquivoPdfUrl: string | null }> => {
+      return comSessao(async (conn) => {
+        const [[row]] = await conn.query<RowDataPacket[]>(
+          "SELECT arquivo_url, arquivo_pdf_url FROM documentos WHERE id = ? AND loja_id = @current_loja_id",
+          [data.id],
+        );
+        if (!row) throw new Error("Documento não encontrado nesta Loja.");
+        return {
+          arquivoUrl: row.arquivo_url || null,
+          arquivoPdfUrl: row.arquivo_pdf_url || null,
+        };
+      });
+    },
+  );
 
 const criarDocumentoSchema = z.object({
   titulo: z.string().min(1),
@@ -81,6 +132,7 @@ const criarDocumentoSchema = z.object({
   arquivoUrl: z.string().nullable().optional(),
   arquivoNomeOriginal: z.string().nullable().optional(),
   arquivoMime: z.string().nullable().optional(),
+  arquivoPdfUrl: z.string().nullable().optional(),
 });
 
 export const criarDocumento = createServerFn({ method: "POST" })
@@ -90,8 +142,8 @@ export const criarDocumento = createServerFn({ method: "POST" })
       const id = crypto.randomUUID();
       await conn.query(
         `INSERT INTO documentos
-           (id, loja_id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, criado_por)
-         VALUES (?, ?, ?, ?, ?, SHA2(CONCAT(?, ?), 256), ?, ?, ?, ?)`,
+           (id, loja_id, titulo, categoria, conteudo, hash_conteudo, arquivo_url, arquivo_nome_original, arquivo_mime, arquivo_pdf_url, criado_por)
+         VALUES (?, ?, ?, ?, ?, SHA2(CONCAT(?, ?), 256), ?, ?, ?, ?, ?)`,
         [
           id,
           lojaId,
@@ -103,6 +155,7 @@ export const criarDocumento = createServerFn({ method: "POST" })
           data.arquivoUrl || null,
           data.arquivoNomeOriginal || null,
           data.arquivoMime || null,
+          data.arquivoPdfUrl || null,
           usuarioId,
         ],
       );
@@ -171,27 +224,41 @@ const uploadArquivoSchema = z.object({
   dataUrl: z.string().startsWith("data:"),
 });
 
-const MIME_AUTORIZADOS = ["application/pdf"];
+// Issue do usuário — upload de .docx/.doc em Documentos, além de PDF. O
+// original é sempre preservado (download/compartilhamento continuam no
+// formato enviado); a conversão pra PDF é só uma prévia opcional, ver
+// converterParaPdfSeDisponivel.
+const MIME_AUTORIZADOS = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/msword", // .doc
+];
 const TAMANHO_MAXIMO_BYTES = 60 * 1024 * 1024; // 60 MB — arquivo_url é LONGTEXT (até 4 GB, migração 0117).
 
 export const uploadArquivoDocumento = createServerFn({ method: "POST" })
   .validator((d: unknown) => uploadArquivoSchema.parse(d))
-  .handler(async ({ data }): Promise<{ url: string; nomeOriginal: string; mime: string }> => {
-    return comPapel(PAPEIS_ESCRITA, async () => {
-      const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) throw new Error("Arquivo inválido.");
-      const mime = match[1];
-      if (!MIME_AUTORIZADOS.includes(mime)) {
-        throw new Error("Formato não aceito — envie um arquivo PDF.");
-      }
-      const buffer = Buffer.from(match[2], "base64");
-      if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {
-        throw new Error("Arquivo maior que 60 MB.");
-      }
-      return {
-        url: data.dataUrl,
-        nomeOriginal: data.nomeArquivo,
-        mime,
-      };
-    });
-  });
+  .handler(
+    async ({
+      data,
+    }): Promise<{ url: string; nomeOriginal: string; mime: string; pdfUrl: string | null }> => {
+      return comPapel(PAPEIS_ESCRITA, async () => {
+        const match = data.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) throw new Error("Arquivo inválido.");
+        const mime = match[1];
+        if (!MIME_AUTORIZADOS.includes(mime)) {
+          throw new Error("Formato não aceito — envie um arquivo PDF, DOC ou DOCX.");
+        }
+        const buffer = Buffer.from(match[2], "base64");
+        if (buffer.byteLength > TAMANHO_MAXIMO_BYTES) {
+          throw new Error("Arquivo maior que 60 MB.");
+        }
+        const pdfUrl = await converterParaPdfSeDisponivel(buffer, mime);
+        return {
+          url: data.dataUrl,
+          nomeOriginal: data.nomeArquivo,
+          mime,
+          pdfUrl,
+        };
+      });
+    },
+  );

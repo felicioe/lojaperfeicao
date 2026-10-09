@@ -157,6 +157,7 @@ function LegislacaoPage() {
     enabled: visualizando !== null,
   });
   const arquivoUrl = arquivoVisualizando.data?.arquivoUrl ?? null;
+  const arquivoPdfUrl = arquivoVisualizando.data?.arquivoPdfUrl ?? null;
   // Documentos enviados antes da migração 0117 gravavam só um caminho em
   // disco (ex. "/uploads/legislacao/acervo-0010.pdf") — a Hostinger
   // reconstrói o projeto do zero a cada deploy, então esse arquivo físico
@@ -167,21 +168,30 @@ function LegislacaoPage() {
   // válido se for de fato uma data URL — qualquer outra coisa é um link
   // quebrado herdado do armazenamento antigo.
   const arquivoQuebrado = !!arquivoUrl && !arquivoUrl.startsWith("data:");
+  // .docx/.doc não têm visualização inline no navegador como PDF tem — a
+  // prévia usa a versão convertida (arquivo_pdf_url, gerada no upload via
+  // LibreOffice quando disponível no servidor). Quando o original já é
+  // PDF, a prévia é o próprio arquivo; quando não há conversão disponível
+  // (binário ausente na Hostinger, falha pontual), não há prévia, mas o
+  // download do original continua funcionando normalmente.
+  const ehPdfOriginal = visualizando?.arquivo_mime === "application/pdf";
+  const urlParaPreVisualizacao = ehPdfOriginal ? arquivoUrl : arquivoPdfUrl;
+  const temPreVisualizacao = !!urlParaPreVisualizacao;
   // Nova aba/Imprimir navegam a janela pro arquivo — data URL nessa
   // navegação é bloqueada/inconsistente entre navegadores, então converte
   // pra blob URL (revogado ao trocar/fechar) só pra esses dois usos.
   const [urlVisualizacaoBlob, setUrlVisualizacaoBlob] = useState<string | null>(null);
   useEffect(() => {
-    if (!arquivoUrl || arquivoQuebrado) {
+    if (!urlParaPreVisualizacao || arquivoQuebrado) {
       setUrlVisualizacaoBlob(null);
       return;
     }
-    const blobUrl = dataUrlParaBlobUrl(arquivoUrl);
+    const blobUrl = dataUrlParaBlobUrl(urlParaPreVisualizacao);
     setUrlVisualizacaoBlob(blobUrl);
     return () => {
       if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
     };
-  }, [arquivoUrl, arquivoQuebrado]);
+  }, [urlParaPreVisualizacao, arquivoQuebrado]);
   const [loteAberto, setLoteAberto] = useState(false);
 
   const {
@@ -594,7 +604,9 @@ function LegislacaoPage() {
             <>
               <DialogHeader className="pr-8">
                 <DialogTitle className="truncate">{visualizando.titulo}</DialogTitle>
-                <DialogDescription>Visualização online do documento em PDF.</DialogDescription>
+                <DialogDescription>
+                  Visualização online do documento (PDF ou prévia convertida).
+                </DialogDescription>
               </DialogHeader>
               {arquivoVisualizando.isLoading ? (
                 <p className="flex-1 text-center text-sm text-muted-foreground">
@@ -703,11 +715,22 @@ function LegislacaoPage() {
                       </a>
                     </Button>
                   </div>
-                  <iframe
-                    title={`Visualização de ${visualizando.titulo}`}
-                    src={urlVisualizacaoBlob ?? undefined}
-                    className="min-h-0 flex-1 rounded-lg border bg-white"
-                  />
+                  {temPreVisualizacao ? (
+                    <iframe
+                      title={`Visualização de ${visualizando.titulo}`}
+                      src={urlVisualizacaoBlob ?? undefined}
+                      className="min-h-0 flex-1 rounded-lg border bg-white"
+                    />
+                  ) : (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg border bg-muted/30 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        Sem prévia disponível pra este formato ({visualizando.arquivo_mime}).
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Use "Salvar" acima pra baixar o arquivo original.
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
             </>
@@ -751,7 +774,7 @@ function LoteDocumentos({
   const [progresso, setProgresso] = useState(0);
 
   const enviar = async () => {
-    if (!arquivos.length) return toast.error("Selecione ao menos um PDF.");
+    if (!arquivos.length) return toast.error("Selecione ao menos um arquivo.");
     setEnviando(true);
     const falhas: string[] = [];
     for (const [indice, file] of arquivos.entries()) {
@@ -769,6 +792,7 @@ function LoteDocumentos({
             arquivoUrl: upload.url,
             arquivoNomeOriginal: upload.nomeOriginal,
             arquivoMime: upload.mime,
+            arquivoPdfUrl: upload.pdfUrl,
           },
         });
       } catch {
@@ -788,16 +812,16 @@ function LoteDocumentos({
       <DialogHeader>
         <DialogTitle>Enviar documentos em lote</DialogTitle>
         <DialogDescription>
-          Selecione até 50 PDFs. O nome de cada arquivo será usado como título e poderá ser editado
-          depois.
+          Selecione até 50 arquivos (PDF, DOC ou DOCX). O nome de cada arquivo será usado como
+          título e poderá ser editado depois.
         </DialogDescription>
       </DialogHeader>
       <div>
-        <Label htmlFor="lote-documentos">Arquivos PDF</Label>
+        <Label htmlFor="lote-documentos">Arquivos</Label>
         <Input
           id="lote-documentos"
           type="file"
-          accept=".pdf,application/pdf"
+          accept=".pdf,application/pdf,.doc,application/msword,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           multiple
           disabled={enviando}
           onChange={(e) => setArquivos(Array.from(e.target.files ?? []).slice(0, 50))}
@@ -929,6 +953,7 @@ function NovoDocumento({ onCriado }: { onCriado: () => Promise<void> }) {
     url: string;
     nomeOriginal: string;
     mime: string;
+    pdfUrl: string | null;
   } | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
@@ -963,6 +988,7 @@ function NovoDocumento({ onCriado }: { onCriado: () => Promise<void> }) {
           arquivoUrl: arquivo.url,
           arquivoNomeOriginal: arquivo.nomeOriginal,
           arquivoMime: arquivo.mime,
+          arquivoPdfUrl: arquivo.pdfUrl,
         },
       });
       toast.success("Documento adicionado ao repositório.");
@@ -1001,14 +1027,22 @@ function NovoDocumento({ onCriado }: { onCriado: () => Promise<void> }) {
           <Input
             id="documento-arquivo"
             type="file"
-            accept=".pdf,application/pdf"
+            accept=".pdf,application/pdf,.doc,application/msword,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             disabled={ocupado}
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) void selecionarArquivo(file);
             }}
           />
-          {arquivo && <p className="mt-1 text-xs text-muted-foreground">{arquivo.nomeOriginal}</p>}
+          {arquivo && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {arquivo.nomeOriginal}
+              {arquivo.mime !== "application/pdf" &&
+                (arquivo.pdfUrl
+                  ? " — prévia em PDF gerada automaticamente."
+                  : " — sem prévia em PDF (não foi possível converter); download no formato original continua disponível.")}
+            </p>
+          )}
         </div>
         <div>
           <Label htmlFor="documento-titulo">Título</Label>
