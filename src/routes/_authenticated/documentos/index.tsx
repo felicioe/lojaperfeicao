@@ -157,12 +157,22 @@ function LegislacaoPage() {
     enabled: visualizando !== null,
   });
   const arquivoUrl = arquivoVisualizando.data?.arquivoUrl ?? null;
+  // Documentos enviados antes da migração 0117 gravavam só um caminho em
+  // disco (ex. "/uploads/legislacao/acervo-0010.pdf") — a Hostinger
+  // reconstrói o projeto do zero a cada deploy, então esse arquivo físico
+  // já não existe mais (ver comentário da própria migração: "não há o que
+  // recuperar"). Antes disso virava um iframe em branco sem explicação
+  // nenhuma (achado reportado pelo usuário, 2026-10-09, categoria
+  // Legislação com 242 de 243 documentos nesse estado). `arquivoUrl` só é
+  // válido se for de fato uma data URL — qualquer outra coisa é um link
+  // quebrado herdado do armazenamento antigo.
+  const arquivoQuebrado = !!arquivoUrl && !arquivoUrl.startsWith("data:");
   // Nova aba/Imprimir navegam a janela pro arquivo — data URL nessa
   // navegação é bloqueada/inconsistente entre navegadores, então converte
   // pra blob URL (revogado ao trocar/fechar) só pra esses dois usos.
   const [urlVisualizacaoBlob, setUrlVisualizacaoBlob] = useState<string | null>(null);
   useEffect(() => {
-    if (!arquivoUrl) {
+    if (!arquivoUrl || arquivoQuebrado) {
       setUrlVisualizacaoBlob(null);
       return;
     }
@@ -171,7 +181,7 @@ function LegislacaoPage() {
     return () => {
       if (blobUrl.startsWith("blob:")) URL.revokeObjectURL(blobUrl);
     };
-  }, [arquivoUrl]);
+  }, [arquivoUrl, arquivoQuebrado]);
   const [loteAberto, setLoteAberto] = useState(false);
 
   const {
@@ -594,6 +604,49 @@ function LegislacaoPage() {
                 <p className="flex-1 text-center text-sm text-destructive">
                   Não foi possível carregar o arquivo. Feche e tente novamente.
                 </p>
+              ) : arquivoQuebrado ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+                  <p className="text-sm text-destructive">
+                    O arquivo original deste documento foi perdido num deploy antigo do sistema
+                    (antes da correção que passou a guardar o PDF no banco de dados) e não pode ser
+                    recuperado por aqui.
+                  </p>
+                  {can.isAdmin && (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        Se você tiver o PDF original guardado em outro lugar, exclua este registro e
+                        reenvie o arquivo (botão "Adicionar documento" ou "Enviar em lote").
+                      </p>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <Trash2 className="mr-1.5 h-4 w-4" /> Excluir este registro
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir "{visualizando.titulo}"?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Remove só o registro (título/categoria) — o arquivo já estava perdido.
+                              Não pode ser desfeito.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Voltar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={async () => {
+                                await excluir(visualizando.id);
+                                setVisualizando(null);
+                              }}
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                </div>
               ) : (
                 <>
                   <div className="flex flex-wrap gap-2">
