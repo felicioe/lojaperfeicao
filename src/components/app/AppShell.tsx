@@ -503,6 +503,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     rotasRelatorioContabil.some((rota) => loc.pathname.startsWith(rota));
   const isDesktop = useIsDesktop();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [contaMenuAberto, setContaMenuAberto] = useState(false);
   // Busca ampla de conteúdo (issue #710) — campo fixo no topo do menu
   // lateral, SEM atalho de teclado (diferente da paleta Ctrl+K acima, que é
   // a busca de MENU da issue #697). Debounce de ~300ms antes de trocar a
@@ -1194,12 +1195,25 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           >
             {!collapsed && (
-              <div className="mb-2 text-xs">
-                <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
-                {user?.nomeCompleto && (
-                  <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => setContaMenuAberto((v) => !v)}
+                aria-expanded={contaMenuAberto}
+                className="mb-2 flex w-full items-center justify-between gap-2 rounded-md text-left text-xs transition-colors hover:text-sidebar-foreground"
+              >
+                <span className="min-w-0">
+                  <div className="truncate font-medium">{user?.nomeCompleto ?? user?.email}</div>
+                  {user?.nomeCompleto && (
+                    <div className="truncate text-sidebar-foreground/60">{user?.email}</div>
+                  )}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 shrink-0 text-sidebar-foreground/60 transition-transform",
+                    contaMenuAberto && "rotate-180",
+                  )}
+                />
+              </button>
             )}
             {collapsed ? (
               <>
@@ -1230,66 +1244,73 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <SidebarIcon icon={LogOut} label="Sair" active={false} onClick={signOut} />
               </>
             ) : (
-              <>
-                {can.isSuperAdmin && (
-                  <Button variant="outline" size="sm" className="w-full text-foreground" asChild>
-                    <Link to="/admin-saas">
-                      <Globe className="mr-1 h-3 w-3" /> Plataforma
+              contaMenuAberto && (
+                <>
+                  {can.isSuperAdmin && (
+                    <Button variant="outline" size="sm" className="w-full text-foreground" asChild>
+                      <Link to="/admin-saas">
+                        <Globe className="mr-1 h-3 w-3" /> Plataforma
+                      </Link>
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn("w-full text-foreground", can.isSuperAdmin && "mt-2")}
+                    asChild
+                  >
+                    <Link to="/conta/seguranca">
+                      <Fingerprint className="mr-1 h-3 w-3" /> Segurança
                     </Link>
                   </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn("w-full text-foreground", can.isSuperAdmin && "mt-2")}
-                  asChild
-                >
-                  <Link to="/conta/seguranca">
-                    <Fingerprint className="mr-1 h-3 w-3" /> Segurança
-                  </Link>
-                </Button>
-                {can.isMemberOnly && (
+                  {can.isMemberOnly && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full text-foreground"
+                      asChild
+                    >
+                      <Link to="/painel/ajuda">
+                        <HelpCircle className="mr-1 h-3 w-3" /> Ajuda
+                      </Link>
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
                     className="mt-2 w-full text-foreground"
                     asChild
                   >
-                    <Link to="/painel/ajuda">
-                      <HelpCircle className="mr-1 h-3 w-3" /> Ajuda
+                    <Link to="/conta/menu">
+                      <SlidersHorizontal className="mr-1 h-3 w-3" /> Preferências do Menu
                     </Link>
                   </Button>
-                )}
-                <Button variant="outline" size="sm" className="mt-2 w-full text-foreground" asChild>
-                  <Link to="/conta/menu">
-                    <SlidersHorizontal className="mr-1 h-3 w-3" /> Preferências do Menu
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full text-foreground"
+                    onClick={toggleDark}
+                  >
+                    {dark ? <Sun className="mr-1 h-3 w-3" /> : <Moon className="mr-1 h-3 w-3" />}
+                    {dark ? "Modo claro" : "Modo escuro"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full text-foreground"
+                    onClick={signOut}
+                  >
+                    <LogOut className="mr-1 h-3 w-3" /> Sair
+                  </Button>
+                  <Link
+                    to="/privacidade"
+                    target="_blank"
+                    className="mt-2 block text-center text-xs text-sidebar-foreground/70 underline"
+                  >
+                    Política de Privacidade
                   </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 w-full text-foreground"
-                  onClick={toggleDark}
-                >
-                  {dark ? <Sun className="mr-1 h-3 w-3" /> : <Moon className="mr-1 h-3 w-3" />}
-                  {dark ? "Modo claro" : "Modo escuro"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 w-full text-foreground"
-                  onClick={signOut}
-                >
-                  <LogOut className="mr-1 h-3 w-3" /> Sair
-                </Button>
-                <Link
-                  to="/privacidade"
-                  target="_blank"
-                  className="mt-2 block text-center text-xs text-sidebar-foreground/70 underline"
-                >
-                  Política de Privacidade
-                </Link>
-              </>
+                </>
+              )
             )}
           </div>
         </aside>
