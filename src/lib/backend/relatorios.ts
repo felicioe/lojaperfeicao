@@ -1053,6 +1053,18 @@ async function relatorioExtratoBancarioCreditado(
      JOIN lancamentos l ON l.id = ri.lancamento_id AND l.loja_id = ri.loja_id
      LEFT JOIN irmaos i ON i.id = r.irmao_id AND i.loja_id = r.loja_id
      WHERE r.loja_id = @current_loja_id AND r.conta_financeira_id = ?
+       AND NOT EXISTS (
+         -- Mesma trava do braço avulso logo abaixo (achado do usuário,
+         -- 2026-11-03): uma baixa quitada por recibo cujo lançamento foi
+         -- DEPOIS também vinculado direto a uma linha do OFX (fora de lote
+         -- — conciliacao_id IS NULL) entrava aqui E de novo lá embaixo via
+         -- linhasOfx, dobrando o valor no relatório. Mesma classe de bug já
+         -- corrigida em obterResumoConciliacaoOfx (tesouraria-conciliacao.ts).
+         SELECT 1 FROM recibo_itens ri2
+         JOIN ofx_lancamentos o ON o.lancamento_id = ri2.lancamento_id AND o.loja_id = ri2.loja_id
+         WHERE ri2.recibo_id = r.id AND ri2.loja_id = r.loja_id
+           AND o.conciliacao_id IS NULL AND o.conta_financeira_id = r.conta_financeira_id
+       )
      GROUP BY r.id, r.data, r.criado_em, r.valor_total`,
     [data.contaId],
   );
