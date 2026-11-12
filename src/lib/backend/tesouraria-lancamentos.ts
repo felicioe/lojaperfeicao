@@ -263,6 +263,7 @@ export const baixarFaturaPdf = createServerFn({ method: "GET" })
       const { obterLogosInstitucionais } = await import("./orgs");
       const logos = await obterLogosInstitucionais(conn);
       const { gerarFaturaPdfBuffer } = await import("../fatura-pdf");
+      const { nomeArquivoFatura } = await import("../fatura-nome-arquivo");
       const buffer = await gerarFaturaPdfBuffer(
         fatura,
         {
@@ -274,7 +275,7 @@ export const baixarFaturaPdf = createServerFn({ method: "GET" })
       );
       return {
         base64: buffer.toString("base64"),
-        nomeArquivo: `fatura-${fatura.competencia_mes ?? fatura.id.slice(0, 8)}.pdf`,
+        nomeArquivo: nomeArquivoFatura(fatura),
       };
     });
   });
@@ -355,6 +356,7 @@ export const baixarFaturasAgrupadasPdf = createServerFn({ method: "GET" })
       const { obterLogosInstitucionais } = await import("./orgs");
       const logos = await obterLogosInstitucionais(conn);
       const { gerarFaturasAgrupadasPdfBuffer } = await import("../fatura-pdf");
+      const { nomeArquivoFaturasAgrupadas } = await import("../fatura-nome-arquivo");
       const buffer = await gerarFaturasAgrupadasPdfBuffer(
         faturas,
         {
@@ -366,7 +368,7 @@ export const baixarFaturasAgrupadasPdf = createServerFn({ method: "GET" })
       );
       return {
         base64: buffer.toString("base64"),
-        nomeArquivo: `faturas-agrupadas-${faturas.length}.pdf`,
+        nomeArquivo: nomeArquivoFaturasAgrupadas(faturas),
       };
     });
   });

@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import { comPapel, comSessao } from "./authz";
 import { registrarAuditoria } from "./auditoria";
+import type { DadosParaNomeArquivo } from "../fatura-nome-arquivo";
 
 // Toda esta área (emissão/baixa de faturas) é admin/tesoureiro apenas —
 // mesma regra de lancamentos_write.
@@ -29,6 +30,7 @@ async function enviarRecibosPorEmail(
 ): Promise<void> {
   const { buscarLancamentoParaImpressao } = await import("./tesouraria-lancamentos");
   const { gerarFaturaPdfBuffer } = await import("../fatura-pdf");
+  const { nomeArquivoFatura } = await import("../fatura-nome-arquivo");
   const { enviarArquivoPorEmail } = await import("../email-dispatch");
   const { obterLogosInstitucionais } = await import("./orgs");
 
@@ -67,7 +69,7 @@ async function enviarRecibosPorEmail(
         anexos: [
           {
             buffer,
-            nome: `recibo-${fatura.competencia_mes ?? lancamentoId.slice(0, 8)}.pdf`,
+            nome: nomeArquivoFatura(fatura, "Recibo"),
             mimeType: "application/pdf",
           },
         ],
@@ -442,6 +444,7 @@ export const enviarFaturasAbertasPorEmail = createServerFn({ method: "POST" })
     return comPapel(PAPEIS, async (conn, usuarioIdAtual) => {
       const { buscarLancamentoParaImpressao } = await import("./tesouraria-lancamentos");
       const { gerarFaturaPdfBuffer } = await import("../fatura-pdf");
+      const { nomeArquivoFatura, desambiguarNomesArquivo } = await import("../fatura-nome-arquivo");
       const { enviarArquivoPorEmail } = await import("../email-dispatch");
       const { obterLogosInstitucionais } = await import("./orgs");
 
@@ -484,7 +487,7 @@ export const enviarFaturasAbertasPorEmail = createServerFn({ method: "POST" })
           continue;
         }
         try {
-          const anexos: { buffer: Buffer; nome: string; mimeType: string }[] = [];
+          const gerados: { buffer: Buffer; fatura: DadosParaNomeArquivo }[] = [];
           for (const lancamentoId of dados.lancamentoIds) {
             const fatura = await buscarLancamentoParaImpressao(conn, usuarioIdAtual, lancamentoId);
             if (!fatura) continue;
@@ -497,12 +500,15 @@ export const enviarFaturasAbertasPorEmail = createServerFn({ method: "POST" })
               },
               logos,
             );
-            anexos.push({
-              buffer,
-              nome: `fatura-${fatura.competencia_mes ?? lancamentoId.slice(0, 8)}.pdf`,
-              mimeType: "application/pdf",
-            });
+            gerados.push({ buffer, fatura });
           }
+          // O mesmo irmão pode ter duas faturas com o mesmo vencimento; sem
+          // desambiguar, os dois anexos sairiam com o mesmo nome e um
+          // sobrescreveria o outro no cliente de e-mail.
+          const nomes = desambiguarNomesArquivo(gerados.map((g) => nomeArquivoFatura(g.fatura)));
+          const anexos: { buffer: Buffer; nome: string; mimeType: string }[] = gerados.map(
+            (g, i) => ({ buffer: g.buffer, nome: nomes[i], mimeType: "application/pdf" }),
+          );
           if (anexos.length === 0) {
             irmaosComFalha++;
             continue;
@@ -566,6 +572,7 @@ export const enviarMinhasFaturasEmAbertoPorEmail = createServerFn({ method: "POS
 
       const { buscarLancamentoParaImpressao } = await import("./tesouraria-lancamentos");
       const { gerarFaturaPdfBuffer } = await import("../fatura-pdf");
+      const { nomeArquivoFatura, desambiguarNomesArquivo } = await import("../fatura-nome-arquivo");
       const { enviarArquivoPorEmail } = await import("../email-dispatch");
       const { obterLogosInstitucionais } = await import("./orgs");
 
@@ -574,7 +581,7 @@ export const enviarMinhasFaturasEmAbertoPorEmail = createServerFn({ method: "POS
       );
       const logos = await obterLogosInstitucionais(conn);
 
-      const anexos: { buffer: Buffer; nome: string; mimeType: string }[] = [];
+      const gerados: { buffer: Buffer; fatura: DadosParaNomeArquivo }[] = [];
       for (const linha of linhas) {
         const fatura = await buscarLancamentoParaImpressao(conn, usuarioId, linha.id);
         if (!fatura) continue;
@@ -587,12 +594,14 @@ export const enviarMinhasFaturasEmAbertoPorEmail = createServerFn({ method: "POS
           },
           logos,
         );
-        anexos.push({
-          buffer,
-          nome: `fatura-${fatura.competencia_mes ?? linha.id.slice(0, 8)}.pdf`,
-          mimeType: "application/pdf",
-        });
+        gerados.push({ buffer, fatura });
       }
+      const nomes = desambiguarNomesArquivo(gerados.map((g) => nomeArquivoFatura(g.fatura)));
+      const anexos: { buffer: Buffer; nome: string; mimeType: string }[] = gerados.map((g, i) => ({
+        buffer: g.buffer,
+        nome: nomes[i],
+        mimeType: "application/pdf",
+      }));
       if (anexos.length === 0) return { irmaosEnviados: 0, irmaosSemEmail: 0, irmaosComFalha: 1 };
 
       const resultado = await enviarArquivoPorEmail({
