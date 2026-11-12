@@ -83,7 +83,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ROLE_LABEL } from "@/lib/format";
 import { useIsDesktop } from "@/lib/use-media-query";
 import { useTheme } from "@/lib/use-theme";
@@ -91,6 +91,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { encontrarItemDoCatalogo } from "@/lib/menu-catalogo";
 import { obterContagensMenu } from "@/lib/backend/menu-pendencias";
 import { NotificationBell } from "@/components/app/NotificationBell";
+import { EstrelaFavorito } from "@/components/app/EstrelaFavorito";
 import { PainelShell } from "@/components/app/PainelShell";
 import { PlataformaShell } from "@/components/app/PlataformaShell";
 import { MenuSearch, type MenuSearchGroup } from "@/components/app/MenuSearch";
@@ -100,6 +101,15 @@ import {
   TERMO_MINIMO_BUSCA,
 } from "@/components/app/BuscaConteudo";
 import { useDebounce } from "@/lib/use-debounce";
+import { toast } from "sonner";
+import { mensagemDeErro } from "@/lib/erro";
+import { alternarFavoritoMenu } from "@/lib/backend/menu-preferencias";
+import { SESSAO_QUERY_KEY } from "@/lib/auth-hooks";
+import type { UsuarioSessao } from "@/lib/backend/usuario-sessao";
+
+// Limite de favoritos, espelhando MAX_FAVORITOS de menu-preferencias.ts — o
+// servidor é a autoridade; aqui só evita uma ida ao banco recusada.
+const MAX_FAVORITOS = 8;
 
 type NavItem = {
   to: string;
@@ -202,6 +212,8 @@ function NavTree({
   onExpandGroup,
   asButtons = false,
   favoritos = [],
+  favoritosPorRota,
+  aoAlternarFavorito,
 }: {
   dashboard: NavItem;
   groups: NavGroup[];
@@ -228,6 +240,16 @@ function NavTree({
   // grupo" competindo visualmente com Tesouraria/Contabilidade; virou um
   // bloco próprio, sempre visível, pra reforçar que é atalho, não seção).
   favoritos?: NavItem[];
+  // Conjunto das rotas já favoritadas, para a estrela de cada item saber se
+  // nasce preenchida (issue #782). Separado de `favoritos` (que é a lista
+  // de NavItem já resolvidos do cartão do topo) porque aqui a pergunta é
+  // feita rota a rota, inclusive para itens que ficaram fora do cartão por
+  // alguma razão.
+  favoritosPorRota?: Set<string>;
+  // Marca/desmarca um item como favorito (issue #782) — a estrela ao lado
+  // de cada item chama isto. A rota vai crua (e não o objeto NavItem)
+  // porque é o que a preferência guarda.
+  aoAlternarFavorito?: (rota: string) => void;
 }) {
   const itemPad = size === "mobile" ? "px-3 py-2.5 text-sm" : "px-2.5 py-1.5 text-[13px]";
 
@@ -293,22 +315,45 @@ function NavTree({
           {favoritos.map((i) => {
             const active = isActive(i.to);
             return (
-              <Link
+              <div
                 key={i.to}
-                to={i.to}
-                onClick={onNavigate}
-                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex w-full items-center justify-start gap-2.5 rounded-md px-2.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
-                  size === "mobile" ? "py-2" : "py-1.5",
+                  "flex w-full items-center rounded-md transition-colors",
                   active
-                    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "hover:bg-sidebar-accent/60",
                 )}
               >
-                <i.icon className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")} />
-                <span className="truncate">{i.label}</span>
-              </Link>
+                <Link
+                  to={i.to}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center justify-start gap-2.5 px-2.5 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
+                    size === "mobile" ? "py-2" : "py-1.5",
+                    active
+                      ? "font-medium"
+                      : "text-sidebar-foreground/80 hover:text-sidebar-foreground",
+                  )}
+                >
+                  <i.icon
+                    className={cn("h-3.5 w-3.5 shrink-0", active && "text-sidebar-primary")}
+                  />
+                  <span className="truncate">{i.label}</span>
+                </Link>
+                {aoAlternarFavorito && (
+                  // No cartão de favoritos a estrela fica sempre visível e
+                  // preenchida: é o único jeito de desmarcar sem procurar
+                  // o item de novo dentro do grupo (issue #782).
+                  <span className={cn("pr-1.5", size === "mobile" ? "pr-2.5" : "")}>
+                    <EstrelaFavorito
+                      ativo
+                      rotulo={i.label}
+                      onAlternar={() => aoAlternarFavorito(i.to)}
+                    />
+                  </span>
+                )}
+              </div>
             );
           })}
         </div>
@@ -369,52 +414,88 @@ function NavTree({
                   {(() => {
                     const renderItem = (i: NavItem) => {
                       const active = isActive(i.to);
+                      const marcado = favoritosPorRota?.has(i.to) ?? false;
+                      // O item virou um <div> com <Link> + <button> lado a
+                      // lado (issue #782): antes a linha inteira era um único
+                      // <Link>, e um <button> dentro de <a> é HTML inválido —
+                      // quebraria a navegação por teclado e o leitor de tela.
+                      // O Link agora ocupa o espaço restante (flex-1) e a
+                      // estrela fica no fim da linha.
                       return (
-                        <Link
+                        <div
                           key={i.to}
-                          to={i.to}
-                          onClick={onNavigate}
-                          aria-current={active ? "page" : undefined}
                           className={cn(
-                            asButtons
-                              ? buttonVariants({ variant: "outline", size: "sm" })
-                              : "rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
-                            "flex w-full items-center justify-start gap-2.5 border border-transparent",
-                            asButtons && "h-auto",
-                            itemPad,
-                            i.destructive
-                              ? cn(
-                                  "text-sidebar-destructive hover:border-sidebar-destructive/40 hover:bg-sidebar-destructive/10 hover:text-sidebar-destructive",
-                                  active &&
-                                    "border-sidebar-destructive/40 bg-sidebar-destructive/10 font-medium",
-                                  asButtons && "hover:border-sidebar-destructive/60",
-                                )
-                              : active
-                                ? cn(
-                                    "border-sidebar-accent bg-sidebar-accent font-medium text-sidebar-accent-foreground",
-                                    asButtons && "hover:bg-sidebar-accent",
-                                  )
-                                : cn(
-                                    "text-sidebar-foreground/75 hover:border-sidebar-border hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-                                    asButtons && "border-sidebar-border",
-                                  ),
+                            "group relative flex w-full items-center",
+                            // A estrela aparece no hover/foco do item no
+                            // desktop; no toque fica sempre visível porque
+                            // não existe hover (ver EstrelaFavorito). Um item
+                            // já marcado mantém a estrela à mostra mesmo sem
+                            // hover — senão o usuário não teria como saber,
+                            // de relance, o que já está fixado.
+                            marcado && "[&>button]:opacity-100",
                           )}
                         >
-                          <i.icon
+                          <Link
+                            to={i.to}
+                            onClick={onNavigate}
+                            aria-current={active ? "page" : undefined}
                             className={cn(
-                              "h-3.5 w-3.5 shrink-0",
+                              asButtons
+                                ? buttonVariants({ variant: "outline", size: "sm" })
+                                : "rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring",
+                              "flex min-w-0 flex-1 items-center justify-start gap-2.5 border border-transparent",
+                              asButtons && "h-auto",
+                              itemPad,
                               i.destructive
-                                ? "text-sidebar-destructive"
-                                : active && "text-sidebar-primary",
+                                ? cn(
+                                    "text-sidebar-destructive hover:border-sidebar-destructive/40 hover:bg-sidebar-destructive/10 hover:text-sidebar-destructive",
+                                    active &&
+                                      "border-sidebar-destructive/40 bg-sidebar-destructive/10 font-medium",
+                                    asButtons && "hover:border-sidebar-destructive/60",
+                                  )
+                                : active
+                                  ? cn(
+                                      "border-sidebar-accent bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+                                      asButtons && "hover:bg-sidebar-accent",
+                                    )
+                                  : cn(
+                                      "text-sidebar-foreground/75 hover:border-sidebar-border hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                                      asButtons && "border-sidebar-border",
+                                    ),
                             )}
-                          />
-                          <span className="truncate">{i.label}</span>
-                          {!!i.badge && (
-                            <span className="ml-auto shrink-0 rounded-full bg-sidebar-primary px-1.5 text-xs font-semibold leading-[18px] text-sidebar-primary-foreground">
-                              {i.badge}
-                            </span>
+                          >
+                            <i.icon
+                              className={cn(
+                                "h-3.5 w-3.5 shrink-0",
+                                i.destructive
+                                  ? "text-sidebar-destructive"
+                                  : active && "text-sidebar-primary",
+                              )}
+                            />
+                            <span className="truncate">{i.label}</span>
+                            {!!i.badge && (
+                              <span className="ml-auto shrink-0 rounded-full bg-sidebar-primary px-1.5 text-xs font-semibold leading-[18px] text-sidebar-primary-foreground">
+                                {i.badge}
+                              </span>
+                            )}
+                          </Link>
+                          {aoAlternarFavorito && (
+                            <EstrelaFavorito
+                              ativo={marcado}
+                              rotulo={i.label}
+                              onAlternar={() => aoAlternarFavorito(i.to)}
+                              className={cn(
+                                // Opacidade zero no desktop até o hover ou o
+                                // foco (dentro do item) — as classes ficam no
+                                // próprio botão, então funcionam tanto aqui
+                                // quanto no cartão de favoritos.
+                                !marcado &&
+                                  "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 md:pr-1",
+                                asButtons && "mr-1",
+                              )}
+                            />
                           )}
-                        </Link>
+                        </div>
                       );
                     };
 
@@ -479,7 +560,7 @@ function NavTree({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, can, nav, loc, signOut } = useShellSessao();
+  const { user, can, nav, loc, queryClient, signOut } = useShellSessao();
 
   // Contagens de pendências pro badge do menu (issue #455) — mesmo
   // intervalo de polling do NotificationBell, sem competir com ele por
@@ -1004,6 +1085,73 @@ export function AppShell({ children }: { children: ReactNode }) {
     .flatMap((g) => g.items)
     .filter((i) => (user?.menuFavoritos ?? []).includes(i.to));
 
+  // Estrela de favorito no item do menu (issue #782). O clique é otimista:
+  // a estrela pinta na hora e o servidor é chamado em seguida.
+  //
+  // O estado exibido é a SOBREPOSIÇÃO de duas coisas: a lista do servidor
+  // (user.menuFavoritos, a origem da verdade) e as marcações ainda em
+  // voo (pendentes). Sem a sobreposição, dois cliques rápidos em estrelas
+  // diferentes se perderiam: a resposta do primeiro clique traria a lista
+  // só com ele, e sobrescreveria a marcação do segundo, que ainda não
+  // tinha chegado ao servidor.
+  // O array do servidor é estabilizado pelo useMemo: `user?.menuFavoritos ??
+  // []` criaria uma referência nova a cada render e anularia o useMemo de
+  // baixo (que é o que evita remontar o Set a cada tecla digitada em
+  // qualquer campo da tela — o AppShell re-renderiza junto com tudo).
+  const favoritosDoServidor = useMemo(() => user?.menuFavoritos ?? [], [user?.menuFavoritos]);
+  const [pendentes, setPendentes] = useState<Record<string, boolean>>({});
+  const favoritosPorRota = useMemo(() => {
+    const conjunto = new Set(favoritosDoServidor);
+    for (const [rota, marcado] of Object.entries(pendentes)) {
+      if (marcado) conjunto.add(rota);
+      else conjunto.delete(rota);
+    }
+    return conjunto;
+  }, [favoritosDoServidor, pendentes]);
+
+  const alternarFavorito = async (rota: string) => {
+    const jaEra = favoritosPorRota.has(rota);
+    // Limite de 8 (MAX_FAVORITOS em menu-preferencias.ts) checado aqui
+    // também, para não fazer uma ida ao servidor só pra receber recusa.
+    if (!jaEra && favoritosPorRota.size >= MAX_FAVORITOS) {
+      toast.error(`Você já tem ${MAX_FAVORITOS} favoritos — remova um antes de adicionar outro.`);
+      return;
+    }
+    // Marca como pendente na hora: a estrela muda antes da resposta.
+    setPendentes((anterior) => ({ ...anterior, [rota]: !jaEra }));
+    try {
+      const resultado = await alternarFavoritoMenu({ data: { rota } });
+      if (resultado.limiteAtingido) {
+        setPendentes((anterior) => {
+          const copia = { ...anterior };
+          delete copia[rota];
+          return copia;
+        });
+        toast.error(`Você já tem ${MAX_FAVORITOS} favoritos — remova um antes de adicionar outro.`);
+        return;
+      }
+      // O servidor devolve a lista canônica: em caso de corrida (duas abas)
+      // é ele que manda, não o palpite otimista. O cache da sessão é
+      // atualizado ANTES de tirar a rota de pendente, senão haveria um
+      // instante em que a estrela sumiria.
+      queryClient.setQueryData<UsuarioSessao | null>(SESSAO_QUERY_KEY, (atual) =>
+        atual ? { ...atual, menuFavoritos: resultado.favoritos } : atual,
+      );
+      setPendentes((anterior) => {
+        const copia = { ...anterior };
+        delete copia[rota];
+        return copia;
+      });
+    } catch (err) {
+      setPendentes((anterior) => {
+        const copia = { ...anterior };
+        delete copia[rota];
+        return copia;
+      });
+      toast.error(mensagemDeErro(err, "Erro ao salvar o favorito."));
+    }
+  };
+
   const activeGroupId = visibleGroups.find((g) => g.items.some((i) => isActive(i.to)))?.id ?? null;
 
   // Menu "Meu Painel" (papel único "irmao") tem um grupo só — não faz sentido
@@ -1185,6 +1333,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               onExpandGroup={expandGroup}
               asButtons={can.isMemberOnly}
               favoritos={itensFavoritos}
+              favoritosPorRota={favoritosPorRota}
+              aoAlternarFavorito={alternarFavorito}
             />
           </nav>
 
@@ -1372,6 +1522,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 size="mobile"
                 asButtons={can.isMemberOnly}
                 favoritos={itensFavoritos}
+                favoritosPorRota={favoritosPorRota}
+                aoAlternarFavorito={alternarFavorito}
               />
             </nav>
             {/* Rodapé flutuante (achado do usuário) — cartão destacado do
